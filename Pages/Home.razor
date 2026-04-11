@@ -35,7 +35,7 @@
         }
         @if (!isMaster)
         {
-            <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("/combat")'>
+            <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("combat")'>
                 <span class="card-icon" aria-hidden="true">⚔️</span>
                 <span class="card-title">Combattimento</span>
                 <span class="card-desc">Iniziativa (gestita dal Master)</span>
@@ -48,7 +48,7 @@
         <section class="master-section">
             <h2>Strumenti Master</h2>
             <div class="card-grid master-grid">
-                <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("/combat")'>
+                <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("combat")'>
                     <span class="card-icon" aria-hidden="true">⚔️</span>
                     <span class="card-title">Combattimento</span>
                     <span class="card-desc">Tracker iniziativa</span>
@@ -63,12 +63,12 @@
 
     private readonly FeatureCard[] cards =
     {
-        new("🗡️", "Personaggi",  "Gestisci la tua scheda", "/characters"),
-        new("📜", "Incantesimi", "Consulta gli incantesimi", "/spells"),
-        new("🐉", "Mostri",      "Bestiario e statistiche", "/monsters"),
-        new("📝", "Appunti",     "Note di campagna", "/notes"),
-        new("⚔️", "Classi",      "Manuale delle classi", "/classes"),
-        new("🧝", "Razze",       "Manuale delle razze", "/races"),
+        new("🗡️", "Personaggi",  "Gestisci la tua scheda", "characters"),
+        new("📜", "Incantesimi", "Consulta gli incantesimi", "spells"),
+        new("🐉", "Mostri",      "Bestiario e statistiche", "monsters"),
+        new("📝", "Appunti",     "Note di campagna", "notes"),
+        new("⚔️", "Classi",      "Manuale delle classi", "classes"),
+        new("🧝", "Razze",       "Manuale delle razze", "races"),
     };
 
     private string? nickname;

@@ -8,7 +8,7 @@
 
         if (!await AuthState.IsLoggedInAsync())
         {
-            Navigation.NavigateTo("/login", forceLoad: false, replace: true);
+            Navigation.NavigateTo("login", forceLoad: false, replace: true);
         }
     }
 }

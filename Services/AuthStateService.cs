@@ -45,6 +45,6 @@ public class AuthStateService
         await _js.InvokeVoidAsync("localStorage.removeItem", PlayerIdKey);
         await _js.InvokeVoidAsync("localStorage.removeItem", NicknameKey);
         await _js.InvokeVoidAsync("localStorage.removeItem", RoleKey);
-        _navigation.NavigateTo("/login");
+        _navigation.NavigateTo("login");
     }
 }
