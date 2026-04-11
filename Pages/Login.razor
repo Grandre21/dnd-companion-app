@@ -1,0 +1,242 @@
+@page "/login"
+@layout LoginLayout
+@using System.Security.Cryptography
+@using System.Text
+@using DndCompanion.Models
+@using DndCompanion.Services
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Accesso - D&amp;D Companion</PageTitle>
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <h1>D&amp;D Companion</h1>
+        <p class="subtitle">@(mode == Mode.Register ? "Crea un nuovo account" : "Accedi al tuo account")</p>
+
+        <div class="field">
+            <label for="nickname">Nickname</label>
+            <input id="nickname" type="text" class="input" maxlength="32"
+                   placeholder="Il tuo nickname"
+                   @bind="nickname" @bind:event="oninput" disabled="@isBusy" />
+        </div>
+
+        <div class="field">
+            <label for="pin">PIN (4-6 cifre)</label>
+            <input id="pin" type="password" class="input" inputmode="numeric"
+                   pattern="[0-9]*" maxlength="6" placeholder="••••"
+                   @bind="pin" @bind:event="oninput" disabled="@isBusy" />
+        </div>
+
+        @if (mode == Mode.Register)
+        {
+            <div class="field">
+                <label for="invite-code">Codice Invito</label>
+                <input id="invite-code" type="text" class="input" maxlength="32"
+                       placeholder="Codice fornito dal Master"
+                       @bind="inviteCode" @bind:event="oninput" disabled="@isBusy" />
+            </div>
+
+            <div class="field">
+                <label>Ruolo</label>
+                <div class="role-group">
+                    <button type="button"
+                            class="role-btn @(selectedRole == "Player" ? "active" : "")"
+                            @onclick='() => selectedRole = "Player"'
+                            disabled="@isBusy">
+                        Giocatore
+                    </button>
+                    <button type="button"
+                            class="role-btn @(selectedRole == "Master" ? "active" : "")"
+                            @onclick='() => selectedRole = "Master"'
+                            disabled="@isBusy">
+                        Master
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="error">@errorMessage</div>
+        }
+
+        <div class="actions">
+            @if (mode == Mode.Login)
+            {
+                <button type="button" class="btn primary" @onclick="OnLoginAsync" disabled="@isBusy">
+                    @(isBusy ? "Attendere..." : "Entra")
+                </button>
+                <button type="button" class="btn secondary" @onclick="SwitchToRegister" disabled="@isBusy">
+                    Registrati
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn primary" @onclick="OnRegisterAsync" disabled="@isBusy">
+                    @(isBusy ? "Attendere..." : "Conferma registrazione")
+                </button>
+                <button type="button" class="btn secondary" @onclick="SwitchToLogin" disabled="@isBusy">
+                    Annulla
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private const string RequiredInviteCode = "DUNGEON2025";
+
+    private enum Mode { Login, Register }
+
+    private Mode mode = Mode.Login;
+    private string nickname = string.Empty;
+    private string pin = string.Empty;
+    private string inviteCode = string.Empty;
+    private string selectedRole = "Player";
+    private string? errorMessage;
+    private bool isBusy;
+
+    private void SwitchToRegister()
+    {
+        mode = Mode.Register;
+        errorMessage = null;
+    }
+
+    private void SwitchToLogin()
+    {
+        mode = Mode.Login;
+        errorMessage = null;
+    }
+
+    private bool ValidateInputs()
+    {
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(nickname))
+        {
+            errorMessage = "Inserisci un nickname";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(pin) || pin.Length < 4 || pin.Length > 6 || !pin.All(char.IsDigit))
+        {
+            errorMessage = "Il PIN deve essere di 4-6 cifre numeriche";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task OnLoginAsync()
+    {
+        if (!ValidateInputs()) return;
+
+        isBusy = true;
+        try
+        {
+            var client = await SupabaseService.GetClientAsync();
+            var trimmed = nickname.Trim();
+
+            var response = await client.From<Player>()
+                .Where(p => p.Nickname == trimmed)
+                .Get();
+
+            var player = response.Models.FirstOrDefault();
+            if (player is null)
+            {
+                errorMessage = "Nickname non trovato";
+                return;
+            }
+
+            if (!string.Equals(player.PinHash, HashPin(pin), StringComparison.OrdinalIgnoreCase))
+            {
+                errorMessage = "PIN errato";
+                return;
+            }
+
+            await PersistSessionAsync(player);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore di connessione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task OnRegisterAsync()
+    {
+        if (!ValidateInputs()) return;
+
+        if (!string.Equals(inviteCode.Trim(), RequiredInviteCode, StringComparison.Ordinal))
+        {
+            errorMessage = "Codice invito non valido";
+            return;
+        }
+
+        if (selectedRole != "Player" && selectedRole != "Master")
+        {
+            errorMessage = "Seleziona un ruolo";
+            return;
+        }
+
+        isBusy = true;
+        try
+        {
+            var client = await SupabaseService.GetClientAsync();
+            var trimmed = nickname.Trim();
+
+            var existing = await client.From<Player>()
+                .Where(p => p.Nickname == trimmed)
+                .Get();
+
+            if (existing.Models.Any())
+            {
+                errorMessage = "Questo nickname è già in uso";
+                return;
+            }
+
+            var newPlayer = new Player
+            {
+                Nickname = trimmed,
+                PinHash = HashPin(pin),
+                Role = selectedRole
+            };
+
+            var insertResponse = await client.From<Player>().Insert(newPlayer);
+            var inserted = insertResponse.Models.FirstOrDefault();
+
+            if (inserted is null)
+            {
+                errorMessage = "Errore durante la registrazione";
+                return;
+            }
+
+            await PersistSessionAsync(inserted);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore durante la registrazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private Task PersistSessionAsync(Player player)
+        => AuthState.SetSessionAsync(player.Id, player.Nickname, player.Role);
+
+    private static string HashPin(string pin)
+    {
+        var bytes = Encoding.UTF8.GetBytes(pin);
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+}

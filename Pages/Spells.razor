@@ -1,0 +1,472 @@
+@page "/spells"
+@using DndCompanion.Models
+@implements IDisposable
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Incantesimi - D&amp;D Companion</PageTitle>
+
+<div class="spells-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("/")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Incantesimi</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @if (mode == ViewMode.Form)
+    {
+        <div class="form-view">
+            <div class="form-top">
+                <button type="button" class="back-link" @onclick="CancelForm">← Annulla</button>
+            </div>
+
+            <h2 class="form-title">
+                @(string.IsNullOrEmpty(editDraft.Id) ? "Nuovo Incantesimo" : "Modifica Incantesimo")
+            </h2>
+
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label>Nome</label>
+                    <input type="text" class="input" maxlength="120" @bind="editDraft.Name" />
+                </div>
+
+                <div class="field">
+                    <label>Livello</label>
+                    <input type="number" class="input" min="0" max="9" @bind="editDraft.Level" />
+                </div>
+
+                <div class="field">
+                    <label>Scuola</label>
+                    <input type="text" class="input" maxlength="40" @bind="editDraft.School" />
+                </div>
+
+                <div class="field">
+                    <label>Tempo di Lancio</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.CastingTime" />
+                </div>
+
+                <div class="field">
+                    <label>Gittata</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.Range" />
+                </div>
+
+                <div class="field">
+                    <label>Componenti</label>
+                    <input type="text" class="input" maxlength="120" @bind="editDraft.Components" />
+                </div>
+
+                <div class="field">
+                    <label>Durata</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.Duration" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Classi (es. Mago, Stregone)</label>
+                    <input type="text" class="input" maxlength="120" @bind="editDraft.Classes" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Descrizione</label>
+                    <textarea class="input" rows="8" @bind="editDraft.Description"></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="primary-btn" @onclick="SaveFormAsync" disabled="@isBusy">
+                    @(isBusy ? "Salvataggio..." : "Salva")
+                </button>
+                <button type="button" class="secondary-btn" @onclick="CancelForm" disabled="@isBusy">
+                    Annulla
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="Cerca incantesimi..."
+                   @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
+
+            <div class="filter-label">Livello</div>
+            <div class="chips-row">
+                @foreach (var lvl in levels)
+                {
+                    <button type="button"
+                            class="chip @(levelFilters.Contains(lvl) ? "chip-active" : "")"
+                            @onclick="() => ToggleLevel(lvl)">
+                        @(lvl == 0 ? "Trucchetto" : lvl.ToString())
+                    </button>
+                }
+            </div>
+
+            <div class="filter-label">Classe</div>
+            <div class="chips-row">
+                @foreach (var cls in classes)
+                {
+                    <button type="button"
+                            class="chip @(classFilter == cls.Match ? "chip-active" : "")"
+                            @onclick="() => ToggleClass(cls.Match)">
+                        @cls.Label
+                    </button>
+                }
+            </div>
+
+            <div class="results-info">
+                @if (isLoading)
+                {
+                    <span>Caricamento...</span>
+                }
+                else
+                {
+                    var count = FilteredSpells.Count();
+                    <span>@count @(count == 1 ? "incantesimo trovato" : "incantesimi trovati")</span>
+                }
+            </div>
+        </div>
+
+        <div class="spells-list">
+            @if (!isLoading)
+            {
+                @foreach (var spell in FilteredSpells)
+                {
+                    var isExpanded = expandedId == spell.Id;
+                    <div class="spell-card @(isExpanded ? "expanded" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(spell.Id)">
+                            <div class="card-main">
+                                <div class="card-name">@spell.Name</div>
+                                <div class="card-meta">
+                                    <span class="level-badge">@(spell.Level == 0 ? "Trucchetto" : $"Liv {spell.Level}")</span>
+                                    <span class="school">@spell.School</span>
+                                    @{ var author = GetAuthorName(spell.AddedBy); }
+                                    @if (!string.IsNullOrEmpty(author))
+                                    {
+                                        <span class="author-badge" title="Aggiunto da @author">✎ @author</span>
+                                    }
+                                </div>
+                            </div>
+                            <span class="expand-icon">@(isExpanded ? "▾" : "▸")</span>
+                        </button>
+
+                        <div class="card-details">
+                            <div class="details-inner">
+                                <div class="detail-row">
+                                    <div class="detail-label">Tempo di Lancio</div>
+                                    <div class="detail-value">@spell.CastingTime</div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-label">Gittata</div>
+                                    <div class="detail-value">@spell.Range</div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-label">Componenti</div>
+                                    <div class="detail-value">@spell.Components</div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-label">Durata</div>
+                                    <div class="detail-value">@spell.Duration</div>
+                                </div>
+                                <div class="detail-row">
+                                    <div class="detail-label">Classi</div>
+                                    <div class="detail-value">@spell.Classes</div>
+                                </div>
+                                <div class="description">@spell.Description</div>
+
+                                @if (CanEdit(spell))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(spell)" @onclick:stopPropagation>
+                                            ✎ Modifica
+                                        </button>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteSpellAsync(spell)" @onclick:stopPropagation>
+                                            🗑 Elimina
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (!FilteredSpells.Any())
+                {
+                    <div class="empty-state">
+                        @if (allSpells.Count == 0)
+                        {
+                            <div class="empty-icon">📜</div>
+                            <p class="empty-title">Nessun incantesimo nel database</p>
+                            <p class="empty-text">
+                                Ogni giocatore può aggiungere gli incantesimi del proprio personaggio
+                                usando il bottone <strong>+</strong> in basso a destra.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="empty-text">Nessun incantesimo corrisponde ai filtri.</p>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo incantesimo">
+            +
+        </button>
+    }
+</div>
+
+@code {
+    private enum ViewMode { List, Form }
+
+    private ViewMode mode = ViewMode.List;
+    private List<Spell> allSpells = new();
+    private Dictionary<string, string> playerNicknames = new();
+    private bool isLoading = true;
+    private bool isBusy;
+    private bool isMaster;
+    private string? playerId;
+    private string? errorMessage;
+
+    private string searchInput = string.Empty;
+    private string searchQuery = string.Empty;
+    private CancellationTokenSource? debounceCts;
+
+    private readonly int[] levels = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    private readonly HashSet<int> levelFilters = new();
+
+    private record SpellClass(string Label, string Match);
+
+    private readonly SpellClass[] classes =
+    {
+        new("Bardo",    "Bard"),
+        new("Chierico", "Cleric"),
+        new("Druido",   "Druid"),
+        new("Paladino", "Paladin"),
+        new("Ranger",   "Ranger"),
+        new("Stregone", "Sorcerer"),
+        new("Warlock",  "Warlock"),
+        new("Mago",     "Wizard")
+    };
+    private string? classFilter;
+
+    private string? expandedId;
+    private Spell editDraft = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            playerId = await AuthState.GetPlayerIdAsync();
+            var role = await AuthState.GetRoleAsync();
+            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+
+            var spellsTask = SupabaseService.GetAllSpellsAsync();
+            var playersTask = SupabaseService.GetAllPlayersAsync();
+            await Task.WhenAll(spellsTask, playersTask);
+
+            allSpells = spellsTask.Result;
+            playerNicknames = playersTask.Result.ToDictionary(p => p.Id, p => p.Nickname);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento incantesimi: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool CanEdit(Spell spell) =>
+        isMaster || (!string.IsNullOrEmpty(spell.AddedBy) && spell.AddedBy == playerId);
+
+    private string? GetAuthorName(string? authorId)
+    {
+        if (string.IsNullOrEmpty(authorId)) return null;
+        return playerNicknames.TryGetValue(authorId, out var nick) ? nick : null;
+    }
+
+    private IEnumerable<Spell> FilteredSpells
+    {
+        get
+        {
+            IEnumerable<Spell> result = allSpells;
+
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                result = result.Where(s =>
+                    s.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (levelFilters.Count > 0)
+            {
+                result = result.Where(s => levelFilters.Contains(s.Level));
+            }
+
+            if (!string.IsNullOrEmpty(classFilter))
+            {
+                result = result.Where(s =>
+                    s.Classes.Contains(classFilter, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return result
+                .OrderBy(s => s.Level)
+                .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task OnSearchInputChangedAsync()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+        debounceCts = new CancellationTokenSource();
+        var token = debounceCts.Token;
+        try
+        {
+            await Task.Delay(300, token);
+            if (token.IsCancellationRequested) return;
+            searchQuery = searchInput.Trim();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException)
+        {
+            // debounce superseded
+        }
+    }
+
+    private void ToggleLevel(int level)
+    {
+        if (!levelFilters.Add(level))
+            levelFilters.Remove(level);
+        expandedId = null;
+    }
+
+    private void ToggleClass(string cls)
+    {
+        classFilter = classFilter == cls ? null : cls;
+        expandedId = null;
+    }
+
+    private void ToggleExpand(string id)
+    {
+        expandedId = expandedId == id ? null : id;
+    }
+
+    private void OpenCreateForm()
+    {
+        editDraft = new Spell { Level = 0, AddedBy = playerId };
+        mode = ViewMode.Form;
+    }
+
+    private void OpenEditForm(Spell spell)
+    {
+        editDraft = CloneSpell(spell);
+        mode = ViewMode.Form;
+    }
+
+    private void CancelForm()
+    {
+        mode = ViewMode.List;
+    }
+
+    private async Task SaveFormAsync()
+    {
+        if (string.IsNullOrWhiteSpace(editDraft.Name))
+        {
+            errorMessage = "Il nome è obbligatorio";
+            return;
+        }
+        if (editDraft.Level < 0 || editDraft.Level > 9)
+        {
+            errorMessage = "Il livello deve essere tra 0 e 9";
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            Spell? saved;
+            if (string.IsNullOrEmpty(editDraft.Id))
+            {
+                saved = await SupabaseService.CreateSpellAsync(editDraft);
+            }
+            else
+            {
+                saved = await SupabaseService.UpdateSpellAsync(editDraft);
+            }
+
+            if (saved is null)
+            {
+                errorMessage = "Il server non ha restituito l'incantesimo salvato.";
+                return;
+            }
+
+            var idx = allSpells.FindIndex(s => s.Id == saved.Id);
+            if (idx >= 0) allSpells[idx] = saved;
+            else allSpells.Add(saved);
+
+            expandedId = saved.Id;
+            mode = ViewMode.List;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteSpellAsync(Spell spell)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Eliminare l'incantesimo \"{spell.Name}\"?");
+        if (!confirmed) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.DeleteSpellAsync(spell.Id);
+            allSpells.RemoveAll(s => s.Id == spell.Id);
+            if (expandedId == spell.Id) expandedId = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore eliminazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static Spell CloneSpell(Spell s) => new()
+    {
+        Id = s.Id,
+        Name = s.Name,
+        Level = s.Level,
+        School = s.School,
+        CastingTime = s.CastingTime,
+        Range = s.Range,
+        Components = s.Components,
+        Duration = s.Duration,
+        Description = s.Description,
+        Classes = s.Classes,
+        AddedBy = s.AddedBy
+    };
+
+    public void Dispose()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+    }
+}

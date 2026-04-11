@@ -1,0 +1,1010 @@
+@page "/characters"
+@using DndCompanion.Models
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Personaggi - D&amp;D Companion</PageTitle>
+
+<div class="characters-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("/")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Personaggi</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @switch (mode)
+    {
+        case ViewMode.Loading:
+            <div class="state-message">Caricamento...</div>
+            break;
+
+        case ViewMode.Empty:
+            <div class="empty-state">
+                <div class="empty-icon">🗡️</div>
+                <p class="empty-text">Non hai ancora un personaggio.</p>
+                <button type="button" class="primary-btn" @onclick="OpenCreateForm">
+                    Crea Personaggio
+                </button>
+            </div>
+            break;
+
+        case ViewMode.List:
+            <div class="list-view">
+                @if (characters.Count == 0)
+                {
+                    <div class="state-message">Nessun personaggio trovato.</div>
+                }
+                else
+                {
+                    <div class="char-list">
+                        @foreach (var c in characters)
+                        {
+                            <button type="button" class="list-card" @onclick="() => OpenDetailAsync(c)">
+                                <div class="list-name">@c.Name</div>
+                                <div class="list-meta">Liv @c.Level · @c.Class · @c.Race</div>
+                                <div class="list-hp">PF @c.HitPoints / @c.MaxHitPoints</div>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+            break;
+
+        case ViewMode.Detail when selected is not null:
+            <div class="char-sheet">
+                <div class="sheet-top">
+                    <button type="button" class="back-link" @onclick="BackToListOrEmpty">← Indietro</button>
+                    <button type="button" class="edit-btn" @onclick="OpenEditForm">Modifica</button>
+                </div>
+
+                <div class="sheet-header">
+                    <h2 class="char-name">@selected.Name</h2>
+                    <p class="char-meta">Liv @selected.Level · @selected.Class · @selected.Race</p>
+                </div>
+
+                <div class="hp-ac-row">
+                    <div class="hp-section">
+                        <div class="section-label">Punti Ferita</div>
+                        <div class="hp-controls">
+                            <button type="button" class="hp-btn hp-minus"
+                                    @onclick="() => AdjustHpAsync(-1)"
+                                    disabled="@(isSavingHp || selected.HitPoints <= 0)">
+                                −
+                            </button>
+                            <div class="hp-value">
+                                <span class="hp-current">@selected.HitPoints</span>
+                                <span class="hp-sep">/</span>
+                                <span class="hp-max">@selected.MaxHitPoints</span>
+                            </div>
+                            <button type="button" class="hp-btn hp-plus"
+                                    @onclick="() => AdjustHpAsync(1)"
+                                    disabled="@(isSavingHp || selected.HitPoints >= selected.MaxHitPoints)">
+                                +
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ac-section">
+                        <div class="section-label">CA</div>
+                        <div class="ac-shield">
+                            <span class="ac-value">@selected.ArmorClass</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <div class="section-label">Caratteristiche</div>
+                    <div class="stats-grid">
+                        @foreach (var s in GetStats(selected))
+                        {
+                            <div class="stat-card">
+                                <div class="stat-label">@s.Label</div>
+                                <div class="stat-value">@s.Value</div>
+                                <div class="stat-mod">@FormatModifier(s.Value)</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="notes-section">
+                    <div class="section-label">Note</div>
+                    <textarea class="notes-textarea" rows="5" @bind="notesDraft"
+                              placeholder="Equipaggiamento, background, obiettivi..."></textarea>
+                    <button type="button" class="small-btn"
+                            @onclick="SaveNotesAsync"
+                            disabled="@(isSavingNotes || notesDraft == (selected.Notes ?? string.Empty))">
+                        @(isSavingNotes ? "Salvataggio..." : "Salva note")
+                    </button>
+                </div>
+
+                <div class="inventory-section">
+                    <div class="section-label">Inventario</div>
+
+                    <div class="inv-summary">
+                        <span class="inv-summary-item">
+                            <strong>@inventoryItems.Sum(i => i.Quantity)</strong> oggetti
+                        </span>
+                        <span class="inv-summary-sep">·</span>
+                        <span class="inv-summary-item">
+                            Peso totale: <strong>@FormatWeight(TotalInventoryWeight)</strong>
+                        </span>
+                    </div>
+
+                    @if (CanEditInventory)
+                    {
+                        @if (!isAddingItem)
+                        {
+                            <button type="button" class="inv-add-btn" @onclick="OpenAddItemForm">
+                                + Aggiungi oggetto
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="inv-form">
+                                <div class="inv-form-grid">
+                                    <div class="field field-full">
+                                        <label>Nome</label>
+                                        <input type="text" class="input" maxlength="80"
+                                               placeholder="Nome dell'oggetto"
+                                               @bind="newItemDraft.Name" />
+                                    </div>
+
+                                    <div class="field">
+                                        <label>Quantità</label>
+                                        <input type="number" class="input" min="1" @bind="newItemDraft.Quantity" />
+                                    </div>
+
+                                    <div class="field">
+                                        <label>Peso</label>
+                                        <input type="number" class="input" step="0.1" min="0"
+                                               @bind="newItemDraft.Weight" />
+                                    </div>
+
+                                    <div class="field field-full">
+                                        <label>Tipo</label>
+                                        <select class="input" @bind="newItemDraft.ItemType">
+                                            @foreach (var t in ItemTypes)
+                                            {
+                                                <option value="@t">@t</option>
+                                            }
+                                        </select>
+                                    </div>
+
+                                    <div class="field field-full">
+                                        <label>Descrizione (opzionale)</label>
+                                        <textarea class="input" rows="3"
+                                                  @bind="newItemDraft.Description"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="inv-form-actions">
+                                    <button type="button" class="primary-btn"
+                                            @onclick="SaveNewItemAsync"
+                                            disabled="@isSavingInventory">
+                                        @(isSavingInventory ? "Salvataggio..." : "Salva")
+                                    </button>
+                                    <button type="button" class="secondary-btn"
+                                            @onclick="CancelAddItem"
+                                            disabled="@isSavingInventory">
+                                        Annulla
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @if (isLoadingInventory)
+                    {
+                        <div class="inv-loading">Caricamento inventario...</div>
+                    }
+                    else if (inventoryItems.Count == 0)
+                    {
+                        <div class="inv-empty">Nessun oggetto nell'inventario.</div>
+                    }
+                    else
+                    {
+                        <div class="inv-list">
+                            @foreach (var item in inventoryItems)
+                            {
+                                var isItemExpanded = expandedItemId == item.Id;
+                                <div class="inv-item @(item.IsEquipped ? "equipped" : "")">
+                                    <div class="inv-row">
+                                        <button type="button" class="inv-name-btn"
+                                                @onclick="() => ToggleItemExpand(item.Id)">
+                                            @if (item.IsEquipped)
+                                            {
+                                                <span class="eq-icon" title="Equipaggiato">⚔️</span>
+                                            }
+                                            <span class="inv-name-text">@item.Name</span>
+                                            @if (!string.IsNullOrWhiteSpace(item.Description))
+                                            {
+                                                <span class="inv-exp-icon">@(isItemExpanded ? "▾" : "▸")</span>
+                                            }
+                                        </button>
+
+                                        @if (CanEditInventory)
+                                        {
+                                            <div class="qty-controls">
+                                                <button type="button" class="qty-btn qty-minus"
+                                                        @onclick="() => AdjustQuantityAsync(item, -1)"
+                                                        disabled="@isSavingInventory">
+                                                    −
+                                                </button>
+                                                <span class="qty-value">@item.Quantity</span>
+                                                <button type="button" class="qty-btn qty-plus"
+                                                        @onclick="() => AdjustQuantityAsync(item, 1)"
+                                                        disabled="@isSavingInventory">
+                                                    +
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="qty-readonly">×@item.Quantity</div>
+                                        }
+                                    </div>
+
+                                    <div class="inv-meta">
+                                        @if (!string.IsNullOrWhiteSpace(item.ItemType))
+                                        {
+                                            <span class="inv-type-badge">@item.ItemType</span>
+                                        }
+                                        @if (item.Weight.HasValue)
+                                        {
+                                            <span class="inv-weight">@FormatWeight(item.Weight.Value * item.Quantity)</span>
+                                        }
+
+                                        @if (CanEditInventory)
+                                        {
+                                            <label class="inv-eq-toggle">
+                                                <input type="checkbox" checked="@item.IsEquipped"
+                                                       @onchange="@(e => ToggleEquippedAsync(item, (bool)(e.Value ?? false)))"
+                                                       disabled="@isSavingInventory" />
+                                                <span>Equipaggiato</span>
+                                            </label>
+
+                                            <button type="button" class="inv-delete-btn"
+                                                    title="Elimina oggetto"
+                                                    @onclick="() => DeleteItemAsync(item)"
+                                                    disabled="@isSavingInventory">
+                                                🗑️
+                                            </button>
+                                        }
+                                    </div>
+
+                                    @if (isItemExpanded && !string.IsNullOrWhiteSpace(item.Description))
+                                    {
+                                        <div class="inv-description">@item.Description</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+            break;
+
+        case ViewMode.Form:
+            <div class="form-view">
+                <div class="sheet-top">
+                    <button type="button" class="back-link" @onclick="CancelForm">← Annulla</button>
+                </div>
+
+                <h2 class="form-title">
+                    @(string.IsNullOrEmpty(editDraft.Id) ? "Nuovo Personaggio" : "Modifica Personaggio")
+                </h2>
+
+                <div class="form-grid">
+                    <div class="field field-full">
+                        <label>Nome</label>
+                        <input type="text" class="input" maxlength="64" @bind="editDraft.Name" />
+                    </div>
+
+                    <div class="field field-full">
+                        <label>Classe</label>
+                        <select class="input" value="@CurrentClassSelection" @onchange="OnClassSelectionChanged">
+                            <option value="">-- Seleziona --</option>
+                            @foreach (var c in classes.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <option value="@c.Name">@c.Name</option>
+                            }
+                            <option value="__custom__">Altro (testo libero)</option>
+                        </select>
+                        @if (isClassCustom)
+                        {
+                            <input type="text" class="input custom-input" maxlength="40"
+                                   placeholder="Scrivi la classe"
+                                   @bind="editDraft.Class" @bind:event="oninput" />
+                        }
+                        @{
+                            var selectedClass = (!isClassCustom && !string.IsNullOrEmpty(editDraft.Class))
+                                ? classes.FirstOrDefault(c => c.Name == editDraft.Class)
+                                : null;
+                        }
+                        @if (selectedClass is not null)
+                        {
+                            <div class="info-summary">
+                                <strong>Dado vita:</strong> @(string.IsNullOrEmpty(selectedClass.HitDie) ? "—" : selectedClass.HitDie)
+                                @if (!string.IsNullOrWhiteSpace(selectedClass.PrimaryAbility))
+                                {
+                                    <span> · <strong>Abilità primaria:</strong> @selectedClass.PrimaryAbility</span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="field field-full">
+                        <label>Razza</label>
+                        <select class="input" value="@CurrentRaceSelection" @onchange="OnRaceSelectionChanged">
+                            <option value="">-- Seleziona --</option>
+                            @foreach (var r in races.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <option value="@r.Name">@r.Name</option>
+                            }
+                            <option value="__custom__">Altro (testo libero)</option>
+                        </select>
+                        @if (isRaceCustom)
+                        {
+                            <input type="text" class="input custom-input" maxlength="40"
+                                   placeholder="Scrivi la razza"
+                                   @bind="editDraft.Race" @bind:event="oninput" />
+                        }
+                        @{
+                            var selectedRace = (!isRaceCustom && !string.IsNullOrEmpty(editDraft.Race))
+                                ? races.FirstOrDefault(r => r.Name == editDraft.Race)
+                                : null;
+                        }
+                        @if (selectedRace is not null)
+                        {
+                            <div class="info-summary">
+                                <strong>Bonus razziali:</strong> @FormatRaceBonuses(selectedRace)
+                                · <strong>Velocità:</strong> @selectedRace.Speed
+                            </div>
+                        }
+                    </div>
+
+                    <div class="field">
+                        <label>Livello</label>
+                        <input type="number" class="input" min="1" max="20" @bind="editDraft.Level" />
+                    </div>
+
+                    <div class="field">
+                        <label>CA</label>
+                        <input type="number" class="input" min="0" max="40" @bind="editDraft.ArmorClass" />
+                    </div>
+
+                    <div class="field">
+                        <label>PF Correnti</label>
+                        <input type="number" class="input" min="0" @bind="editDraft.HitPoints" />
+                    </div>
+
+                    <div class="field">
+                        <label>PF Massimi</label>
+                        <input type="number" class="input" min="1" @bind="editDraft.MaxHitPoints" />
+                    </div>
+
+                    <div class="field-group field-full">
+                        <label class="group-label">Caratteristiche</label>
+                        <div class="stats-inputs">
+                            <div class="field stat-field">
+                                <label title="Forza">FOR</label>
+                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Strength" />
+                            </div>
+                            <div class="field stat-field">
+                                <label title="Destrezza">DES</label>
+                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Dexterity" />
+                            </div>
+                            <div class="field stat-field">
+                                <label title="Costituzione">COS</label>
+                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Constitution" />
+                            </div>
+                            <div class="field stat-field">
+                                <label title="Intelligenza">INT</label>
+                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Intelligence" />
+                            </div>
+                            <div class="field stat-field">
+                                <label title="Saggezza">SAG</label>
+                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Wisdom" />
+                            </div>
+                            <div class="field stat-field">
+                                <label title="Carisma">CAR</label>
+                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Charisma" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field field-full">
+                        <label>Note</label>
+                        <textarea class="input" rows="4" @bind="editDraft.Notes"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="primary-btn" @onclick="SaveFormAsync" disabled="@isBusy">
+                        @(isBusy ? "Salvataggio..." : "Salva")
+                    </button>
+                    <button type="button" class="secondary-btn" @onclick="CancelForm" disabled="@isBusy">
+                        Annulla
+                    </button>
+                </div>
+            </div>
+            break;
+    }
+</div>
+
+@code {
+    private enum ViewMode { Loading, Empty, List, Detail, Form }
+
+    private ViewMode mode = ViewMode.Loading;
+    private List<Character> characters = new();
+    private Character? selected;
+    private Character editDraft = new();
+    private string notesDraft = string.Empty;
+
+    private List<Race> races = new();
+    private List<CharacterClass> classes = new();
+    private bool isRaceCustom;
+    private bool isClassCustom;
+    private const string CustomOptionValue = "__custom__";
+
+    private List<InventoryItem> inventoryItems = new();
+    private InventoryItem newItemDraft = new();
+    private bool isAddingItem;
+    private string? expandedItemId;
+    private bool isLoadingInventory;
+    private bool isSavingInventory;
+    private static readonly string[] ItemTypes =
+        { "Arma", "Armatura", "Pozione", "Pergamena", "Strumento", "Tesoro", "Altro" };
+
+    private string? playerId;
+    private bool isMaster;
+
+    private bool isBusy;
+    private bool isSavingHp;
+    private bool isSavingNotes;
+    private string? errorMessage;
+
+    private bool CanEditInventory =>
+        selected is not null && (isMaster || selected.PlayerId == playerId);
+
+    private double TotalInventoryWeight =>
+        inventoryItems.Sum(i => (i.Weight ?? 0) * i.Quantity);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            playerId = await AuthState.GetPlayerIdAsync();
+            var role = await AuthState.GetRoleAsync();
+            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+
+            if (string.IsNullOrEmpty(playerId))
+            {
+                // AuthRedirect will navigate away; keep loading state.
+                return;
+            }
+
+            var charsFetch = isMaster
+                ? SupabaseService.GetAllCharactersAsync()
+                : SupabaseService.GetCharactersForPlayerAsync(playerId);
+            var racesTask = SupabaseService.GetAllRacesAsync();
+            var classesTask = SupabaseService.GetAllClassesAsync();
+
+            await Task.WhenAll(charsFetch, racesTask, classesTask);
+
+            characters = charsFetch.Result;
+            races = racesTask.Result;
+            classes = classesTask.Result;
+
+            await UpdateModeFromCharactersAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento: {ex.Message}";
+            mode = ViewMode.Empty;
+        }
+    }
+
+    private async Task UpdateModeFromCharactersAsync()
+    {
+        if (isMaster)
+        {
+            mode = ViewMode.List;
+        }
+        else if (characters.Count == 0)
+        {
+            mode = ViewMode.Empty;
+        }
+        else if (characters.Count == 1)
+        {
+            await OpenDetailAsync(characters[0]);
+        }
+        else
+        {
+            mode = ViewMode.List;
+        }
+    }
+
+    private async Task OpenDetailAsync(Character c)
+    {
+        selected = c;
+        notesDraft = c.Notes ?? string.Empty;
+        mode = ViewMode.Detail;
+        expandedItemId = null;
+        isAddingItem = false;
+        await LoadInventoryAsync(c.Id);
+    }
+
+    private async Task LoadInventoryAsync(string characterId)
+    {
+        isLoadingInventory = true;
+        try
+        {
+            inventoryItems = await SupabaseService.GetInventoryForCharacterAsync(characterId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento inventario: {ex.Message}";
+            inventoryItems = new();
+        }
+        finally
+        {
+            isLoadingInventory = false;
+        }
+    }
+
+    private void BackToListOrEmpty()
+    {
+        if (isMaster || characters.Count > 1)
+        {
+            mode = ViewMode.List;
+        }
+        else if (characters.Count == 0)
+        {
+            mode = ViewMode.Empty;
+        }
+        else
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private void OpenCreateForm()
+    {
+        editDraft = new Character
+        {
+            PlayerId = playerId ?? string.Empty,
+            Level = 1,
+            ArmorClass = 10,
+            HitPoints = 10,
+            MaxHitPoints = 10,
+            Strength = 10,
+            Dexterity = 10,
+            Constitution = 10,
+            Intelligence = 10,
+            Wisdom = 10,
+            Charisma = 10
+        };
+        isRaceCustom = false;
+        isClassCustom = false;
+        mode = ViewMode.Form;
+    }
+
+    private void OpenEditForm()
+    {
+        if (selected is null) return;
+        editDraft = CloneCharacter(selected);
+        isRaceCustom = !string.IsNullOrEmpty(editDraft.Race)
+            && races.All(r => !string.Equals(r.Name, editDraft.Race, StringComparison.Ordinal));
+        isClassCustom = !string.IsNullOrEmpty(editDraft.Class)
+            && classes.All(c => !string.Equals(c.Name, editDraft.Class, StringComparison.Ordinal));
+        mode = ViewMode.Form;
+    }
+
+    private string CurrentRaceSelection =>
+        isRaceCustom ? CustomOptionValue : (editDraft.Race ?? string.Empty);
+
+    private string CurrentClassSelection =>
+        isClassCustom ? CustomOptionValue : (editDraft.Class ?? string.Empty);
+
+    private void OnRaceSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue)
+        {
+            isRaceCustom = true;
+            editDraft.Race = string.Empty;
+        }
+        else
+        {
+            isRaceCustom = false;
+            editDraft.Race = val;
+        }
+    }
+
+    private void OnClassSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue)
+        {
+            isClassCustom = true;
+            editDraft.Class = string.Empty;
+        }
+        else
+        {
+            isClassCustom = false;
+            editDraft.Class = val;
+        }
+    }
+
+    private static string FormatRaceBonuses(Race race)
+    {
+        var parts = new List<string>();
+        void Add(int val, string label)
+        {
+            if (val != 0) parts.Add($"{(val > 0 ? "+" : "")}{val} {label}");
+        }
+        Add(race.StrBonus, "FOR");
+        Add(race.DexBonus, "DES");
+        Add(race.ConBonus, "COS");
+        Add(race.IntBonus, "INT");
+        Add(race.WisBonus, "SAG");
+        Add(race.ChaBonus, "CAR");
+        return parts.Count > 0 ? string.Join(", ", parts) : "nessuno";
+    }
+
+    private void CancelForm()
+    {
+        if (selected is not null)
+        {
+            mode = ViewMode.Detail;
+        }
+        else if (isMaster || characters.Count > 0)
+        {
+            mode = ViewMode.List;
+        }
+        else
+        {
+            mode = ViewMode.Empty;
+        }
+    }
+
+    private async Task SaveFormAsync()
+    {
+        if (string.IsNullOrWhiteSpace(editDraft.Name))
+        {
+            errorMessage = "Il nome è obbligatorio";
+            return;
+        }
+        if (editDraft.MaxHitPoints < 1)
+        {
+            errorMessage = "Gli HP massimi devono essere almeno 1";
+            return;
+        }
+        if (editDraft.HitPoints > editDraft.MaxHitPoints)
+        {
+            editDraft.HitPoints = editDraft.MaxHitPoints;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            Character? saved;
+            if (string.IsNullOrEmpty(editDraft.Id))
+            {
+                editDraft.PlayerId = playerId ?? string.Empty;
+                saved = await SupabaseService.CreateCharacterAsync(editDraft);
+            }
+            else
+            {
+                saved = await SupabaseService.UpdateCharacterAsync(editDraft);
+            }
+
+            if (saved is null)
+            {
+                errorMessage = "Il server non ha restituito il personaggio salvato.";
+                return;
+            }
+
+            var idx = characters.FindIndex(c => c.Id == saved.Id);
+            if (idx >= 0) characters[idx] = saved;
+            else characters.Add(saved);
+
+            await OpenDetailAsync(saved);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task AdjustHpAsync(int delta)
+    {
+        if (selected is null) return;
+
+        var newHp = Math.Clamp(selected.HitPoints + delta, 0, selected.MaxHitPoints);
+        if (newHp == selected.HitPoints) return;
+
+        var previous = selected.HitPoints;
+        selected.HitPoints = newHp;
+        isSavingHp = true;
+        errorMessage = null;
+        try
+        {
+            var saved = await SupabaseService.UpdateCharacterAsync(selected);
+            if (saved is not null)
+            {
+                selected.HitPoints = saved.HitPoints;
+                SyncListFromSelected();
+            }
+        }
+        catch (Exception ex)
+        {
+            selected.HitPoints = previous;
+            errorMessage = $"Errore salvataggio HP: {ex.Message}";
+        }
+        finally
+        {
+            isSavingHp = false;
+        }
+    }
+
+    private async Task SaveNotesAsync()
+    {
+        if (selected is null) return;
+
+        var previous = selected.Notes;
+        selected.Notes = notesDraft;
+        isSavingNotes = true;
+        errorMessage = null;
+        try
+        {
+            var saved = await SupabaseService.UpdateCharacterAsync(selected);
+            if (saved is not null)
+            {
+                selected.Notes = saved.Notes;
+                notesDraft = saved.Notes ?? string.Empty;
+                SyncListFromSelected();
+            }
+        }
+        catch (Exception ex)
+        {
+            selected.Notes = previous;
+            errorMessage = $"Errore salvataggio note: {ex.Message}";
+        }
+        finally
+        {
+            isSavingNotes = false;
+        }
+    }
+
+    private void SyncListFromSelected()
+    {
+        if (selected is null) return;
+        var idx = characters.FindIndex(c => c.Id == selected.Id);
+        if (idx >= 0) characters[idx] = selected;
+    }
+
+    private static Character CloneCharacter(Character c) => new()
+    {
+        Id = c.Id,
+        PlayerId = c.PlayerId,
+        Name = c.Name,
+        Class = c.Class,
+        Race = c.Race,
+        Level = c.Level,
+        HitPoints = c.HitPoints,
+        MaxHitPoints = c.MaxHitPoints,
+        ArmorClass = c.ArmorClass,
+        Strength = c.Strength,
+        Dexterity = c.Dexterity,
+        Constitution = c.Constitution,
+        Intelligence = c.Intelligence,
+        Wisdom = c.Wisdom,
+        Charisma = c.Charisma,
+        Notes = c.Notes,
+        CreatedAt = c.CreatedAt
+    };
+
+    private static IEnumerable<(string Label, int Value)> GetStats(Character c) => new[]
+    {
+        ("FOR", c.Strength),
+        ("DES", c.Dexterity),
+        ("COS", c.Constitution),
+        ("INT", c.Intelligence),
+        ("SAG", c.Wisdom),
+        ("CAR", c.Charisma)
+    };
+
+    private static int CalcModifier(int stat) => (int)Math.Floor((stat - 10) / 2.0);
+
+    private static string FormatModifier(int stat)
+    {
+        var mod = CalcModifier(stat);
+        return mod >= 0 ? $"+{mod}" : mod.ToString();
+    }
+
+    // ====================== Inventory ======================
+
+    private void ToggleItemExpand(string id)
+    {
+        expandedItemId = expandedItemId == id ? null : id;
+    }
+
+    private void OpenAddItemForm()
+    {
+        if (!CanEditInventory || selected is null) return;
+        newItemDraft = new InventoryItem
+        {
+            CharacterId = selected.Id,
+            Quantity = 1,
+            ItemType = ItemTypes[0]
+        };
+        isAddingItem = true;
+        errorMessage = null;
+    }
+
+    private void CancelAddItem()
+    {
+        isAddingItem = false;
+        newItemDraft = new InventoryItem();
+    }
+
+    private async Task SaveNewItemAsync()
+    {
+        if (!CanEditInventory || selected is null) return;
+
+        if (string.IsNullOrWhiteSpace(newItemDraft.Name))
+        {
+            errorMessage = "Il nome dell'oggetto è obbligatorio";
+            return;
+        }
+        if (newItemDraft.Quantity < 1) newItemDraft.Quantity = 1;
+
+        isSavingInventory = true;
+        errorMessage = null;
+        try
+        {
+            newItemDraft.CharacterId = selected.Id;
+            var saved = await SupabaseService.CreateInventoryItemAsync(newItemDraft);
+            if (saved is null)
+            {
+                errorMessage = "Il server non ha restituito l'oggetto salvato.";
+                return;
+            }
+
+            inventoryItems.Add(saved);
+            inventoryItems = inventoryItems
+                .OrderBy(i => i.ItemType ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            isAddingItem = false;
+            newItemDraft = new InventoryItem();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore creazione oggetto: {ex.Message}";
+        }
+        finally
+        {
+            isSavingInventory = false;
+        }
+    }
+
+    private async Task AdjustQuantityAsync(InventoryItem item, int delta)
+    {
+        if (!CanEditInventory) return;
+
+        var newQty = item.Quantity + delta;
+
+        if (newQty <= 0)
+        {
+            var confirmed = await JS.InvokeAsync<bool>("confirm",
+                $"Eliminare \"{item.Name}\" dall'inventario?");
+            if (!confirmed) return;
+            await DeleteItemInternalAsync(item);
+            return;
+        }
+
+        var previous = item.Quantity;
+        item.Quantity = newQty;
+        isSavingInventory = true;
+        errorMessage = null;
+        try
+        {
+            var saved = await SupabaseService.UpdateInventoryItemAsync(item);
+            if (saved is not null)
+            {
+                item.Quantity = saved.Quantity;
+            }
+        }
+        catch (Exception ex)
+        {
+            item.Quantity = previous;
+            errorMessage = $"Errore salvataggio quantità: {ex.Message}";
+        }
+        finally
+        {
+            isSavingInventory = false;
+        }
+    }
+
+    private async Task ToggleEquippedAsync(InventoryItem item, bool newValue)
+    {
+        if (!CanEditInventory) return;
+        if (item.IsEquipped == newValue) return;
+
+        var previous = item.IsEquipped;
+        item.IsEquipped = newValue;
+        isSavingInventory = true;
+        errorMessage = null;
+        try
+        {
+            var saved = await SupabaseService.UpdateInventoryItemAsync(item);
+            if (saved is not null)
+            {
+                item.IsEquipped = saved.IsEquipped;
+            }
+        }
+        catch (Exception ex)
+        {
+            item.IsEquipped = previous;
+            errorMessage = $"Errore salvataggio equipaggiamento: {ex.Message}";
+        }
+        finally
+        {
+            isSavingInventory = false;
+        }
+    }
+
+    private async Task DeleteItemAsync(InventoryItem item)
+    {
+        if (!CanEditInventory) return;
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Eliminare \"{item.Name}\" dall'inventario?");
+        if (!confirmed) return;
+
+        await DeleteItemInternalAsync(item);
+    }
+
+    private async Task DeleteItemInternalAsync(InventoryItem item)
+    {
+        isSavingInventory = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.DeleteInventoryItemAsync(item.Id);
+            inventoryItems.RemoveAll(i => i.Id == item.Id);
+            if (expandedItemId == item.Id) expandedItemId = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore eliminazione oggetto: {ex.Message}";
+        }
+        finally
+        {
+            isSavingInventory = false;
+        }
+    }
+
+    private static string FormatWeight(double weight)
+    {
+        if (weight <= 0) return "0";
+        return weight.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    }
+}

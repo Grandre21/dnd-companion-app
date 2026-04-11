@@ -1,0 +1,374 @@
+@page "/notes"
+@using System.Globalization
+@using DndCompanion.Models
+@implements IDisposable
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Appunti - D&amp;D Companion</PageTitle>
+
+<div class="notes-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("/")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Appunti</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @if (mode == ViewMode.Form && editDraft is not null)
+    {
+        <div class="form-view">
+            <div class="form-top">
+                <button type="button" class="back-link" @onclick="CancelForm">← Indietro</button>
+                @if (isEditable && !string.IsNullOrEmpty(editDraft.Id))
+                {
+                    <button type="button" class="delete-link" @onclick="DeleteCurrentAsync" disabled="@isBusy">
+                        🗑 Elimina
+                    </button>
+                }
+            </div>
+
+            @if (!isEditable)
+            {
+                <div class="readonly-banner">
+                    Nota di <strong>@GetAuthorName(editDraft.PlayerId)</strong> — sola lettura
+                </div>
+            }
+
+            <div class="field">
+                <label>Titolo</label>
+                <input type="text" class="input title-input" maxlength="120"
+                       @bind="editDraft.Title" disabled="@(!isEditable)"
+                       placeholder="Titolo della nota" />
+            </div>
+
+            <div class="field">
+                <label>Contenuto</label>
+                <textarea class="input content-input" rows="14"
+                          @bind="editDraft.Content" disabled="@(!isEditable)"
+                          placeholder="Scrivi qui i tuoi appunti..."></textarea>
+            </div>
+
+            <div class="toggle-row">
+                <label class="toggle @(isEditable ? "" : "toggle-disabled")">
+                    <input type="checkbox" @bind="editDraft.IsShared" disabled="@(!isEditable)" />
+                    <span class="toggle-track">
+                        <span class="toggle-thumb"></span>
+                    </span>
+                    <span class="toggle-text">
+                        @(editDraft.IsShared ? "Condivisa con gli altri giocatori" : "Nota privata")
+                    </span>
+                </label>
+            </div>
+
+            @if (!string.IsNullOrEmpty(editDraft.Id) && editDraft.UpdatedAt.HasValue)
+            {
+                <div class="meta-info">
+                    Ultimo aggiornamento: @FormatDate(editDraft.UpdatedAt)
+                </div>
+            }
+
+            @if (isEditable)
+            {
+                <div class="form-actions">
+                    <button type="button" class="primary-btn" @onclick="SaveFormAsync" disabled="@isBusy">
+                        @(isBusy ? "Salvataggio..." : "Salva")
+                    </button>
+                    <button type="button" class="secondary-btn" @onclick="CancelForm" disabled="@isBusy">
+                        Annulla
+                    </button>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="Cerca negli appunti..."
+                   @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
+            <div class="results-info">
+                @if (isLoading)
+                {
+                    <span>Caricamento...</span>
+                }
+                else
+                {
+                    var count = FilteredNotes.Count();
+                    <span>@count @(count == 1 ? "nota" : "note")</span>
+                }
+            </div>
+        </div>
+
+        @if (!isLoading)
+        {
+            <div class="notes-list">
+                @foreach (var note in FilteredNotes)
+                {
+                    var isMine = note.PlayerId == playerId;
+                    <button type="button" class="note-card" @onclick="() => OpenDetail(note)">
+                        <div class="note-header">
+                            <div class="note-title">@(string.IsNullOrWhiteSpace(note.Title) ? "(Senza titolo)" : note.Title)</div>
+                            <span class="visibility-badge @(note.IsShared ? "shared" : "private")">
+                                @(note.IsShared ? "Condiviso" : "Privato")
+                            </span>
+                        </div>
+
+                        <div class="note-meta">
+                            @if (!isMine)
+                            {
+                                <span class="author-badge">@GetAuthorName(note.PlayerId)</span>
+                            }
+                            <span class="note-date">@FormatDate(note.UpdatedAt ?? note.CreatedAt)</span>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(note.Content))
+                        {
+                            <div class="note-preview">@note.Content</div>
+                        }
+                    </button>
+                }
+
+                @if (!FilteredNotes.Any())
+                {
+                    <div class="state-message">
+                        @if (string.IsNullOrEmpty(searchQuery))
+                        {
+                            <span>Non hai ancora appunti. Tocca <strong>+</strong> per crearne uno.</span>
+                        }
+                        else
+                        {
+                            <span>Nessuna nota corrisponde alla ricerca.</span>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova nota">
+            +
+        </button>
+    }
+</div>
+
+@code {
+    private enum ViewMode { List, Form }
+
+    private ViewMode mode = ViewMode.List;
+    private List<Note> notes = new();
+    private Dictionary<string, string> playerNicknames = new();
+    private bool isLoading = true;
+    private bool isBusy;
+    private bool isMaster;
+    private string? playerId;
+    private string? errorMessage;
+
+    private string searchInput = string.Empty;
+    private string searchQuery = string.Empty;
+    private CancellationTokenSource? debounceCts;
+
+    private Note? editDraft;
+    private bool isEditable;
+
+    private static readonly CultureInfo ItCulture = new("it-IT");
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            playerId = await AuthState.GetPlayerIdAsync();
+            var role = await AuthState.GetRoleAsync();
+            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+
+            if (string.IsNullOrEmpty(playerId))
+            {
+                // AuthRedirect will navigate away.
+                return;
+            }
+
+            var notesTask = SupabaseService.GetNotesForPlayerAsync(playerId);
+            var playersTask = SupabaseService.GetAllPlayersAsync();
+            await Task.WhenAll(notesTask, playersTask);
+
+            notes = notesTask.Result;
+            playerNicknames = playersTask.Result.ToDictionary(p => p.Id, p => p.Nickname);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento appunti: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private IEnumerable<Note> FilteredNotes
+    {
+        get
+        {
+            IEnumerable<Note> result = notes;
+
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                result = result.Where(n =>
+                    n.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    n.Content.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return result.OrderByDescending(n =>
+                n.UpdatedAt ?? n.CreatedAt ?? DateTime.MinValue);
+        }
+    }
+
+    private async Task OnSearchInputChangedAsync()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+        debounceCts = new CancellationTokenSource();
+        var token = debounceCts.Token;
+        try
+        {
+            await Task.Delay(300, token);
+            if (token.IsCancellationRequested) return;
+            searchQuery = searchInput.Trim();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private string GetAuthorName(string authorId)
+    {
+        if (playerNicknames.TryGetValue(authorId, out var nickname))
+            return nickname;
+        return "Sconosciuto";
+    }
+
+    private static string FormatDate(DateTime? dt)
+    {
+        if (!dt.HasValue) return "—";
+        return dt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", ItCulture);
+    }
+
+    private void OpenCreateForm()
+    {
+        editDraft = new Note
+        {
+            PlayerId = playerId ?? string.Empty,
+            IsShared = false
+        };
+        isEditable = true;
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDetail(Note note)
+    {
+        editDraft = CloneNote(note);
+        isEditable = isMaster || note.PlayerId == playerId;
+        mode = ViewMode.Form;
+    }
+
+    private void CancelForm()
+    {
+        editDraft = null;
+        mode = ViewMode.List;
+    }
+
+    private async Task SaveFormAsync()
+    {
+        if (editDraft is null || !isEditable) return;
+
+        if (string.IsNullOrWhiteSpace(editDraft.Title))
+        {
+            errorMessage = "Il titolo è obbligatorio";
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            Note? saved;
+            if (string.IsNullOrEmpty(editDraft.Id))
+            {
+                editDraft.PlayerId = playerId ?? string.Empty;
+                saved = await SupabaseService.CreateNoteAsync(editDraft);
+            }
+            else
+            {
+                saved = await SupabaseService.UpdateNoteAsync(editDraft);
+            }
+
+            if (saved is null)
+            {
+                errorMessage = "Il server non ha restituito la nota salvata.";
+                return;
+            }
+
+            var idx = notes.FindIndex(n => n.Id == saved.Id);
+            if (idx >= 0) notes[idx] = saved;
+            else notes.Add(saved);
+
+            editDraft = null;
+            mode = ViewMode.List;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteCurrentAsync()
+    {
+        if (editDraft is null || string.IsNullOrEmpty(editDraft.Id) || !isEditable) return;
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Eliminare la nota \"{editDraft.Title}\"? L'operazione non può essere annullata.");
+        if (!confirmed) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.DeleteNoteAsync(editDraft.Id);
+            notes.RemoveAll(n => n.Id == editDraft.Id);
+            editDraft = null;
+            mode = ViewMode.List;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore eliminazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static Note CloneNote(Note n) => new()
+    {
+        Id = n.Id,
+        PlayerId = n.PlayerId,
+        Title = n.Title,
+        Content = n.Content,
+        IsShared = n.IsShared,
+        CreatedAt = n.CreatedAt,
+        UpdatedAt = n.UpdatedAt
+    };
+
+    public void Dispose()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+    }
+}

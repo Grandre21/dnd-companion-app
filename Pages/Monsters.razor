@@ -1,0 +1,581 @@
+@page "/monsters"
+@using DndCompanion.Models
+@implements IDisposable
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Mostri - D&amp;D Companion</PageTitle>
+
+<div class="monsters-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("/")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Mostri</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @if (mode == ViewMode.Form)
+    {
+        <div class="form-view">
+            <div class="form-top">
+                <button type="button" class="back-link" @onclick="CancelForm">← Annulla</button>
+            </div>
+
+            <h2 class="form-title">
+                @(string.IsNullOrEmpty(editDraft.Id) ? "Nuovo Mostro" : "Modifica Mostro")
+            </h2>
+
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label>Nome</label>
+                    <input type="text" class="input" maxlength="120" @bind="editDraft.Name" />
+                </div>
+
+                <div class="field">
+                    <label>Taglia</label>
+                    <input type="text" class="input" maxlength="40" @bind="editDraft.Size" />
+                </div>
+
+                <div class="field">
+                    <label>Tipo</label>
+                    <input type="text" class="input" maxlength="40" @bind="editDraft.Type" />
+                </div>
+
+                <div class="field">
+                    <label>Allineamento</label>
+                    <input type="text" class="input" maxlength="60" @bind="editDraft.Alignment" />
+                </div>
+
+                <div class="field">
+                    <label>Challenge Rating</label>
+                    <input type="text" class="input" maxlength="10" @bind="editDraft.ChallengeRating" />
+                </div>
+
+                <div class="field">
+                    <label>CA</label>
+                    <input type="number" class="input" min="0" max="40" @bind="editDraft.ArmorClass" />
+                </div>
+
+                <div class="field">
+                    <label>PF (es. "45 (6d10+12)")</label>
+                    <input type="text" class="input" maxlength="60" @bind="editDraft.HitPoints" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Velocità</label>
+                    <input type="text" class="input" maxlength="120" @bind="editDraft.Speed" />
+                </div>
+
+                <div class="field-group field-full">
+                    <label class="group-label">Caratteristiche</label>
+                    <div class="stats-inputs">
+                        <div class="field stat-field">
+                            <label title="Forza">FOR</label>
+                            <input type="number" class="input" min="1" max="30" @bind="editDraft.Strength" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Destrezza">DES</label>
+                            <input type="number" class="input" min="1" max="30" @bind="editDraft.Dexterity" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Costituzione">COS</label>
+                            <input type="number" class="input" min="1" max="30" @bind="editDraft.Constitution" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Intelligenza">INT</label>
+                            <input type="number" class="input" min="1" max="30" @bind="editDraft.Intelligence" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Saggezza">SAG</label>
+                            <input type="number" class="input" min="1" max="30" @bind="editDraft.Wisdom" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Carisma">CAR</label>
+                            <input type="number" class="input" min="1" max="30" @bind="editDraft.Charisma" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field field-full">
+                    <label>Abilità speciali</label>
+                    <textarea class="input" rows="5" @bind="editDraft.Abilities"></textarea>
+                </div>
+
+                <div class="field field-full">
+                    <label>Descrizione</label>
+                    <textarea class="input" rows="6" @bind="editDraft.Description"></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="primary-btn" @onclick="SaveFormAsync" disabled="@isBusy">
+                    @(isBusy ? "Salvataggio..." : "Salva")
+                </button>
+                <button type="button" class="secondary-btn" @onclick="CancelForm" disabled="@isBusy">
+                    Annulla
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="Cerca mostri..."
+                   @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
+
+            <div class="filter-label">Challenge Rating</div>
+            <div class="chips-row">
+                @foreach (var cr in crFilters)
+                {
+                    <button type="button"
+                            class="chip @(crFilterLabels.Contains(cr.Label) ? "chip-active" : "")"
+                            @onclick="() => ToggleCr(cr.Label)">
+                        @cr.Label
+                    </button>
+                }
+            </div>
+
+            <div class="filter-label">Tipo</div>
+            <div class="chips-row">
+                @foreach (var t in types)
+                {
+                    <button type="button"
+                            class="chip @(typeFilter == t.Match ? "chip-active" : "")"
+                            @onclick="() => ToggleType(t.Match)">
+                        @t.Label
+                    </button>
+                }
+            </div>
+
+            <div class="results-info">
+                @if (isLoading)
+                {
+                    <span>Caricamento...</span>
+                }
+                else
+                {
+                    var count = FilteredMonsters.Count();
+                    <span>@count @(count == 1 ? "mostro trovato" : "mostri trovati")</span>
+                }
+            </div>
+        </div>
+
+        <div class="monsters-list">
+            @if (!isLoading)
+            {
+                @foreach (var monster in FilteredMonsters)
+                {
+                    var isExpanded = expandedId == monster.Id;
+                    <div class="monster-card @(isExpanded ? "expanded" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(monster.Id)">
+                            <div class="card-main">
+                                <div class="card-name">@monster.Name</div>
+                                <div class="card-meta">
+                                    <span class="cr-badge">CR @(string.IsNullOrEmpty(monster.ChallengeRating) ? "—" : monster.ChallengeRating)</span>
+                                    <span class="type">@monster.Type</span>
+                                </div>
+                            </div>
+                            <span class="expand-icon">@(isExpanded ? "▾" : "▸")</span>
+                        </button>
+
+                        <div class="card-details">
+                            <div class="details-inner">
+                                <div class="header-line">
+                                    @monster.Size @monster.Type, @monster.Alignment
+                                </div>
+
+                                <div class="key-stats-row">
+                                    <div class="key-stat">
+                                        <div class="key-label">CA</div>
+                                        <div class="key-value">@monster.ArmorClass</div>
+                                    </div>
+                                    <div class="key-stat">
+                                        <div class="key-label">PF</div>
+                                        <div class="key-value">@monster.HitPoints</div>
+                                    </div>
+                                    <div class="key-stat key-stat-wide">
+                                        <div class="key-label">Velocità</div>
+                                        <div class="key-value">@monster.Speed</div>
+                                    </div>
+                                </div>
+
+                                <div class="stats-grid">
+                                    @foreach (var s in GetStats(monster))
+                                    {
+                                        <div class="stat-card">
+                                            <div class="stat-label">@s.Label</div>
+                                            <div class="stat-value">@s.Value</div>
+                                            <div class="stat-mod">@FormatModifier(s.Value)</div>
+                                        </div>
+                                    }
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(monster.Abilities))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Abilità speciali</div>
+                                        <div class="section-body">@monster.Abilities</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(monster.Description))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Descrizione</div>
+                                        <div class="section-body">@monster.Description</div>
+                                    </div>
+                                }
+
+                                @if (isMaster)
+                                {
+                                    <div class="master-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(monster)" @onclick:stopPropagation>
+                                            ✎ Modifica
+                                        </button>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteMonsterAsync(monster)" @onclick:stopPropagation>
+                                            🗑 Elimina
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (!FilteredMonsters.Any())
+                {
+                    <div class="empty-state">
+                        @if (allMonsters.Count == 0)
+                        {
+                            <div class="empty-icon">🐉</div>
+                            <p class="empty-title">Nessun mostro nel database</p>
+                            <p class="empty-text">
+                                Il Master può aggiungere i mostri usando il bottone
+                                <strong>+</strong> in basso a destra.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="empty-text">Nessun mostro corrisponde ai filtri.</p>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        @if (isMaster)
+        {
+            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo mostro">
+                +
+            </button>
+        }
+    }
+</div>
+
+@code {
+    private enum ViewMode { List, Form }
+
+    private ViewMode mode = ViewMode.List;
+    private List<Monster> allMonsters = new();
+    private bool isLoading = true;
+    private bool isBusy;
+    private bool isMaster;
+    private string? errorMessage;
+
+    private string searchInput = string.Empty;
+    private string searchQuery = string.Empty;
+    private CancellationTokenSource? debounceCts;
+
+    private record CrFilter(string Label, Func<double, bool> Match);
+
+    private readonly CrFilter[] crFilters =
+    {
+        new("0",     v => v == 0),
+        new("1/8",   v => Math.Abs(v - 0.125) < 0.001),
+        new("1/4",   v => Math.Abs(v - 0.25) < 0.001),
+        new("1/2",   v => Math.Abs(v - 0.5) < 0.001),
+        new("1",     v => v == 1),
+        new("2",     v => v == 2),
+        new("3",     v => v == 3),
+        new("4",     v => v == 4),
+        new("5",     v => v == 5),
+        new("6",     v => v == 6),
+        new("7",     v => v == 7),
+        new("8",     v => v == 8),
+        new("9",     v => v == 9),
+        new("10",    v => v == 10),
+        new("11-15", v => v >= 11 && v <= 15),
+        new("16-20", v => v >= 16 && v <= 20),
+        new("21+",   v => v >= 21)
+    };
+    private readonly HashSet<string> crFilterLabels = new();
+
+    private record MonsterType(string Label, string Match);
+
+    private readonly MonsterType[] types =
+    {
+        new("Aberrazione", "Aberration"),
+        new("Bestia",      "Beast"),
+        new("Celestiale",  "Celestial"),
+        new("Costrutto",   "Construct"),
+        new("Drago",       "Dragon"),
+        new("Elementale",  "Elemental"),
+        new("Folletto",    "Fey"),
+        new("Immondo",     "Fiend"),
+        new("Gigante",     "Giant"),
+        new("Umanoide",    "Humanoid"),
+        new("Mostruosità", "Monstrosity"),
+        new("Melma",       "Ooze"),
+        new("Vegetale",    "Plant"),
+        new("Non Morto",   "Undead")
+    };
+    private string? typeFilter;
+
+    private string? expandedId;
+    private Monster editDraft = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var role = await AuthState.GetRoleAsync();
+            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+
+            allMonsters = await SupabaseService.GetAllMonstersAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento mostri: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private IEnumerable<Monster> FilteredMonsters
+    {
+        get
+        {
+            IEnumerable<Monster> result = allMonsters;
+
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                result = result.Where(m =>
+                    m.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (crFilterLabels.Count > 0)
+            {
+                result = result.Where(m =>
+                {
+                    var v = ParseCr(m.ChallengeRating);
+                    if (v < 0) return false;
+                    return crFilters.Any(f => crFilterLabels.Contains(f.Label) && f.Match(v));
+                });
+            }
+
+            if (!string.IsNullOrEmpty(typeFilter))
+            {
+                result = result.Where(m =>
+                    m.Type.Contains(typeFilter, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return result
+                .OrderBy(m => ParseCr(m.ChallengeRating))
+                .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static double ParseCr(string cr)
+    {
+        if (string.IsNullOrWhiteSpace(cr)) return -1;
+        return cr.Trim() switch
+        {
+            "0" => 0,
+            "1/8" => 0.125,
+            "1/4" => 0.25,
+            "1/2" => 0.5,
+            _ => double.TryParse(cr, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : -1
+        };
+    }
+
+    private async Task OnSearchInputChangedAsync()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+        debounceCts = new CancellationTokenSource();
+        var token = debounceCts.Token;
+        try
+        {
+            await Task.Delay(300, token);
+            if (token.IsCancellationRequested) return;
+            searchQuery = searchInput.Trim();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void ToggleCr(string label)
+    {
+        if (!crFilterLabels.Add(label))
+            crFilterLabels.Remove(label);
+        expandedId = null;
+    }
+
+    private void ToggleType(string type)
+    {
+        typeFilter = typeFilter == type ? null : type;
+        expandedId = null;
+    }
+
+    private void ToggleExpand(string id)
+    {
+        expandedId = expandedId == id ? null : id;
+    }
+
+    private void OpenCreateForm()
+    {
+        editDraft = new Monster
+        {
+            Size = "Medium",
+            ArmorClass = 10,
+            Strength = 10,
+            Dexterity = 10,
+            Constitution = 10,
+            Intelligence = 10,
+            Wisdom = 10,
+            Charisma = 10
+        };
+        mode = ViewMode.Form;
+    }
+
+    private void OpenEditForm(Monster monster)
+    {
+        editDraft = CloneMonster(monster);
+        mode = ViewMode.Form;
+    }
+
+    private void CancelForm() => mode = ViewMode.List;
+
+    private async Task SaveFormAsync()
+    {
+        if (string.IsNullOrWhiteSpace(editDraft.Name))
+        {
+            errorMessage = "Il nome è obbligatorio";
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            Monster? saved;
+            if (string.IsNullOrEmpty(editDraft.Id))
+            {
+                saved = await SupabaseService.CreateMonsterAsync(editDraft);
+            }
+            else
+            {
+                saved = await SupabaseService.UpdateMonsterAsync(editDraft);
+            }
+
+            if (saved is null)
+            {
+                errorMessage = "Il server non ha restituito il mostro salvato.";
+                return;
+            }
+
+            var idx = allMonsters.FindIndex(m => m.Id == saved.Id);
+            if (idx >= 0) allMonsters[idx] = saved;
+            else allMonsters.Add(saved);
+
+            expandedId = saved.Id;
+            mode = ViewMode.List;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteMonsterAsync(Monster monster)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Eliminare il mostro \"{monster.Name}\"?");
+        if (!confirmed) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.DeleteMonsterAsync(monster.Id);
+            allMonsters.RemoveAll(m => m.Id == monster.Id);
+            if (expandedId == monster.Id) expandedId = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore eliminazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static Monster CloneMonster(Monster m) => new()
+    {
+        Id = m.Id,
+        Name = m.Name,
+        Size = m.Size,
+        Type = m.Type,
+        Alignment = m.Alignment,
+        ArmorClass = m.ArmorClass,
+        HitPoints = m.HitPoints,
+        Speed = m.Speed,
+        Strength = m.Strength,
+        Dexterity = m.Dexterity,
+        Constitution = m.Constitution,
+        Intelligence = m.Intelligence,
+        Wisdom = m.Wisdom,
+        Charisma = m.Charisma,
+        ChallengeRating = m.ChallengeRating,
+        Abilities = m.Abilities,
+        Description = m.Description
+    };
+
+    private static IEnumerable<(string Label, int Value)> GetStats(Monster m) => new[]
+    {
+        ("FOR", m.Strength),
+        ("DES", m.Dexterity),
+        ("COS", m.Constitution),
+        ("INT", m.Intelligence),
+        ("SAG", m.Wisdom),
+        ("CAR", m.Charisma)
+    };
+
+    private static int CalcModifier(int stat) => (int)Math.Floor((stat - 10) / 2.0);
+
+    private static string FormatModifier(int stat)
+    {
+        var mod = CalcModifier(stat);
+        return mod >= 0 ? $"+{mod}" : mod.ToString();
+    }
+
+    public void Dispose()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+    }
+}

@@ -1,0 +1,341 @@
+@page "/combat"
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Combattimento - D&amp;D Companion</PageTitle>
+
+<div class="combat-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("/")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Tracker Iniziativa</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @if (combatants.Count > 0)
+    {
+        <div class="round-indicator">
+            <div class="round-label">Round <strong>@roundNumber</strong></div>
+            @if (CurrentCombatant is not null)
+            {
+                <div class="current-turn">
+                    Turno di <strong>@CurrentCombatant.Name</strong>
+                </div>
+            }
+        </div>
+    }
+    else if (!isMaster)
+    {
+        <div class="info-banner">
+            Nessun combattimento in corso. Il Master non ha ancora avviato l'iniziativa.
+        </div>
+    }
+
+    @if (isMaster)
+    {
+        <div class="add-form">
+            <div class="form-title">Aggiungi combattente</div>
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label>Nome</label>
+                    <input type="text" class="input" maxlength="60"
+                           placeholder="PG, mostro, PNG..."
+                           @bind="newDraft.Name" @bind:event="oninput" />
+                </div>
+                <div class="field">
+                    <label>Iniziativa</label>
+                    <input type="number" class="input" @bind="newDraft.Initiative" />
+                </div>
+                <div class="field">
+                    <label>PF attuali</label>
+                    <input type="number" class="input" min="0" @bind="newDraft.CurrentHp" />
+                </div>
+                <div class="field field-full">
+                    <label>PF massimi</label>
+                    <input type="number" class="input" min="1" @bind="newDraft.MaxHp" />
+                </div>
+            </div>
+            <button type="button" class="add-btn" @onclick="AddCombatant">
+                + Aggiungi
+            </button>
+        </div>
+
+        <div class="master-controls">
+            <button type="button" class="ctrl-btn" @onclick="ImportCharactersAsync" disabled="@isImporting">
+                @(isImporting ? "Importazione..." : "📥 Importa personaggi")
+            </button>
+            <button type="button" class="ctrl-btn" @onclick="SortByInitiative" disabled="@(combatants.Count == 0)">
+                ↕ Ordina per iniziativa
+            </button>
+            <button type="button" class="ctrl-btn ctrl-danger" @onclick="NewCombatAsync" disabled="@(combatants.Count == 0)">
+                🗑 Nuovo combattimento
+            </button>
+        </div>
+    }
+
+    <div class="combatants-list">
+        @if (combatants.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-icon">⚔️</div>
+                @if (isMaster)
+                {
+                    <p class="empty-text">Nessun combattente. Aggiungili dal form qui sopra o importa i personaggi dal database.</p>
+                }
+                else
+                {
+                    <p class="empty-text">In attesa del Master...</p>
+                }
+            </div>
+        }
+        else
+        {
+            @for (var i = 0; i < combatants.Count; i++)
+            {
+                var c = combatants[i];
+                var isCurrent = i == currentTurnIndex;
+                var isDefeated = c.CurrentHp <= 0;
+                var pos = i + 1;
+                <div class="combatant-row @(isCurrent ? "current" : "") @(isDefeated ? "defeated" : "")">
+                    <div class="pos">@pos</div>
+
+                    @if (isMaster)
+                    {
+                        <input type="number" class="init-input" @bind="c.Initiative" @bind:event="onchange" />
+                    }
+                    else
+                    {
+                        <div class="init-badge">@c.Initiative</div>
+                    }
+
+                    <div class="combatant-main">
+                        <div class="combatant-name">@c.Name</div>
+                        <div class="hp-display">
+                            PF <strong>@c.CurrentHp</strong> / @c.MaxHp
+                        </div>
+                    </div>
+
+                    @if (isMaster)
+                    {
+                        <div class="hp-btns">
+                            <button type="button" class="hp-btn hp-minus"
+                                    @onclick="() => AdjustHp(c, -1)">
+                                −
+                            </button>
+                            <button type="button" class="hp-btn hp-plus"
+                                    @onclick="() => AdjustHp(c, 1)">
+                                +
+                            </button>
+                        </div>
+                        <button type="button" class="remove-btn" title="Rimuovi"
+                                @onclick="() => RemoveCombatant(c.Id)">
+                            ✕
+                        </button>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    @if (isMaster && combatants.Count > 0)
+    {
+        <div class="turn-controls">
+            <button type="button" class="reset-btn" @onclick="ResetRound" title="Torna al Round 1">
+                ⟲ Round 1
+            </button>
+            <button type="button" class="next-turn-btn" @onclick="NextTurn">
+                Prossimo Turno →
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    private class Combatant
+    {
+        public string Id { get; init; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = string.Empty;
+        public int Initiative { get; set; }
+        public int CurrentHp { get; set; }
+        public int MaxHp { get; set; }
+    }
+
+    private readonly List<Combatant> combatants = new();
+    private int currentTurnIndex;
+    private int roundNumber = 1;
+    private bool isMaster;
+    private bool isImporting;
+    private string? errorMessage;
+
+    private Combatant newDraft = new() { CurrentHp = 10, MaxHp = 10 };
+
+    private Combatant? CurrentCombatant =>
+        (combatants.Count > 0 && currentTurnIndex < combatants.Count)
+            ? combatants[currentTurnIndex]
+            : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var role = await AuthState.GetRoleAsync();
+        isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void AddCombatant()
+    {
+        if (!isMaster) return;
+
+        if (string.IsNullOrWhiteSpace(newDraft.Name))
+        {
+            errorMessage = "Inserisci il nome del combattente";
+            return;
+        }
+        if (newDraft.MaxHp < 1) newDraft.MaxHp = 1;
+        if (newDraft.CurrentHp < 0) newDraft.CurrentHp = 0;
+        if (newDraft.CurrentHp > newDraft.MaxHp) newDraft.CurrentHp = newDraft.MaxHp;
+
+        combatants.Add(new Combatant
+        {
+            Name = newDraft.Name.Trim(),
+            Initiative = newDraft.Initiative,
+            CurrentHp = newDraft.CurrentHp,
+            MaxHp = newDraft.MaxHp
+        });
+
+        SortByInitiative();
+        newDraft = new Combatant { CurrentHp = 10, MaxHp = 10 };
+        errorMessage = null;
+    }
+
+    private async Task ImportCharactersAsync()
+    {
+        if (!isMaster) return;
+
+        isImporting = true;
+        errorMessage = null;
+        try
+        {
+            var characters = await SupabaseService.GetAllCharactersAsync();
+            if (characters.Count == 0)
+            {
+                errorMessage = "Nessun personaggio nel database da importare.";
+                return;
+            }
+
+            foreach (var ch in characters)
+            {
+                combatants.Add(new Combatant
+                {
+                    Name = ch.Name,
+                    Initiative = 0,
+                    CurrentHp = ch.HitPoints,
+                    MaxHp = ch.MaxHitPoints
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore importazione: {ex.Message}";
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private void RemoveCombatant(string id)
+    {
+        if (!isMaster) return;
+
+        var currentId = CurrentCombatant?.Id;
+        var idx = combatants.FindIndex(c => c.Id == id);
+        if (idx < 0) return;
+
+        combatants.RemoveAt(idx);
+
+        if (combatants.Count == 0)
+        {
+            currentTurnIndex = 0;
+            return;
+        }
+
+        if (currentId is not null && currentId != id)
+        {
+            var newIdx = combatants.FindIndex(c => c.Id == currentId);
+            if (newIdx >= 0) currentTurnIndex = newIdx;
+            else if (currentTurnIndex >= combatants.Count) currentTurnIndex = 0;
+        }
+        else if (currentTurnIndex >= combatants.Count)
+        {
+            currentTurnIndex = 0;
+        }
+    }
+
+    private void AdjustHp(Combatant c, int delta)
+    {
+        if (!isMaster) return;
+        c.CurrentHp = Math.Clamp(c.CurrentHp + delta, 0, c.MaxHp);
+    }
+
+    private void NextTurn()
+    {
+        if (!isMaster || combatants.Count == 0) return;
+
+        currentTurnIndex++;
+        if (currentTurnIndex >= combatants.Count)
+        {
+            currentTurnIndex = 0;
+            roundNumber++;
+        }
+    }
+
+    private void ResetRound()
+    {
+        if (!isMaster) return;
+        currentTurnIndex = 0;
+        roundNumber = 1;
+    }
+
+    private void SortByInitiative()
+    {
+        if (!isMaster || combatants.Count == 0) return;
+
+        var currentId = CurrentCombatant?.Id;
+        var sorted = combatants
+            .OrderByDescending(c => c.Initiative)
+            .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        combatants.Clear();
+        combatants.AddRange(sorted);
+
+        if (currentId is not null)
+        {
+            var newIdx = combatants.FindIndex(c => c.Id == currentId);
+            if (newIdx >= 0) currentTurnIndex = newIdx;
+        }
+    }
+
+    private async Task NewCombatAsync()
+    {
+        if (!isMaster) return;
+
+        if (combatants.Count > 0)
+        {
+            var confirmed = await JS.InvokeAsync<bool>("confirm",
+                "Iniziare un nuovo combattimento? La lista corrente verrà cancellata.");
+            if (!confirmed) return;
+        }
+
+        combatants.Clear();
+        currentTurnIndex = 0;
+        roundNumber = 1;
+        errorMessage = null;
+    }
+}

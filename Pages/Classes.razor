@@ -1,0 +1,429 @@
+@page "/classes"
+@using DndCompanion.Models
+@implements IDisposable
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Classi - D&amp;D Companion</PageTitle>
+
+<div class="classes-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("/")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Classi</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @if (mode == ViewMode.Form)
+    {
+        <div class="form-view">
+            <div class="form-top">
+                <button type="button" class="back-link" @onclick="CancelForm">← Annulla</button>
+            </div>
+
+            <h2 class="form-title">
+                @(string.IsNullOrEmpty(editDraft.Id) ? "Nuova Classe" : "Modifica Classe")
+            </h2>
+
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label>Nome</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.Name" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Descrizione</label>
+                    <textarea class="input" rows="4" @bind="editDraft.Description"></textarea>
+                </div>
+
+                <div class="field">
+                    <label>Dado Vita</label>
+                    <input type="text" class="input" maxlength="10" placeholder="es. d10" @bind="editDraft.HitDie" />
+                </div>
+
+                <div class="field">
+                    <label>Abilità Primaria</label>
+                    <input type="text" class="input" maxlength="40" placeholder="es. Forza" @bind="editDraft.PrimaryAbility" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Tiri Salvezza</label>
+                    <input type="text" class="input" maxlength="120" placeholder="es. Forza, Costituzione" @bind="editDraft.SavingThrows" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Competenze Armature</label>
+                    <input type="text" class="input" maxlength="200" @bind="editDraft.ArmorProficiencies" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Competenze Armi</label>
+                    <input type="text" class="input" maxlength="200" @bind="editDraft.WeaponProficiencies" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Scelta Abilità</label>
+                    <textarea class="input" rows="3" placeholder="Es. Scegli 2 tra Acrobazia, Atletica..." @bind="editDraft.SkillChoices"></textarea>
+                </div>
+
+                <div class="field field-full">
+                    <label>Capacità di Classe</label>
+                    <textarea class="input" rows="8" @bind="editDraft.Features"></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="primary-btn" @onclick="SaveFormAsync" disabled="@isBusy">
+                    @(isBusy ? "Salvataggio..." : "Salva")
+                </button>
+                <button type="button" class="secondary-btn" @onclick="CancelForm" disabled="@isBusy">
+                    Annulla
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="Cerca classe..."
+                   @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
+
+            <div class="results-info">
+                @if (isLoading)
+                {
+                    <span>Caricamento...</span>
+                }
+                else
+                {
+                    var count = FilteredClasses.Count();
+                    <span>@count @(count == 1 ? "classe trovata" : "classi trovate")</span>
+                }
+            </div>
+        </div>
+
+        <div class="classes-list">
+            @if (!isLoading)
+            {
+                @foreach (var cls in FilteredClasses)
+                {
+                    var isExpanded = expandedId == cls.Id;
+                    <div class="class-card @(isExpanded ? "expanded" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(cls.Id)">
+                            <div class="card-main">
+                                <div class="card-name">@cls.Name</div>
+                                <div class="card-meta">
+                                    <span class="hitdie-badge">Dado Vita @(string.IsNullOrEmpty(cls.HitDie) ? "—" : cls.HitDie)</span>
+                                    @{ var author = GetAuthorName(cls.AddedBy); }
+                                    @if (!string.IsNullOrEmpty(author))
+                                    {
+                                        <span class="author-badge" title="Aggiunta da @author">✎ @author</span>
+                                    }
+                                </div>
+                            </div>
+                            <span class="expand-icon">@(isExpanded ? "▾" : "▸")</span>
+                        </button>
+
+                        <div class="card-details">
+                            <div class="details-inner">
+                                @if (!string.IsNullOrWhiteSpace(cls.Description))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Descrizione</div>
+                                        <div class="section-body">@cls.Description</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(cls.PrimaryAbility))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Abilità primaria</div>
+                                        <div class="section-body">@cls.PrimaryAbility</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(cls.SavingThrows))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Tiri salvezza</div>
+                                        <div class="section-body">@cls.SavingThrows</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(cls.ArmorProficiencies))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Competenze armature</div>
+                                        <div class="section-body">@cls.ArmorProficiencies</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(cls.WeaponProficiencies))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Competenze armi</div>
+                                        <div class="section-body">@cls.WeaponProficiencies</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(cls.SkillChoices))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Scelta abilità</div>
+                                        <div class="section-body">@cls.SkillChoices</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(cls.Features))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Capacità di classe</div>
+                                        <div class="section-body">@cls.Features</div>
+                                    </div>
+                                }
+
+                                @if (CanEdit(cls))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(cls)" @onclick:stopPropagation>
+                                            ✎ Modifica
+                                        </button>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteClassAsync(cls)" @onclick:stopPropagation>
+                                            🗑 Elimina
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (!FilteredClasses.Any())
+                {
+                    <div class="empty-state">
+                        @if (allClasses.Count == 0)
+                        {
+                            <div class="empty-icon">⚔️</div>
+                            <p class="empty-title">Nessuna classe nel database</p>
+                            <p class="empty-text">
+                                Ogni giocatore può aggiungere le classi usando il bottone
+                                <strong>+</strong> in basso a destra.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="empty-text">Nessuna classe corrisponde alla ricerca.</p>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova classe">
+            +
+        </button>
+    }
+</div>
+
+@code {
+    private enum ViewMode { List, Form }
+
+    private ViewMode mode = ViewMode.List;
+    private List<CharacterClass> allClasses = new();
+    private Dictionary<string, string> playerNicknames = new();
+    private bool isLoading = true;
+    private bool isBusy;
+    private bool isMaster;
+    private string? playerId;
+    private string? errorMessage;
+
+    private string searchInput = string.Empty;
+    private string searchQuery = string.Empty;
+    private CancellationTokenSource? debounceCts;
+
+    private string? expandedId;
+    private CharacterClass editDraft = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            playerId = await AuthState.GetPlayerIdAsync();
+            var role = await AuthState.GetRoleAsync();
+            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+
+            var classesTask = SupabaseService.GetAllClassesAsync();
+            var playersTask = SupabaseService.GetAllPlayersAsync();
+            await Task.WhenAll(classesTask, playersTask);
+
+            allClasses = classesTask.Result;
+            playerNicknames = playersTask.Result.ToDictionary(p => p.Id, p => p.Nickname);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento classi: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool CanEdit(CharacterClass cls) =>
+        isMaster || (!string.IsNullOrEmpty(cls.AddedBy) && cls.AddedBy == playerId);
+
+    private string? GetAuthorName(string? authorId)
+    {
+        if (string.IsNullOrEmpty(authorId)) return null;
+        return playerNicknames.TryGetValue(authorId, out var nick) ? nick : null;
+    }
+
+    private IEnumerable<CharacterClass> FilteredClasses
+    {
+        get
+        {
+            IEnumerable<CharacterClass> result = allClasses;
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                result = result.Where(c =>
+                    c.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+            return result.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task OnSearchInputChangedAsync()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+        debounceCts = new CancellationTokenSource();
+        var token = debounceCts.Token;
+        try
+        {
+            await Task.Delay(300, token);
+            if (token.IsCancellationRequested) return;
+            searchQuery = searchInput.Trim();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void ToggleExpand(string id)
+    {
+        expandedId = expandedId == id ? null : id;
+    }
+
+    private void OpenCreateForm()
+    {
+        editDraft = new CharacterClass
+        {
+            HitDie = "d8",
+            AddedBy = playerId
+        };
+        mode = ViewMode.Form;
+    }
+
+    private void OpenEditForm(CharacterClass cls)
+    {
+        editDraft = CloneClass(cls);
+        mode = ViewMode.Form;
+    }
+
+    private void CancelForm() => mode = ViewMode.List;
+
+    private async Task SaveFormAsync()
+    {
+        if (string.IsNullOrWhiteSpace(editDraft.Name))
+        {
+            errorMessage = "Il nome è obbligatorio";
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            CharacterClass? saved;
+            if (string.IsNullOrEmpty(editDraft.Id))
+            {
+                saved = await SupabaseService.CreateClassAsync(editDraft);
+            }
+            else
+            {
+                saved = await SupabaseService.UpdateClassAsync(editDraft);
+            }
+
+            if (saved is null)
+            {
+                errorMessage = "Il server non ha restituito la classe salvata.";
+                return;
+            }
+
+            var idx = allClasses.FindIndex(c => c.Id == saved.Id);
+            if (idx >= 0) allClasses[idx] = saved;
+            else allClasses.Add(saved);
+
+            expandedId = saved.Id;
+            mode = ViewMode.List;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteClassAsync(CharacterClass cls)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Eliminare la classe \"{cls.Name}\"?");
+        if (!confirmed) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.DeleteClassAsync(cls.Id);
+            allClasses.RemoveAll(c => c.Id == cls.Id);
+            if (expandedId == cls.Id) expandedId = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore eliminazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static CharacterClass CloneClass(CharacterClass c) => new()
+    {
+        Id = c.Id,
+        Name = c.Name,
+        Description = c.Description,
+        HitDie = c.HitDie,
+        PrimaryAbility = c.PrimaryAbility,
+        SavingThrows = c.SavingThrows,
+        ArmorProficiencies = c.ArmorProficiencies,
+        WeaponProficiencies = c.WeaponProficiencies,
+        SkillChoices = c.SkillChoices,
+        Features = c.Features,
+        AddedBy = c.AddedBy,
+        CreatedAt = c.CreatedAt
+    };
+
+    public void Dispose()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+    }
+}

@@ -1,0 +1,89 @@
+@page "/"
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>D&amp;D Companion</PageTitle>
+
+<div class="home-container">
+    <header class="home-header">
+        <div class="welcome">
+            <h1>D&amp;D Companion</h1>
+            @if (!string.IsNullOrEmpty(nickname))
+            {
+                <p class="welcome-line">
+                    Benvenuto, <strong>@nickname</strong>
+                    @if (!string.IsNullOrEmpty(role))
+                    {
+                        <span class="role-tag">@(isMaster ? "Master" : "Giocatore")</span>
+                    }
+                </p>
+            }
+        </div>
+        <button type="button" class="logout-btn" @onclick="OnLogoutAsync" title="Esci">
+            Esci
+        </button>
+    </header>
+
+    <section class="card-grid">
+        @foreach (var card in cards)
+        {
+            <button type="button" class="feature-card" @onclick="@(() => Navigation.NavigateTo(card.Route))">
+                <span class="card-icon" aria-hidden="true">@card.Icon</span>
+                <span class="card-title">@card.Title</span>
+                <span class="card-desc">@card.Description</span>
+            </button>
+        }
+        @if (!isMaster)
+        {
+            <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("/combat")'>
+                <span class="card-icon" aria-hidden="true">⚔️</span>
+                <span class="card-title">Combattimento</span>
+                <span class="card-desc">Iniziativa (gestita dal Master)</span>
+            </button>
+        }
+    </section>
+
+    @if (isMaster)
+    {
+        <section class="master-section">
+            <h2>Strumenti Master</h2>
+            <div class="card-grid master-grid">
+                <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("/combat")'>
+                    <span class="card-icon" aria-hidden="true">⚔️</span>
+                    <span class="card-title">Combattimento</span>
+                    <span class="card-desc">Tracker iniziativa</span>
+                </button>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private record FeatureCard(string Icon, string Title, string Description, string Route);
+
+    private readonly FeatureCard[] cards =
+    {
+        new("🗡️", "Personaggi",  "Gestisci la tua scheda", "/characters"),
+        new("📜", "Incantesimi", "Consulta gli incantesimi", "/spells"),
+        new("🐉", "Mostri",      "Bestiario e statistiche", "/monsters"),
+        new("📝", "Appunti",     "Note di campagna", "/notes"),
+        new("⚔️", "Classi",      "Manuale delle classi", "/classes"),
+        new("🧝", "Razze",       "Manuale delle razze", "/races"),
+    };
+
+    private string? nickname;
+    private string? role;
+    private bool isMaster;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        nickname = await AuthState.GetNicknameAsync();
+        role = await AuthState.GetRoleAsync();
+        isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+        StateHasChanged();
+    }
+
+    private Task OnLogoutAsync() => AuthState.LogoutAsync();
+}

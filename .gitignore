@@ -1,0 +1,48 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Pp]ublish/
+
+# User-specific / IDE
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+*.swp
+*.DotSettings.user
+
+# Claude Code local settings
+.claude/
+
+# Rider
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# Logs
+*.log
+
+# macOS / Windows junk
+.DS_Store
+Thumbs.db
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
+TestResults/

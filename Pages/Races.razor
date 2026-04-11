@@ -1,0 +1,432 @@
+@page "/races"
+@using DndCompanion.Models
+@implements IDisposable
+@inject SupabaseService SupabaseService
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Razze - D&amp;D Companion</PageTitle>
+
+<div class="races-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("/")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Razze</h1>
+    </header>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @if (mode == ViewMode.Form)
+    {
+        <div class="form-view">
+            <div class="form-top">
+                <button type="button" class="back-link" @onclick="CancelForm">← Annulla</button>
+            </div>
+
+            <h2 class="form-title">
+                @(string.IsNullOrEmpty(editDraft.Id) ? "Nuova Razza" : "Modifica Razza")
+            </h2>
+
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label>Nome</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.Name" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Descrizione</label>
+                    <textarea class="input" rows="4" @bind="editDraft.Description"></textarea>
+                </div>
+
+                <div class="field">
+                    <label>Velocità</label>
+                    <input type="number" class="input" min="0" max="120" @bind="editDraft.Speed" />
+                </div>
+
+                <div class="field-group field-full">
+                    <label class="group-label">Bonus Caratteristiche</label>
+                    <div class="stats-inputs">
+                        <div class="field stat-field">
+                            <label title="Forza">FOR</label>
+                            <input type="number" class="input" @bind="editDraft.StrBonus" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Destrezza">DES</label>
+                            <input type="number" class="input" @bind="editDraft.DexBonus" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Costituzione">COS</label>
+                            <input type="number" class="input" @bind="editDraft.ConBonus" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Intelligenza">INT</label>
+                            <input type="number" class="input" @bind="editDraft.IntBonus" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Saggezza">SAG</label>
+                            <input type="number" class="input" @bind="editDraft.WisBonus" />
+                        </div>
+                        <div class="field stat-field">
+                            <label title="Carisma">CAR</label>
+                            <input type="number" class="input" @bind="editDraft.ChaBonus" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field field-full">
+                    <label>Tratti</label>
+                    <textarea class="input" rows="5" @bind="editDraft.Traits"
+                              placeholder="Visione notturna, resistenza al veleno, ecc."></textarea>
+                </div>
+
+                <div class="field field-full">
+                    <label>Lingue</label>
+                    <input type="text" class="input" maxlength="200" @bind="editDraft.Languages"
+                           placeholder="Comune, Elfico, ..." />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="primary-btn" @onclick="SaveFormAsync" disabled="@isBusy">
+                    @(isBusy ? "Salvataggio..." : "Salva")
+                </button>
+                <button type="button" class="secondary-btn" @onclick="CancelForm" disabled="@isBusy">
+                    Annulla
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="Cerca razza..."
+                   @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
+
+            <div class="results-info">
+                @if (isLoading)
+                {
+                    <span>Caricamento...</span>
+                }
+                else
+                {
+                    var count = FilteredRaces.Count();
+                    <span>@count @(count == 1 ? "razza trovata" : "razze trovate")</span>
+                }
+            </div>
+        </div>
+
+        <div class="races-list">
+            @if (!isLoading)
+            {
+                @foreach (var race in FilteredRaces)
+                {
+                    var isExpanded = expandedId == race.Id;
+                    <div class="race-card @(isExpanded ? "expanded" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(race.Id)">
+                            <div class="card-main">
+                                <div class="card-name">@race.Name</div>
+                                <div class="card-meta">
+                                    <span class="speed-badge">Velocità @race.Speed</span>
+                                    @{ var author = GetAuthorName(race.AddedBy); }
+                                    @if (!string.IsNullOrEmpty(author))
+                                    {
+                                        <span class="author-badge" title="Aggiunta da @author">✎ @author</span>
+                                    }
+                                </div>
+                            </div>
+                            <span class="expand-icon">@(isExpanded ? "▾" : "▸")</span>
+                        </button>
+
+                        <div class="card-details">
+                            <div class="details-inner">
+                                @if (!string.IsNullOrWhiteSpace(race.Description))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Descrizione</div>
+                                        <div class="section-body">@race.Description</div>
+                                    </div>
+                                }
+
+                                <div class="section-block">
+                                    <div class="section-title">Bonus caratteristiche</div>
+                                    <div class="section-body">@FormatRaceBonuses(race)</div>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(race.Traits))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Tratti</div>
+                                        <div class="section-body">@race.Traits</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(race.Languages))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Lingue</div>
+                                        <div class="section-body">@race.Languages</div>
+                                    </div>
+                                }
+
+                                @if (CanEdit(race))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(race)" @onclick:stopPropagation>
+                                            ✎ Modifica
+                                        </button>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteRaceAsync(race)" @onclick:stopPropagation>
+                                            🗑 Elimina
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (!FilteredRaces.Any())
+                {
+                    <div class="empty-state">
+                        @if (allRaces.Count == 0)
+                        {
+                            <div class="empty-icon">🧝</div>
+                            <p class="empty-title">Nessuna razza nel database</p>
+                            <p class="empty-text">
+                                Ogni giocatore può aggiungere le razze usando il bottone
+                                <strong>+</strong> in basso a destra.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="empty-text">Nessuna razza corrisponde alla ricerca.</p>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova razza">
+            +
+        </button>
+    }
+</div>
+
+@code {
+    private enum ViewMode { List, Form }
+
+    private ViewMode mode = ViewMode.List;
+    private List<Race> allRaces = new();
+    private Dictionary<string, string> playerNicknames = new();
+    private bool isLoading = true;
+    private bool isBusy;
+    private bool isMaster;
+    private string? playerId;
+    private string? errorMessage;
+
+    private string searchInput = string.Empty;
+    private string searchQuery = string.Empty;
+    private CancellationTokenSource? debounceCts;
+
+    private string? expandedId;
+    private Race editDraft = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            playerId = await AuthState.GetPlayerIdAsync();
+            var role = await AuthState.GetRoleAsync();
+            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+
+            var racesTask = SupabaseService.GetAllRacesAsync();
+            var playersTask = SupabaseService.GetAllPlayersAsync();
+            await Task.WhenAll(racesTask, playersTask);
+
+            allRaces = racesTask.Result;
+            playerNicknames = playersTask.Result.ToDictionary(p => p.Id, p => p.Nickname);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento razze: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool CanEdit(Race race) =>
+        isMaster || (!string.IsNullOrEmpty(race.AddedBy) && race.AddedBy == playerId);
+
+    private string? GetAuthorName(string? authorId)
+    {
+        if (string.IsNullOrEmpty(authorId)) return null;
+        return playerNicknames.TryGetValue(authorId, out var nick) ? nick : null;
+    }
+
+    private IEnumerable<Race> FilteredRaces
+    {
+        get
+        {
+            IEnumerable<Race> result = allRaces;
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                result = result.Where(r =>
+                    r.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+            return result.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task OnSearchInputChangedAsync()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+        debounceCts = new CancellationTokenSource();
+        var token = debounceCts.Token;
+        try
+        {
+            await Task.Delay(300, token);
+            if (token.IsCancellationRequested) return;
+            searchQuery = searchInput.Trim();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void ToggleExpand(string id)
+    {
+        expandedId = expandedId == id ? null : id;
+    }
+
+    private void OpenCreateForm()
+    {
+        editDraft = new Race
+        {
+            Speed = 30,
+            AddedBy = playerId
+        };
+        mode = ViewMode.Form;
+    }
+
+    private void OpenEditForm(Race race)
+    {
+        editDraft = CloneRace(race);
+        mode = ViewMode.Form;
+    }
+
+    private void CancelForm() => mode = ViewMode.List;
+
+    private async Task SaveFormAsync()
+    {
+        if (string.IsNullOrWhiteSpace(editDraft.Name))
+        {
+            errorMessage = "Il nome è obbligatorio";
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            Race? saved;
+            if (string.IsNullOrEmpty(editDraft.Id))
+            {
+                saved = await SupabaseService.CreateRaceAsync(editDraft);
+            }
+            else
+            {
+                saved = await SupabaseService.UpdateRaceAsync(editDraft);
+            }
+
+            if (saved is null)
+            {
+                errorMessage = "Il server non ha restituito la razza salvata.";
+                return;
+            }
+
+            var idx = allRaces.FindIndex(r => r.Id == saved.Id);
+            if (idx >= 0) allRaces[idx] = saved;
+            else allRaces.Add(saved);
+
+            expandedId = saved.Id;
+            mode = ViewMode.List;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteRaceAsync(Race race)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Eliminare la razza \"{race.Name}\"?");
+        if (!confirmed) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.DeleteRaceAsync(race.Id);
+            allRaces.RemoveAll(r => r.Id == race.Id);
+            if (expandedId == race.Id) expandedId = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore eliminazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static Race CloneRace(Race r) => new()
+    {
+        Id = r.Id,
+        Name = r.Name,
+        Description = r.Description,
+        Speed = r.Speed,
+        StrBonus = r.StrBonus,
+        DexBonus = r.DexBonus,
+        ConBonus = r.ConBonus,
+        IntBonus = r.IntBonus,
+        WisBonus = r.WisBonus,
+        ChaBonus = r.ChaBonus,
+        Traits = r.Traits,
+        Languages = r.Languages,
+        AddedBy = r.AddedBy,
+        CreatedAt = r.CreatedAt
+    };
+
+    private static string FormatRaceBonuses(Race race)
+    {
+        var parts = new List<string>();
+        void Add(int val, string label)
+        {
+            if (val != 0) parts.Add($"{(val > 0 ? "+" : "")}{val} {label}");
+        }
+        Add(race.StrBonus, "FOR");
+        Add(race.DexBonus, "DES");
+        Add(race.ConBonus, "COS");
+        Add(race.IntBonus, "INT");
+        Add(race.WisBonus, "SAG");
+        Add(race.ChaBonus, "CAR");
+        return parts.Count > 0 ? string.Join(", ", parts) : "Nessuno";
+    }
+
+    public void Dispose()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+    }
+}
