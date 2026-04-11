@@ -29,6 +29,9 @@ jobs:
       - name: Restore workloads
         run: dotnet workload restore
 
+      - name: Rewrite base href for GitHub Pages
+        run: sed -i 's|<base href="/" />|<base href="/dnd-companion-app/" />|' wwwroot/index.html
+
       - name: Publish
         run: dotnet publish DndCompanion.csproj -c Release -o publish
 
