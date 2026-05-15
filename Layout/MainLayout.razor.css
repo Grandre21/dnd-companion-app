@@ -1,7 +1,16 @@
 main {
+    min-height: 100vh;
+    background-color: #1a0e1f;
+    display: flex;
+    flex-direction: column;
+}
+
+article.content {
     flex: 1;
 }
 
+/* Mantengo il padding orizzontale: i container delle pagine
+   (margin: -1.1rem -1.5rem 0 -1.5rem) sono tarati su questi valori. */
 article {
     padding-left: 2rem !important;
     padding-right: 1.5rem !important;
