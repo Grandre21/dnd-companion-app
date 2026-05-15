@@ -97,6 +97,25 @@
     background: transparent;
     border: 1px solid #5a3f20;
     box-sizing: border-box;
+    /* Hit area allargata senza alterare il cerchio 10px né il layout di flusso */
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+/* Tap target >= 36x36px: pseudo-elemento trasparente, assoluto (fuori dal flusso),
+   centrato sul pallino. Il cerchio visivo e l'altezza riga restano invariati.
+   Il click sul pseudo-elemento ha come target lo .sc-dot, quindi l'@onclick
+   (con stopPropagation) del componente continua a funzionare anche in edit mode. */
+.sc-dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    background: transparent;
 }
 
 .sc-dot.prof {
