@@ -4,7 +4,7 @@
     min-height: 100vh;
     background:
         radial-gradient(ellipse at top, rgba(212, 165, 116, 0.08) 0%, transparent 50%),
-        linear-gradient(180deg, #1a1410 0%, #0d0a08 100%);
+        linear-gradient(180deg, #1a0e1f 0%, #0d0a08 100%);
     color: #e8d9b5;
     font-family: 'Georgia', 'Cambria', serif;
     box-sizing: border-box;
@@ -82,6 +82,14 @@
     margin: 0;
     font-size: 1.1rem;
     color: #c9b88a;
+}
+
+.empty-note {
+    color: #7a6b4d;
+    font-style: italic;
+    font-size: 0.9rem;
+    margin: 0.25rem 0 0;
+    padding: 0.4rem 0;
 }
 
 /* ===== Buttons ===== */
@@ -208,7 +216,782 @@
 .char-sheet {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+}
+
+/* ----- Header unificato ----- */
+.character-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+}
+
+.character-header .header-btn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: all 0.15s ease;
+}
+
+.character-header .back-btn {
+    background: transparent;
+    border: 1px solid #5a3f20;
+    color: #d4a574;
+}
+
+.character-header .back-btn:hover {
+    background: rgba(212, 165, 116, 0.12);
+    border-color: #8b6f3a;
+}
+
+.character-header .edit-btn {
+    background: #d4a574;
+    border: none;
+    color: #1a0e1f;
+    font-weight: 700;
+}
+
+.character-header .edit-btn:hover {
+    background: #e8d4a0;
+}
+
+.character-title {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+}
+
+.character-name {
+    margin: 0;
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #e8d4a0;
+    letter-spacing: 0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.character-subtitle {
+    margin: 0.1rem 0 0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 0.72rem;
+    color: #8b6f3a;
+}
+
+/* ----- Tab bar ----- */
+.tab-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    gap: 4px;
+    margin: 0 -1rem;
+    padding: 0 1rem 8px;
+    background: #1a0e1f;
+    border-bottom: 0.5px solid #3a2818;
+}
+
+.tab-item {
+    flex: 1;
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #8b6f3a;
+    padding: 8px 4px;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.1s ease, background 0.1s ease;
+}
+
+.tab-item.active {
+    background: #2a1d10;
+    border-bottom: 2px solid #d4a574;
+    color: #d4a574;
+}
+
+.tab-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.tab-label {
+    font-size: 10px;
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+}
+
+.tab-content {
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+/* ===== Card label generica ===== */
+.card-label {
+    margin: 0 0 0.4rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #8b6f3a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+/* ===== Header sezione ===== */
+.section-header {
+    margin: 14px 0 6px 4px;
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #d4a574;
+    text-transform: uppercase;
+}
+
+/* ===== Combat: vitals ===== */
+.combat-vitals {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 0.75rem;
+}
+
+.hp-card,
+.ac-card {
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.85rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.hp-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.hp-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid #d4a574;
+    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
+    color: #f0dcb0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.12s ease;
+}
+
+.hp-circle:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.hp-circle:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.hp-circle:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.hp-minus {
+    border-color: #c5746b;
+}
+
+.hp-plus {
+    border-color: #7a9a6a;
+}
+
+.hp-value {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #e8d4a0;
+    font-variant-numeric: tabular-nums;
+}
+
+.hp-max {
+    font-size: 0.85rem;
+    color: #8b6f3a;
+    margin-left: 0.1rem;
+}
+
+.temp-hp {
+    margin: 0.4rem 0 0;
+    font-size: 0.75rem;
+    color: #6b9ec5;
+}
+
+.ac-value {
+    margin: 0;
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: #e8d4a0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===== Combat: TS contro morte ===== */
+.death-saves-card {
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.85rem 0.75rem;
+}
+
+.death-saves-row {
+    display: flex;
+    justify-content: space-around;
+    gap: 0.75rem;
+}
+
+.death-saves-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ds-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ds-label.success { color: #7a9a6a; }
+.ds-label.failure { color: #c5746b; }
+
+.ds-dots {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ds-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid #5a3f20;
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.ds-dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.ds-dot.filled.success { background: #7a9a6a; border-color: #7a9a6a; }
+.ds-dot.filled.failure { background: #c5746b; border-color: #c5746b; }
+
+/* ===== Combat: stat secondarie ===== */
+.secondary-stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.4rem;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.75rem 0.6rem;
+}
+
+.mini-stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.mini-label {
+    margin: 0;
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: #8b6f3a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mini-value {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #e8d4a0;
+    font-variant-numeric: tabular-nums;
+}
+
+.mini-value-large {
+    font-size: 1.35rem;
+}
+
+.mini-unit {
+    font-size: 0.7rem;
+    color: #8b6f3a;
+    margin-left: 1px;
+}
+
+.inspiration-toggle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #d4a574;
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.inspiration-toggle.active {
+    background: #d4a574;
+    box-shadow: inset 0 0 0 2px #2a1d10;
+}
+
+.inspiration-toggle::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+/* ===== Combat: armi ===== */
+.weapon-card {
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.4rem;
+}
+
+.weapon-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.weapon-name {
+    margin: 0;
+    font-weight: 700;
+    color: #e8d4a0;
+}
+
+.weapon-stats {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #c8b88a;
+    font-variant-numeric: tabular-nums;
+}
+
+.weapon-stats span {
+    margin-left: 0.25rem;
+}
+
+.weapon-notes {
+    margin: 0.3rem 0 0;
+    font-size: 0.8rem;
+    color: #8b6f3a;
+    font-style: italic;
+}
+
+/* ===== Combat: difese ===== */
+.defenses-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.defense-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.defense-badge.resistance        { color: #97c459; border-color: #97c459; background: #1f2818; }
+.defense-badge.immunity          { color: #6b9ec5; border-color: #6b9ec5; background: #1f242a; }
+.defense-badge.vulnerability     { color: #c5746b; border-color: #c5746b; background: #2a1f1f; }
+.defense-badge.condition-immunity { color: #a16bb8; border-color: #a16bb8; background: #221f2a; }
+
+/* ===== Stats tab ===== */
+.stats-header {
+    text-align: center;
+}
+
+.bc-display {
+    margin: 0 0 0.25rem;
+    font-size: 12px;
+    color: #d4a574;
+}
+
+.bc-display strong {
+    font-weight: 500;
+    color: #e8d4a0;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    align-items: start;
+}
+
+@media (min-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ===== Bio tab ===== */
+.bio-blocks {
+    display: flex;
+    flex-direction: column;
+}
+
+.bio-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 8px 0;
+    border-bottom: 0.5px solid #3a2818;
+}
+
+.bio-label {
+    font-size: 12px;
+    color: #8b6f3a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+.bio-value {
+    font-size: 13px;
+    color: #e8d4a0;
+    text-align: right;
+}
+
+.bio-block {
+    padding: 12px 0;
+}
+
+.bio-block-title {
+    margin: 0 0 0.4rem;
+    font-size: 11px;
+    font-weight: 700;
+    color: #d4a574;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.bio-block-text {
+    margin: 0;
+    font-size: 13px;
+    color: #c8b88a;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.notes-textarea {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    color: #e8d9b5;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    border-radius: 8px;
+    resize: vertical;
+    box-sizing: border-box;
+    min-height: 100px;
+}
+
+.notes-textarea:focus {
+    outline: none;
+    border-color: #d4a574;
+    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
+}
+
+/* ===== Items tab: dadi vita ===== */
+.resource-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+}
+
+.resource-row .card-label {
+    margin: 0;
+    text-align: left;
+}
+
+.hit-dice-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hit-dice-value {
+    font-size: 0.9rem;
+    color: #e8d4a0;
+    font-variant-numeric: tabular-nums;
+    min-width: 5.5rem;
+    text-align: center;
+}
+
+.hit-dice-type {
+    font-size: 0.8rem;
+    color: #8b6f3a;
+    min-width: 3rem;
+    text-align: right;
+}
+
+.mini-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1.5px solid #8b6f47;
+    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
+    color: #f0dcb0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.12s ease;
+}
+
+.mini-btn:hover:not(:disabled) {
+    border-color: #d4a574;
+    background: linear-gradient(180deg, #4a3526 0%, #2d1e14 100%);
+}
+
+.mini-btn:active:not(:disabled) {
+    transform: scale(0.92);
+}
+
+.mini-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ===== Items tab: denari ===== */
+.coins-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.4rem;
+}
+
+.coin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 8px;
+    padding: 0.4rem 0.15rem;
+}
+
+.coin-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #d4a574;
+    letter-spacing: 0.5px;
+}
+
+.coin-value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #e8d4a0;
+    font-variant-numeric: tabular-nums;
+}
+
+.coin-ctrl {
+    display: flex;
+    gap: 0.2rem;
+}
+
+.coin-ctrl .mini-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 0.85rem;
+}
+
+/* ===== Items tab: sintonie ===== */
+.attunements {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.attune-row {
+    display: flex;
+}
+
+.attune-text {
+    color: #e8d4a0;
+    font-size: 0.92rem;
+}
+
+.attune-empty {
+    color: #7a6b4d;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.attune-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    color: #e8d9b5;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.attune-input:focus {
+    outline: none;
+    border-color: #d4a574;
+}
+
+/* ===== Magic tab ===== */
+.spell-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.spell-stat-block {
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.7rem 0.4rem;
+    text-align: center;
+}
+
+.spell-stat-value {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #e8d4a0;
+    font-variant-numeric: tabular-nums;
+}
+
+.spell-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0;
+    border-bottom: 0.5px solid #3a2818;
+}
+
+.spell-slot-level {
+    font-size: 0.85rem;
+    color: #d4a574;
+    font-weight: 600;
+    min-width: 3.5rem;
+}
+
+.spell-slot-dots {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.spell-slot-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid #d4a574;
+    background: #d4a574;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.spell-slot-dot.spent {
+    background: transparent;
+}
+
+.spell-slot-dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 32px;
+    height: 32px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.spell-slot-count {
+    font-size: 0.8rem;
+    color: #8b6f3a;
+    font-variant-numeric: tabular-nums;
+    min-width: 3rem;
+    text-align: right;
+}
+
+/* ===== Form (modifica/creazione PG — invariato) ===== */
+.form-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .sheet-top {
@@ -243,312 +1026,6 @@
     cursor: pointer;
     font-family: inherit;
     transition: all 0.15s ease;
-}
-
-.edit-btn:hover {
-    background: rgba(212, 165, 116, 0.15);
-    color: #f0dcb0;
-}
-
-/* ===== 1. Header identità ===== */
-.identity-header {
-    text-align: center;
-    padding: 0.5rem 0 0.75rem;
-}
-
-.char-name {
-    margin: 0 0 0.3rem 0;
-    font-size: 1.85rem;
-    font-weight: 700;
-    color: #f0dcb0;
-    letter-spacing: 0.5px;
-    text-shadow: 0 2px 8px rgba(212, 165, 116, 0.25);
-}
-
-.identity-line {
-    margin: 0;
-    font-size: 0.95rem;
-    color: #c9b88a;
-}
-
-.identity-line .id-sep {
-    color: #d4a574;
-    margin: 0 0.15rem;
-}
-
-.identity-bg {
-    margin: 0.35rem 0 0;
-    font-size: 0.8rem;
-    color: #9a8c6a;
-    font-style: italic;
-}
-
-/* ===== Card generica di sezione ===== */
-.sheet-card {
-    background: linear-gradient(180deg, #2a1f17 0%, #1f1710 100%);
-    border: 2px solid #8b6f47;
-    border-radius: 12px;
-    padding: 1rem;
-}
-
-/* ===== 2. Vital signs ===== */
-.vitals-card {
-    display: flex;
-    gap: 1rem;
-    align-items: stretch;
-    background: linear-gradient(180deg, #2a1f17 0%, #1f1710 100%);
-    border: 2px solid #8b6f47;
-    border-radius: 12px;
-    padding: 1rem 0.85rem;
-}
-
-.vitals-hp {
-    flex: 1 1 55%;
-    min-width: 0;
-}
-
-.vitals-grid {
-    flex: 1 1 45%;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.45rem;
-    align-content: center;
-}
-
-.mini-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid #5a3f20;
-    border-radius: 8px;
-    padding: 0.35rem 0.25rem;
-}
-
-.ms-label {
-    font-size: 0.6rem;
-    font-weight: 700;
-    color: #d4a574;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.ms-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #e8d4a0;
-    font-variant-numeric: tabular-nums;
-}
-
-.ms-value-sm {
-    font-size: 0.95rem;
-}
-
-.hp-temp {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #6b9ec5;
-    background: rgba(107, 158, 197, 0.15);
-    border: 1px solid rgba(107, 158, 197, 0.5);
-    border-radius: 999px;
-    padding: 0.05rem 0.4rem;
-    margin-left: 0.4rem;
-}
-
-/* ----- TS contro morte ----- */
-.death-saves {
-    display: flex;
-    justify-content: space-around;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-    padding-top: 0.6rem;
-    border-top: 1px dashed rgba(212, 165, 116, 0.25);
-}
-
-.ds-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.3rem;
-}
-
-.ds-label {
-    font-size: 0.62rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.ds-label.ds-ok { color: #7a9a6a; }
-.ds-label.ds-ko { color: #c5746b; }
-
-.ds-dots {
-    display: flex;
-    gap: 0.45rem;
-}
-
-.ds-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    border: 1px solid #5a3f20;
-    background: transparent;
-    position: relative;
-    cursor: pointer;
-    touch-action: manipulation;
-}
-
-.ds-dot::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 36px;
-    height: 36px;
-    transform: translate(-50%, -50%);
-    background: transparent;
-}
-
-.ds-dot-ok.on { background: #7a9a6a; border-color: #7a9a6a; }
-.ds-dot-ko.on { background: #c5746b; border-color: #c5746b; }
-
-/* ===== HP controls ===== */
-.section-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #9a8c6a;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 0.5rem;
-    text-align: center;
-}
-
-.hp-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
-
-.hp-btn {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    border: 2px solid #d4a574;
-    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
-    color: #f0dcb0;
-    font-size: 1.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(212, 165, 116, 0.3);
-    transition: all 0.12s ease;
-    flex-shrink: 0;
-}
-
-.hp-btn:hover:not(:disabled) {
-    transform: scale(1.05);
-    background: linear-gradient(180deg, #4a3526 0%, #2d1e14 100%);
-}
-
-.hp-btn:active:not(:disabled) {
-    transform: scale(0.95);
-}
-
-.hp-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-}
-
-.hp-minus {
-    border-color: #c45638;
-}
-
-.hp-plus {
-    border-color: #6b8e3a;
-}
-
-.hp-value {
-    display: flex;
-    align-items: baseline;
-    gap: 0.25rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.hp-current {
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: #f0dcb0;
-}
-
-.hp-sep {
-    font-size: 1.4rem;
-    color: #9a8c6a;
-}
-
-.hp-max {
-    font-size: 1.4rem;
-    color: #c9b88a;
-}
-
-/* ===== Stats grid ===== */
-.stats-section {
-    background: linear-gradient(180deg, #2a1f17 0%, #1f1710 100%);
-    border: 2px solid #8b6f47;
-    border-radius: 12px;
-    padding: 1rem 0.75rem;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    align-items: start;
-}
-
-@media (min-width: 768px) {
-    .stats-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-/* ===== Notes section ===== */
-.notes-section {
-    background: linear-gradient(180deg, #2a1f17 0%, #1f1710 100%);
-    border: 2px solid #8b6f47;
-    border-radius: 12px;
-    padding: 1rem;
-}
-
-.notes-textarea {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(212, 165, 116, 0.3);
-    color: #e8d9b5;
-    padding: 0.75rem;
-    font-size: 0.95rem;
-    font-family: inherit;
-    border-radius: 8px;
-    resize: vertical;
-    box-sizing: border-box;
-    min-height: 100px;
-}
-
-.notes-textarea:focus {
-    outline: none;
-    border-color: #d4a574;
-    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
-}
-
-/* ===== Form ===== */
-.form-view {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
 }
 
 .form-title {
@@ -636,12 +1113,55 @@ select.input option {
     color: #e8d9b5;
 }
 
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.group-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #c9b88a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+}
+
+.stat-field label {
+    text-align: center;
+    font-size: 0.75rem;
+}
+
+.stat-field .input {
+    text-align: center;
+    padding: 0.6rem 0.4rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.form-actions .primary-btn,
+.form-actions .secondary-btn {
+    flex: 1;
+}
+
 /* ===================== Inventory ===================== */
 .inventory-section {
-    background: linear-gradient(180deg, #2a1f17 0%, #1f1710 100%);
-    border: 2px solid #8b6f47;
-    border-radius: 12px;
-    padding: 1rem;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.85rem;
 }
 
 .inv-summary {
@@ -649,7 +1169,7 @@ select.input option {
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem 0 0.75rem;
+    padding: 0.25rem 0 0.75rem;
     margin-bottom: 0.75rem;
     font-size: 0.9rem;
     color: #c9b88a;
@@ -687,7 +1207,6 @@ select.input option {
     color: #f0dcb0;
 }
 
-/* ----- Add item inline form ----- */
 .inv-form {
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(212, 165, 116, 0.4);
@@ -719,7 +1238,6 @@ select.input option {
     font-size: 0.95rem;
 }
 
-/* ----- Item list ----- */
 .inv-list {
     display: flex;
     flex-direction: column;
@@ -795,7 +1313,6 @@ select.input option {
     flex-shrink: 0;
 }
 
-/* ----- Quantity controls ----- */
 .qty-controls {
     display: flex;
     align-items: center;
@@ -861,7 +1378,6 @@ select.input option {
     flex-shrink: 0;
 }
 
-/* ----- Meta row ----- */
 .inv-meta {
     display: flex;
     flex-wrap: wrap;
@@ -937,7 +1453,6 @@ select.input option {
     cursor: not-allowed;
 }
 
-/* ----- Description ----- */
 .inv-description {
     margin-top: 0.6rem;
     padding-top: 0.55rem;
@@ -946,379 +1461,6 @@ select.input option {
     line-height: 1.5;
     color: #c9b88a;
     white-space: pre-wrap;
-}
-
-.field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.group-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #c9b88a;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.stats-inputs {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.6rem;
-}
-
-.stat-field label {
-    text-align: center;
-    font-size: 0.75rem;
-}
-
-.stat-field .input {
-    text-align: center;
-    padding: 0.6rem 0.4rem;
-    font-size: 1.05rem;
-    font-weight: 600;
-}
-
-.form-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-}
-
-.form-actions .primary-btn,
-.form-actions .secondary-btn {
-    flex: 1;
-}
-
-/* ===== 4. Combattimento ===== */
-.cbt-sub {
-    margin-top: 0.85rem;
-}
-
-.cbt-sub:first-of-type {
-    margin-top: 0.5rem;
-}
-
-.cbt-sub-title {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #d4a574;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 0.4rem;
-}
-
-.cbt-empty {
-    font-size: 0.85rem;
-    color: #7a6b4d;
-    font-style: italic;
-}
-
-.cbt-weapons {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-.cbt-weapon {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid #5a3f20;
-    border-radius: 8px;
-    padding: 0.45rem 0.6rem;
-}
-
-.cbt-w-name {
-    font-weight: 700;
-    color: #f0dcb0;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.cbt-w-atk {
-    font-weight: 700;
-    color: #e8d4a0;
-    font-variant-numeric: tabular-nums;
-}
-
-.cbt-w-dmg {
-    color: #c8b88a;
-    font-size: 0.9rem;
-}
-
-.cbt-w-notes {
-    flex: 1 1 100%;
-    font-size: 0.8rem;
-    color: #9a8c6a;
-    font-style: italic;
-}
-
-.def-row {
-    font-size: 0.88rem;
-    line-height: 1.5;
-    margin-bottom: 0.2rem;
-}
-
-.def-row strong {
-    font-weight: 700;
-}
-
-.def-res { color: #7a9a6a; }
-.def-imm { color: #6b9ec5; }
-.def-vuln { color: #c5746b; }
-.def-cond { color: #a16bb8; }
-
-/* ----- Ispirazione eroica ----- */
-.hi-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
-
-.hi-label {
-    font-size: 0.9rem;
-    color: #c8b88a;
-    font-weight: 600;
-}
-
-.hi-toggle {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 2px solid #d4a574;
-    background: transparent;
-    position: relative;
-    cursor: pointer;
-    flex-shrink: 0;
-    touch-action: manipulation;
-}
-
-.hi-toggle.on {
-    background: #d4a574;
-    box-shadow: inset 0 0 0 2px #2a1d10;
-}
-
-.hi-toggle.ro {
-    cursor: default;
-}
-
-.hi-toggle::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 36px;
-    height: 36px;
-    transform: translate(-50%, -50%);
-    background: transparent;
-}
-
-/* ===== 5/6. Sezioni collassabili ===== */
-.collapse-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    width: 100%;
-    background: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font-family: inherit;
-    text-align: left;
-}
-
-.ch-title {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #d4a574;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-}
-
-.ch-summary {
-    font-size: 0.82rem;
-    color: #7a6b4d;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-}
-
-.collapse-body {
-    margin-top: 0.9rem;
-    padding-top: 0.85rem;
-    border-top: 1px dashed rgba(212, 165, 116, 0.25);
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-}
-
-/* ----- Risorse: dadi vita ----- */
-.res-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
-
-.res-label {
-    font-size: 0.9rem;
-    color: #c8b88a;
-    font-weight: 600;
-}
-
-.res-ctrl {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.res-value {
-    font-size: 0.95rem;
-    color: #e8d4a0;
-    font-variant-numeric: tabular-nums;
-    min-width: 6rem;
-    text-align: center;
-}
-
-.mini-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1.5px solid #8b6f47;
-    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
-    color: #f0dcb0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.12s ease;
-}
-
-.mini-btn:hover:not(:disabled) {
-    border-color: #d4a574;
-    background: linear-gradient(180deg, #4a3526 0%, #2d1e14 100%);
-}
-
-.mini-btn:active:not(:disabled) {
-    transform: scale(0.92);
-}
-
-.mini-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* ----- Risorse: denari ----- */
-.coins-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.4rem;
-}
-
-.coin {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid #5a3f20;
-    border-radius: 8px;
-    padding: 0.4rem 0.2rem;
-}
-
-.coin-label {
-    font-size: 0.62rem;
-    font-weight: 700;
-    color: #d4a574;
-    letter-spacing: 0.5px;
-}
-
-.coin-value {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #e8d4a0;
-    font-variant-numeric: tabular-nums;
-}
-
-.coin-ctrl {
-    display: flex;
-    gap: 0.25rem;
-}
-
-.coin-ctrl .mini-btn {
-    width: 26px;
-    height: 26px;
-    font-size: 0.95rem;
-}
-
-/* ----- Risorse: sintonie ----- */
-.attune-block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-.attune-row {
-    display: flex;
-}
-
-.attune-text {
-    color: #e8d4a0;
-    font-size: 0.92rem;
-}
-
-.attune-empty {
-    color: #7a6b4d;
-    font-style: italic;
-    font-size: 0.9rem;
-}
-
-.attune-input {
-    width: 100%;
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(212, 165, 116, 0.3);
-    color: #e8d9b5;
-    padding: 0.45rem 0.6rem;
-    font-size: 0.9rem;
-    font-family: inherit;
-    border-radius: 6px;
-    box-sizing: border-box;
-}
-
-.attune-input:focus {
-    outline: none;
-    border-color: #d4a574;
-}
-
-/* ===== 6/7. Conoscenze / Storia ===== */
-.know-block + .know-block {
-    margin-top: 0.4rem;
-}
-
-.know-text {
-    font-size: 0.9rem;
-    line-height: 1.55;
-    color: #c8b88a;
-    white-space: pre-wrap;
-}
-
-/* ===== 9. Incantesimi placeholder ===== */
-.spell-placeholder {
-    font-size: 0.88rem;
-    color: #7a6b4d;
-    font-style: italic;
-    text-align: center;
-    padding: 0.5rem 0;
 }
 
 /* ===== Desktop ===== */
@@ -1340,17 +1482,21 @@ select.input option {
         margin: 0 auto;
     }
 
-    .char-name {
-        font-size: 2.2rem;
+    .character-name {
+        font-size: 1.4rem;
     }
 
-    .hp-btn {
-        width: 60px;
-        height: 60px;
-        font-size: 2rem;
+    .character-subtitle {
+        font-size: 0.8rem;
     }
 
-    .hp-current {
-        font-size: 2.6rem;
+    .hp-circle {
+        width: 48px;
+        height: 48px;
+        font-size: 1.6rem;
+    }
+
+    .hp-value {
+        font-size: 1.7rem;
     }
 }

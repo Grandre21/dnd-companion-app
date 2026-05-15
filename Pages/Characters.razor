@@ -8,12 +8,15 @@
 <PageTitle>Personaggi - D&amp;D Companion</PageTitle>
 
 <div class="characters-container">
-    <header class="page-header">
-        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("")'>
-            ← Home
-        </button>
-        <h1 class="page-title">Personaggi</h1>
-    </header>
+    @if (selected == null)
+    {
+        <header class="page-header">
+            <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("")'>
+                ← Home
+            </button>
+            <h1 class="page-title">Personaggi</h1>
+        </header>
+    }
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
@@ -60,111 +63,193 @@
 
         case ViewMode.Detail when selected is not null:
             <div class="char-sheet">
-                <div class="sheet-top">
-                    <button type="button" class="back-link" @onclick="BackToListOrEmpty">← Indietro</button>
-                    <button type="button" class="edit-btn" @onclick="OpenEditForm">Modifica</button>
-                </div>
-
-                @* ===== 1. HEADER IDENTITÀ ===== *@
-                <div class="identity-header">
-                    <h2 class="char-name">@selected.Name</h2>
-                    <p class="identity-line">
-                        Liv @selected.Level <span class="id-sep">·</span>
-                        @selected.Class@(string.IsNullOrWhiteSpace(selected.Subclass) ? "" : " " + selected.Subclass)
-                        <span class="id-sep">·</span> @selected.Race
-                    </p>
-                    @if (!string.IsNullOrWhiteSpace(selected.Background))
+                @* ===== Header unificato ===== *@
+                <div class="character-header">
+                    <button class="header-btn back-btn" @onclick="GoBack" aria-label="Indietro">←</button>
+                    <div class="character-title">
+                        <h1 class="character-name">@selected.Name</h1>
+                        <p class="character-subtitle">
+                            Liv @selected.Level · @selected.Class@(string.IsNullOrWhiteSpace(selected.Subclass) ? "" : $" {selected.Subclass}") · @selected.Race
+                        </p>
+                    </div>
+                    @if (CanEdit)
                     {
-                        <p class="identity-bg">Background: @selected.Background</p>
+                        <button class="header-btn edit-btn" @onclick="StartEdit" aria-label="Modifica">✎</button>
                     }
                 </div>
 
-                @* ===== 2. VITAL SIGNS ===== *@
-                <div class="vitals-card">
-                    <div class="vitals-hp">
-                        <div class="section-label">Punti Ferita</div>
-                        <div class="hp-controls">
-                            <button type="button" class="hp-btn hp-minus"
-                                    @onclick="() => AdjustHpAsync(-1)"
-                                    disabled="@(!CanEdit || isSavingHp || selected.HitPoints <= 0)">
-                                −
-                            </button>
-                            <div class="hp-value">
-                                <span class="hp-current">@selected.HitPoints</span>
-                                <span class="hp-sep">/</span>
-                                <span class="hp-max">@selected.MaxHitPoints</span>
-                                @if (selected.TempHitPoints > 0)
-                                {
-                                    <span class="hp-temp" title="Punti ferita temporanei">+@selected.TempHitPoints</span>
-                                }
-                            </div>
-                            <button type="button" class="hp-btn hp-plus"
-                                    @onclick="() => AdjustHpAsync(1)"
-                                    disabled="@(!CanEdit || isSavingHp || selected.HitPoints >= selected.MaxHitPoints)">
-                                +
-                            </button>
-                        </div>
-
-                        @if (ShowDeathSaves)
-                        {
-                            <div class="death-saves">
-                                <div class="ds-group">
-                                    <span class="ds-label ds-ok">Successi</span>
-                                    <div class="ds-dots">
-                                        @for (var i = 1; i <= 3; i++)
-                                        {
-                                            var filled = selected.DeathSaveSuccesses >= i;
-                                            <span class="ds-dot ds-dot-ok @(filled ? "on" : "")"
-                                                  @onclick="CycleDeathSuccessAsync"></span>
-                                        }
-                                    </div>
-                                </div>
-                                <div class="ds-group">
-                                    <span class="ds-label ds-ko">Fallimenti</span>
-                                    <div class="ds-dots">
-                                        @for (var i = 1; i <= 3; i++)
-                                        {
-                                            var filled = selected.DeathSaveFailures >= i;
-                                            <span class="ds-dot ds-dot-ko @(filled ? "on" : "")"
-                                                  @onclick="CycleDeathFailureAsync"></span>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    </div>
-
-                    <div class="vitals-grid">
-                        <div class="mini-stat">
-                            <span class="ms-label">CA</span>
-                            <span class="ms-value">@selected.ArmorClass</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="ms-label">INI</span>
-                            <span class="ms-value">@FmtBonus(CharacterCalculations.GetInitiative(selected))</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="ms-label">VEL</span>
-                            <span class="ms-value">@selected.Speed</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="ms-label">Perc Pass</span>
-                            <span class="ms-value">@CharacterCalculations.GetPassivePerception(selected)</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="ms-label">BC</span>
-                            <span class="ms-value">@FmtBonus(CharacterCalculations.GetProficiencyBonus(selected.Level))</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="ms-label">Taglia</span>
-                            <span class="ms-value ms-value-sm">@selected.Size</span>
-                        </div>
-                    </div>
+                @* ===== Tab bar ===== *@
+                <div class="tab-bar">
+                    <button class="tab-item @(activeTab == "combat" ? "active" : "")" @onclick='() => activeTab = "combat"'>
+                        <span class="tab-icon">⚔</span>
+                        <span class="tab-label">Combat</span>
+                    </button>
+                    <button class="tab-item @(activeTab == "stats" ? "active" : "")" @onclick='() => activeTab = "stats"'>
+                        <span class="tab-icon">📊</span>
+                        <span class="tab-label">Stats</span>
+                    </button>
+                    <button class="tab-item @(activeTab == "bio" ? "active" : "")" @onclick='() => activeTab = "bio"'>
+                        <span class="tab-icon">👤</span>
+                        <span class="tab-label">Bio</span>
+                    </button>
+                    <button class="tab-item @(activeTab == "items" ? "active" : "")" @onclick='() => activeTab = "items"'>
+                        <span class="tab-icon">🎒</span>
+                        <span class="tab-label">Items</span>
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
+                    {
+                        <button class="tab-item @(activeTab == "magic" ? "active" : "")" @onclick='() => activeTab = "magic"'>
+                            <span class="tab-icon">✨</span>
+                            <span class="tab-label">Magic</span>
+                        </button>
+                    }
                 </div>
 
-                @* ===== 3. CARATTERISTICHE ===== *@
-                <div class="stats-section">
-                    <div class="section-label">Caratteristiche</div>
+                <div class="tab-content">
+
+                @* ===================== TAB COMBAT ===================== *@
+                @if (activeTab == "combat")
+                {
+                    var weapons = inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList();
+                    <div class="combat-vitals">
+                        <div class="hp-card">
+                            <p class="card-label">PUNTI FERITA</p>
+                            <div class="hp-row">
+                                <button class="hp-circle hp-minus" @onclick="DecreaseHp"
+                                        disabled="@(!CanEdit || isSavingHp || selected.HitPoints <= 0)">−</button>
+                                <p class="hp-value">@selected.HitPoints<span class="hp-max">/@selected.MaxHitPoints</span></p>
+                                <button class="hp-circle hp-plus" @onclick="IncreaseHp"
+                                        disabled="@(!CanEdit || isSavingHp || selected.HitPoints >= selected.MaxHitPoints)">+</button>
+                            </div>
+                            @if (selected.TempHitPoints > 0)
+                            {
+                                <p class="temp-hp">+@selected.TempHitPoints temp</p>
+                            }
+                        </div>
+                        <div class="ac-card">
+                            <p class="card-label">CA</p>
+                            <p class="ac-value">@selected.ArmorClass</p>
+                        </div>
+                    </div>
+
+                    @if (ShowDeathSaves)
+                    {
+                        <div class="death-saves-card">
+                            <p class="card-label">TIRI SALVEZZA CONTRO MORTE</p>
+                            <div class="death-saves-row">
+                                <div class="death-saves-group">
+                                    <span class="ds-label success">Successi</span>
+                                    <div class="ds-dots">
+                                        @for (int i = 1; i <= 3; i++)
+                                        {
+                                            var n = i;
+                                            <span class="ds-dot @(selected.DeathSaveSuccesses >= n ? "filled success" : "")"
+                                                  @onclick="() => SetDeathSaveSuccesses(n == selected.DeathSaveSuccesses ? n - 1 : n)"></span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="death-saves-group">
+                                    <span class="ds-label failure">Fallimenti</span>
+                                    <div class="ds-dots">
+                                        @for (int i = 1; i <= 3; i++)
+                                        {
+                                            var n = i;
+                                            <span class="ds-dot @(selected.DeathSaveFailures >= n ? "filled failure" : "")"
+                                                  @onclick="() => SetDeathSaveFailures(n == selected.DeathSaveFailures ? n - 1 : n)"></span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="secondary-stats">
+                        <div class="mini-stat">
+                            <p class="mini-label">INI</p>
+                            <p class="mini-value mini-value-large">@FormatBonus(CharacterCalculations.GetInitiative(selected))</p>
+                        </div>
+                        <div class="mini-stat">
+                            <p class="mini-label">VEL</p>
+                            <p class="mini-value">@selected.Speed<span class="mini-unit">m</span></p>
+                        </div>
+                        <div class="mini-stat">
+                            <p class="mini-label">PERC</p>
+                            <p class="mini-value">@CharacterCalculations.GetPassivePerception(selected)</p>
+                        </div>
+                        <div class="mini-stat">
+                            <p class="mini-label">ISPIRAZIONE</p>
+                            <span class="inspiration-toggle @(selected.HeroicInspiration ? "active" : "")"
+                                  @onclick="ToggleHeroicInspiration"></span>
+                        </div>
+                    </div>
+
+                    <p class="section-header">ARMI</p>
+                    @if (weapons.Any())
+                    {
+                        @foreach (var w in weapons)
+                        {
+                            <div class="weapon-card">
+                                <div class="weapon-header">
+                                    <p class="weapon-name">@w.Name</p>
+                                    <p class="weapon-stats">
+                                        @if (!string.IsNullOrWhiteSpace(w.AttackBonus)) { <span>@w.AttackBonus</span> }
+                                        @if (!string.IsNullOrWhiteSpace(w.Damage)) { <span>· @w.Damage @w.DamageType?.ToLower()</span> }
+                                    </p>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(w.AttackNotes))
+                                {
+                                    <p class="weapon-notes">@w.AttackNotes</p>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="empty-note">Nessuna arma equipaggiata</p>
+                    }
+
+                    @if (HasDefenses)
+                    {
+                        <p class="section-header">DIFESE</p>
+                        <div class="defenses-badges">
+                            @if (!string.IsNullOrWhiteSpace(selected.DamageResistances))
+                            {
+                                @foreach (var item in SplitDefenses(selected.DamageResistances))
+                                {
+                                    <span class="defense-badge resistance">RES @item</span>
+                                }
+                            }
+                            @if (!string.IsNullOrWhiteSpace(selected.DamageImmunities))
+                            {
+                                @foreach (var item in SplitDefenses(selected.DamageImmunities))
+                                {
+                                    <span class="defense-badge immunity">IMM @item</span>
+                                }
+                            }
+                            @if (!string.IsNullOrWhiteSpace(selected.DamageVulnerabilities))
+                            {
+                                @foreach (var item in SplitDefenses(selected.DamageVulnerabilities))
+                                {
+                                    <span class="defense-badge vulnerability">VUL @item</span>
+                                }
+                            }
+                            @if (!string.IsNullOrWhiteSpace(selected.ConditionImmunities))
+                            {
+                                @foreach (var item in SplitDefenses(selected.ConditionImmunities))
+                                {
+                                    <span class="defense-badge condition-immunity">IMM @item</span>
+                                }
+                            }
+                        </div>
+                    }
+                }
+
+                @* ===================== TAB STATS ===================== *@
+                @if (activeTab == "stats")
+                {
+                    <div class="stats-header">
+                        <p class="bc-display">Bonus di Competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(selected.Level))</strong></p>
+                    </div>
                     <div class="stats-grid">
                         <StatCard Ability="AbilityType.Strength"     Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
                         <StatCard Ability="AbilityType.Dexterity"    Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
@@ -173,393 +258,351 @@
                         <StatCard Ability="AbilityType.Wisdom"       Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
                         <StatCard Ability="AbilityType.Charisma"     Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
                     </div>
-                </div>
-
-                @* ===== 4. COMBATTIMENTO ===== *@
-                <div class="sheet-card">
-                    <div class="section-label">Combattimento</div>
-
-                    <div class="cbt-sub">
-                        <div class="cbt-sub-title">Armi</div>
-                        @{
-                            var weapons = inventoryItems.Where(IsWeapon).ToList();
-                        }
-                        @if (weapons.Count == 0)
-                        {
-                            <div class="cbt-empty">Nessuna arma equipaggiata</div>
-                        }
-                        else
-                        {
-                            <div class="cbt-weapons">
-                                @foreach (var w in weapons)
-                                {
-                                    <div class="cbt-weapon">
-                                        <span class="cbt-w-name">@w.Name</span>
-                                        <span class="cbt-w-atk">@(string.IsNullOrWhiteSpace(w.AttackBonus) ? "—" : w.AttackBonus)</span>
-                                        <span class="cbt-w-dmg">@FormatDamage(w)</span>
-                                        @if (!string.IsNullOrWhiteSpace(w.AttackNotes))
-                                        {
-                                            <span class="cbt-w-notes">@w.AttackNotes</span>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                    </div>
-
-                    @if (HasDefenses)
-                    {
-                        <div class="cbt-sub">
-                            <div class="cbt-sub-title">Resistenze / Immunità</div>
-                            @if (!string.IsNullOrWhiteSpace(selected.DamageResistances))
-                            {
-                                <div class="def-row def-res"><strong>Resistenze:</strong> @selected.DamageResistances</div>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(selected.DamageImmunities))
-                            {
-                                <div class="def-row def-imm"><strong>Immunità:</strong> @selected.DamageImmunities</div>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(selected.DamageVulnerabilities))
-                            {
-                                <div class="def-row def-vuln"><strong>Vulnerabilità:</strong> @selected.DamageVulnerabilities</div>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(selected.ConditionImmunities))
-                            {
-                                <div class="def-row def-cond"><strong>Imm. condizioni:</strong> @selected.ConditionImmunities</div>
-                            }
-                        </div>
-                    }
-
-                    <div class="cbt-sub">
-                        <div class="hi-row">
-                            <span class="hi-label">Ispirazione Eroica</span>
-                            <span class="hi-toggle @(selected.HeroicInspiration ? "on" : "") @(CanEdit ? "" : "ro")"
-                                  @onclick="ToggleHeroicInspirationAsync"></span>
-                        </div>
-                    </div>
-                </div>
-
-                @* ===== 5. RISORSE ===== *@
-                <div class="sheet-card">
-                    <button type="button" class="collapse-head" @onclick="() => isResourcesExpanded = !isResourcesExpanded">
-                        <span class="ch-title">@(isResourcesExpanded ? "▾" : "▸") Risorse</span>
-                        <span class="ch-summary">@ResourcesSummary</span>
-                    </button>
-
-                    @if (isResourcesExpanded)
-                    {
-                        <div class="collapse-body">
-                            <div class="res-row">
-                                <span class="res-label">Dadi Vita @HitDiceTypeLabel()</span>
-                                <div class="res-ctrl">
-                                    @if (CanEdit)
-                                    {
-                                        <button type="button" class="mini-btn"
-                                                @onclick="() => AdjustHitDiceSpentAsync(-1)"
-                                                disabled="@(selected.HitDiceSpent <= 0)">−</button>
-                                    }
-                                    <span class="res-value">@selected.HitDiceSpent/@HitDiceTotal() usati</span>
-                                    @if (CanEdit)
-                                    {
-                                        <button type="button" class="mini-btn"
-                                                @onclick="() => AdjustHitDiceSpentAsync(1)"
-                                                disabled="@(selected.HitDiceSpent >= HitDiceTotal())">+</button>
-                                    }
-                                </div>
-                            </div>
-
-                            <div class="coins-grid">
-                                @foreach (var coin in CoinDefs)
-                                {
-                                    <div class="coin" title="@coin.FullName">
-                                        <span class="coin-label">@coin.Code</span>
-                                        <span class="coin-value">@coin.Get(selected)</span>
-                                        @if (CanEdit)
-                                        {
-                                            <div class="coin-ctrl">
-                                                <button type="button" class="mini-btn"
-                                                        @onclick="() => AdjustCoinAsync(coin.Code, -1)"
-                                                        disabled="@(coin.Get(selected) <= 0)">−</button>
-                                                <button type="button" class="mini-btn"
-                                                        @onclick="() => AdjustCoinAsync(coin.Code, 1)">+</button>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-
-                            <div class="attune-block">
-                                <div class="cbt-sub-title">Sintonie</div>
-                                @for (var slot = 1; slot <= 3; slot++)
-                                {
-                                    var n = slot;
-                                    var val = AttunementValue(n);
-                                    <div class="attune-row">
-                                        @if (CanEdit)
-                                        {
-                                            <input class="attune-input" maxlength="80"
-                                                   placeholder="(slot libero)"
-                                                   value="@val"
-                                                   @onchange="e => SetAttunementAsync(n, e.Value?.ToString())" />
-                                        }
-                                        else if (!string.IsNullOrWhiteSpace(val))
-                                        {
-                                            <span class="attune-text">✦ @val</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="attune-empty">(slot libero)</span>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-
-                @* ===== 6. CONOSCENZE ===== *@
-                @if (HasKnowledge)
-                {
-                    <div class="sheet-card">
-                        <button type="button" class="collapse-head" @onclick="() => isKnowledgeExpanded = !isKnowledgeExpanded">
-                            <span class="ch-title">@(isKnowledgeExpanded ? "▾" : "▸") Conoscenze</span>
-                            <span class="ch-summary">@KnowledgeSummary</span>
-                        </button>
-
-                        @if (isKnowledgeExpanded)
-                        {
-                            <div class="collapse-body">
-                                <div class="know-block">
-                                    <div class="cbt-sub-title">Lingue</div>
-                                    <div class="know-text">@(string.IsNullOrWhiteSpace(selected.Languages) ? "—" : selected.Languages)</div>
-                                </div>
-                                <div class="know-block">
-                                    <div class="cbt-sub-title">Tratti della specie</div>
-                                    <div class="know-text">@(string.IsNullOrWhiteSpace(selected.SpeciesTraits) ? "—" : selected.SpeciesTraits)</div>
-                                </div>
-                                <div class="know-block">
-                                    <div class="cbt-sub-title">Privilegi di classe</div>
-                                    <div class="know-text">@(string.IsNullOrWhiteSpace(selected.ClassFeatures) ? "—" : selected.ClassFeatures)</div>
-                                </div>
-                                <div class="know-block">
-                                    <div class="cbt-sub-title">Talenti</div>
-                                    <div class="know-text">@(string.IsNullOrWhiteSpace(selected.Feats) ? "—" : selected.Feats)</div>
-                                </div>
-                            </div>
-                        }
-                    </div>
                 }
 
-                @* ===== 7. STORIA E ASPETTO + NOTE ===== *@
-                @if (!string.IsNullOrWhiteSpace(selected.Backstory) || !string.IsNullOrWhiteSpace(selected.Appearance))
+                @* ===================== TAB BIO ===================== *@
+                @if (activeTab == "bio")
                 {
-                    <div class="sheet-card">
-                        <div class="section-label">Storia e Aspetto</div>
-                        @if (!string.IsNullOrWhiteSpace(selected.Backstory))
-                        {
-                            <div class="know-block">
-                                <div class="cbt-sub-title">Storia</div>
-                                <div class="know-text">@selected.Backstory</div>
-                            </div>
-                        }
+                    <div class="bio-blocks">
+                        <div class="bio-row">
+                            <span class="bio-label">Allineamento</span>
+                            <span class="bio-value">@(string.IsNullOrWhiteSpace(selected.Alignment) ? "—" : selected.Alignment)</span>
+                        </div>
+                        <div class="bio-row">
+                            <span class="bio-label">Background</span>
+                            <span class="bio-value">@(string.IsNullOrWhiteSpace(selected.Background) ? "—" : selected.Background)</span>
+                        </div>
+                        <div class="bio-row">
+                            <span class="bio-label">Lingue</span>
+                            <span class="bio-value">@(string.IsNullOrWhiteSpace(selected.Languages) ? "—" : selected.Languages)</span>
+                        </div>
+                        <div class="bio-row">
+                            <span class="bio-label">Esperienza</span>
+                            <span class="bio-value">@selected.ExperiencePoints PE</span>
+                        </div>
+
                         @if (!string.IsNullOrWhiteSpace(selected.Appearance))
                         {
-                            <div class="know-block">
-                                <div class="cbt-sub-title">Aspetto</div>
-                                <div class="know-text">@selected.Appearance</div>
+                            <div class="bio-block">
+                                <p class="bio-block-title">ASPETTO</p>
+                                <p class="bio-block-text">@selected.Appearance</p>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(selected.Backstory))
+                        {
+                            <div class="bio-block">
+                                <p class="bio-block-title">STORIA</p>
+                                <p class="bio-block-text">@selected.Backstory</p>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(selected.SpeciesTraits))
+                        {
+                            <div class="bio-block">
+                                <p class="bio-block-title">TRATTI DELLA SPECIE</p>
+                                <p class="bio-block-text">@selected.SpeciesTraits</p>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(selected.ClassFeatures))
+                        {
+                            <div class="bio-block">
+                                <p class="bio-block-title">PRIVILEGI DI CLASSE</p>
+                                <p class="bio-block-text">@selected.ClassFeatures</p>
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(selected.Feats))
+                        {
+                            <div class="bio-block">
+                                <p class="bio-block-title">TALENTI</p>
+                                <p class="bio-block-text">@selected.Feats</p>
+                            </div>
+                        }
+
+                        <div class="bio-block">
+                            <p class="bio-block-title">NOTE LIBERE</p>
+                            <textarea class="notes-textarea" rows="5" @bind="notesDraft"
+                                      placeholder="Equipaggiamento, background, obiettivi..."></textarea>
+                            <button type="button" class="small-btn"
+                                    @onclick="SaveNotesAsync"
+                                    disabled="@(isSavingNotes || notesDraft == (selected.Notes ?? string.Empty))">
+                                @(isSavingNotes ? "Salvataggio..." : "Salva note")
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                @* ===================== TAB ITEMS ===================== *@
+                @if (activeTab == "items")
+                {
+                    <div class="resource-row">
+                        <p class="card-label">DADI VITA</p>
+                        <div class="hit-dice-controls">
+                            <button class="mini-btn" @onclick="DecrementHitDice"
+                                    disabled="@(!CanEdit || selected.HitDiceSpent <= 0)">−</button>
+                            <span class="hit-dice-value">@selected.HitDiceSpent / @HitDiceTotal() usati</span>
+                            <button class="mini-btn" @onclick="IncrementHitDice"
+                                    disabled="@(!CanEdit || selected.HitDiceSpent >= HitDiceTotal())">+</button>
+                            <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(selected.HitDiceMax) ? "—" : selected.HitDiceMax)</span>
+                        </div>
+                    </div>
+
+                    <p class="section-header">DENARI</p>
+                    <div class="coins-grid">
+                        @foreach (var coin in CoinDefs)
+                        {
+                            <div class="coin" title="@coin.FullName">
+                                <span class="coin-label">@coin.Code</span>
+                                <span class="coin-value">@coin.Get(selected)</span>
+                                @if (CanEdit)
+                                {
+                                    <div class="coin-ctrl">
+                                        <button type="button" class="mini-btn"
+                                                @onclick="() => AdjustCoinAsync(coin.Code, -1)"
+                                                disabled="@(coin.Get(selected) <= 0)">−</button>
+                                        <button type="button" class="mini-btn"
+                                                @onclick="() => AdjustCoinAsync(coin.Code, 1)">+</button>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
-                }
 
-                <div class="notes-section">
-                    <div class="section-label">Note</div>
-                    <textarea class="notes-textarea" rows="5" @bind="notesDraft"
-                              placeholder="Equipaggiamento, background, obiettivi..."></textarea>
-                    <button type="button" class="small-btn"
-                            @onclick="SaveNotesAsync"
-                            disabled="@(isSavingNotes || notesDraft == (selected.Notes ?? string.Empty))">
-                        @(isSavingNotes ? "Salvataggio..." : "Salva note")
-                    </button>
-                </div>
-
-                @* ===== 8. INVENTARIO ===== *@
-                @{
-                    var invDisplay = inventoryItems.Where(i => !IsWeapon(i)).ToList();
-                }
-                <div class="inventory-section">
-                    <div class="section-label">Inventario</div>
-
-                    <div class="inv-summary">
-                        <span class="inv-summary-item">
-                            <strong>@invDisplay.Sum(i => i.Quantity)</strong> oggetti
-                        </span>
-                        <span class="inv-summary-sep">·</span>
-                        <span class="inv-summary-item">
-                            Peso totale: <strong>@FormatWeight(TotalInventoryWeight)</strong>
-                        </span>
+                    <p class="section-header">SINTONIE OGGETTI MAGICI</p>
+                    <div class="attunements">
+                        @for (var slot = 1; slot <= 3; slot++)
+                        {
+                            var n = slot;
+                            var val = AttunementValue(n);
+                            <div class="attune-row">
+                                @if (CanEdit)
+                                {
+                                    <input class="attune-input" maxlength="80"
+                                           placeholder="(slot libero)"
+                                           value="@val"
+                                           @onchange="e => SetAttunementAsync(n, e.Value?.ToString())" />
+                                }
+                                else if (!string.IsNullOrWhiteSpace(val))
+                                {
+                                    <span class="attune-text">✦ @val</span>
+                                }
+                                else
+                                {
+                                    <span class="attune-empty">(slot libero)</span>
+                                }
+                            </div>
+                        }
                     </div>
 
-                    @if (CanEditInventory)
-                    {
-                        @if (!isAddingItem)
+                    <p class="section-header">INVENTARIO</p>
+                    <div class="inventory-section">
+                        <div class="inv-summary">
+                            <span class="inv-summary-item">
+                                <strong>@inventoryItems.Sum(i => i.Quantity)</strong> oggetti
+                            </span>
+                            <span class="inv-summary-sep">·</span>
+                            <span class="inv-summary-item">
+                                Peso totale: <strong>@FormatWeight(TotalInventoryWeight)</strong>
+                            </span>
+                        </div>
+
+                        @if (CanEditInventory)
                         {
-                            <button type="button" class="inv-add-btn" @onclick="OpenAddItemForm">
-                                + Aggiungi oggetto
-                            </button>
+                            @if (!isAddingItem)
+                            {
+                                <button type="button" class="inv-add-btn" @onclick="OpenAddItemForm">
+                                    + Aggiungi oggetto
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="inv-form">
+                                    <div class="inv-form-grid">
+                                        <div class="field field-full">
+                                            <label>Nome</label>
+                                            <input type="text" class="input" maxlength="80"
+                                                   placeholder="Nome dell'oggetto"
+                                                   @bind="newItemDraft.Name" />
+                                        </div>
+
+                                        <div class="field">
+                                            <label>Quantità</label>
+                                            <input type="number" class="input" min="1" @bind="newItemDraft.Quantity" />
+                                        </div>
+
+                                        <div class="field">
+                                            <label>Peso</label>
+                                            <input type="number" class="input" step="0.1" min="0"
+                                                   @bind="newItemDraft.Weight" />
+                                        </div>
+
+                                        <div class="field field-full">
+                                            <label>Tipo</label>
+                                            <select class="input" @bind="newItemDraft.ItemType">
+                                                @foreach (var o in ItemTypeOptions)
+                                                {
+                                                    <option value="@o.Value">@o.Label</option>
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <div class="field field-full">
+                                            <label>Descrizione (opzionale)</label>
+                                            <textarea class="input" rows="3"
+                                                      @bind="newItemDraft.Description"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="inv-form-actions">
+                                        <button type="button" class="primary-btn"
+                                                @onclick="SaveNewItemAsync"
+                                                disabled="@isSavingInventory">
+                                            @(isSavingInventory ? "Salvataggio..." : "Salva")
+                                        </button>
+                                        <button type="button" class="secondary-btn"
+                                                @onclick="CancelAddItem"
+                                                disabled="@isSavingInventory">
+                                            Annulla
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        }
+
+                        @if (isLoadingInventory)
+                        {
+                            <div class="inv-loading">Caricamento inventario...</div>
+                        }
+                        else if (inventoryItems.Count == 0)
+                        {
+                            <div class="inv-empty">Nessun oggetto nell'inventario.</div>
                         }
                         else
                         {
-                            <div class="inv-form">
-                                <div class="inv-form-grid">
-                                    <div class="field field-full">
-                                        <label>Nome</label>
-                                        <input type="text" class="input" maxlength="80"
-                                               placeholder="Nome dell'oggetto"
-                                               @bind="newItemDraft.Name" />
-                                    </div>
+                            <div class="inv-list">
+                                @foreach (var item in inventoryItems)
+                                {
+                                    var isItemExpanded = expandedItemId == item.Id;
+                                    <div class="inv-item @(item.IsEquipped ? "equipped" : "")">
+                                        <div class="inv-row">
+                                            <button type="button" class="inv-name-btn"
+                                                    @onclick="() => ToggleItemExpand(item.Id)">
+                                                @if (item.IsEquipped)
+                                                {
+                                                    <span class="eq-icon" title="Equipaggiato">⚔️</span>
+                                                }
+                                                <span class="inv-name-text">@item.Name</span>
+                                                @if (!string.IsNullOrWhiteSpace(item.Description))
+                                                {
+                                                    <span class="inv-exp-icon">@(isItemExpanded ? "▾" : "▸")</span>
+                                                }
+                                            </button>
 
-                                    <div class="field">
-                                        <label>Quantità</label>
-                                        <input type="number" class="input" min="1" @bind="newItemDraft.Quantity" />
-                                    </div>
-
-                                    <div class="field">
-                                        <label>Peso</label>
-                                        <input type="number" class="input" step="0.1" min="0"
-                                               @bind="newItemDraft.Weight" />
-                                    </div>
-
-                                    <div class="field field-full">
-                                        <label>Tipo</label>
-                                        <select class="input" @bind="newItemDraft.ItemType">
-                                            @foreach (var o in ItemTypeOptions)
+                                            @if (CanEditInventory)
                                             {
-                                                <option value="@o.Value">@o.Label</option>
+                                                <div class="qty-controls">
+                                                    <button type="button" class="qty-btn qty-minus"
+                                                            @onclick="() => AdjustQuantityAsync(item, -1)"
+                                                            disabled="@isSavingInventory">
+                                                        −
+                                                    </button>
+                                                    <span class="qty-value">@item.Quantity</span>
+                                                    <button type="button" class="qty-btn qty-plus"
+                                                            @onclick="() => AdjustQuantityAsync(item, 1)"
+                                                            disabled="@isSavingInventory">
+                                                        +
+                                                    </button>
+                                                </div>
                                             }
-                                        </select>
-                                    </div>
+                                            else
+                                            {
+                                                <div class="qty-readonly">×@item.Quantity</div>
+                                            }
+                                        </div>
 
-                                    <div class="field field-full">
-                                        <label>Descrizione (opzionale)</label>
-                                        <textarea class="input" rows="3"
-                                                  @bind="newItemDraft.Description"></textarea>
-                                    </div>
-                                </div>
+                                        <div class="inv-meta">
+                                            @if (!string.IsNullOrWhiteSpace(item.ItemType))
+                                            {
+                                                <span class="inv-type-badge">@item.ItemType</span>
+                                            }
+                                            @if (item.Weight.HasValue)
+                                            {
+                                                <span class="inv-weight">@FormatWeight(item.Weight.Value * item.Quantity)</span>
+                                            }
 
-                                <div class="inv-form-actions">
-                                    <button type="button" class="primary-btn"
-                                            @onclick="SaveNewItemAsync"
-                                            disabled="@isSavingInventory">
-                                        @(isSavingInventory ? "Salvataggio..." : "Salva")
-                                    </button>
-                                    <button type="button" class="secondary-btn"
-                                            @onclick="CancelAddItem"
-                                            disabled="@isSavingInventory">
-                                        Annulla
-                                    </button>
+                                            @if (CanEditInventory)
+                                            {
+                                                <label class="inv-eq-toggle">
+                                                    <input type="checkbox" checked="@item.IsEquipped"
+                                                           @onchange="@(e => ToggleEquippedAsync(item, (bool)(e.Value ?? false)))"
+                                                           disabled="@isSavingInventory" />
+                                                    <span>Equipaggiato</span>
+                                                </label>
+
+                                                <button type="button" class="inv-delete-btn"
+                                                        title="Elimina oggetto"
+                                                        @onclick="() => DeleteItemAsync(item)"
+                                                        disabled="@isSavingInventory">
+                                                    🗑️
+                                                </button>
+                                            }
+                                        </div>
+
+                                        @if (isItemExpanded && !string.IsNullOrWhiteSpace(item.Description))
+                                        {
+                                            <div class="inv-description">@item.Description</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @* ===================== TAB MAGIC ===================== *@
+                @if (activeTab == "magic" && !string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
+                {
+                    <div class="spell-stats">
+                        <div class="spell-stat-block">
+                            <p class="card-label">CD INCANTESIMO</p>
+                            <p class="spell-stat-value">@CharacterCalculations.GetSpellSaveDc(selected)</p>
+                        </div>
+                        <div class="spell-stat-block">
+                            <p class="card-label">BONUS ATTACCO</p>
+                            <p class="spell-stat-value">@FormatBonus(CharacterCalculations.GetSpellAttackBonus(selected) ?? 0)</p>
+                        </div>
+                        <div class="spell-stat-block">
+                            <p class="card-label">CARATT.</p>
+                            <p class="spell-stat-value">@SpellAbilityShort(selected.SpellcastingAbility)</p>
+                        </div>
+                    </div>
+
+                    <p class="section-header">SLOT INCANTESIMO</p>
+                    @for (int level = 1; level <= 9; level++)
+                    {
+                        var lvl = level;
+                        var max = GetSpellSlotMax(selected, lvl);
+                        var used = GetSpellSlotUsed(selected, lvl);
+                        if (max > 0)
+                        {
+                            <div class="spell-slot-row">
+                                <span class="spell-slot-level">Liv @lvl</span>
+                                <div class="spell-slot-dots">
+                                    @for (int i = 1; i <= max; i++)
+                                    {
+                                        var idx = i;
+                                        <span class="spell-slot-dot @(idx > (max - used) ? "spent" : "")"
+                                              @onclick="@(() => ToggleSpellSlot(lvl, idx))"></span>
+                                    }
                                 </div>
+                                <span class="spell-slot-count">@(max - used) / @max</span>
                             </div>
                         }
                     }
 
-                    @if (isLoadingInventory)
-                    {
-                        <div class="inv-loading">Caricamento inventario...</div>
-                    }
-                    else if (invDisplay.Count == 0)
-                    {
-                        <div class="inv-empty">Nessun oggetto nell'inventario.</div>
-                    }
-                    else
-                    {
-                        <div class="inv-list">
-                            @foreach (var item in invDisplay)
-                            {
-                                var isItemExpanded = expandedItemId == item.Id;
-                                <div class="inv-item @(item.IsEquipped ? "equipped" : "")">
-                                    <div class="inv-row">
-                                        <button type="button" class="inv-name-btn"
-                                                @onclick="() => ToggleItemExpand(item.Id)">
-                                            @if (item.IsEquipped)
-                                            {
-                                                <span class="eq-icon" title="Equipaggiato">⚔️</span>
-                                            }
-                                            <span class="inv-name-text">@item.Name</span>
-                                            @if (!string.IsNullOrWhiteSpace(item.Description))
-                                            {
-                                                <span class="inv-exp-icon">@(isItemExpanded ? "▾" : "▸")</span>
-                                            }
-                                        </button>
-
-                                        @if (CanEditInventory)
-                                        {
-                                            <div class="qty-controls">
-                                                <button type="button" class="qty-btn qty-minus"
-                                                        @onclick="() => AdjustQuantityAsync(item, -1)"
-                                                        disabled="@isSavingInventory">
-                                                    −
-                                                </button>
-                                                <span class="qty-value">@item.Quantity</span>
-                                                <button type="button" class="qty-btn qty-plus"
-                                                        @onclick="() => AdjustQuantityAsync(item, 1)"
-                                                        disabled="@isSavingInventory">
-                                                    +
-                                                </button>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="qty-readonly">×@item.Quantity</div>
-                                        }
-                                    </div>
-
-                                    <div class="inv-meta">
-                                        @if (!string.IsNullOrWhiteSpace(item.ItemType))
-                                        {
-                                            <span class="inv-type-badge">@item.ItemType</span>
-                                        }
-                                        @if (item.Weight.HasValue)
-                                        {
-                                            <span class="inv-weight">@FormatWeight(item.Weight.Value * item.Quantity)</span>
-                                        }
-
-                                        @if (CanEditInventory)
-                                        {
-                                            <label class="inv-eq-toggle">
-                                                <input type="checkbox" checked="@item.IsEquipped"
-                                                       @onchange="@(e => ToggleEquippedAsync(item, (bool)(e.Value ?? false)))"
-                                                       disabled="@isSavingInventory" />
-                                                <span>Equipaggiato</span>
-                                            </label>
-
-                                            <button type="button" class="inv-delete-btn"
-                                                    title="Elimina oggetto"
-                                                    @onclick="() => DeleteItemAsync(item)"
-                                                    disabled="@isSavingInventory">
-                                                🗑️
-                                            </button>
-                                        }
-                                    </div>
-
-                                    @if (isItemExpanded && !string.IsNullOrWhiteSpace(item.Description))
-                                    {
-                                        <div class="inv-description">@item.Description</div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-
-                @* ===== 9. INCANTESIMI (placeholder) ===== *@
-                @if (!string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
-                {
-                    <div class="sheet-card">
-                        <div class="section-label">Incantesimi</div>
-                        <div class="spell-placeholder">Sezione in arrivo nella prossima fase</div>
-                    </div>
+                    <p class="section-header">INCANTESIMI PREPARATI</p>
+                    <p class="empty-note">Lista incantesimi in arrivo nella prossima fase.</p>
                 }
+
+                </div>
             </div>
             break;
 
@@ -746,9 +789,9 @@
         ("Tesoro", "Tesoro")
     };
 
-    // ===== Stato sezioni collassabili (chiuse di default) =====
-    private bool isResourcesExpanded;
-    private bool isKnowledgeExpanded;
+    // ===== Navigazione a tab della vista detail =====
+    // valori: combat | stats | bio | items | magic
+    private string activeTab = "combat";
 
     private string? playerId;
     private bool isMaster;
@@ -765,10 +808,7 @@
         selected is not null && (isMaster || selected.PlayerId == playerId);
 
     private double TotalInventoryWeight =>
-        inventoryItems.Where(i => !IsWeapon(i)).Sum(i => (i.Weight ?? 0) * i.Quantity);
-
-    private static bool IsWeapon(InventoryItem i) =>
-        string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase);
+        inventoryItems.Sum(i => (i.Weight ?? 0) * i.Quantity);
 
     // ===== Vital signs / combattimento =====
 
@@ -783,21 +823,23 @@
          !string.IsNullOrWhiteSpace(selected.DamageVulnerabilities) ||
          !string.IsNullOrWhiteSpace(selected.ConditionImmunities));
 
-    private bool HasKnowledge =>
-        selected is not null &&
-        (!string.IsNullOrWhiteSpace(selected.Languages) ||
-         !string.IsNullOrWhiteSpace(selected.SpeciesTraits) ||
-         !string.IsNullOrWhiteSpace(selected.ClassFeatures) ||
-         !string.IsNullOrWhiteSpace(selected.Feats));
+    private static string FormatBonus(int v) => v >= 0 ? $"+{v}" : v.ToString();
 
-    private static string FmtBonus(int v) => v >= 0 ? $"+{v}" : v.ToString();
-
-    private static string FormatDamage(InventoryItem w)
+    private static IEnumerable<string> SplitDefenses(string? s)
     {
-        var dmg = (w.Damage ?? string.Empty).Trim();
-        var type = (w.DamageType ?? string.Empty).Trim();
-        var combined = string.Join(" ", new[] { dmg, type }.Where(s => s.Length > 0));
-        return combined.Length == 0 ? "—" : combined;
+        if (string.IsNullOrWhiteSpace(s)) yield break;
+        foreach (var p in s.Split(new[] { ',', ';', '\n' },
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            yield return p;
+        }
+    }
+
+    private static string SpellAbilityShort(string? a)
+    {
+        if (string.IsNullOrWhiteSpace(a)) return string.Empty;
+        var t = a.Trim();
+        return (t.Length <= 3 ? t : t[..3]).ToUpperInvariant();
     }
 
     // ===== Dadi vita =====
@@ -816,16 +858,6 @@
         return total;
     }
 
-    private string HitDiceTypeLabel()
-    {
-        if (selected is null || string.IsNullOrWhiteSpace(selected.HitDiceMax)) return string.Empty;
-        var first = selected.HitDiceMax.Split('+')[0].Trim();
-        var idx = first.IndexOf('d');
-        if (idx < 0) return string.Empty;
-        var die = first[(idx + 1)..].Trim();
-        return die.Length > 0 ? $"d{die}" : string.Empty;
-    }
-
     // ===== Denari =====
 
     private readonly (string Code, string FullName, Func<Character, int> Get)[] CoinDefs = new (string, string, Func<Character, int>)[]
@@ -837,47 +869,6 @@
         ("MP", "Moneta di Platino", c => c.PlatinumPieces)
     };
 
-    private double CurrencyTotalGold()
-    {
-        if (selected is null) return 0;
-        return selected.CopperPieces / 100.0
-             + selected.SilverPieces / 10.0
-             + selected.ElectrumPieces / 2.0
-             + selected.GoldPieces
-             + selected.PlatinumPieces * 10.0;
-    }
-
-    private string ResourcesSummary
-    {
-        get
-        {
-            if (selected is null) return string.Empty;
-            var dicePart = string.IsNullOrWhiteSpace(selected.HitDiceMax)
-                ? "—"
-                : $"{CharacterCalculations.GetHitDiceRemaining(selected)}/{HitDiceTotal()}";
-            var gold = CurrencyTotalGold()
-                .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-            return $"{dicePart} dadi · {gold} mo";
-        }
-    }
-
-    private string KnowledgeSummary
-    {
-        get
-        {
-            if (selected is null) return string.Empty;
-            var parts = new List<string>();
-            var langCount = string.IsNullOrWhiteSpace(selected.Languages)
-                ? 0
-                : selected.Languages.Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
-            parts.Add($"{langCount} lingue");
-            if (!string.IsNullOrWhiteSpace(selected.SpeciesTraits)) parts.Add("tratti");
-            if (!string.IsNullOrWhiteSpace(selected.ClassFeatures)) parts.Add("privilegi");
-            if (!string.IsNullOrWhiteSpace(selected.Feats)) parts.Add("talenti");
-            return string.Join(" · ", parts);
-        }
-    }
-
     private string? AttunementValue(int slot) => slot switch
     {
         1 => selected?.AttunedItem1,
@@ -885,6 +876,52 @@
         3 => selected?.AttunedItem3,
         _ => null
     };
+
+    // ===== Slot incantesimo =====
+
+    private static int GetSpellSlotMax(Character c, int level) => level switch
+    {
+        1 => c.SpellSlots1Max,
+        2 => c.SpellSlots2Max,
+        3 => c.SpellSlots3Max,
+        4 => c.SpellSlots4Max,
+        5 => c.SpellSlots5Max,
+        6 => c.SpellSlots6Max,
+        7 => c.SpellSlots7Max,
+        8 => c.SpellSlots8Max,
+        9 => c.SpellSlots9Max,
+        _ => 0
+    };
+
+    private static int GetSpellSlotUsed(Character c, int level) => level switch
+    {
+        1 => c.SpellSlots1Used,
+        2 => c.SpellSlots2Used,
+        3 => c.SpellSlots3Used,
+        4 => c.SpellSlots4Used,
+        5 => c.SpellSlots5Used,
+        6 => c.SpellSlots6Used,
+        7 => c.SpellSlots7Used,
+        8 => c.SpellSlots8Used,
+        9 => c.SpellSlots9Used,
+        _ => 0
+    };
+
+    private static void SetSpellSlotUsed(Character c, int level, int v)
+    {
+        switch (level)
+        {
+            case 1: c.SpellSlots1Used = v; break;
+            case 2: c.SpellSlots2Used = v; break;
+            case 3: c.SpellSlots3Used = v; break;
+            case 4: c.SpellSlots4Used = v; break;
+            case 5: c.SpellSlots5Used = v; break;
+            case 6: c.SpellSlots6Used = v; break;
+            case 7: c.SpellSlots7Used = v; break;
+            case 8: c.SpellSlots8Used = v; break;
+            case 9: c.SpellSlots9Used = v; break;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -946,10 +983,19 @@
         selected = c;
         notesDraft = c.Notes ?? string.Empty;
         mode = ViewMode.Detail;
+        activeTab = "combat";
         expandedItemId = null;
         isAddingItem = false;
         await LoadInventoryAsync(c.Id);
     }
+
+    private void GoBack()
+    {
+        selected = null;
+        BackToListOrEmpty();
+    }
+
+    private void StartEdit() => OpenEditForm();
 
     private async Task LoadInventoryAsync(string characterId)
     {
@@ -1220,26 +1266,36 @@
 
     // ===== Azioni vital signs / risorse =====
 
-    private async Task CycleDeathSuccessAsync()
+    private Task DecreaseHp() => AdjustHpAsync(-1);
+    private Task IncreaseHp() => AdjustHpAsync(1);
+
+    private async Task SetDeathSaveSuccesses(int value)
     {
         if (selected is null || !CanEdit) return;
-        selected.DeathSaveSuccesses = selected.DeathSaveSuccesses >= 3 ? 0 : selected.DeathSaveSuccesses + 1;
+        value = Math.Clamp(value, 0, 3);
+        if (value == selected.DeathSaveSuccesses) return;
+        selected.DeathSaveSuccesses = value;
         await SaveCharacterAsync();
     }
 
-    private async Task CycleDeathFailureAsync()
+    private async Task SetDeathSaveFailures(int value)
     {
         if (selected is null || !CanEdit) return;
-        selected.DeathSaveFailures = selected.DeathSaveFailures >= 3 ? 0 : selected.DeathSaveFailures + 1;
+        value = Math.Clamp(value, 0, 3);
+        if (value == selected.DeathSaveFailures) return;
+        selected.DeathSaveFailures = value;
         await SaveCharacterAsync();
     }
 
-    private async Task ToggleHeroicInspirationAsync()
+    private async Task ToggleHeroicInspiration()
     {
         if (selected is null || !CanEdit) return;
         selected.HeroicInspiration = !selected.HeroicInspiration;
         await SaveCharacterAsync();
     }
+
+    private Task DecrementHitDice() => AdjustHitDiceSpentAsync(-1);
+    private Task IncrementHitDice() => AdjustHitDiceSpentAsync(1);
 
     private async Task AdjustHitDiceSpentAsync(int delta)
     {
@@ -1248,6 +1304,22 @@
         var v = Math.Clamp(selected.HitDiceSpent + delta, 0, total);
         if (v == selected.HitDiceSpent) return;
         selected.HitDiceSpent = v;
+        await SaveCharacterAsync();
+    }
+
+    private async Task ToggleSpellSlot(int level, int index)
+    {
+        if (selected is null || !CanEdit) return;
+        var max = GetSpellSlotMax(selected, level);
+        if (max <= 0) return;
+        var used = GetSpellSlotUsed(selected, level);
+        var available = max - used;
+        // Click su uno slot disponibile: spende fino a quel punto (ne restano index-1).
+        // Click su uno slot già speso: lo ripristina (ne restano index).
+        var newUsed = index <= available ? max - (index - 1) : max - index;
+        newUsed = Math.Clamp(newUsed, 0, max);
+        if (newUsed == used) return;
+        SetSpellSlotUsed(selected, level, newUsed);
         await SaveCharacterAsync();
     }
 
