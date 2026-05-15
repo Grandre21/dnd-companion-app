@@ -103,14 +103,12 @@
                 <div class="stats-section">
                     <div class="section-label">Caratteristiche</div>
                     <div class="stats-grid">
-                        @foreach (var s in GetStats(selected))
-                        {
-                            <div class="stat-card">
-                                <div class="stat-label">@s.Label</div>
-                                <div class="stat-value">@s.Value</div>
-                                <div class="stat-mod">@FormatModifier(s.Value)</div>
-                            </div>
-                        }
+                        <StatCard Ability="AbilityType.Strength"     Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                        <StatCard Ability="AbilityType.Dexterity"    Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                        <StatCard Ability="AbilityType.Constitution" Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                        <StatCard Ability="AbilityType.Intelligence" Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                        <StatCard Ability="AbilityType.Wisdom"       Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                        <StatCard Ability="AbilityType.Charisma"     Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
                     </div>
                 </div>
 
@@ -475,6 +473,9 @@
     private bool CanEditInventory =>
         selected is not null && (isMaster || selected.PlayerId == playerId);
 
+    private bool CanEdit =>
+        selected is not null && (isMaster || selected.PlayerId == playerId);
+
     private double TotalInventoryWeight =>
         inventoryItems.Sum(i => (i.Weight ?? 0) * i.Quantity);
 
@@ -791,6 +792,25 @@
         }
     }
 
+    private async Task SaveCharacterAsync()
+    {
+        if (selected is null) return;
+
+        errorMessage = null;
+        try
+        {
+            var saved = await SupabaseService.UpdateCharacterAsync(selected);
+            if (saved is not null)
+            {
+                SyncListFromSelected();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio caratteristiche: {ex.Message}";
+        }
+    }
+
     private void SyncListFromSelected()
     {
         if (selected is null) return;
@@ -818,24 +838,6 @@
         Notes = c.Notes,
         CreatedAt = c.CreatedAt
     };
-
-    private static IEnumerable<(string Label, int Value)> GetStats(Character c) => new[]
-    {
-        ("FOR", c.Strength),
-        ("DES", c.Dexterity),
-        ("COS", c.Constitution),
-        ("INT", c.Intelligence),
-        ("SAG", c.Wisdom),
-        ("CAR", c.Charisma)
-    };
-
-    private static int CalcModifier(int stat) => (int)Math.Floor((stat - 10) / 2.0);
-
-    private static string FormatModifier(int stat)
-    {
-        var mod = CalcModifier(stat);
-        return mod >= 0 ? $"+{mod}" : mod.ToString();
-    }
 
     // ====================== Inventory ======================
 

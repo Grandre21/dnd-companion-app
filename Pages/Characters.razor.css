@@ -408,39 +408,15 @@
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.6rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    align-items: start;
 }
 
-.stat-card {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(212, 165, 116, 0.3);
-    border-radius: 8px;
-    padding: 0.6rem 0.4rem;
-    text-align: center;
-}
-
-.stat-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #9a8c6a;
-    letter-spacing: 1px;
-    margin-bottom: 0.2rem;
-}
-
-.stat-value {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #f0dcb0;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-}
-
-.stat-mod {
-    font-size: 0.85rem;
-    color: #d4a574;
-    margin-top: 0.1rem;
-    font-variant-numeric: tabular-nums;
+@media (min-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 /* ===== Notes section ===== */
@@ -962,17 +938,5 @@ select.input option {
 
     .ac-value {
         font-size: 2rem;
-    }
-
-    .stat-value {
-        font-size: 1.65rem;
-    }
-
-    .stat-label {
-        font-size: 0.75rem;
-    }
-
-    .stat-mod {
-        font-size: 0.95rem;
     }
 }

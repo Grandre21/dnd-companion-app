@@ -1,0 +1,111 @@
+.statcard {
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 8px;
+    padding: 0.5rem 0.4rem;
+    cursor: pointer;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.statcard:hover {
+    border-color: #8b6f3a;
+}
+
+.statcard.expanded {
+    border-color: #d4a574;
+}
+
+/* ---- Header ---- */
+.sc-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.sc-abbr {
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #d4a574;
+}
+
+.sc-mod {
+    font-size: 36px;
+    line-height: 1.1;
+    font-weight: 700;
+    color: #f0d4a0;
+    font-variant-numeric: tabular-nums;
+}
+
+.statcard.expanded .sc-mod {
+    font-size: 28px;
+}
+
+.sc-score {
+    font-size: 12px;
+    color: #8b6f3a;
+    font-variant-numeric: tabular-nums;
+}
+
+.sc-chevron {
+    font-size: 0.7rem;
+    color: #8b6f3a;
+    margin-top: 0.1rem;
+}
+
+/* ---- Corpo espanso ---- */
+.sc-divider {
+    height: 1px;
+    background: #5a3f20;
+    margin: 0.5rem 0;
+}
+
+.sc-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.1rem;
+}
+
+.sc-name {
+    flex: 1;
+    font-size: 0.78rem;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sc-val {
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.sc-name.on, .sc-val.on { color: #c8b88a; }
+.sc-name.off, .sc-val.off { color: #8b6f3a; }
+
+/* ---- Pallini competenza ---- */
+.sc-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: transparent;
+    border: 1px solid #5a3f20;
+    box-sizing: border-box;
+}
+
+.sc-dot.prof {
+    background: #d4a574;
+    border: 1px solid #d4a574;
+}
+
+.sc-dot.expertise {
+    background: #d4a574;
+    border: 2px solid #f0d4a0;
+    box-shadow: inset 0 0 0 1px #2a1d10;
+}

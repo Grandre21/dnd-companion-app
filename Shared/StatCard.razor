@@ -1,0 +1,255 @@
+@using DndCompanion.Models
+@using DndCompanion.Services
+
+<div class="statcard @(isExpanded ? "expanded" : "")" @onclick="ToggleExpand">
+    <div class="sc-header">
+        <div class="sc-abbr">@Abbr(Ability)</div>
+        <div class="sc-mod">@FormatBonus(CharacterCalculations.GetModifier(AbilityScore(Character, Ability)))</div>
+        <div class="sc-score">@AbilityScore(Character, Ability)</div>
+        <div class="sc-chevron">@(isExpanded ? "▴" : "▾")</div>
+    </div>
+
+    @if (isExpanded)
+    {
+        <div class="sc-divider"></div>
+
+        <div class="sc-row">
+            <span class="@DotClass(GetSaveProf(Character, Ability), false)"
+                  @onclick="() => CycleSave()" @onclick:stopPropagation="true"></span>
+            <span class="sc-name @(GetSaveProf(Character, Ability) ? "on" : "off")">TS</span>
+            <span class="sc-val @(GetSaveProf(Character, Ability) ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSaveBonus(Character, Ability))</span>
+        </div>
+
+        @foreach (var skill in SkillsFor(Ability))
+        {
+            var prof = GetSkillProf(Character, skill);
+            var exp = GetSkillExp(Character, skill);
+            <div class="sc-row">
+                <span class="@DotClass(prof, exp)"
+                      @onclick="() => CycleSkill(skill)" @onclick:stopPropagation="true"></span>
+                <span class="sc-name @(prof || exp ? "on" : "off")">@SkillLabel(skill)</span>
+                <span class="sc-val @(prof || exp ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSkillBonus(Character, skill))</span>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AbilityType Ability { get; set; }
+    [Parameter, EditorRequired] public Character Character { get; set; } = default!;
+    [Parameter] public bool IsEditMode { get; set; } = false;
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool isExpanded = false;
+
+    private void ToggleExpand() => isExpanded = !isExpanded;
+
+    // ---- Toggle pallini (solo in edit mode) ----
+
+    private async Task CycleSave()
+    {
+        if (!IsEditMode) return;
+        SetSaveProf(Character, Ability, !GetSaveProf(Character, Ability));
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task CycleSkill(SkillType skill)
+    {
+        if (!IsEditMode) return;
+        var prof = GetSkillProf(Character, skill);
+        var exp = GetSkillExp(Character, skill);
+        // Ciclo: non competente -> competente -> expertise -> non competente
+        if (!prof && !exp) { SetSkillProf(Character, skill, true); }
+        else if (prof && !exp) { SetSkillExp(Character, skill, true); }
+        else { SetSkillProf(Character, skill, false); SetSkillExp(Character, skill, false); }
+        await OnChanged.InvokeAsync();
+    }
+
+    // ---- Formattazione ----
+
+    private static string FormatBonus(int v) => v >= 0 ? $"+{v}" : v.ToString();
+
+    private static string DotClass(bool prof, bool exp)
+        => prof && exp ? "sc-dot expertise" : prof ? "sc-dot prof" : "sc-dot";
+
+    // ---- Mapping nomi ----
+
+    private static string Abbr(AbilityType a) => a switch
+    {
+        AbilityType.Strength => "FOR",
+        AbilityType.Dexterity => "DES",
+        AbilityType.Constitution => "COS",
+        AbilityType.Intelligence => "INT",
+        AbilityType.Wisdom => "SAG",
+        AbilityType.Charisma => "CAR",
+        _ => "?"
+    };
+
+    private static string SkillLabel(SkillType s) => s switch
+    {
+        SkillType.Athletics => "Atletica",
+        SkillType.Acrobatics => "Acrobazia",
+        SkillType.SleightOfHand => "Rapidità di mano",
+        SkillType.Stealth => "Furtività",
+        SkillType.Arcana => "Arcano",
+        SkillType.History => "Storia",
+        SkillType.Investigation => "Indagare",
+        SkillType.Nature => "Natura",
+        SkillType.Religion => "Religione",
+        SkillType.AnimalHandling => "Addestrare animali",
+        SkillType.Insight => "Intuizione",
+        SkillType.Medicine => "Medicina",
+        SkillType.Perception => "Percezione",
+        SkillType.Survival => "Sopravvivenza",
+        SkillType.Deception => "Inganno",
+        SkillType.Intimidation => "Intimidire",
+        SkillType.Performance => "Intrattenere",
+        SkillType.Persuasion => "Persuasione",
+        _ => s.ToString()
+    };
+
+    // Skill associate alla caratteristica (coerente con CharacterCalculations.GetSkillAbility).
+    private static IEnumerable<SkillType> SkillsFor(AbilityType a) => a switch
+    {
+        AbilityType.Strength => new[] { SkillType.Athletics },
+        AbilityType.Dexterity => new[] { SkillType.Acrobatics, SkillType.SleightOfHand, SkillType.Stealth },
+        AbilityType.Constitution => Array.Empty<SkillType>(),
+        AbilityType.Intelligence => new[] { SkillType.Arcana, SkillType.History, SkillType.Investigation, SkillType.Nature, SkillType.Religion },
+        AbilityType.Wisdom => new[] { SkillType.AnimalHandling, SkillType.Insight, SkillType.Medicine, SkillType.Perception, SkillType.Survival },
+        AbilityType.Charisma => new[] { SkillType.Deception, SkillType.Intimidation, SkillType.Performance, SkillType.Persuasion },
+        _ => Array.Empty<SkillType>()
+    };
+
+    // ---- Accessor stato (lookup/scrittura flag: CharacterCalculations non li espone pubblici) ----
+
+    private static int AbilityScore(Character c, AbilityType a) => a switch
+    {
+        AbilityType.Strength => c.Strength,
+        AbilityType.Dexterity => c.Dexterity,
+        AbilityType.Constitution => c.Constitution,
+        AbilityType.Intelligence => c.Intelligence,
+        AbilityType.Wisdom => c.Wisdom,
+        AbilityType.Charisma => c.Charisma,
+        _ => 10
+    };
+
+    private static bool GetSaveProf(Character c, AbilityType a) => a switch
+    {
+        AbilityType.Strength => c.ProfSaveStrength,
+        AbilityType.Dexterity => c.ProfSaveDexterity,
+        AbilityType.Constitution => c.ProfSaveConstitution,
+        AbilityType.Intelligence => c.ProfSaveIntelligence,
+        AbilityType.Wisdom => c.ProfSaveWisdom,
+        AbilityType.Charisma => c.ProfSaveCharisma,
+        _ => false
+    };
+
+    private static void SetSaveProf(Character c, AbilityType a, bool v)
+    {
+        switch (a)
+        {
+            case AbilityType.Strength: c.ProfSaveStrength = v; break;
+            case AbilityType.Dexterity: c.ProfSaveDexterity = v; break;
+            case AbilityType.Constitution: c.ProfSaveConstitution = v; break;
+            case AbilityType.Intelligence: c.ProfSaveIntelligence = v; break;
+            case AbilityType.Wisdom: c.ProfSaveWisdom = v; break;
+            case AbilityType.Charisma: c.ProfSaveCharisma = v; break;
+        }
+    }
+
+    private static bool GetSkillProf(Character c, SkillType s) => s switch
+    {
+        SkillType.Athletics => c.ProfAthletics,
+        SkillType.Acrobatics => c.ProfAcrobatics,
+        SkillType.SleightOfHand => c.ProfSleightOfHand,
+        SkillType.Stealth => c.ProfStealth,
+        SkillType.Arcana => c.ProfArcana,
+        SkillType.History => c.ProfHistory,
+        SkillType.Investigation => c.ProfInvestigation,
+        SkillType.Nature => c.ProfNature,
+        SkillType.Religion => c.ProfReligion,
+        SkillType.AnimalHandling => c.ProfAnimalHandling,
+        SkillType.Insight => c.ProfInsight,
+        SkillType.Medicine => c.ProfMedicine,
+        SkillType.Perception => c.ProfPerception,
+        SkillType.Survival => c.ProfSurvival,
+        SkillType.Deception => c.ProfDeception,
+        SkillType.Intimidation => c.ProfIntimidation,
+        SkillType.Performance => c.ProfPerformance,
+        SkillType.Persuasion => c.ProfPersuasion,
+        _ => false
+    };
+
+    private static void SetSkillProf(Character c, SkillType s, bool v)
+    {
+        switch (s)
+        {
+            case SkillType.Athletics: c.ProfAthletics = v; break;
+            case SkillType.Acrobatics: c.ProfAcrobatics = v; break;
+            case SkillType.SleightOfHand: c.ProfSleightOfHand = v; break;
+            case SkillType.Stealth: c.ProfStealth = v; break;
+            case SkillType.Arcana: c.ProfArcana = v; break;
+            case SkillType.History: c.ProfHistory = v; break;
+            case SkillType.Investigation: c.ProfInvestigation = v; break;
+            case SkillType.Nature: c.ProfNature = v; break;
+            case SkillType.Religion: c.ProfReligion = v; break;
+            case SkillType.AnimalHandling: c.ProfAnimalHandling = v; break;
+            case SkillType.Insight: c.ProfInsight = v; break;
+            case SkillType.Medicine: c.ProfMedicine = v; break;
+            case SkillType.Perception: c.ProfPerception = v; break;
+            case SkillType.Survival: c.ProfSurvival = v; break;
+            case SkillType.Deception: c.ProfDeception = v; break;
+            case SkillType.Intimidation: c.ProfIntimidation = v; break;
+            case SkillType.Performance: c.ProfPerformance = v; break;
+            case SkillType.Persuasion: c.ProfPersuasion = v; break;
+        }
+    }
+
+    private static bool GetSkillExp(Character c, SkillType s) => s switch
+    {
+        SkillType.Athletics => c.ExpAthletics,
+        SkillType.Acrobatics => c.ExpAcrobatics,
+        SkillType.SleightOfHand => c.ExpSleightOfHand,
+        SkillType.Stealth => c.ExpStealth,
+        SkillType.Arcana => c.ExpArcana,
+        SkillType.History => c.ExpHistory,
+        SkillType.Investigation => c.ExpInvestigation,
+        SkillType.Nature => c.ExpNature,
+        SkillType.Religion => c.ExpReligion,
+        SkillType.AnimalHandling => c.ExpAnimalHandling,
+        SkillType.Insight => c.ExpInsight,
+        SkillType.Medicine => c.ExpMedicine,
+        SkillType.Perception => c.ExpPerception,
+        SkillType.Survival => c.ExpSurvival,
+        SkillType.Deception => c.ExpDeception,
+        SkillType.Intimidation => c.ExpIntimidation,
+        SkillType.Performance => c.ExpPerformance,
+        SkillType.Persuasion => c.ExpPersuasion,
+        _ => false
+    };
+
+    private static void SetSkillExp(Character c, SkillType s, bool v)
+    {
+        switch (s)
+        {
+            case SkillType.Athletics: c.ExpAthletics = v; break;
+            case SkillType.Acrobatics: c.ExpAcrobatics = v; break;
+            case SkillType.SleightOfHand: c.ExpSleightOfHand = v; break;
+            case SkillType.Stealth: c.ExpStealth = v; break;
+            case SkillType.Arcana: c.ExpArcana = v; break;
+            case SkillType.History: c.ExpHistory = v; break;
+            case SkillType.Investigation: c.ExpInvestigation = v; break;
+            case SkillType.Nature: c.ExpNature = v; break;
+            case SkillType.Religion: c.ExpReligion = v; break;
+            case SkillType.AnimalHandling: c.ExpAnimalHandling = v; break;
+            case SkillType.Insight: c.ExpInsight = v; break;
+            case SkillType.Medicine: c.ExpMedicine = v; break;
+            case SkillType.Perception: c.ExpPerception = v; break;
+            case SkillType.Survival: c.ExpSurvival = v; break;
+            case SkillType.Deception: c.ExpDeception = v; break;
+            case SkillType.Intimidation: c.ExpIntimidation = v; break;
+            case SkillType.Performance: c.ExpPerformance = v; break;
+            case SkillType.Persuasion: c.ExpPersuasion = v; break;
+        }
+    }
+}
