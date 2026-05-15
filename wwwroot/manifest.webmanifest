@@ -1,11 +1,11 @@
 {
-  "name": "DndCompanion",
-  "short_name": "DndCompanion",
+  "name": "D&D Companion",
+  "short_name": "D&D Companion",
   "id": "./",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#03173d",
+  "background_color": "#1a0e1f",
+  "theme_color": "#1a0e1f",
   "prefer_related_applications": false,
   "icons": [
     {
