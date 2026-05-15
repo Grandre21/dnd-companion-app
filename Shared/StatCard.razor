@@ -1,36 +1,32 @@
 @using DndCompanion.Models
 @using DndCompanion.Services
 
-<div class="statcard @(isExpanded ? "expanded" : "")" @onclick="ToggleExpand">
+<div class="statcard">
     <div class="sc-header">
         <div class="sc-abbr">@Abbr(Ability)</div>
         <div class="sc-mod">@FormatBonus(CharacterCalculations.GetModifier(AbilityScore(Character, Ability)))</div>
         <div class="sc-score">@AbilityScore(Character, Ability)</div>
-        <div class="sc-chevron">@(isExpanded ? "▴" : "▾")</div>
     </div>
 
-    @if (isExpanded)
+    <div class="sc-divider"></div>
+
+    <div class="sc-row">
+        <span class="@DotClass(GetSaveProf(Character, Ability), false)"
+              @onclick="() => CycleSave()" @onclick:stopPropagation="true"></span>
+        <span class="sc-name @(GetSaveProf(Character, Ability) ? "on" : "off")">TS</span>
+        <span class="sc-val @(GetSaveProf(Character, Ability) ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSaveBonus(Character, Ability))</span>
+    </div>
+
+    @foreach (var skill in SkillsFor(Ability))
     {
-        <div class="sc-divider"></div>
-
+        var prof = GetSkillProf(Character, skill);
+        var exp = GetSkillExp(Character, skill);
         <div class="sc-row">
-            <span class="@DotClass(GetSaveProf(Character, Ability), false)"
-                  @onclick="() => CycleSave()" @onclick:stopPropagation="true"></span>
-            <span class="sc-name @(GetSaveProf(Character, Ability) ? "on" : "off")">TS</span>
-            <span class="sc-val @(GetSaveProf(Character, Ability) ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSaveBonus(Character, Ability))</span>
+            <span class="@DotClass(prof, exp)"
+                  @onclick="() => CycleSkill(skill)" @onclick:stopPropagation="true"></span>
+            <span class="sc-name @(prof || exp ? "on" : "off")">@SkillLabel(skill)</span>
+            <span class="sc-val @(prof || exp ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSkillBonus(Character, skill))</span>
         </div>
-
-        @foreach (var skill in SkillsFor(Ability))
-        {
-            var prof = GetSkillProf(Character, skill);
-            var exp = GetSkillExp(Character, skill);
-            <div class="sc-row">
-                <span class="@DotClass(prof, exp)"
-                      @onclick="() => CycleSkill(skill)" @onclick:stopPropagation="true"></span>
-                <span class="sc-name @(prof || exp ? "on" : "off")">@SkillLabel(skill)</span>
-                <span class="sc-val @(prof || exp ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSkillBonus(Character, skill))</span>
-            </div>
-        }
     }
 </div>
 
@@ -39,10 +35,6 @@
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
     [Parameter] public bool IsEditMode { get; set; } = false;
     [Parameter] public EventCallback OnChanged { get; set; }
-
-    private bool isExpanded = false;
-
-    private void ToggleExpand() => isExpanded = !isExpanded;
 
     // ---- Toggle pallini (solo in edit mode) ----
 

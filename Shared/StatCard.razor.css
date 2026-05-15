@@ -3,17 +3,10 @@
     border: 1px solid #5a3f20;
     border-radius: 8px;
     padding: 0.5rem 0.4rem;
-    cursor: pointer;
     user-select: none;
     box-sizing: border-box;
-}
-
-.statcard:hover {
-    border-color: #8b6f3a;
-}
-
-.statcard.expanded {
-    border-color: #d4a574;
+    /* La card non si stira ad altezza delle card adiacenti più alte */
+    align-self: start;
 }
 
 /* ---- Header ---- */
@@ -33,15 +26,11 @@
 }
 
 .sc-mod {
-    font-size: 36px;
+    font-size: 28px;
     line-height: 1.1;
     font-weight: 700;
     color: #f0d4a0;
     font-variant-numeric: tabular-nums;
-}
-
-.statcard.expanded .sc-mod {
-    font-size: 28px;
 }
 
 .sc-score {
@@ -50,13 +39,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.sc-chevron {
-    font-size: 0.7rem;
-    color: #8b6f3a;
-    margin-top: 0.1rem;
-}
-
-/* ---- Corpo espanso ---- */
+/* ---- Corpo ---- */
 .sc-divider {
     height: 1px;
     background: #5a3f20;
