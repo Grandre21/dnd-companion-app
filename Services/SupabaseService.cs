@@ -269,4 +269,36 @@ public class SupabaseService
         var client = await GetClientAsync();
         await client.From<InventoryItem>().Where(i => i.Id == id).Delete();
     }
+
+    public async Task<List<CharacterSpell>> GetCharacterSpellsAsync(string characterId)
+    {
+        var client = await GetClientAsync();
+        var response = await client.From<CharacterSpell>()
+            .Where(cs => cs.CharacterId == characterId)
+            .Get();
+        return response.Models
+            .OrderBy(cs => cs.CreatedAt)
+            .ToList();
+    }
+
+    public async Task<CharacterSpell?> AddSpellToCharacterAsync(CharacterSpell entry)
+    {
+        var client = await GetClientAsync();
+        var response = await client.From<CharacterSpell>().Insert(entry);
+        return response.Models.FirstOrDefault();
+    }
+
+    public async Task<bool> UpdateCharacterSpellAsync(CharacterSpell entry)
+    {
+        var client = await GetClientAsync();
+        var response = await client.From<CharacterSpell>().Update(entry);
+        return response.Models.Count > 0;
+    }
+
+    public async Task<bool> RemoveCharacterSpellAsync(string id)
+    {
+        var client = await GetClientAsync();
+        await client.From<CharacterSpell>().Where(cs => cs.Id == id).Delete();
+        return true;
+    }
 }

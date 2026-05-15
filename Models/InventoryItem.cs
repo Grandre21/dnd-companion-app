@@ -32,4 +32,19 @@ public class InventoryItem : BaseModel
 
     [Column("created_at")]
     public DateTime? CreatedAt { get; set; }
+
+    // ---------------------------------------------------------------
+    // Sezione arma (valorizzata solo quando ItemType == "weapon")
+    // ---------------------------------------------------------------
+    [Column("attack_bonus")]
+    public string? AttackBonus { get; set; }
+
+    [Column("damage")]
+    public string? Damage { get; set; }
+
+    [Column("damage_type")]
+    public string? DamageType { get; set; }
+
+    [Column("attack_notes")]
+    public string? AttackNotes { get; set; }
 }
