@@ -468,6 +468,30 @@ public class SupabaseService
         return response.Models.FirstOrDefault()?.Role;
     }
 
+    /// <summary>
+    /// Elimina la campagna (azione del master). Si affida alle FK ON DELETE CASCADE verso
+    /// campaigns per cancellare characters/notes/spells/monsters/races/classes/campaign_members
+    /// (e a cascata character_spells/inventory via character). Se le FK non fossero CASCADE,
+    /// questa Delete fallirebbe per violazione di vincolo o lascerebbe righe orfane.
+    /// </summary>
+    public async Task DeleteCampaignAsync(string campaignId)
+    {
+        var client = await GetClientAsync();
+        await client.From<Campaign>().Where(c => c.Id == campaignId).Delete();
+    }
+
+    /// <summary>
+    /// L'utente esce dalla campagna: rimuove solo la sua riga in campaign_members.
+    /// NON elimina la campagna né il suo personaggio (resta visibile al master).
+    /// </summary>
+    public async Task LeaveCampaignAsync(string campaignId, string userId)
+    {
+        var client = await GetClientAsync();
+        await client.From<CampaignMember>()
+            .Where(m => m.CampaignId == campaignId && m.UserId == userId)
+            .Delete();
+    }
+
     private async Task<string> GenerateUniqueInviteCodeAsync()
     {
         var client = await GetClientAsync();

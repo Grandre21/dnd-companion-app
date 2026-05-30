@@ -44,7 +44,13 @@
             <div class="list-view">
                 @if (characters.Count == 0)
                 {
-                    <div class="state-message">Nessun personaggio trovato.</div>
+                    <div class="empty-state">
+                        <div class="empty-icon">🗡️</div>
+                        <p class="empty-text">Nessun personaggio in questa campagna.</p>
+                        <button type="button" class="primary-btn" @onclick="OpenCreateForm">
+                            Crea Personaggio
+                        </button>
+                    </div>
                 }
                 else
                 {
@@ -60,6 +66,10 @@
                     </div>
                 }
             </div>
+            @* Creazione personaggio: disponibile a TUTTI i membri (player e master), non solo master. *@
+            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo personaggio">
+                +
+            </button>
             break;
 
         case ViewMode.Detail when selected is not null:

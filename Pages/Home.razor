@@ -4,6 +4,7 @@
 @inject SupabaseService SupabaseService
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>D&amp;D Companion</PageTitle>
 
@@ -66,6 +67,24 @@
                         <span class="invite-label">Codice invito</span>
                         <code class="invite-code">@ActiveCampaign.InviteCode</code>
                         <span class="invite-hint">Condividilo con i tuoi giocatori</span>
+                    </div>
+                }
+
+                @if (ActiveCampaign is not null)
+                {
+                    <div class="campaign-manage">
+                        @if (isMaster)
+                        {
+                            <button type="button" class="secondary-btn danger-btn" @onclick="DeleteActiveCampaignAsync" disabled="@isBusy">
+                                Elimina campagna
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="secondary-btn" @onclick="LeaveActiveCampaignAsync" disabled="@isBusy">
+                                Esci dalla campagna
+                            </button>
+                        }
                     </div>
                 }
             }
@@ -290,6 +309,76 @@
         {
             isBusy = false;
         }
+    }
+
+    private async Task DeleteActiveCampaignAsync()
+    {
+        var campaign = ActiveCampaign;
+        if (campaign is null || !isMaster || isBusy) return;
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Eliminare la campagna \"{campaign.Name}\"?\n\n" +
+            "Questa azione è IRREVERSIBILE: cancella i personaggi di TUTTI i giocatori, le note, " +
+            "gli incantesimi, i mostri, le razze e le classi di questa campagna.");
+        if (!confirmed) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.DeleteCampaignAsync(campaign.Id);
+            campaigns.RemoveAll(c => c.Id == campaign.Id);
+            if (CampaignState.ActiveCampaignId == campaign.Id)
+                await CampaignState.ClearActiveCampaign();
+            await SelectFirstOrNoneAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore eliminazione campagna: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task LeaveActiveCampaignAsync()
+    {
+        var campaign = ActiveCampaign;
+        if (campaign is null || isMaster || isBusy || string.IsNullOrEmpty(userId)) return;
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Uscire dalla campagna \"{campaign.Name}\"?\n\n" +
+            "Non farai più parte della campagna. Il tuo personaggio resta nella campagna e " +
+            "il Master potrà ancora vederlo.");
+        if (!confirmed) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            await SupabaseService.LeaveCampaignAsync(campaign.Id, userId);
+            campaigns.RemoveAll(c => c.Id == campaign.Id);
+            if (CampaignState.ActiveCampaignId == campaign.Id)
+                await CampaignState.ClearActiveCampaign();
+            await SelectFirstOrNoneAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore uscita campagna: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    // Dopo eliminazione/uscita: se restano campagne ne seleziona una; altrimenti resta
+    // nessuna campagna attiva e la UI mostra l'onboarding (campaigns.Count == 0).
+    private async Task SelectFirstOrNoneAsync()
+    {
+        if (string.IsNullOrEmpty(CampaignState.ActiveCampaignId) && campaigns.Count > 0)
+            await CampaignState.SetActiveCampaignAsync(campaigns[0].Id);
     }
 
     private async Task OnLogoutAsync()
