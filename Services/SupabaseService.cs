@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using DndCompanion.Models;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.JSInterop;
 
@@ -8,11 +9,14 @@ namespace DndCompanion.Services;
 public class SupabaseService
 {
     private readonly Supabase.Client _client;
+    private readonly NavigationManager _navigation;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
-    public SupabaseService(IConfiguration configuration, IJSRuntime js)
+    public SupabaseService(IConfiguration configuration, IJSRuntime js, NavigationManager navigation)
     {
+        _navigation = navigation;
+
         var url = configuration["Supabase:Url"]
             ?? throw new InvalidOperationException("Supabase:Url non configurato in appsettings.json");
 
@@ -31,6 +35,12 @@ public class SupabaseService
         _client = new Supabase.Client(url, anonKey, options);
     }
 
+    /// <summary>
+    /// Punto unico di bootstrap della sessione. Serializzato da _initLock: il PRIMO chiamante
+    /// (Home o AuthRedirect, non importa l'ordine) esegue init + ripristino sessione persistita
+    /// + eventuale processing del ritorno OAuth; tutti gli altri ricevono un client con la
+    /// sessione GIÀ risolta. Questo elimina la race tra AuthRedirect e l'init delle pagine.
+    /// </summary>
     public async Task<Supabase.Client> GetClientAsync()
     {
         if (_initialized) return _client;
@@ -41,7 +51,37 @@ public class SupabaseService
             if (!_initialized)
             {
                 await _client.InitializeAsync();
+
+                // 1) Ripristina la sessione persistita (localStorage) → l'utente resta loggato al reload.
+                //    LoadSession è sincrono e non fa rete: nessuna superficie di errore qui.
+                _client.Auth.LoadSession();
+
+                // 2) Ritorno OAuth (flusso Implicit, default libreria): i token sono nel fragment
+                //    #access_token=...; un fallimento in error_description=. Va processato QUI,
+                //    così la sessione è pronta prima che qualunque pagina legga l'identità.
+                var uri = _navigation.Uri;
+                var isOAuthReturn = uri.Contains("access_token=") || uri.Contains("error_description=");
+                if (isOAuthReturn)
+                {
+                    try
+                    {
+                        await _client.Auth.GetSessionFromUrl(new Uri(uri), storeSession: true);
+                    }
+                    catch
+                    {
+                        // Sessione non stabilita: l'utente risulterà non loggato e AuthRedirect
+                        // lo porterà al login.
+                    }
+                }
+
                 _initialized = true;
+
+                // 3) Pulisce l'URL dai token DOPO aver marcato _initialized (le ri-renderizzazioni
+                //    indotte dalla navigazione trovano già il client pronto, niente nuovo bootstrap).
+                if (isOAuthReturn)
+                {
+                    _navigation.NavigateTo(_navigation.BaseUri, forceLoad: false, replace: true);
+                }
             }
         }
         finally

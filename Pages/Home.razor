@@ -159,19 +159,22 @@
     private Campaign? ActiveCampaign =>
         campaigns.FirstOrDefault(c => c.Id == CampaignState.ActiveCampaignId);
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (!firstRender) return;
-
-        userId = await AuthState.GetUserIdAsync();
-        if (string.IsNullOrEmpty(userId))
-        {
-            // AuthRedirect porterà al login.
-            return;
-        }
-
         try
         {
+            // Garantisce che il bootstrap della sessione (init + LoadSession + eventuale ritorno
+            // OAuth) sia COMPLETO prima di leggere l'identità: niente più race con AuthRedirect.
+            await SupabaseService.GetClientAsync();
+
+            userId = await AuthState.GetUserIdAsync();
+            if (string.IsNullOrEmpty(userId))
+            {
+                // Sessione risolta ma nessun utente → non loggato: AuthRedirect porterà al login.
+                // Il finally azzera comunque isLoading (niente loading infinito).
+                return;
+            }
+
             displayName = await AuthState.GetDisplayNameAsync();
             await SupabaseService.EnsureProfileAsync(userId, displayName);
 
@@ -198,7 +201,6 @@
         finally
         {
             isLoading = false;
-            StateHasChanged();
         }
     }
 

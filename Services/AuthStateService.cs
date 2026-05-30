@@ -28,21 +28,22 @@ public class AuthStateService
     public async Task<string?> GetUserIdAsync()
     {
         var client = await _supabase.GetClientAsync();
-        return client.Auth.CurrentUser?.Id;
+        // Letto da CurrentSession.User (autorevole dopo LoadSession), coerente con IsLoggedInAsync.
+        return client.Auth.CurrentSession?.User?.Id;
     }
 
     /// <summary>Email Google dell'utente autenticato.</summary>
     public async Task<string?> GetEmailAsync()
     {
         var client = await _supabase.GetClientAsync();
-        return client.Auth.CurrentUser?.Email;
+        return client.Auth.CurrentSession?.User?.Email;
     }
 
     /// <summary>Nome visualizzato: nome completo Google (UserMetadata) con fallback all'email.</summary>
     public async Task<string?> GetDisplayNameAsync()
     {
         var client = await _supabase.GetClientAsync();
-        var user = client.Auth.CurrentUser;
+        var user = client.Auth.CurrentSession?.User;
         if (user is null) return null;
 
         if (user.UserMetadata is not null)

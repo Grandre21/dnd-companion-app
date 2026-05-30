@@ -7,27 +7,9 @@
     {
         if (!firstRender) return;
 
-        var uri = Navigation.Uri;
-
-        // Ritorno OAuth da Google (flusso Implicit, default della libreria):
-        // i token arrivano nel fragment #access_token=...; un errore in error_description=.
-        // Va processato PRIMA del guard, altrimenti redirigeremmo a /login perdendo i token.
-        if (uri.Contains("access_token=") || uri.Contains("error_description="))
-        {
-            try
-            {
-                var client = await SupabaseService.GetClientAsync();
-                await client.Auth.GetSessionFromUrl(new Uri(uri), storeSession: true);
-            }
-            catch
-            {
-                // Sessione non stabilita: ricadrà nel guard sotto al prossimo render/navigazione.
-            }
-
-            // Pulisce l'URL dai token e porta alla home.
-            Navigation.NavigateTo(Navigation.BaseUri, forceLoad: false, replace: true);
-            return;
-        }
+        // GetClientAsync ora esegue tutto il bootstrap della sessione (init + LoadSession +
+        // eventuale processing del ritorno OAuth). Dopo questo await la sessione è risolta.
+        await SupabaseService.GetClientAsync();
 
         if (!await AuthState.IsLoggedInAsync())
         {
