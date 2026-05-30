@@ -561,7 +561,9 @@
         Charisma = m.Charisma,
         ChallengeRating = m.ChallengeRating,
         Abilities = m.Abilities,
-        Description = m.Description
+        Description = m.Description,
+        AddedBy = m.AddedBy,
+        CampaignId = m.CampaignId
     };
 
     private static IEnumerable<(string Label, int Value)> GetStats(Monster m) => new[]
