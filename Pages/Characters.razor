@@ -598,8 +598,49 @@
                         }
                     }
 
-                    <p class="section-header">INCANTESIMI PREPARATI</p>
-                    <p class="empty-note">Lista incantesimi in arrivo nella prossima fase.</p>
+                    <div class="spell-list-section">
+                        <div class="spell-list-header">
+                            <p class="section-header" style="margin: 0;">INCANTESIMI IMPARATI</p>
+                            <p class="spell-list-summary">
+                                @characterSpellsForDisplay.Count(v => v.Spell.Level == 0) trucchetti ·
+                                @characterSpellsForDisplay.Count(v => v.Spell.Level > 0) incantesimi ·
+                                @characterSpellsForDisplay.Count(v => v.Entry.IsPrepared && v.Spell.Level > 0) preparati
+                            </p>
+                        </div>
+
+                        @if (CanEdit)
+                        {
+                            <SpellPicker AllSpells="@allSpells"
+                                         AlreadyAddedIds="@selectedCharacterSpells.Select(cs => cs.SpellId).ToHashSet()"
+                                         OnSpellSelected="@AddSpellToCharacter" />
+                        }
+
+                        @foreach (var group in characterSpellsForDisplay.GroupBy(v => v.Spell.Level).OrderBy(g => g.Key))
+                        {
+                            <div class="spell-level-group">
+                                <p class="spell-level-title">@(group.Key == 0 ? "Trucchetti" : $"Livello {group.Key}")</p>
+                                @foreach (var view in group.OrderBy(v => v.Spell.Name))
+                                {
+                                    <SpellListItem CharacterSpell="@view.Entry"
+                                                   Spell="@view.Spell"
+                                                   IsEditMode="@CanEdit"
+                                                   OnTogglePrepared="@TogglePrepared"
+                                                   OnRemove="@RemoveSpellFromCharacter" />
+                                }
+                            </div>
+                        }
+
+                        @if (!characterSpellsForDisplay.Any())
+                        {
+                            <p class="empty-note spell-list-empty">
+                                Nessun incantesimo imparato. @(CanEdit ? "Usa il campo sopra per cercare e aggiungere." : "")
+                                @if (CanEdit && allSpells.Count == 0)
+                                {
+                                    <span class="spell-list-hint">Suggerimento: il catalogo globale è vuoto. Aggiungete incantesimi dalla sezione Incantesimi della home.</span>
+                                }
+                            </p>
+                        }
+                    </div>
                 }
 
                 </div>
@@ -1188,6 +1229,33 @@
     private bool isLoadingInventory;
     private bool isSavingInventory;
 
+    // ===== Incantesimi del PG (tab Magic) =====
+    // allSpells = catalogo globale (caricato una sola volta, in cache).
+    // selectedCharacterSpells = righe character_spells del PG corrente.
+    private List<Spell> allSpells = new();
+    private bool spellsLoaded;
+    private List<CharacterSpell> selectedCharacterSpells = new();
+    private List<CharacterSpellView> characterSpellsForDisplay = new();
+
+    private record CharacterSpellView(CharacterSpell Entry, Spell Spell);
+
+    // JOIN logico in memoria CharacterSpell -> Spell; scarta gli orfani (spell
+    // rimosso dal catalogo globale ma ancora referenziato dal PG).
+    private void RebuildSpellDisplay()
+    {
+        var views = new List<CharacterSpellView>();
+        var orphans = 0;
+        foreach (var cs in selectedCharacterSpells)
+        {
+            var spell = allSpells.FirstOrDefault(s => s.Id == cs.SpellId);
+            if (spell is null) { orphans++; continue; }
+            views.Add(new CharacterSpellView(cs, spell));
+        }
+        if (orphans > 0)
+            Console.WriteLine($"[Characters] {orphans} incantesimo/i orfano/i filtrato/i (spell assente dal catalogo globale).");
+        characterSpellsForDisplay = views;
+    }
+
     // Le armi (Value "weapon") vengono mostrate nella sezione Combattimento,
     // non nella lista Inventario. Le altre voci usano Value == Label.
     private static readonly (string Value, string Label)[] ItemTypeOptions =
@@ -1470,6 +1538,41 @@
         expandedItemId = null;
         isAddingItem = false;
         await LoadInventoryAsync(c.Id);
+        await LoadSpellsForSelectedAsync(c);
+    }
+
+    // Carica catalogo globale (una sola volta) + incantesimi del PG, solo per gli incantatori.
+    private async Task LoadSpellsForSelectedAsync(Character c)
+    {
+        selectedCharacterSpells = new();
+        characterSpellsForDisplay = new();
+
+        if (string.IsNullOrWhiteSpace(c.SpellcastingAbility))
+            return;
+
+        try
+        {
+            var charSpellsTask = SupabaseService.GetCharacterSpellsAsync(c.Id);
+            if (!spellsLoaded)
+            {
+                var allTask = SupabaseService.GetAllSpellsAsync();
+                await Task.WhenAll(allTask, charSpellsTask);
+                allSpells = allTask.Result;
+                spellsLoaded = true;
+            }
+            else
+            {
+                await charSpellsTask;
+            }
+            selectedCharacterSpells = charSpellsTask.Result;
+            RebuildSpellDisplay();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento incantesimi: {ex.Message}";
+            selectedCharacterSpells = new();
+            characterSpellsForDisplay = new();
+        }
     }
 
     private void GoBack()
@@ -1888,6 +1991,76 @@
         if (selected is null) return;
         var idx = characters.FindIndex(c => c.Id == selected.Id);
         if (idx >= 0) characters[idx] = selected;
+    }
+
+    // ====================== Incantesimi del PG ======================
+
+    private async Task AddSpellToCharacter(Spell spell)
+    {
+        if (selected is null || !CanEdit) return;
+        var entry = new CharacterSpell
+        {
+            CharacterId = selected.Id,
+            SpellId = spell.Id,
+            IsPrepared = spell.Level == 0 // i trucchetti sono auto-preparati
+        };
+        try
+        {
+            var saved = await SupabaseService.AddSpellToCharacterAsync(entry);
+            if (saved is not null)
+            {
+                selectedCharacterSpells.Add(saved);
+                RebuildSpellDisplay();
+            }
+            else
+            {
+                errorMessage = "Impossibile aggiungere l'incantesimo.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore aggiunta incantesimo: {ex.Message}";
+        }
+    }
+
+    private async Task TogglePrepared(CharacterSpell entry)
+    {
+        // entry.IsPrepared è già stato invertito dal componente figlio.
+        try
+        {
+            var ok = await SupabaseService.UpdateCharacterSpellAsync(entry);
+            if (!ok)
+            {
+                entry.IsPrepared = !entry.IsPrepared; // revert
+                errorMessage = "Impossibile aggiornare lo stato preparato.";
+            }
+        }
+        catch (Exception ex)
+        {
+            entry.IsPrepared = !entry.IsPrepared; // revert
+            errorMessage = $"Errore aggiornamento incantesimo: {ex.Message}";
+        }
+    }
+
+    private async Task RemoveSpellFromCharacter(CharacterSpell entry)
+    {
+        try
+        {
+            var ok = await SupabaseService.RemoveCharacterSpellAsync(entry.Id);
+            if (ok)
+            {
+                selectedCharacterSpells.Remove(entry);
+                RebuildSpellDisplay();
+            }
+            else
+            {
+                errorMessage = "Impossibile rimuovere l'incantesimo.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore rimozione incantesimo: {ex.Message}";
+        }
     }
 
     // Copia profonda di TUTTI i campi: il form di modifica deve fare round-trip

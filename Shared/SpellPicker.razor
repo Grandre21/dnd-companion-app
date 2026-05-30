@@ -1,0 +1,74 @@
+@using DndCompanion.Models
+
+<div class="spell-picker">
+    <input type="text"
+           class="spell-picker-input"
+           placeholder="🔍 Aggiungi incantesimo (digita il nome)..."
+           @bind="searchTerm"
+           @bind:event="oninput"
+           @onfocus="() => isOpen = true"
+           @onblur="HandleBlur" />
+
+    @if (isOpen && FilteredSpells.Any())
+    {
+        <div class="spell-picker-dropdown">
+            @foreach (var spell in FilteredSpells)
+            {
+                <button type="button" class="spell-picker-item"
+                        @onmousedown="() => HandleSelect(spell)"
+                        @onmousedown:preventDefault="true">
+                    <span class="spell-picker-level @(spell.Level == 0 ? "cantrip" : "")">@(spell.Level == 0 ? "TR" : $"L{spell.Level}")</span>
+                    <span class="spell-picker-name">@spell.Name</span>
+                    <span class="spell-picker-school">@spell.School</span>
+                </button>
+            }
+        </div>
+    }
+    else if (isOpen && !string.IsNullOrWhiteSpace(searchTerm))
+    {
+        <div class="spell-picker-dropdown">
+            <p class="spell-picker-empty">Nessun incantesimo trovato per "@searchTerm"</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<Spell> AllSpells { get; set; } = new();
+    [Parameter] public HashSet<string> AlreadyAddedIds { get; set; } = new();
+    [Parameter] public EventCallback<Spell> OnSpellSelected { get; set; }
+
+    private string searchTerm = "";
+    private bool isOpen = false;
+    private const int MaxResults = 8;
+
+    private List<Spell> FilteredSpells
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm)) return new();
+            var term = searchTerm.Trim().ToLowerInvariant();
+            return AllSpells
+                .Where(s => !AlreadyAddedIds.Contains(s.Id))
+                .Where(s => s.Name.ToLowerInvariant().Contains(term))
+                .OrderBy(s => s.Name.ToLowerInvariant().StartsWith(term) ? 0 : 1)
+                .ThenBy(s => s.Level)
+                .ThenBy(s => s.Name)
+                .Take(MaxResults)
+                .ToList();
+        }
+    }
+
+    private async Task HandleSelect(Spell spell)
+    {
+        await OnSpellSelected.InvokeAsync(spell);
+        searchTerm = "";
+        isOpen = false;
+    }
+
+    private async Task HandleBlur()
+    {
+        // Piccola attesa: lascia registrare il mousedown sull'opzione prima della chiusura.
+        await Task.Delay(150);
+        isOpen = false;
+    }
+}

@@ -1,0 +1,79 @@
+@using DndCompanion.Models
+
+<div class="spell-item @(isExpanded ? "expanded" : "")">
+    <div class="spell-item-header" @onclick="() => isExpanded = !isExpanded">
+        @if (Spell.Level > 0)
+        {
+            <span class="prep-toggle @(CharacterSpell.IsPrepared ? "prepared" : "")"
+                  @onclick:stopPropagation="true"
+                  @onclick="HandleTogglePrepared"
+                  title="@(CharacterSpell.IsPrepared ? "Preparato (clicca per spreparare)" : "Non preparato (clicca per preparare)")">
+                @(CharacterSpell.IsPrepared ? "✓" : "")
+            </span>
+        }
+        else
+        {
+            <span class="prep-toggle cantrip" title="I trucchetti sono sempre disponibili">✦</span>
+        }
+
+        <span class="spell-name @(IsCastableNow() ? "" : "dimmed")">@Spell.Name</span>
+
+        <span class="spell-school-tag">@Spell.School</span>
+
+        <span class="spell-chevron">@(isExpanded ? "▾" : "▸")</span>
+    </div>
+
+    @if (isExpanded)
+    {
+        <div class="spell-item-detail">
+            <div class="spell-meta">
+                <span>🕓 @Spell.CastingTime</span>
+                <span>📏 @Spell.Range</span>
+                <span>⏱ @Spell.Duration</span>
+                <span>🧪 @Spell.Components</span>
+            </div>
+            <p class="spell-description">@Spell.Description</p>
+            @if (!string.IsNullOrWhiteSpace(Spell.Classes))
+            {
+                <p class="spell-classes"><strong>Classi:</strong> @Spell.Classes</p>
+            }
+
+            @if (IsEditMode)
+            {
+                <button type="button" class="spell-remove-btn"
+                        @onclick="HandleRemove" @onclick:stopPropagation="true">
+                    🗑 Rimuovi dal personaggio
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public CharacterSpell CharacterSpell { get; set; } = null!;
+    [Parameter] public Spell Spell { get; set; } = null!;
+    [Parameter] public bool IsEditMode { get; set; }
+    [Parameter] public EventCallback<CharacterSpell> OnTogglePrepared { get; set; }
+    [Parameter] public EventCallback<CharacterSpell> OnRemove { get; set; }
+
+    private bool isExpanded = false;
+
+    // Trucchetto (liv 0): sempre lanciabile. Liv 1+: solo se preparato.
+    private bool IsCastableNow()
+    {
+        if (Spell.Level == 0) return true;
+        return CharacterSpell.IsPrepared;
+    }
+
+    private async Task HandleTogglePrepared()
+    {
+        if (!IsEditMode || Spell.Level == 0) return;
+        CharacterSpell.IsPrepared = !CharacterSpell.IsPrepared;
+        await OnTogglePrepared.InvokeAsync(CharacterSpell);
+    }
+
+    private async Task HandleRemove()
+    {
+        await OnRemove.InvokeAsync(CharacterSpell);
+    }
+}

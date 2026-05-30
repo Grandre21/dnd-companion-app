@@ -1,0 +1,104 @@
+.spell-picker {
+    position: relative;
+    margin: 12px 0;
+}
+
+.spell-picker-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #e8d4a0;
+}
+
+.spell-picker-input::placeholder {
+    color: #8b6f3a;
+}
+
+.spell-picker-input:focus {
+    outline: none;
+    border-color: #d4a574;
+}
+
+.spell-picker-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    z-index: 20;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.spell-picker-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    width: 100%;
+    box-sizing: border-box;
+    background: transparent;
+    border: none;
+    border-bottom: 0.5px solid #3a2818;
+    text-align: left;
+    color: #c8b88a;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.spell-picker-item:last-child {
+    border-bottom: none;
+}
+
+.spell-picker-item:hover {
+    background: #3a2818;
+}
+
+.spell-picker-level {
+    font-size: 10px;
+    font-weight: 700;
+    color: #d4a574;
+    border: 1px solid #5a3f20;
+    border-radius: 4px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    min-width: 22px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.spell-picker-level.cantrip {
+    border-radius: 50%;
+}
+
+.spell-picker-name {
+    flex: 1;
+    color: #e8d4a0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.spell-picker-school {
+    font-size: 11px;
+    color: #8b6f3a;
+    font-style: italic;
+    flex-shrink: 0;
+}
+
+.spell-picker-empty {
+    padding: 12px 14px;
+    color: #8b6f3a;
+    font-style: italic;
+    text-align: center;
+    margin: 0;
+}

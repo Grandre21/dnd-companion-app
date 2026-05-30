@@ -987,6 +987,51 @@
     text-align: right;
 }
 
+/* ===== Lista incantesimi imparati del PG ===== */
+.spell-list-section {
+    margin-top: 1rem;
+}
+
+.spell-list-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.25rem;
+}
+
+.spell-list-summary {
+    font-size: 0.72rem;
+    color: #8b6f3a;
+    margin: 0;
+}
+
+.spell-level-group {
+    margin-top: 0.75rem;
+}
+
+.spell-level-title {
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #d4a574;
+    margin: 0 0 0.4rem;
+}
+
+.spell-list-empty {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    text-align: center;
+    padding: 1.5rem 1rem;
+}
+
+.spell-list-hint {
+    font-size: 0.72rem;
+    color: #8b6f3a;
+    font-style: italic;
+}
+
 /* ===== Form (modifica/creazione PG — invariato) ===== */
 .form-view {
     display: flex;
