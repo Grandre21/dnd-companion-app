@@ -22,6 +22,12 @@
 
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <TrimmerRootAssembly Include="DndCompanion" />
+    <!-- Preserva gli assembly (de)serializzati via reflection da Newtonsoft: i tipi Gotrue
+         (es. Supabase.Gotrue.User in GetSessionFromUrl/GetUser) e i Model Postgrest (characters,
+         spells, ecc.). Senza root, TrimMode=full rimuove i costruttori usati via reflection
+         ("Unable to find a constructor to use for type ..."). Nomi assembly esatti (DLL), non namespace. -->
+    <TrimmerRootAssembly Include="Supabase.Gotrue" />
+    <TrimmerRootAssembly Include="Supabase.Postgrest" />
   </ItemGroup>
 
   <ItemGroup>
