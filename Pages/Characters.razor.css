@@ -755,52 +755,35 @@
     box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
 }
 
-/* ===== Items tab: dadi vita ===== */
-.resource-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+/* ===== Combat tab: dadi vita ===== */
+.hit-dice-card {
     background: #2a1d10;
     border: 1px solid #5a3f20;
     border-radius: 10px;
-    padding: 0.75rem 0.85rem;
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.6rem;
 }
 
-.resource-row .card-label {
-    margin: 0;
-    text-align: left;
+.hit-dice-card .card-label {
+    text-align: center;
+    margin: 0 0 0.4rem;
 }
 
-.hit-dice-controls {
+.hit-dice-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    gap: 1rem;
 }
 
-.hit-dice-value {
-    font-size: 0.9rem;
-    color: #e8d4a0;
-    font-variant-numeric: tabular-nums;
-    min-width: 5.5rem;
-    text-align: center;
-}
-
-.hit-dice-type {
-    font-size: 0.8rem;
-    color: #8b6f3a;
-    min-width: 3rem;
-    text-align: right;
-}
-
-.mini-btn {
-    width: 32px;
-    height: 32px;
+.hd-btn {
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     border: 1.5px solid #8b6f47;
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
     color: #f0dcb0;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
@@ -809,103 +792,198 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: all 0.12s ease;
 }
 
-.mini-btn:hover:not(:disabled) {
-    border-color: #d4a574;
-    background: linear-gradient(180deg, #4a3526 0%, #2d1e14 100%);
-}
-
-.mini-btn:active:not(:disabled) {
-    transform: scale(0.92);
-}
-
-.mini-btn:disabled {
+.hd-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
 
-/* ===== Items tab: denari ===== */
-.coins-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.4rem;
-}
-
-.coin {
+.hit-dice-display {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.25rem;
-    background: #2a1d10;
-    border: 1px solid #5a3f20;
-    border-radius: 8px;
-    padding: 0.4rem 0.15rem;
+    min-width: 6rem;
 }
 
-.coin-label {
-    font-size: 0.6rem;
-    font-weight: 700;
-    color: #d4a574;
-    letter-spacing: 0.5px;
-}
-
-.coin-value {
-    font-size: 1.05rem;
+.hit-dice-value {
+    font-size: 1.1rem;
     font-weight: 700;
     color: #e8d4a0;
     font-variant-numeric: tabular-nums;
 }
 
-.coin-ctrl {
+.hit-dice-type {
+    font-size: 0.75rem;
+    color: #8b6f3a;
+}
+
+/* ===== Items tab: header inventario + armi ===== */
+.inventory-header {
     display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 0.5rem;
+}
+
+.inventory-summary {
+    font-size: 0.72rem;
+    color: #8b6f3a;
+    margin: 0;
+}
+
+.weapon-badge {
+    color: #d4a574;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.inv-weapon-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0.1rem 0 0.3rem;
+    padding: 0 0.1rem;
+    font-size: 0.78rem;
+    color: #d4a574;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===== Items tab: denaro compatto ===== */
+.money-compact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    border-radius: 8px;
+}
+
+.money-compact.editable {
+    cursor: pointer;
+}
+
+.money-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.money-summary {
+    flex: 1;
+    color: #e8d4a0;
+    font-size: 15px;
+}
+
+.money-edit-hint {
+    color: #8b6f3a;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.money-editor {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.4rem;
+    align-items: end;
+}
+
+.money-field {
+    display: flex;
+    flex-direction: column;
     gap: 0.2rem;
 }
 
-.coin-ctrl .mini-btn {
-    width: 24px;
-    height: 24px;
-    font-size: 0.85rem;
+.money-field label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #d4a574;
+    letter-spacing: 0.5px;
+    text-align: center;
 }
 
-/* ===== Items tab: sintonie ===== */
-.attunements {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-.attune-row {
-    display: flex;
-}
-
-.attune-text {
-    color: #e8d4a0;
-    font-size: 0.92rem;
-}
-
-.attune-empty {
-    color: #7a6b4d;
-    font-style: italic;
-    font-size: 0.9rem;
-}
-
-.attune-input {
+.money-field input {
     width: 100%;
+    box-sizing: border-box;
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(212, 165, 116, 0.3);
     color: #e8d9b5;
-    padding: 0.45rem 0.6rem;
+    padding: 0.45rem 0.25rem;
     font-size: 0.9rem;
     font-family: inherit;
     border-radius: 6px;
-    box-sizing: border-box;
+    text-align: center;
 }
 
-.attune-input:focus {
+.money-field input:focus {
     outline: none;
     border-color: #d4a574;
+}
+
+.money-editor-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.2rem;
+}
+
+.money-save-btn {
+    padding: 0.5rem 1.2rem;
+    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
+    color: #f0dcb0;
+    border: 1.5px solid #8b6f47;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* ===== Items tab: sintonie sottili ===== */
+.attunements-compact {
+    display: flex;
+    flex-direction: column;
+}
+
+.attunement-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 0;
+}
+
+.attunement-icon {
+    color: #d4a574;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.attunement-input {
+    flex: 1;
+    box-sizing: border-box;
+    background: #2a1d10;
+    border: 1px solid #5a3f20;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: #e8d4a0;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.attunement-input:focus {
+    outline: none;
+    border-color: #d4a574;
+}
+
+.attunement-text {
+    flex: 1;
+    color: #e8d4a0;
+    font-size: 13px;
+}
+
+.attunement-text.empty {
+    color: #8b6f3a;
+    font-style: italic;
 }
 
 /* ===== Magic tab ===== */
@@ -1435,27 +1513,6 @@ select.input option {
     border: 1px solid #5a3f20;
     border-radius: 10px;
     padding: 0.85rem;
-}
-
-.inv-summary {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0 0.75rem;
-    margin-bottom: 0.75rem;
-    font-size: 0.9rem;
-    color: #c9b88a;
-    border-bottom: 1px dashed rgba(212, 165, 116, 0.25);
-}
-
-.inv-summary strong {
-    color: #f0dcb0;
-    font-size: 1rem;
-}
-
-.inv-summary-sep {
-    color: #6b5a3c;
 }
 
 .inv-add-btn {
