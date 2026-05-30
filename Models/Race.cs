@@ -45,6 +45,9 @@ public class Race : BaseModel
     [Column("added_by")]
     public string? AddedBy { get; set; }
 
+    [Column("campaign_id")]
+    public string CampaignId { get; set; } = string.Empty;
+
     [Column("created_at")]
     public DateTime? CreatedAt { get; set; }
 }

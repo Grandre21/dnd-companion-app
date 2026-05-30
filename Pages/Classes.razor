@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject SupabaseService SupabaseService
 @inject AuthStateService AuthState
+@inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -225,9 +226,12 @@
             }
         </div>
 
-        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova classe">
-            +
-        </button>
+        @if (isMaster)
+        {
+            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova classe">
+                +
+            </button>
+        }
     }
 </div>
 
@@ -240,7 +244,8 @@
     private bool isLoading = true;
     private bool isBusy;
     private bool isMaster;
-    private string? playerId;
+    private string? userId;
+    private string? campaignId;
     private string? errorMessage;
 
     private string searchInput = string.Empty;
@@ -254,16 +259,19 @@
     {
         try
         {
-            playerId = await AuthState.GetPlayerIdAsync();
-            var role = await AuthState.GetRoleAsync();
-            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+            await CampaignState.InitializeAsync();
+            userId = await AuthState.GetUserIdAsync();
+            isMaster = CampaignState.IsMaster;
+            campaignId = CampaignState.ActiveCampaignId;
 
-            var classesTask = SupabaseService.GetAllClassesAsync();
-            var playersTask = SupabaseService.GetAllPlayersAsync();
-            await Task.WhenAll(classesTask, playersTask);
+            if (string.IsNullOrEmpty(campaignId)) return;
+
+            var classesTask = SupabaseService.GetClassesForCampaignAsync(campaignId);
+            var profilesTask = SupabaseService.GetProfilesAsync();
+            await Task.WhenAll(classesTask, profilesTask);
 
             allClasses = classesTask.Result;
-            playerNicknames = playersTask.Result.ToDictionary(p => p.Id, p => p.Nickname);
+            playerNicknames = profilesTask.Result.ToDictionary(p => p.Id, p => p.DisplayName ?? "Utente");
         }
         catch (Exception ex)
         {
@@ -275,8 +283,8 @@
         }
     }
 
-    private bool CanEdit(CharacterClass cls) =>
-        isMaster || (!string.IsNullOrEmpty(cls.AddedBy) && cls.AddedBy == playerId);
+    // DEFAULT multi-campagna: solo il master cura il catalogo; i giocatori consultano.
+    private bool CanEdit(CharacterClass cls) => isMaster;
 
     private string? GetAuthorName(string? authorId)
     {
@@ -324,7 +332,8 @@
         editDraft = new CharacterClass
         {
             HitDie = "d8",
-            AddedBy = playerId
+            AddedBy = userId,
+            CampaignId = campaignId ?? string.Empty
         };
         mode = ViewMode.Form;
     }

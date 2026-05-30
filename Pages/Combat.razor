@@ -1,6 +1,7 @@
 @page "/combat"
 @inject SupabaseService SupabaseService
 @inject AuthStateService AuthState
+@inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -183,8 +184,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var role = await AuthState.GetRoleAsync();
-        isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+        await CampaignState.InitializeAsync();
+        isMaster = CampaignState.IsMaster;
     }
 
     private void AddCombatant()
@@ -221,10 +222,17 @@
         errorMessage = null;
         try
         {
-            var characters = await SupabaseService.GetAllCharactersAsync();
+            var campaignId = CampaignState.ActiveCampaignId;
+            if (string.IsNullOrEmpty(campaignId))
+            {
+                errorMessage = "Nessuna campagna attiva.";
+                return;
+            }
+
+            var characters = await SupabaseService.GetCharactersForCampaignAsync(campaignId);
             if (characters.Count == 0)
             {
-                errorMessage = "Nessun personaggio nel database da importare.";
+                errorMessage = "Nessun personaggio nella campagna da importare.";
                 return;
             }
 

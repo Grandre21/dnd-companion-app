@@ -1,50 +1,72 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 
 namespace DndCompanion.Services;
 
+/// <summary>
+/// Stato di autenticazione basato su Supabase Auth (Gotrue), non più sulle
+/// chiavi localStorage custom (player_id/nickname/role) del vecchio sistema.
+/// La sessione è gestita e persistita da Gotrue tramite BrowserSessionHandler.
+/// </summary>
 public class AuthStateService
 {
-    private const string PlayerIdKey = "player_id";
-    private const string NicknameKey = "player_nickname";
-    private const string RoleKey = "player_role";
-
-    private readonly IJSRuntime _js;
+    private readonly SupabaseService _supabase;
     private readonly NavigationManager _navigation;
 
-    public AuthStateService(IJSRuntime js, NavigationManager navigation)
+    public AuthStateService(SupabaseService supabase, NavigationManager navigation)
     {
-        _js = js;
+        _supabase = supabase;
         _navigation = navigation;
     }
 
     public async Task<bool> IsLoggedInAsync()
     {
-        var id = await GetPlayerIdAsync();
-        return !string.IsNullOrEmpty(id);
+        var client = await _supabase.GetClientAsync();
+        return client.Auth.CurrentSession?.User is not null;
     }
 
-    public ValueTask<string?> GetPlayerIdAsync()
-        => _js.InvokeAsync<string?>("localStorage.getItem", PlayerIdKey);
-
-    public ValueTask<string?> GetNicknameAsync()
-        => _js.InvokeAsync<string?>("localStorage.getItem", NicknameKey);
-
-    public ValueTask<string?> GetRoleAsync()
-        => _js.InvokeAsync<string?>("localStorage.getItem", RoleKey);
-
-    public async Task SetSessionAsync(string playerId, string nickname, string role)
+    /// <summary>Id dell'utente Gotrue (auth.users.id). Sostituisce GetPlayerIdAsync; sarà usato come owner_id.</summary>
+    public async Task<string?> GetUserIdAsync()
     {
-        await _js.InvokeVoidAsync("localStorage.setItem", PlayerIdKey, playerId);
-        await _js.InvokeVoidAsync("localStorage.setItem", NicknameKey, nickname);
-        await _js.InvokeVoidAsync("localStorage.setItem", RoleKey, role);
+        var client = await _supabase.GetClientAsync();
+        return client.Auth.CurrentUser?.Id;
     }
+
+    /// <summary>Email Google dell'utente autenticato.</summary>
+    public async Task<string?> GetEmailAsync()
+    {
+        var client = await _supabase.GetClientAsync();
+        return client.Auth.CurrentUser?.Email;
+    }
+
+    /// <summary>Nome visualizzato: nome completo Google (UserMetadata) con fallback all'email.</summary>
+    public async Task<string?> GetDisplayNameAsync()
+    {
+        var client = await _supabase.GetClientAsync();
+        var user = client.Auth.CurrentUser;
+        if (user is null) return null;
+
+        if (user.UserMetadata is not null)
+        {
+            foreach (var key in new[] { "full_name", "name" })
+            {
+                if (user.UserMetadata.TryGetValue(key, out var value)
+                    && value is string s && !string.IsNullOrWhiteSpace(s))
+                {
+                    return s;
+                }
+            }
+        }
+        return user.Email;
+    }
+
+    // TODO(campagne): il ruolo non è più globale ma dipende dalla campagna
+    // (campaign_members.role). Verrà implementato nel prossimo step; per ora null.
+    public Task<string?> GetRoleAsync() => Task.FromResult<string?>(null);
 
     public async Task LogoutAsync()
     {
-        await _js.InvokeVoidAsync("localStorage.removeItem", PlayerIdKey);
-        await _js.InvokeVoidAsync("localStorage.removeItem", NicknameKey);
-        await _js.InvokeVoidAsync("localStorage.removeItem", RoleKey);
+        var client = await _supabase.GetClientAsync();
+        await client.Auth.SignOut();
         _navigation.NavigateTo("login");
     }
 }

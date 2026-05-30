@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using DndCompanion.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.JSInterop;
 
 namespace DndCompanion.Services;
 
@@ -9,7 +11,7 @@ public class SupabaseService
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
 
-    public SupabaseService(IConfiguration configuration)
+    public SupabaseService(IConfiguration configuration, IJSRuntime js)
     {
         var url = configuration["Supabase:Url"]
             ?? throw new InvalidOperationException("Supabase:Url non configurato in appsettings.json");
@@ -19,7 +21,11 @@ public class SupabaseService
 
         var options = new Supabase.SupabaseOptions
         {
-            AutoConnectRealtime = false
+            AutoConnectRealtime = false,
+            // Persistenza sessione su localStorage: il meta-client collega questo
+            // handler a Gotrue e ne carica la sessione durante InitializeAsync().
+            // In WASM IJSRuntime è anche IJSInProcessRuntime (sync), richiesto dall'handler.
+            SessionHandler = new BrowserSessionHandler((IJSInProcessRuntime)js)
         };
 
         _client = new Supabase.Client(url, anonKey, options);
@@ -46,19 +52,12 @@ public class SupabaseService
         return _client;
     }
 
-    public async Task<List<Character>> GetCharactersForPlayerAsync(string playerId)
+    public async Task<List<Character>> GetCharactersForCampaignAsync(string campaignId)
     {
         var client = await GetClientAsync();
         var response = await client.From<Character>()
-            .Where(c => c.PlayerId == playerId)
+            .Where(c => c.CampaignId == campaignId)
             .Get();
-        return response.Models;
-    }
-
-    public async Task<List<Character>> GetAllCharactersAsync()
-    {
-        var client = await GetClientAsync();
-        var response = await client.From<Character>().Get();
         return response.Models;
     }
 
@@ -76,20 +75,23 @@ public class SupabaseService
         return response.Models.FirstOrDefault();
     }
 
-    public async Task<List<Spell>> GetAllSpellsAsync()
+    public async Task<List<Spell>> GetSpellsForCampaignAsync(string campaignId)
     {
         var client = await GetClientAsync();
-        var response = await client.From<Spell>().Get();
+        var response = await client.From<Spell>()
+            .Where(s => s.CampaignId == campaignId)
+            .Get();
         return response.Models;
     }
 
-    public async Task<List<Spell>> SearchSpellsAsync(string query)
+    public async Task<List<Spell>> SearchSpellsAsync(string campaignId, string query)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return await GetAllSpellsAsync();
+            return await GetSpellsForCampaignAsync(campaignId);
 
         var client = await GetClientAsync();
         var response = await client.From<Spell>()
+            .Where(s => s.CampaignId == campaignId)
             .Filter("name", Postgrest.Constants.Operator.ILike, $"%{query.Trim()}%")
             .Get();
         return response.Models;
@@ -115,10 +117,12 @@ public class SupabaseService
         await client.From<Spell>().Where(s => s.Id == id).Delete();
     }
 
-    public async Task<List<Monster>> GetAllMonstersAsync()
+    public async Task<List<Monster>> GetMonstersForCampaignAsync(string campaignId)
     {
         var client = await GetClientAsync();
-        var response = await client.From<Monster>().Get();
+        var response = await client.From<Monster>()
+            .Where(m => m.CampaignId == campaignId)
+            .Get();
         return response.Models;
     }
 
@@ -142,13 +146,15 @@ public class SupabaseService
         await client.From<Monster>().Where(m => m.Id == id).Delete();
     }
 
-    public async Task<List<Note>> GetNotesForPlayerAsync(string playerId)
+    public async Task<List<Note>> GetNotesForCampaignAsync(string campaignId, string userId)
     {
         var client = await GetClientAsync();
-        // Custom auth + permissive RLS: fetch all and filter client-side.
-        var response = await client.From<Note>().Get();
+        var response = await client.From<Note>()
+            .Where(n => n.CampaignId == campaignId)
+            .Get();
+        // Visibili nella campagna: le condivise + le proprie note private.
         return response.Models
-            .Where(n => n.PlayerId == playerId || n.IsShared)
+            .Where(n => n.IsShared || n.OwnerId == userId)
             .OrderByDescending(n => n.UpdatedAt ?? n.CreatedAt ?? DateTime.MinValue)
             .ToList();
     }
@@ -177,17 +183,19 @@ public class SupabaseService
         await client.From<Note>().Where(n => n.Id == id).Delete();
     }
 
-    public async Task<List<Player>> GetAllPlayersAsync()
+    public async Task<List<Profile>> GetProfilesAsync()
     {
         var client = await GetClientAsync();
-        var response = await client.From<Player>().Get();
+        var response = await client.From<Profile>().Get();
         return response.Models;
     }
 
-    public async Task<List<Race>> GetAllRacesAsync()
+    public async Task<List<Race>> GetRacesForCampaignAsync(string campaignId)
     {
         var client = await GetClientAsync();
-        var response = await client.From<Race>().Get();
+        var response = await client.From<Race>()
+            .Where(r => r.CampaignId == campaignId)
+            .Get();
         return response.Models;
     }
 
@@ -211,10 +219,12 @@ public class SupabaseService
         await client.From<Race>().Where(r => r.Id == id).Delete();
     }
 
-    public async Task<List<CharacterClass>> GetAllClassesAsync()
+    public async Task<List<CharacterClass>> GetClassesForCampaignAsync(string campaignId)
     {
         var client = await GetClientAsync();
-        var response = await client.From<CharacterClass>().Get();
+        var response = await client.From<CharacterClass>()
+            .Where(c => c.CampaignId == campaignId)
+            .Get();
         return response.Models;
     }
 
@@ -300,5 +310,159 @@ public class SupabaseService
         var client = await GetClientAsync();
         await client.From<CharacterSpell>().Where(cs => cs.Id == id).Delete();
         return true;
+    }
+
+    // =====================================================================
+    // Campagne
+    // =====================================================================
+
+    // Alfabeto senza caratteri ambigui (niente 0/O, 1/I/L) per i codici invito.
+    private const string InviteCodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+    public async Task<List<Campaign>> GetUserCampaignsAsync(string userId)
+    {
+        var client = await GetClientAsync();
+        var members = await client.From<CampaignMember>()
+            .Where(m => m.UserId == userId)
+            .Get();
+
+        var ids = members.Models.Select(m => m.CampaignId).Distinct().ToList();
+        if (ids.Count == 0) return new List<Campaign>();
+
+        var campaigns = await client.From<Campaign>()
+            .Filter("id", Postgrest.Constants.Operator.In, ids.Cast<object>().ToList())
+            .Get();
+
+        return campaigns.Models
+            .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task<Campaign> CreateCampaignAsync(string name, string ownerId)
+    {
+        var client = await GetClientAsync();
+        var inviteCode = await GenerateUniqueInviteCodeAsync();
+
+        var insert = await client.From<Campaign>().Insert(new Campaign
+        {
+            Name = name,
+            OwnerId = ownerId,
+            InviteCode = inviteCode,
+            CreatedAt = DateTime.UtcNow
+        });
+        var campaign = insert.Models.First();
+
+        // Il creatore diventa automaticamente master della campagna.
+        await client.From<CampaignMember>().Insert(new CampaignMember
+        {
+            CampaignId = campaign.Id,
+            UserId = ownerId,
+            Role = "master",
+            JoinedAt = DateTime.UtcNow
+        });
+
+        return campaign;
+    }
+
+    public async Task<Campaign?> JoinCampaignAsync(string inviteCode, string userId)
+    {
+        var client = await GetClientAsync();
+        var code = inviteCode.Trim().ToUpperInvariant();
+
+        var found = await client.From<Campaign>()
+            .Where(c => c.InviteCode == code)
+            .Get();
+        var campaign = found.Models.FirstOrDefault();
+        if (campaign is null) return null;
+
+        var existing = await client.From<CampaignMember>()
+            .Where(m => m.CampaignId == campaign.Id && m.UserId == userId)
+            .Get();
+
+        if (existing.Models.Count == 0)
+        {
+            await client.From<CampaignMember>().Insert(new CampaignMember
+            {
+                CampaignId = campaign.Id,
+                UserId = userId,
+                Role = "player",
+                JoinedAt = DateTime.UtcNow
+            });
+        }
+
+        return campaign;
+    }
+
+    public async Task<List<CampaignMember>> GetCampaignMembersAsync(string campaignId)
+    {
+        var client = await GetClientAsync();
+        var response = await client.From<CampaignMember>()
+            .Where(m => m.CampaignId == campaignId)
+            .Get();
+        return response.Models;
+    }
+
+    public async Task<string?> GetUserRoleInCampaignAsync(string userId, string campaignId)
+    {
+        var client = await GetClientAsync();
+        var response = await client.From<CampaignMember>()
+            .Where(m => m.UserId == userId && m.CampaignId == campaignId)
+            .Get();
+        return response.Models.FirstOrDefault()?.Role;
+    }
+
+    private async Task<string> GenerateUniqueInviteCodeAsync()
+    {
+        var client = await GetClientAsync();
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var code = GenerateInviteCode();
+            var clash = await client.From<Campaign>().Where(c => c.InviteCode == code).Get();
+            if (clash.Models.Count == 0) return code;
+        }
+        // Fallback estremamente improbabile: aggiunge entropia per evitare loop infiniti.
+        return GenerateInviteCode() + Guid.NewGuid().ToString("N")[..2].ToUpperInvariant();
+    }
+
+    // Lunghezza del codice (parte variabile). Con alfabeto a 31 caratteri:
+    // 8 char ≈ 39.7 bit di entropia → enumerazione impraticabile (il codice dà
+    // accesso ai dati condivisi della campagna).
+    private const int InviteCodeLength = 8;
+
+    private static string GenerateInviteCode()
+    {
+        var alphabetLen = InviteCodeAlphabet.Length;
+        // Soglia di rejection sampling per eliminare il bias di modulo.
+        var maxUnbiased = 256 - (256 % alphabetLen);
+
+        var chars = new char[InviteCodeLength];
+        Span<byte> buffer = stackalloc byte[1];
+        var i = 0;
+        while (i < chars.Length)
+        {
+            RandomNumberGenerator.Fill(buffer);
+            if (buffer[0] >= maxUnbiased) continue; // scarta i valori che introdurrebbero bias
+            chars[i++] = InviteCodeAlphabet[buffer[0] % alphabetLen];
+        }
+        return "DND-" + new string(chars);
+    }
+
+    // =====================================================================
+    // Profili
+    // =====================================================================
+
+    /// <summary>Crea la riga profiles per l'utente se non esiste già. Idempotente.</summary>
+    public async Task EnsureProfileAsync(string userId, string? displayName)
+    {
+        var client = await GetClientAsync();
+        var existing = await client.From<Profile>().Where(p => p.Id == userId).Get();
+        if (existing.Models.Count > 0) return;
+
+        await client.From<Profile>().Insert(new Profile
+        {
+            Id = userId,
+            DisplayName = displayName,
+            CreatedAt = DateTime.UtcNow
+        });
     }
 }

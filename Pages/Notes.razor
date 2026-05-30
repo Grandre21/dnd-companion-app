@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject SupabaseService SupabaseService
 @inject AuthStateService AuthState
+@inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -37,7 +38,7 @@
             @if (!isEditable)
             {
                 <div class="readonly-banner">
-                    Nota di <strong>@GetAuthorName(editDraft.PlayerId)</strong> — sola lettura
+                    Nota di <strong>@GetAuthorName(editDraft.OwnerId)</strong> — sola lettura
                 </div>
             }
 
@@ -110,7 +111,7 @@
             <div class="notes-list">
                 @foreach (var note in FilteredNotes)
                 {
-                    var isMine = note.PlayerId == playerId;
+                    var isMine = note.OwnerId == userId;
                     <button type="button" class="note-card" @onclick="() => OpenDetail(note)">
                         <div class="note-header">
                             <div class="note-title">@(string.IsNullOrWhiteSpace(note.Title) ? "(Senza titolo)" : note.Title)</div>
@@ -122,7 +123,7 @@
                         <div class="note-meta">
                             @if (!isMine)
                             {
-                                <span class="author-badge">@GetAuthorName(note.PlayerId)</span>
+                                <span class="author-badge">@GetAuthorName(note.OwnerId)</span>
                             }
                             <span class="note-date">@FormatNoteDate(note.UpdatedAt ?? note.CreatedAt)</span>
                         </div>
@@ -165,7 +166,8 @@
     private bool isLoading = true;
     private bool isBusy;
     private bool isMaster;
-    private string? playerId;
+    private string? userId;
+    private string? campaignId;
     private string? errorMessage;
 
     private string searchInput = string.Empty;
@@ -184,22 +186,23 @@
     {
         try
         {
-            playerId = await AuthState.GetPlayerIdAsync();
-            var role = await AuthState.GetRoleAsync();
-            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+            await CampaignState.InitializeAsync();
+            userId = await AuthState.GetUserIdAsync();
+            isMaster = CampaignState.IsMaster;
+            campaignId = CampaignState.ActiveCampaignId;
 
-            if (string.IsNullOrEmpty(playerId))
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(campaignId))
             {
-                // AuthRedirect will navigate away.
+                // Non loggato (AuthRedirect interviene) o nessuna campagna attiva.
                 return;
             }
 
-            var notesTask = SupabaseService.GetNotesForPlayerAsync(playerId);
-            var playersTask = SupabaseService.GetAllPlayersAsync();
-            await Task.WhenAll(notesTask, playersTask);
+            var notesTask = SupabaseService.GetNotesForCampaignAsync(campaignId, userId);
+            var profilesTask = SupabaseService.GetProfilesAsync();
+            await Task.WhenAll(notesTask, profilesTask);
 
             notes = notesTask.Result;
-            playerNicknames = playersTask.Result.ToDictionary(p => p.Id, p => p.Nickname);
+            playerNicknames = profilesTask.Result.ToDictionary(p => p.Id, p => p.DisplayName ?? "Utente");
         }
         catch (Exception ex)
         {
@@ -263,7 +266,8 @@
     {
         editDraft = new Note
         {
-            PlayerId = playerId ?? string.Empty,
+            OwnerId = userId ?? string.Empty,
+            CampaignId = campaignId ?? string.Empty,
             IsShared = false
         };
         isEditable = true;
@@ -273,7 +277,7 @@
     private void OpenDetail(Note note)
     {
         editDraft = CloneNote(note);
-        isEditable = isMaster || note.PlayerId == playerId;
+        isEditable = isMaster || note.OwnerId == userId;
         mode = ViewMode.Form;
     }
 
@@ -300,7 +304,8 @@
             Note? saved;
             if (string.IsNullOrEmpty(editDraft.Id))
             {
-                editDraft.PlayerId = playerId ?? string.Empty;
+                editDraft.OwnerId = userId ?? string.Empty;
+                editDraft.CampaignId = campaignId ?? string.Empty;
                 saved = await SupabaseService.CreateNoteAsync(editDraft);
             }
             else
@@ -361,7 +366,8 @@
     private static Note CloneNote(Note n) => new()
     {
         Id = n.Id,
-        PlayerId = n.PlayerId,
+        OwnerId = n.OwnerId,
+        CampaignId = n.CampaignId,
         Title = n.Title,
         Content = n.Content,
         IsShared = n.IsShared,

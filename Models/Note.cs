@@ -9,8 +9,11 @@ public class Note : BaseModel
     [PrimaryKey("id", false)]
     public string Id { get; set; } = string.Empty;
 
-    [Column("player_id")]
-    public string PlayerId { get; set; } = string.Empty;
+    [Column("owner_id")]
+    public string OwnerId { get; set; } = string.Empty;
+
+    [Column("campaign_id")]
+    public string CampaignId { get; set; } = string.Empty;
 
     [Column("title")]
     public string Title { get; set; } = string.Empty;

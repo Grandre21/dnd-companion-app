@@ -2,6 +2,7 @@
 @using DndCompanion.Models
 @inject SupabaseService SupabaseService
 @inject AuthStateService AuthState
+@inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -1341,7 +1342,8 @@
             ? races.FirstOrDefault(r => r.Name == editDraft.Race)
             : null;
 
-    private string? playerId;
+    private string? userId;
+    private string? campaignId;
     private bool isMaster;
 
     private bool isBusy;
@@ -1351,10 +1353,10 @@
     private string? errorMessage;
 
     private bool CanEditInventory =>
-        selected is not null && (isMaster || selected.PlayerId == playerId);
+        selected is not null && (isMaster || selected.OwnerId == userId);
 
     private bool CanEdit =>
-        selected is not null && (isMaster || selected.PlayerId == playerId);
+        selected is not null && (isMaster || selected.OwnerId == userId);
 
     private double TotalInventoryWeight =>
         inventoryItems.Sum(i => (i.Weight ?? 0) * i.Quantity);
@@ -1527,21 +1529,22 @@
     {
         try
         {
-            playerId = await AuthState.GetPlayerIdAsync();
-            var role = await AuthState.GetRoleAsync();
-            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+            await CampaignState.InitializeAsync();
+            userId = await AuthState.GetUserIdAsync();
+            isMaster = CampaignState.IsMaster;
+            campaignId = CampaignState.ActiveCampaignId;
 
-            if (string.IsNullOrEmpty(playerId))
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(campaignId))
             {
-                // AuthRedirect will navigate away; keep loading state.
+                // Non loggato (AuthRedirect interviene) o nessuna campagna attiva.
+                mode = ViewMode.Empty;
                 return;
             }
 
-            var charsFetch = isMaster
-                ? SupabaseService.GetAllCharactersAsync()
-                : SupabaseService.GetCharactersForPlayerAsync(playerId);
-            var racesTask = SupabaseService.GetAllRacesAsync();
-            var classesTask = SupabaseService.GetAllClassesAsync();
+            // Tutti i personaggi della campagna; il permesso di modifica è per-personaggio (CanEdit).
+            var charsFetch = SupabaseService.GetCharactersForCampaignAsync(campaignId);
+            var racesTask = SupabaseService.GetRacesForCampaignAsync(campaignId);
+            var classesTask = SupabaseService.GetClassesForCampaignAsync(campaignId);
 
             await Task.WhenAll(charsFetch, racesTask, classesTask);
 
@@ -1605,7 +1608,7 @@
             var charSpellsTask = SupabaseService.GetCharacterSpellsAsync(c.Id);
             if (!spellsLoaded)
             {
-                var allTask = SupabaseService.GetAllSpellsAsync();
+                var allTask = SupabaseService.GetSpellsForCampaignAsync(campaignId ?? string.Empty);
                 await Task.WhenAll(allTask, charSpellsTask);
                 allSpells = allTask.Result;
                 spellsLoaded = true;
@@ -1671,7 +1674,8 @@
     {
         editDraft = new Character
         {
-            PlayerId = playerId ?? string.Empty,
+            OwnerId = userId ?? string.Empty,
+            CampaignId = campaignId ?? string.Empty,
             Level = 1,
             ArmorClass = 10,
             HitPoints = 10,
@@ -1795,7 +1799,8 @@
             Character? saved;
             if (string.IsNullOrEmpty(editDraft.Id))
             {
-                editDraft.PlayerId = playerId ?? string.Empty;
+                editDraft.OwnerId = userId ?? string.Empty;
+                editDraft.CampaignId = campaignId ?? string.Empty;
                 saved = await SupabaseService.CreateCharacterAsync(editDraft);
             }
             else
@@ -2103,7 +2108,8 @@
     private static Character CloneCharacter(Character c) => new()
     {
         Id = c.Id,
-        PlayerId = c.PlayerId,
+        OwnerId = c.OwnerId,
+        CampaignId = c.CampaignId,
         Name = c.Name,
         Class = c.Class,
         Race = c.Race,

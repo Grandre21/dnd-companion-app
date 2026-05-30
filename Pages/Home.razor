@@ -1,5 +1,8 @@
 @page "/"
+@using DndCompanion.Models
 @inject AuthStateService AuthState
+@inject SupabaseService SupabaseService
+@inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 
 <PageTitle>D&amp;D Companion</PageTitle>
@@ -8,11 +11,11 @@
     <header class="home-header">
         <div class="welcome">
             <h1>D&amp;D Companion</h1>
-            @if (!string.IsNullOrEmpty(nickname))
+            @if (!string.IsNullOrEmpty(displayName))
             {
                 <p class="welcome-line">
-                    Benvenuto, <strong>@nickname</strong>
-                    @if (!string.IsNullOrEmpty(role))
+                    Benvenuto, <strong>@displayName</strong>
+                    @if (!string.IsNullOrEmpty(CampaignState.ActiveCampaignRole))
                     {
                         <span class="role-tag">@(isMaster ? "Master" : "Giocatore")</span>
                     }
@@ -24,42 +27,111 @@
         </button>
     </header>
 
-    <section class="card-grid">
-        @foreach (var card in cards)
-        {
-            <button type="button" class="feature-card" @onclick="@(() => Navigation.NavigateTo(card.Route))">
-                <span class="card-icon" aria-hidden="true">@card.Icon</span>
-                <span class="card-title">@card.Title</span>
-                <span class="card-desc">@card.Description</span>
-            </button>
-        }
-        @if (!isMaster)
-        {
-            <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("combat")'>
-                <span class="card-icon" aria-hidden="true">⚔️</span>
-                <span class="card-title">Combattimento</span>
-                <span class="card-desc">Iniziativa (gestita dal Master)</span>
-            </button>
-        }
-    </section>
-
-    @if (isMaster)
+    @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <section class="master-section">
-            <h2>Strumenti Master</h2>
-            <div class="card-grid master-grid">
+        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="state-message">Caricamento...</div>
+    }
+    else
+    {
+        <section class="campaign-bar">
+            @if (campaigns.Count == 0)
+            {
+                <div class="empty-campaigns">
+                    <h2>Nessuna campagna</h2>
+                    <p>Crea una nuova campagna o unisciti a una esistente con un codice invito.</p>
+                </div>
+            }
+            else
+            {
+                <div class="campaign-selector">
+                    <label for="campaign-select">Campagna attiva</label>
+                    <select id="campaign-select" class="input" value="@CampaignState.ActiveCampaignId"
+                            @onchange="OnCampaignSelectedAsync">
+                        <option value="">— Seleziona —</option>
+                        @foreach (var c in campaigns)
+                        {
+                            <option value="@c.Id" selected="@(c.Id == CampaignState.ActiveCampaignId)">@c.Name</option>
+                        }
+                    </select>
+                </div>
+
+                @if (ActiveCampaign is not null && isMaster)
+                {
+                    <div class="invite-box">
+                        <span class="invite-label">Codice invito</span>
+                        <code class="invite-code">@ActiveCampaign.InviteCode</code>
+                        <span class="invite-hint">Condividilo con i tuoi giocatori</span>
+                    </div>
+                }
+            }
+
+            <div class="campaign-actions">
+                <button type="button" class="secondary-btn" @onclick="() => ShowForm(FormKind.Create)">+ Crea campagna</button>
+                <button type="button" class="secondary-btn" @onclick="() => ShowForm(FormKind.Join)">Unisciti</button>
+            </div>
+
+            @if (formKind == FormKind.Create)
+            {
+                <div class="campaign-form">
+                    <input type="text" class="input" maxlength="60" placeholder="Nome della campagna"
+                           @bind="newCampaignName" disabled="@isBusy" />
+                    <div class="form-actions">
+                        <button type="button" class="primary-btn" @onclick="CreateCampaignAsync" disabled="@isBusy">
+                            @(isBusy ? "Creazione..." : "Crea")
+                        </button>
+                        <button type="button" class="secondary-btn" @onclick="HideForm" disabled="@isBusy">Annulla</button>
+                    </div>
+                </div>
+            }
+            else if (formKind == FormKind.Join)
+            {
+                <div class="campaign-form">
+                    <input type="text" class="input" maxlength="32" placeholder="Codice invito (es. DND-AB12)"
+                           @bind="joinCode" disabled="@isBusy" />
+                    <div class="form-actions">
+                        <button type="button" class="primary-btn" @onclick="JoinCampaignAsync" disabled="@isBusy">
+                            @(isBusy ? "Verifica..." : "Unisciti")
+                        </button>
+                        <button type="button" class="secondary-btn" @onclick="HideForm" disabled="@isBusy">Annulla</button>
+                    </div>
+                </div>
+            }
+        </section>
+
+        @if (!string.IsNullOrEmpty(CampaignState.ActiveCampaignId))
+        {
+            <section class="card-grid">
+                @foreach (var card in cards)
+                {
+                    <button type="button" class="feature-card" @onclick="@(() => Navigation.NavigateTo(card.Route))">
+                        <span class="card-icon" aria-hidden="true">@card.Icon</span>
+                        <span class="card-title">@card.Title</span>
+                        <span class="card-desc">@card.Description</span>
+                    </button>
+                }
                 <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("combat")'>
                     <span class="card-icon" aria-hidden="true">⚔️</span>
                     <span class="card-title">Combattimento</span>
-                    <span class="card-desc">Tracker iniziativa</span>
+                    <span class="card-desc">@(isMaster ? "Tracker iniziativa" : "Iniziativa (gestita dal Master)")</span>
                 </button>
-            </div>
-        </section>
+            </section>
+        }
+        else
+        {
+            <div class="state-message">Seleziona o crea una campagna per iniziare.</div>
+        }
     }
 </div>
 
 @code {
     private record FeatureCard(string Icon, string Title, string Description, string Route);
+
+    private enum FormKind { None, Create, Join }
 
     private readonly FeatureCard[] cards =
     {
@@ -71,19 +143,156 @@
         new("🧝", "Razze",       "Manuale delle razze", "races"),
     };
 
-    private string? nickname;
-    private string? role;
-    private bool isMaster;
+    private string? userId;
+    private string? displayName;
+    private List<Campaign> campaigns = new();
+    private bool isLoading = true;
+    private bool isBusy;
+    private string? errorMessage;
+
+    private FormKind formKind = FormKind.None;
+    private string newCampaignName = string.Empty;
+    private string joinCode = string.Empty;
+
+    private bool isMaster => CampaignState.IsMaster;
+
+    private Campaign? ActiveCampaign =>
+        campaigns.FirstOrDefault(c => c.Id == CampaignState.ActiveCampaignId);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        nickname = await AuthState.GetNicknameAsync();
-        role = await AuthState.GetRoleAsync();
-        isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+        userId = await AuthState.GetUserIdAsync();
+        if (string.IsNullOrEmpty(userId))
+        {
+            // AuthRedirect porterà al login.
+            return;
+        }
+
+        try
+        {
+            displayName = await AuthState.GetDisplayNameAsync();
+            await SupabaseService.EnsureProfileAsync(userId, displayName);
+
+            await CampaignState.InitializeAsync();
+            campaigns = await SupabaseService.GetUserCampaignsAsync(userId);
+
+            // Se la campagna attiva memorizzata non è più valida, azzerala.
+            var activeId = CampaignState.ActiveCampaignId;
+            if (!string.IsNullOrEmpty(activeId) && campaigns.All(c => c.Id != activeId))
+            {
+                await CampaignState.ClearActiveCampaign();
+            }
+
+            // Auto-seleziona se non c'è una campagna attiva ma l'utente ne ha almeno una.
+            if (string.IsNullOrEmpty(CampaignState.ActiveCampaignId) && campaigns.Count > 0)
+            {
+                await CampaignState.SetActiveCampaignAsync(campaigns[0].Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento campagne: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCampaignSelectedAsync(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString();
+        if (string.IsNullOrEmpty(id))
+        {
+            await CampaignState.ClearActiveCampaign();
+        }
+        else
+        {
+            await CampaignState.SetActiveCampaignAsync(id);
+        }
         StateHasChanged();
     }
 
-    private Task OnLogoutAsync() => AuthState.LogoutAsync();
+    private void ShowForm(FormKind kind)
+    {
+        formKind = kind;
+        errorMessage = null;
+        newCampaignName = string.Empty;
+        joinCode = string.Empty;
+    }
+
+    private void HideForm() => formKind = FormKind.None;
+
+    private async Task CreateCampaignAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newCampaignName))
+        {
+            errorMessage = "Inserisci un nome per la campagna";
+            return;
+        }
+        if (string.IsNullOrEmpty(userId)) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            var created = await SupabaseService.CreateCampaignAsync(newCampaignName.Trim(), userId);
+            campaigns.Add(created);
+            await CampaignState.SetActiveCampaignAsync(created.Id);
+            formKind = FormKind.None;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore creazione campagna: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task JoinCampaignAsync()
+    {
+        if (string.IsNullOrWhiteSpace(joinCode))
+        {
+            errorMessage = "Inserisci un codice invito";
+            return;
+        }
+        if (string.IsNullOrEmpty(userId)) return;
+
+        isBusy = true;
+        errorMessage = null;
+        try
+        {
+            var joined = await SupabaseService.JoinCampaignAsync(joinCode.Trim(), userId);
+            if (joined is null)
+            {
+                errorMessage = "Codice invito non valido";
+                return;
+            }
+
+            if (campaigns.All(c => c.Id != joined.Id))
+                campaigns.Add(joined);
+
+            await CampaignState.SetActiveCampaignAsync(joined.Id);
+            formKind = FormKind.None;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task OnLogoutAsync()
+    {
+        await CampaignState.ClearActiveCampaign();
+        await AuthState.LogoutAsync();
+    }
 }

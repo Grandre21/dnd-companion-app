@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject SupabaseService SupabaseService
 @inject AuthStateService AuthState
+@inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -287,6 +288,8 @@
     private bool isLoading = true;
     private bool isBusy;
     private bool isMaster;
+    private string? userId;
+    private string? campaignId;
     private string? errorMessage;
 
     private string searchInput = string.Empty;
@@ -345,10 +348,14 @@
     {
         try
         {
-            var role = await AuthState.GetRoleAsync();
-            isMaster = string.Equals(role, "Master", StringComparison.OrdinalIgnoreCase);
+            await CampaignState.InitializeAsync();
+            userId = await AuthState.GetUserIdAsync();
+            isMaster = CampaignState.IsMaster;
+            campaignId = CampaignState.ActiveCampaignId;
 
-            allMonsters = await SupabaseService.GetAllMonstersAsync();
+            if (string.IsNullOrEmpty(campaignId)) return;
+
+            allMonsters = await SupabaseService.GetMonstersForCampaignAsync(campaignId);
         }
         catch (Exception ex)
         {
@@ -453,7 +460,9 @@
             Constitution = 10,
             Intelligence = 10,
             Wisdom = 10,
-            Charisma = 10
+            Charisma = 10,
+            AddedBy = userId,
+            CampaignId = campaignId ?? string.Empty
         };
         mode = ViewMode.Form;
     }
