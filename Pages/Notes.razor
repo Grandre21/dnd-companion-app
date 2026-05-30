@@ -1,5 +1,4 @@
 @page "/notes"
-@using System.Globalization
 @using DndCompanion.Models
 @implements IDisposable
 @inject SupabaseService SupabaseService
@@ -71,7 +70,7 @@
             @if (!string.IsNullOrEmpty(editDraft.Id) && editDraft.UpdatedAt.HasValue)
             {
                 <div class="meta-info">
-                    Ultimo aggiornamento: @FormatDate(editDraft.UpdatedAt)
+                    Ultimo aggiornamento: @FormatNoteDate(editDraft.UpdatedAt)
                 </div>
             }
 
@@ -125,7 +124,7 @@
                             {
                                 <span class="author-badge">@GetAuthorName(note.PlayerId)</span>
                             }
-                            <span class="note-date">@FormatDate(note.UpdatedAt ?? note.CreatedAt)</span>
+                            <span class="note-date">@FormatNoteDate(note.UpdatedAt ?? note.CreatedAt)</span>
                         </div>
 
                         @if (!string.IsNullOrWhiteSpace(note.Content))
@@ -176,7 +175,10 @@
     private Note? editDraft;
     private bool isEditable;
 
-    private static readonly CultureInfo ItCulture = new("it-IT");
+    private static readonly string[] MesiIt = {
+        "gen", "feb", "mar", "apr", "mag", "giu",
+        "lug", "ago", "set", "ott", "nov", "dic"
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -250,10 +252,11 @@
         return "Sconosciuto";
     }
 
-    private static string FormatDate(DateTime? dt)
+    private static string FormatNoteDate(DateTime? dt)
     {
-        if (!dt.HasValue) return "—";
-        return dt.Value.ToLocalTime().ToString("dd MMM yyyy, HH:mm", ItCulture);
+        if (dt == null) return "—";
+        var d = dt.Value.ToLocalTime();
+        return $"{d.Day:D2} {MesiIt[d.Month - 1]} {d.Year}, {d.Hour:D2}:{d.Minute:D2}";
     }
 
     private void OpenCreateForm()
