@@ -426,28 +426,38 @@ public class SupabaseService
         var client = await GetClientAsync();
         var code = inviteCode.Trim().ToUpperInvariant();
 
-        var found = await client.From<Campaign>()
-            .Where(c => c.InviteCode == code)
-            .Get();
-        var campaign = found.Models.FirstOrDefault();
-        if (campaign is null) return null;
+        // La RLS (campaigns_select) impedisce di leggere una campagna di cui non si è ancora
+        // membri, quindi non possiamo risolvere il codice con From<Campaign>(). Usiamo la
+        // funzione DB SECURITY DEFINER find_campaign_by_invite_code, che bypassa la RLS e
+        // ritorna solo l'id (UUID) della campagna, o null se il codice non è valido.
+        var campaignId = await client.Rpc<string>(
+            "find_campaign_by_invite_code",
+            new Dictionary<string, object> { { "p_code", code } });
 
+        if (string.IsNullOrEmpty(campaignId)) return null; // codice non valido
+
+        // Verifica membership: questa query passa la RLS perché campaign_members_select
+        // consente di leggere le proprie righe (user_id = auth.uid()).
         var existing = await client.From<CampaignMember>()
-            .Where(m => m.CampaignId == campaign.Id && m.UserId == userId)
+            .Where(m => m.CampaignId == campaignId && m.UserId == userId)
             .Get();
 
         if (existing.Models.Count == 0)
         {
             await client.From<CampaignMember>().Insert(new CampaignMember
             {
-                CampaignId = campaign.Id,
+                CampaignId = campaignId,
                 UserId = userId,
                 Role = "player",
                 JoinedAt = DateTime.UtcNow
             });
         }
 
-        return campaign;
+        // Ora che siamo membri, la RLS campaigns_select ci permette di leggere la campagna.
+        var found = await client.From<Campaign>()
+            .Where(c => c.Id == campaignId)
+            .Get();
+        return found.Models.FirstOrDefault();
     }
 
     public async Task<List<CampaignMember>> GetCampaignMembersAsync(string campaignId)
