@@ -616,129 +616,541 @@
                     @(string.IsNullOrEmpty(editDraft.Id) ? "Nuovo Personaggio" : "Modifica Personaggio")
                 </h2>
 
-                <div class="form-grid">
-                    <div class="field field-full">
-                        <label>Nome</label>
-                        <input type="text" class="input" maxlength="64" @bind="editDraft.Name" />
+                <div class="form-accordion">
+
+                    @* ===================== 1. IDENTITÀ ===================== *@
+                    <div class="form-section">
+                        <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("identity")'>
+                            <span class="form-section-chevron">@(formSections["identity"] ? "▾" : "▸")</span>
+                            <span class="form-section-title">Identità</span>
+                        </button>
+                        @if (formSections["identity"])
+                        {
+                            <div class="form-section-body">
+                                <div class="field">
+                                    <label>Nome</label>
+                                    <input type="text" class="input" maxlength="64" @bind="editDraft.Name" />
+                                </div>
+
+                                <div class="field">
+                                    <label>Classe</label>
+                                    <select class="input" value="@CurrentClassSelection" @onchange="OnClassSelectionChanged">
+                                        <option value="">-- Seleziona --</option>
+                                        @foreach (var c in classes.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
+                                        {
+                                            <option value="@c.Name">@c.Name</option>
+                                        }
+                                        <option value="@CustomOptionValue">Altro (testo libero)</option>
+                                    </select>
+                                    @if (isClassCustom)
+                                    {
+                                        <input type="text" class="input custom-input" maxlength="40"
+                                               placeholder="Scrivi la classe"
+                                               @bind="editDraft.Class" @bind:event="oninput" />
+                                    }
+                                    @if (SelectedClassInfo is not null)
+                                    {
+                                        <div class="info-summary">
+                                            <strong>Dado vita:</strong> @(string.IsNullOrEmpty(SelectedClassInfo.HitDie) ? "—" : SelectedClassInfo.HitDie)
+                                            @if (!string.IsNullOrWhiteSpace(SelectedClassInfo.PrimaryAbility))
+                                            {
+                                                <span> · <strong>Abilità primaria:</strong> @SelectedClassInfo.PrimaryAbility</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="field">
+                                    <label>Sottoclasse</label>
+                                    <input type="text" class="input" maxlength="60"
+                                           placeholder="es. Berserker, Campione, Evocatore..."
+                                           @bind="editDraft.Subclass" />
+                                </div>
+
+                                <div class="field">
+                                    <label>Razza</label>
+                                    <select class="input" value="@CurrentRaceSelection" @onchange="OnRaceSelectionChanged">
+                                        <option value="">-- Seleziona --</option>
+                                        @foreach (var r in races.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
+                                        {
+                                            <option value="@r.Name">@r.Name</option>
+                                        }
+                                        <option value="@CustomOptionValue">Altro (testo libero)</option>
+                                    </select>
+                                    @if (isRaceCustom)
+                                    {
+                                        <input type="text" class="input custom-input" maxlength="40"
+                                               placeholder="Scrivi la razza"
+                                               @bind="editDraft.Race" @bind:event="oninput" />
+                                    }
+                                    @if (SelectedRaceInfo is not null)
+                                    {
+                                        <div class="info-summary">
+                                            <strong>Bonus razziali:</strong> @FormatRaceBonuses(SelectedRaceInfo)
+                                            · <strong>Velocità:</strong> @SelectedRaceInfo.Speed
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="field">
+                                    <label>Livello</label>
+                                    <input type="number" class="input" min="1" max="20" @bind="editDraft.Level" />
+                                </div>
+
+                                <div class="field">
+                                    <label>Background</label>
+                                    <input type="text" class="input" maxlength="60"
+                                           placeholder="es. Soldato, Criminale, Eremita..."
+                                           @bind="editDraft.Background" />
+                                </div>
+
+                                <div class="field">
+                                    <label>Allineamento</label>
+                                    <select class="input" @bind="editDraft.Alignment">
+                                        <option value="">-- Nessuno --</option>
+                                        <option value="Legale Buono">Legale Buono</option>
+                                        <option value="Neutrale Buono">Neutrale Buono</option>
+                                        <option value="Caotico Buono">Caotico Buono</option>
+                                        <option value="Legale Neutrale">Legale Neutrale</option>
+                                        <option value="Neutrale Puro">Neutrale Puro</option>
+                                        <option value="Caotico Neutrale">Caotico Neutrale</option>
+                                        <option value="Legale Malvagio">Legale Malvagio</option>
+                                        <option value="Neutrale Malvagio">Neutrale Malvagio</option>
+                                        <option value="Caotico Malvagio">Caotico Malvagio</option>
+                                    </select>
+                                </div>
+
+                                <div class="field">
+                                    <label>Punti Esperienza</label>
+                                    <input type="number" class="input" min="0" @bind="editDraft.ExperiencePoints" />
+                                </div>
+                            </div>
+                        }
                     </div>
 
-                    <div class="field field-full">
-                        <label>Classe</label>
-                        <select class="input" value="@CurrentClassSelection" @onchange="OnClassSelectionChanged">
-                            <option value="">-- Seleziona --</option>
-                            @foreach (var c in classes.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
-                            {
-                                <option value="@c.Name">@c.Name</option>
-                            }
-                            <option value="__custom__">Altro (testo libero)</option>
-                        </select>
-                        @if (isClassCustom)
+                    @* ===================== 2. COMBATTIMENTO ===================== *@
+                    <div class="form-section">
+                        <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("combat")'>
+                            <span class="form-section-chevron">@(formSections["combat"] ? "▾" : "▸")</span>
+                            <span class="form-section-title">Combattimento</span>
+                        </button>
+                        @if (formSections["combat"])
                         {
-                            <input type="text" class="input custom-input" maxlength="40"
-                                   placeholder="Scrivi la classe"
-                                   @bind="editDraft.Class" @bind:event="oninput" />
+                            <div class="form-section-body">
+                                <div class="field">
+                                    <label>Classe Armatura</label>
+                                    <input type="number" class="input" min="0" max="40" @bind="editDraft.ArmorClass" />
+                                </div>
+
+                                <div class="dual-field">
+                                    <div class="field">
+                                        <label>PF Correnti</label>
+                                        <input type="number" class="input" min="0" @bind="editDraft.HitPoints" />
+                                    </div>
+                                    <div class="field">
+                                        <label>PF Massimi</label>
+                                        <input type="number" class="input" min="1" @bind="editDraft.MaxHitPoints" />
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label>PF Temporanei</label>
+                                    <input type="number" class="input" min="0" @bind="editDraft.TempHitPoints" />
+                                </div>
+
+                                <div class="field">
+                                    <label>Velocità (m)</label>
+                                    <input type="number" class="input" min="0" @bind="editDraft.Speed" />
+                                    <span class="field-hint">9m = 30 piedi (umano standard)</span>
+                                </div>
+
+                                <div class="field">
+                                    <label>Taglia</label>
+                                    <select class="input" @bind="editDraft.Size">
+                                        <option value="Minuscola">Minuscola</option>
+                                        <option value="Piccola">Piccola</option>
+                                        <option value="Media">Media</option>
+                                        <option value="Grande">Grande</option>
+                                        <option value="Enorme">Enorme</option>
+                                        <option value="Mastodontica">Mastodontica</option>
+                                    </select>
+                                </div>
+
+                                <div class="field">
+                                    <label>Dadi Vita</label>
+                                    <input type="text" class="input" maxlength="40"
+                                           placeholder="es. 3d12 (barbaro) o 3d12+2d8 (multiclasse)"
+                                           @bind="editDraft.HitDiceMax" />
+                                    <span class="field-hint">Numero e tipo dado per livello</span>
+                                </div>
+
+                                <div class="field">
+                                    <label>Dadi Vita spesi</label>
+                                    <input type="number" class="input" min="0" @bind="editDraft.HitDiceSpent" />
+                                </div>
+
+                                <div class="derived-info">
+                                    Iniziativa: <strong>@FormatBonus(CharacterCalculations.GetInitiative(editDraft))</strong>
+                                    · Bonus competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(editDraft.Level))</strong>
+                                    · Percezione passiva: <strong>@CharacterCalculations.GetPassivePerception(editDraft)</strong>
+                                </div>
+                            </div>
                         }
-                        @{
-                            var selectedClass = (!isClassCustom && !string.IsNullOrEmpty(editDraft.Class))
-                                ? classes.FirstOrDefault(c => c.Name == editDraft.Class)
-                                : null;
-                        }
-                        @if (selectedClass is not null)
+                    </div>
+
+                    @* ===================== 3. CARATTERISTICHE E COMPETENZE ===================== *@
+                    <div class="form-section">
+                        <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("stats")'>
+                            <span class="form-section-chevron">@(formSections["stats"] ? "▾" : "▸")</span>
+                            <span class="form-section-title">Caratteristiche e competenze</span>
+                        </button>
+                        @if (formSections["stats"])
                         {
-                            <div class="info-summary">
-                                <strong>Dado vita:</strong> @(string.IsNullOrEmpty(selectedClass.HitDie) ? "—" : selectedClass.HitDie)
-                                @if (!string.IsNullOrWhiteSpace(selectedClass.PrimaryAbility))
+                            <div class="form-section-body">
+                                <div class="score-grid">
+                                    <div class="field stat-field">
+                                        <label title="Forza">FOR</label>
+                                        <input type="number" class="input" min="1" max="30" @bind="editDraft.Strength" />
+                                        <span class="score-mod">Mod @FormatBonus(CharacterCalculations.GetModifier(editDraft.Strength))</span>
+                                    </div>
+                                    <div class="field stat-field">
+                                        <label title="Destrezza">DES</label>
+                                        <input type="number" class="input" min="1" max="30" @bind="editDraft.Dexterity" />
+                                        <span class="score-mod">Mod @FormatBonus(CharacterCalculations.GetModifier(editDraft.Dexterity))</span>
+                                    </div>
+                                    <div class="field stat-field">
+                                        <label title="Costituzione">COS</label>
+                                        <input type="number" class="input" min="1" max="30" @bind="editDraft.Constitution" />
+                                        <span class="score-mod">Mod @FormatBonus(CharacterCalculations.GetModifier(editDraft.Constitution))</span>
+                                    </div>
+                                    <div class="field stat-field">
+                                        <label title="Intelligenza">INT</label>
+                                        <input type="number" class="input" min="1" max="30" @bind="editDraft.Intelligence" />
+                                        <span class="score-mod">Mod @FormatBonus(CharacterCalculations.GetModifier(editDraft.Intelligence))</span>
+                                    </div>
+                                    <div class="field stat-field">
+                                        <label title="Saggezza">SAG</label>
+                                        <input type="number" class="input" min="1" max="30" @bind="editDraft.Wisdom" />
+                                        <span class="score-mod">Mod @FormatBonus(CharacterCalculations.GetModifier(editDraft.Wisdom))</span>
+                                    </div>
+                                    <div class="field stat-field">
+                                        <label title="Carisma">CAR</label>
+                                        <input type="number" class="input" min="1" max="30" @bind="editDraft.Charisma" />
+                                        <span class="score-mod">Mod @FormatBonus(CharacterCalculations.GetModifier(editDraft.Charisma))</span>
+                                    </div>
+                                </div>
+
+                                <div class="sub-block">
+                                    <p class="sub-block-title">TIRI SALVEZZA COMPETENTI</p>
+                                    <div class="checkbox-col">
+                                        <label class="checkbox-row"><input type="checkbox" @bind="editDraft.ProfSaveStrength" /> <span>Forza</span></label>
+                                        <label class="checkbox-row"><input type="checkbox" @bind="editDraft.ProfSaveDexterity" /> <span>Destrezza</span></label>
+                                        <label class="checkbox-row"><input type="checkbox" @bind="editDraft.ProfSaveConstitution" /> <span>Costituzione</span></label>
+                                        <label class="checkbox-row"><input type="checkbox" @bind="editDraft.ProfSaveIntelligence" /> <span>Intelligenza</span></label>
+                                        <label class="checkbox-row"><input type="checkbox" @bind="editDraft.ProfSaveWisdom" /> <span>Saggezza</span></label>
+                                        <label class="checkbox-row"><input type="checkbox" @bind="editDraft.ProfSaveCharisma" /> <span>Carisma</span></label>
+                                    </div>
+                                </div>
+
+                                <div class="sub-block">
+                                    <p class="sub-block-title">ABILITÀ COMPETENTI</p>
+                                    <div class="skill-head">
+                                        <span>Skill</span><span>Comp</span><span>Exp</span>
+                                    </div>
+
+                                    <p class="skill-group">FORZA</p>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Atletica</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfAthletics" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpAthletics" />
+                                    </div>
+
+                                    <p class="skill-group">DESTREZZA</p>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Acrobazia</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfAcrobatics" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpAcrobatics" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Rapidità di mano</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfSleightOfHand" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpSleightOfHand" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Furtività</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfStealth" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpStealth" />
+                                    </div>
+
+                                    <p class="skill-group">INTELLIGENZA</p>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Arcano</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfArcana" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpArcana" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Storia</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfHistory" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpHistory" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Indagare</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfInvestigation" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpInvestigation" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Natura</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfNature" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpNature" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Religione</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfReligion" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpReligion" />
+                                    </div>
+
+                                    <p class="skill-group">SAGGEZZA</p>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Addestrare animali</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfAnimalHandling" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpAnimalHandling" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Intuizione</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfInsight" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpInsight" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Medicina</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfMedicine" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpMedicine" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Percezione</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfPerception" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpPerception" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Sopravvivenza</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfSurvival" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpSurvival" />
+                                    </div>
+
+                                    <p class="skill-group">CARISMA</p>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Inganno</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfDeception" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpDeception" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Intimidire</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfIntimidation" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpIntimidation" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Intrattenere</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfPerformance" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpPerformance" />
+                                    </div>
+                                    <div class="skill-row">
+                                        <span class="skill-name">Persuasione</span>
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ProfPersuasion" />
+                                        <input type="checkbox" class="skill-check" @bind="editDraft.ExpPersuasion" />
+                                    </div>
+                                    <p class="field-hint">L'Expertise senza Competenza non ha effetto: i calcoli lo ignorano.</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @* ===================== 4. DIFESE ===================== *@
+                    <div class="form-section">
+                        <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("defenses")'>
+                            <span class="form-section-chevron">@(formSections["defenses"] ? "▾" : "▸")</span>
+                            <span class="form-section-title">Difese</span>
+                        </button>
+                        @if (formSections["defenses"])
+                        {
+                            <div class="form-section-body">
+                                <div class="field">
+                                    <label>Resistenze ai danni</label>
+                                    <textarea class="input" rows="2" placeholder="Contundente, Perforante, Tagliente"
+                                              @bind="editDraft.DamageResistances"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Immunità ai danni</label>
+                                    <textarea class="input" rows="2" placeholder="Veleno, Necrotico"
+                                              @bind="editDraft.DamageImmunities"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Vulnerabilità ai danni</label>
+                                    <textarea class="input" rows="2" placeholder="Fuoco, Radiante"
+                                              @bind="editDraft.DamageVulnerabilities"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Immunità a condizioni</label>
+                                    <textarea class="input" rows="2" placeholder="Avvelenato, Spaventato, Charmato"
+                                              @bind="editDraft.ConditionImmunities"></textarea>
+                                </div>
+                                <p class="field-hint">Separa più voci con virgola.</p>
+                            </div>
+                        }
+                    </div>
+
+                    @* ===================== 5. ASPETTO E STORIA ===================== *@
+                    <div class="form-section">
+                        <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("lore")'>
+                            <span class="form-section-chevron">@(formSections["lore"] ? "▾" : "▸")</span>
+                            <span class="form-section-title">Aspetto e storia</span>
+                        </button>
+                        @if (formSections["lore"])
+                        {
+                            <div class="form-section-body">
+                                <div class="field">
+                                    <label>Aspetto</label>
+                                    <textarea class="input" rows="3" placeholder="Altezza, capelli, occhi, segni distintivi..."
+                                              @bind="editDraft.Appearance"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Storia / Backstory</label>
+                                    <textarea class="input" rows="6" placeholder="Origini, famiglia, eventi salienti..."
+                                              @bind="editDraft.Backstory"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Lingue</label>
+                                    <input type="text" class="input" maxlength="200"
+                                           placeholder="Comune, Orchesco, Nanico..."
+                                           @bind="editDraft.Languages" />
+                                </div>
+                                <div class="field">
+                                    <label>Tratti della specie</label>
+                                    <textarea class="input" rows="4" placeholder="Scurovisione, Resistenza Implacabile, Furia primordiale..."
+                                              @bind="editDraft.SpeciesTraits"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Privilegi di classe</label>
+                                    <textarea class="input" rows="6" placeholder="Ira, Difesa senza armatura, Padronanza d'armi..."
+                                              @bind="editDraft.ClassFeatures"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Talenti</label>
+                                    <textarea class="input" rows="4" placeholder="Occhio di Gargauth, Combattente difensivo..."
+                                              @bind="editDraft.Feats"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Note libere</label>
+                                    <textarea class="input" rows="4" @bind="editDraft.Notes"></textarea>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @* ===================== 6. RISORSE ===================== *@
+                    <div class="form-section">
+                        <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("resources")'>
+                            <span class="form-section-chevron">@(formSections["resources"] ? "▾" : "▸")</span>
+                            <span class="form-section-title">Risorse</span>
+                        </button>
+                        @if (formSections["resources"])
+                        {
+                            <div class="form-section-body">
+                                <p class="sub-block-title">DENARI</p>
+                                <div class="coins-input-row">
+                                    <div class="field coin-field">
+                                        <label title="Monete di Rame">MR</label>
+                                        <input type="number" class="input" min="0" @bind="editDraft.CopperPieces" />
+                                    </div>
+                                    <div class="field coin-field">
+                                        <label title="Monete di Argento">MA</label>
+                                        <input type="number" class="input" min="0" @bind="editDraft.SilverPieces" />
+                                    </div>
+                                    <div class="field coin-field">
+                                        <label title="Monete di Elettro">ME</label>
+                                        <input type="number" class="input" min="0" @bind="editDraft.ElectrumPieces" />
+                                    </div>
+                                    <div class="field coin-field">
+                                        <label title="Monete di Oro">MO</label>
+                                        <input type="number" class="input" min="0" @bind="editDraft.GoldPieces" />
+                                    </div>
+                                    <div class="field coin-field">
+                                        <label title="Monete di Platino">MP</label>
+                                        <input type="number" class="input" min="0" @bind="editDraft.PlatinumPieces" />
+                                    </div>
+                                </div>
+
+                                <p class="sub-block-title">SINTONIE OGGETTI MAGICI</p>
+                                <div class="field">
+                                    <label>Slot 1</label>
+                                    <input type="text" class="input" maxlength="80"
+                                           placeholder="Es. Spada vorpalina, Anello di protezione..."
+                                           @bind="editDraft.AttunedItem1" />
+                                </div>
+                                <div class="field">
+                                    <label>Slot 2</label>
+                                    <input type="text" class="input" maxlength="80"
+                                           placeholder="Es. Spada vorpalina, Anello di protezione..."
+                                           @bind="editDraft.AttunedItem2" />
+                                </div>
+                                <div class="field">
+                                    <label>Slot 3</label>
+                                    <input type="text" class="input" maxlength="80"
+                                           placeholder="Es. Spada vorpalina, Anello di protezione..."
+                                           @bind="editDraft.AttunedItem3" />
+                                </div>
+                                <p class="field-hint">Massimo 3 oggetti magici sintonizzati attivamente.</p>
+                            </div>
+                        }
+                    </div>
+
+                    @* ===================== 7. INCANTESIMI ===================== *@
+                    <div class="form-section">
+                        <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("spellcasting")'>
+                            <span class="form-section-chevron">@(formSections["spellcasting"] ? "▾" : "▸")</span>
+                            <span class="form-section-title">Incantesimi</span>
+                        </button>
+                        @if (formSections["spellcasting"])
+                        {
+                            <div class="form-section-body">
+                                <div class="field">
+                                    <label>Caratteristica da incantatore</label>
+                                    <select class="input" @bind="editDraft.SpellcastingAbility">
+                                        <option value="">-- Nessuna (non incantatore) --</option>
+                                        <option value="intelligence">Intelligenza</option>
+                                        <option value="wisdom">Saggezza</option>
+                                        <option value="charisma">Carisma</option>
+                                    </select>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(editDraft.SpellcastingAbility))
                                 {
-                                    <span> · <strong>Abilità primaria:</strong> @selectedClass.PrimaryAbility</span>
+                                    <div class="derived-info">
+                                        CD Incantesimo: <strong>@(CharacterCalculations.GetSpellSaveDc(editDraft) ?? 0)</strong>
+                                        · Bonus Attacco: <strong>@FormatBonus(CharacterCalculations.GetSpellAttackBonus(editDraft) ?? 0)</strong>
+                                    </div>
+
+                                    <p class="sub-block-title">SLOT INCANTESIMO</p>
+                                    <div class="spell-slots-head">
+                                        <span>Livello</span><span>Massimi</span><span>Usati</span>
+                                    </div>
+                                    @for (int level = 1; level <= 9; level++)
+                                    {
+                                        var lvl = level;
+                                        <div class="spell-slot-input-row">
+                                            <span class="spell-slot-input-label">Liv @lvl</span>
+                                            <input type="number" class="input" min="0" max="9"
+                                                   value="@GetSpellSlotMax(editDraft, lvl)"
+                                                   @onchange="e => OnSpellSlotMaxChanged(lvl, e)" />
+                                            <input type="number" class="input" min="0" max="9"
+                                                   value="@GetSpellSlotUsed(editDraft, lvl)"
+                                                   @onchange="e => OnSpellSlotUsedChanged(lvl, e)" />
+                                        </div>
+                                    }
+                                    <p class="field-hint">Imposta gli slot massimi secondo la tabella della tua classe. Gli slot usati si gestiscono durante la sessione dal tab Magic della scheda.</p>
                                 }
                             </div>
                         }
                     </div>
 
-                    <div class="field field-full">
-                        <label>Razza</label>
-                        <select class="input" value="@CurrentRaceSelection" @onchange="OnRaceSelectionChanged">
-                            <option value="">-- Seleziona --</option>
-                            @foreach (var r in races.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
-                            {
-                                <option value="@r.Name">@r.Name</option>
-                            }
-                            <option value="__custom__">Altro (testo libero)</option>
-                        </select>
-                        @if (isRaceCustom)
-                        {
-                            <input type="text" class="input custom-input" maxlength="40"
-                                   placeholder="Scrivi la razza"
-                                   @bind="editDraft.Race" @bind:event="oninput" />
-                        }
-                        @{
-                            var selectedRace = (!isRaceCustom && !string.IsNullOrEmpty(editDraft.Race))
-                                ? races.FirstOrDefault(r => r.Name == editDraft.Race)
-                                : null;
-                        }
-                        @if (selectedRace is not null)
-                        {
-                            <div class="info-summary">
-                                <strong>Bonus razziali:</strong> @FormatRaceBonuses(selectedRace)
-                                · <strong>Velocità:</strong> @selectedRace.Speed
-                            </div>
-                        }
-                    </div>
-
-                    <div class="field">
-                        <label>Livello</label>
-                        <input type="number" class="input" min="1" max="20" @bind="editDraft.Level" />
-                    </div>
-
-                    <div class="field">
-                        <label>CA</label>
-                        <input type="number" class="input" min="0" max="40" @bind="editDraft.ArmorClass" />
-                    </div>
-
-                    <div class="field">
-                        <label>PF Correnti</label>
-                        <input type="number" class="input" min="0" @bind="editDraft.HitPoints" />
-                    </div>
-
-                    <div class="field">
-                        <label>PF Massimi</label>
-                        <input type="number" class="input" min="1" @bind="editDraft.MaxHitPoints" />
-                    </div>
-
-                    <div class="field-group field-full">
-                        <label class="group-label">Caratteristiche</label>
-                        <div class="stats-inputs">
-                            <div class="field stat-field">
-                                <label title="Forza">FOR</label>
-                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Strength" />
-                            </div>
-                            <div class="field stat-field">
-                                <label title="Destrezza">DES</label>
-                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Dexterity" />
-                            </div>
-                            <div class="field stat-field">
-                                <label title="Costituzione">COS</label>
-                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Constitution" />
-                            </div>
-                            <div class="field stat-field">
-                                <label title="Intelligenza">INT</label>
-                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Intelligence" />
-                            </div>
-                            <div class="field stat-field">
-                                <label title="Saggezza">SAG</label>
-                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Wisdom" />
-                            </div>
-                            <div class="field stat-field">
-                                <label title="Carisma">CAR</label>
-                                <input type="number" class="input" min="1" max="30" @bind="editDraft.Charisma" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="field field-full">
-                        <label>Note</label>
-                        <textarea class="input" rows="4" @bind="editDraft.Notes"></textarea>
-                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -792,6 +1204,42 @@
     // ===== Navigazione a tab della vista detail =====
     // valori: combat | stats | bio | items | magic
     private string activeTab = "combat";
+
+    // ===== Sezioni a fisarmonica del form (apertura/chiusura) =====
+    private Dictionary<string, bool> formSections = new()
+    {
+        { "identity", true },
+        { "combat", false },
+        { "stats", false },
+        { "defenses", false },
+        { "lore", false },
+        { "resources", false },
+        { "spellcasting", false }
+    };
+
+    private void ToggleFormSection(string key)
+    {
+        if (formSections.ContainsKey(key))
+            formSections[key] = !formSections[key];
+    }
+
+    private void ResetFormSections()
+    {
+        foreach (var key in formSections.Keys.ToList())
+            formSections[key] = key == "identity";
+    }
+
+    // Info classe/razza selezionata nel form (sostituiscono i vecchi @{ } inline,
+    // non ammessi dentro i blocchi @if dell'accordion).
+    private CharacterClass? SelectedClassInfo =>
+        (!isClassCustom && !string.IsNullOrEmpty(editDraft.Class))
+            ? classes.FirstOrDefault(c => c.Name == editDraft.Class)
+            : null;
+
+    private Race? SelectedRaceInfo =>
+        (!isRaceCustom && !string.IsNullOrEmpty(editDraft.Race))
+            ? races.FirstOrDefault(r => r.Name == editDraft.Race)
+            : null;
 
     private string? playerId;
     private bool isMaster;
@@ -923,6 +1371,41 @@
         }
     }
 
+    private static void SetSpellSlotMax(Character c, int level, int v)
+    {
+        switch (level)
+        {
+            case 1: c.SpellSlots1Max = v; break;
+            case 2: c.SpellSlots2Max = v; break;
+            case 3: c.SpellSlots3Max = v; break;
+            case 4: c.SpellSlots4Max = v; break;
+            case 5: c.SpellSlots5Max = v; break;
+            case 6: c.SpellSlots6Max = v; break;
+            case 7: c.SpellSlots7Max = v; break;
+            case 8: c.SpellSlots8Max = v; break;
+            case 9: c.SpellSlots9Max = v; break;
+        }
+    }
+
+    // Handler input slot del form: parsa il valore, clamp 0..9, scrive sul draft.
+    private void OnSpellSlotMaxChanged(int level, ChangeEventArgs e)
+    {
+        var v = ParseSlotInput(e.Value);
+        SetSpellSlotMax(editDraft, level, v);
+    }
+
+    private void OnSpellSlotUsedChanged(int level, ChangeEventArgs e)
+    {
+        var v = ParseSlotInput(e.Value);
+        SetSpellSlotUsed(editDraft, level, v);
+    }
+
+    private static int ParseSlotInput(object? raw)
+    {
+        var s = raw?.ToString();
+        return int.TryParse(s, out var n) ? Math.Clamp(n, 0, 9) : 0;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -1049,6 +1532,7 @@
         };
         isRaceCustom = false;
         isClassCustom = false;
+        ResetFormSections();
         mode = ViewMode.Form;
     }
 
@@ -1060,6 +1544,7 @@
             && races.All(r => !string.Equals(r.Name, editDraft.Race, StringComparison.Ordinal));
         isClassCustom = !string.IsNullOrEmpty(editDraft.Class)
             && classes.All(c => !string.Equals(c.Name, editDraft.Class, StringComparison.Ordinal));
+        ResetFormSections();
         mode = ViewMode.Form;
     }
 
@@ -1148,6 +1633,8 @@
             editDraft.HitPoints = editDraft.MaxHitPoints;
         }
 
+        NormalizeDraft();
+
         isBusy = true;
         errorMessage = null;
         try
@@ -1183,6 +1670,50 @@
         {
             isBusy = false;
         }
+    }
+
+    // Trim su tutti i testi; vuoti -> null per i campi nullable. Clamp dei numerici.
+    private void NormalizeDraft()
+    {
+        static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        editDraft.Name = editDraft.Name?.Trim() ?? string.Empty;
+        editDraft.Class = editDraft.Class?.Trim() ?? string.Empty;
+        editDraft.Race = editDraft.Race?.Trim() ?? string.Empty;
+        editDraft.Size = string.IsNullOrWhiteSpace(editDraft.Size) ? "Media" : editDraft.Size.Trim();
+
+        editDraft.Subclass = Clean(editDraft.Subclass);
+        editDraft.Background = Clean(editDraft.Background);
+        editDraft.Alignment = Clean(editDraft.Alignment);
+        editDraft.Appearance = Clean(editDraft.Appearance);
+        editDraft.Backstory = Clean(editDraft.Backstory);
+        editDraft.Languages = Clean(editDraft.Languages);
+        editDraft.HitDiceMax = Clean(editDraft.HitDiceMax);
+        editDraft.SpeciesTraits = Clean(editDraft.SpeciesTraits);
+        editDraft.ClassFeatures = Clean(editDraft.ClassFeatures);
+        editDraft.Feats = Clean(editDraft.Feats);
+        editDraft.Notes = Clean(editDraft.Notes);
+        editDraft.AttunedItem1 = Clean(editDraft.AttunedItem1);
+        editDraft.AttunedItem2 = Clean(editDraft.AttunedItem2);
+        editDraft.AttunedItem3 = Clean(editDraft.AttunedItem3);
+        editDraft.DamageResistances = Clean(editDraft.DamageResistances);
+        editDraft.DamageImmunities = Clean(editDraft.DamageImmunities);
+        editDraft.DamageVulnerabilities = Clean(editDraft.DamageVulnerabilities);
+        editDraft.ConditionImmunities = Clean(editDraft.ConditionImmunities);
+        editDraft.SpellcastingAbility = Clean(editDraft.SpellcastingAbility);
+
+        editDraft.Level = Math.Clamp(editDraft.Level, 1, 20);
+        editDraft.ArmorClass = Math.Max(0, editDraft.ArmorClass);
+        editDraft.HitPoints = Math.Max(0, editDraft.HitPoints);
+        editDraft.TempHitPoints = Math.Max(0, editDraft.TempHitPoints);
+        editDraft.Speed = Math.Max(0, editDraft.Speed);
+        editDraft.HitDiceSpent = Math.Max(0, editDraft.HitDiceSpent);
+        editDraft.ExperiencePoints = Math.Max(0, editDraft.ExperiencePoints);
+        editDraft.CopperPieces = Math.Max(0, editDraft.CopperPieces);
+        editDraft.SilverPieces = Math.Max(0, editDraft.SilverPieces);
+        editDraft.ElectrumPieces = Math.Max(0, editDraft.ElectrumPieces);
+        editDraft.GoldPieces = Math.Max(0, editDraft.GoldPieces);
+        editDraft.PlatinumPieces = Math.Max(0, editDraft.PlatinumPieces);
     }
 
     private async Task AdjustHpAsync(int delta)
@@ -1359,6 +1890,8 @@
         if (idx >= 0) characters[idx] = selected;
     }
 
+    // Copia profonda di TUTTI i campi: il form di modifica deve fare round-trip
+    // completo, altrimenti salvando si azzerano i campi non clonati.
     private static Character CloneCharacter(Character c) => new()
     {
         Id = c.Id,
@@ -1377,7 +1910,109 @@
         Wisdom = c.Wisdom,
         Charisma = c.Charisma,
         Notes = c.Notes,
-        CreatedAt = c.CreatedAt
+        CreatedAt = c.CreatedAt,
+
+        // Identità estesa
+        Background = c.Background,
+        Subclass = c.Subclass,
+        Alignment = c.Alignment,
+        ExperiencePoints = c.ExperiencePoints,
+        Size = c.Size,
+        Speed = c.Speed,
+        Appearance = c.Appearance,
+        Backstory = c.Backstory,
+        Languages = c.Languages,
+
+        // HP avanzati e stato in combattimento
+        TempHitPoints = c.TempHitPoints,
+        HitDiceMax = c.HitDiceMax,
+        HitDiceSpent = c.HitDiceSpent,
+        DeathSaveSuccesses = c.DeathSaveSuccesses,
+        DeathSaveFailures = c.DeathSaveFailures,
+        HeroicInspiration = c.HeroicInspiration,
+
+        // Competenze tiri salvezza
+        ProfSaveStrength = c.ProfSaveStrength,
+        ProfSaveDexterity = c.ProfSaveDexterity,
+        ProfSaveConstitution = c.ProfSaveConstitution,
+        ProfSaveIntelligence = c.ProfSaveIntelligence,
+        ProfSaveWisdom = c.ProfSaveWisdom,
+        ProfSaveCharisma = c.ProfSaveCharisma,
+
+        // Skill: competenza
+        ProfAthletics = c.ProfAthletics,
+        ProfAcrobatics = c.ProfAcrobatics,
+        ProfSleightOfHand = c.ProfSleightOfHand,
+        ProfStealth = c.ProfStealth,
+        ProfArcana = c.ProfArcana,
+        ProfHistory = c.ProfHistory,
+        ProfInvestigation = c.ProfInvestigation,
+        ProfNature = c.ProfNature,
+        ProfReligion = c.ProfReligion,
+        ProfAnimalHandling = c.ProfAnimalHandling,
+        ProfInsight = c.ProfInsight,
+        ProfMedicine = c.ProfMedicine,
+        ProfPerception = c.ProfPerception,
+        ProfSurvival = c.ProfSurvival,
+        ProfDeception = c.ProfDeception,
+        ProfIntimidation = c.ProfIntimidation,
+        ProfPerformance = c.ProfPerformance,
+        ProfPersuasion = c.ProfPersuasion,
+
+        // Skill: expertise
+        ExpAthletics = c.ExpAthletics,
+        ExpAcrobatics = c.ExpAcrobatics,
+        ExpSleightOfHand = c.ExpSleightOfHand,
+        ExpStealth = c.ExpStealth,
+        ExpArcana = c.ExpArcana,
+        ExpHistory = c.ExpHistory,
+        ExpInvestigation = c.ExpInvestigation,
+        ExpNature = c.ExpNature,
+        ExpReligion = c.ExpReligion,
+        ExpAnimalHandling = c.ExpAnimalHandling,
+        ExpInsight = c.ExpInsight,
+        ExpMedicine = c.ExpMedicine,
+        ExpPerception = c.ExpPerception,
+        ExpSurvival = c.ExpSurvival,
+        ExpDeception = c.ExpDeception,
+        ExpIntimidation = c.ExpIntimidation,
+        ExpPerformance = c.ExpPerformance,
+        ExpPersuasion = c.ExpPersuasion,
+
+        // Tratti, talenti, privilegi
+        SpeciesTraits = c.SpeciesTraits,
+        ClassFeatures = c.ClassFeatures,
+        Feats = c.Feats,
+
+        // Denari
+        CopperPieces = c.CopperPieces,
+        SilverPieces = c.SilverPieces,
+        ElectrumPieces = c.ElectrumPieces,
+        GoldPieces = c.GoldPieces,
+        PlatinumPieces = c.PlatinumPieces,
+
+        // Sintonia oggetti magici
+        AttunedItem1 = c.AttunedItem1,
+        AttunedItem2 = c.AttunedItem2,
+        AttunedItem3 = c.AttunedItem3,
+
+        // Difese
+        DamageResistances = c.DamageResistances,
+        DamageImmunities = c.DamageImmunities,
+        DamageVulnerabilities = c.DamageVulnerabilities,
+        ConditionImmunities = c.ConditionImmunities,
+
+        // Incantatore
+        SpellcastingAbility = c.SpellcastingAbility,
+        SpellSlots1Max = c.SpellSlots1Max, SpellSlots1Used = c.SpellSlots1Used,
+        SpellSlots2Max = c.SpellSlots2Max, SpellSlots2Used = c.SpellSlots2Used,
+        SpellSlots3Max = c.SpellSlots3Max, SpellSlots3Used = c.SpellSlots3Used,
+        SpellSlots4Max = c.SpellSlots4Max, SpellSlots4Used = c.SpellSlots4Used,
+        SpellSlots5Max = c.SpellSlots5Max, SpellSlots5Used = c.SpellSlots5Used,
+        SpellSlots6Max = c.SpellSlots6Max, SpellSlots6Used = c.SpellSlots6Used,
+        SpellSlots7Max = c.SpellSlots7Max, SpellSlots7Used = c.SpellSlots7Used,
+        SpellSlots8Max = c.SpellSlots8Max, SpellSlots8Used = c.SpellSlots8Used,
+        SpellSlots9Max = c.SpellSlots9Max, SpellSlots9Used = c.SpellSlots9Used
     };
 
     // ====================== Inventory ======================
