@@ -234,7 +234,7 @@
                                     </div>
                                 }
 
-                                @if (isMaster)
+                                @if (isMaster || monster.AddedBy == userId)
                                 {
                                     <div class="master-actions">
                                         <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(monster)" @onclick:stopPropagation>
@@ -271,12 +271,10 @@
             }
         </div>
 
-        @if (isMaster)
-        {
-            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo mostro">
-                +
-            </button>
-        }
+        @* Creazione mostro: ogni membro della campagna può aggiungere. *@
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo mostro">
+            +
+        </button>
     }
 </div>
 

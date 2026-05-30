@@ -66,10 +66,6 @@
                     </div>
                 }
             </div>
-            @* Creazione personaggio: disponibile a TUTTI i membri (player e master), non solo master. *@
-            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo personaggio">
-                +
-            </button>
             break;
 
         case ViewMode.Detail when selected is not null:
@@ -1247,6 +1243,14 @@
                 </div>
             </div>
             break;
+    }
+
+    @* Creazione personaggio: per OGNI membro (player e master), in ogni vista tranne il form. *@
+    @if (mode is ViewMode.List or ViewMode.Empty or ViewMode.Detail)
+    {
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo personaggio">
+            +
+        </button>
     }
 </div>
 

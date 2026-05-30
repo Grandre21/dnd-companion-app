@@ -217,12 +217,10 @@
             }
         </div>
 
-        @if (isMaster)
-        {
-            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo incantesimo">
-                +
-            </button>
-        }
+        @* Creazione incantesimo: ogni membro della campagna può aggiungere (come le Note). *@
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo incantesimo">
+            +
+        </button>
     }
 </div>
 
@@ -292,8 +290,8 @@
         }
     }
 
-    // DEFAULT multi-campagna: solo il master cura il catalogo; i giocatori consultano.
-    private bool CanEdit(Spell spell) => isMaster;
+    // Crea: ogni membro. Modifica/elimina: solo l'autore (added_by) o il master — allineato alle RLS.
+    private bool CanEdit(Spell spell) => isMaster || spell.AddedBy == userId;
 
     private string? GetAuthorName(string? authorId)
     {

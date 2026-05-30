@@ -226,12 +226,10 @@
             }
         </div>
 
-        @if (isMaster)
-        {
-            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova classe">
-                +
-            </button>
-        }
+        @* Creazione classe: ogni membro della campagna può aggiungere. *@
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova classe">
+            +
+        </button>
     }
 </div>
 
@@ -283,8 +281,8 @@
         }
     }
 
-    // DEFAULT multi-campagna: solo il master cura il catalogo; i giocatori consultano.
-    private bool CanEdit(CharacterClass cls) => isMaster;
+    // Crea: ogni membro. Modifica/elimina: solo l'autore (added_by) o il master — allineato alle RLS.
+    private bool CanEdit(CharacterClass cls) => isMaster || cls.AddedBy == userId;
 
     private string? GetAuthorName(string? authorId)
     {

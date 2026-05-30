@@ -211,12 +211,10 @@
             }
         </div>
 
-        @if (isMaster)
-        {
-            <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova razza">
-                +
-            </button>
-        }
+        @* Creazione razza: ogni membro della campagna può aggiungere. *@
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova razza">
+            +
+        </button>
     }
 </div>
 
@@ -268,8 +266,8 @@
         }
     }
 
-    // DEFAULT multi-campagna: solo il master cura il catalogo; i giocatori consultano.
-    private bool CanEdit(Race race) => isMaster;
+    // Crea: ogni membro. Modifica/elimina: solo l'autore (added_by) o il master — allineato alle RLS.
+    private bool CanEdit(Race race) => isMaster || race.AddedBy == userId;
 
     private string? GetAuthorName(string? authorId)
     {
