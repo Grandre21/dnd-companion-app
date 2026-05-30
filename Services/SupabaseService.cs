@@ -60,18 +60,35 @@ public class SupabaseService
                 //    #access_token=...; un fallimento in error_description=. Va processato QUI,
                 //    così la sessione è pronta prima che qualunque pagina legga l'identità.
                 var uri = _navigation.Uri;
+                // Flusso Implicit (default libreria): i token sono nel fragment #access_token=.
                 var isOAuthReturn = uri.Contains("access_token=") || uri.Contains("error_description=");
                 if (isOAuthReturn)
                 {
                     try
                     {
-                        await _client.Auth.GetSessionFromUrl(new Uri(uri), storeSession: true);
+                        var session = await _client.Auth.GetSessionFromUrl(new Uri(uri), storeSession: true);
+                        if (session?.User is null)
+                        {
+                            // Nessuna eccezione ma sessione/utente non risolti: va reso visibile,
+                            // altrimenti l'utente risulta "non loggato" senza alcun segnale.
+                            Console.Error.WriteLine(
+                                "[OAuth] GetSessionFromUrl ha restituito una sessione senza utente. URL: " + uri);
+                        }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Sessione non stabilita: l'utente risulterà non loggato e AuthRedirect
-                        // lo porterà al login.
+                        // Non silenziare: un fallimento del processing OAuth deve essere diagnosticabile.
+                        Console.Error.WriteLine("[OAuth] GetSessionFromUrl ha lanciato: " + ex);
                     }
+                }
+                else if (uri.Contains("code="))
+                {
+                    // DIAGNOSTICA: ritorno in flusso PKCE (?code=...) che NON gestiamo (atteso Implicit
+                    // #access_token). Spiegherebbe un rimbalzo a console pulita: nessun token implicito
+                    // da processare → nessuna sessione stabilita. Richiederebbe ExchangeCodeForSession
+                    // con il code_verifier persistito al momento del SignIn.
+                    Console.Error.WriteLine(
+                        "[OAuth] Ritorno con ?code= (PKCE) non gestito; atteso #access_token (Implicit). URL: " + uri);
                 }
 
                 _initialized = true;
