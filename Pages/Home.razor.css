@@ -81,6 +81,249 @@
     border-color: rgba(212, 165, 116, 0.6);
 }
 
+/* ===== Barra campagna (selettore, invito, azioni, form) ===== */
+.campaign-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+/* Selettore campagna attiva: contenitore scuro, bordo dorato, freccia stilizzata */
+.campaign-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1rem 1.1rem;
+    background: linear-gradient(180deg, #2a1d10 0%, #211810 100%);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.campaign-selector label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #b89a6a;
+}
+
+/* Input/select coerenti con le altre pagine (qui scoped, perché non sono globali) */
+.input {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(212, 165, 116, 0.35);
+    color: #e8d9b5;
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 8px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #d4a574;
+    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
+}
+
+/* Dropdown con freccia dorata custom (rimuove lo stile nativo grezzo) */
+select.input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    min-height: 44px;
+    padding-right: 2.4rem;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%23d4a574' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.95rem center;
+}
+
+.campaign-selector select.input option {
+    background: #2a1d10;
+    color: #e8d9b5;
+}
+
+/* Box codice invito (solo master) */
+.invite-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.85rem 1.1rem;
+    background: rgba(212, 165, 116, 0.07);
+    border: 1px dashed rgba(212, 165, 116, 0.4);
+    border-radius: 12px;
+}
+
+.invite-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #b89a6a;
+}
+
+.invite-code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #f0dcb0;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 6px;
+    padding: 0.2rem 0.6rem;
+}
+
+.invite-hint {
+    flex-basis: 100%;
+    font-size: 0.78rem;
+    color: #9a8c6a;
+    font-style: italic;
+}
+
+/* Azioni gestione campagna (elimina / esci) */
+.campaign-manage {
+    display: flex;
+}
+
+/* Azioni crea / unisciti */
+.campaign-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Form crea/unisciti */
+.campaign-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    background: linear-gradient(180deg, #2a1d10 0%, #211810 100%);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 12px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Pulsante primario (dorato pieno) */
+.primary-btn {
+    flex: 1;
+    min-height: 44px;
+    background: linear-gradient(180deg, #d4a574 0%, #b8864d 100%);
+    color: #1a1410;
+    border: none;
+    padding: 0.8rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(212, 165, 116, 0.3);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Pulsante secondario (contorno dorato) */
+.secondary-btn {
+    flex: 1;
+    min-height: 44px;
+    background: transparent;
+    color: #c9b88a;
+    border: 1px solid rgba(212, 165, 116, 0.45);
+    padding: 0.8rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: rgba(212, 165, 116, 0.1);
+    color: #f0dcb0;
+    border-color: rgba(212, 165, 116, 0.7);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Variante distruttiva (elimina campagna): rosso scuro desaturato, coerente col tema.
+   Modificatore applicato SOPRA .secondary-btn -> definito dopo per vincere a parità di specificità. */
+.danger-btn {
+    color: #d99a86;
+    border-color: rgba(168, 70, 52, 0.55);
+    background: rgba(120, 38, 30, 0.15);
+}
+
+.danger-btn:hover:not(:disabled) {
+    background: rgba(150, 50, 38, 0.28);
+    color: #f0b8a4;
+    border-color: rgba(196, 86, 56, 0.7);
+}
+
+/* Onboarding "Nessuna campagna" */
+.empty-campaigns {
+    text-align: center;
+    padding: 1.75rem 1.25rem;
+    background: linear-gradient(180deg, #2a1d10 0%, #211810 100%);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.empty-campaigns h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.3rem;
+    color: #d4a574;
+    letter-spacing: 0.4px;
+}
+
+.empty-campaigns p {
+    margin: 0;
+    font-size: 0.92rem;
+    color: #b89a6a;
+    line-height: 1.45;
+}
+
+/* Messaggi di stato / errore */
+.state-message {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    color: #9a8c6a;
+    font-size: 0.95rem;
+    font-style: italic;
+}
+
+.error-banner {
+    background: rgba(139, 35, 35, 0.25);
+    border: 1px solid rgba(196, 86, 56, 0.5);
+    color: #f5c6a0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
 .card-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -173,6 +416,11 @@
         margin-left: -2rem;
         margin-right: -1.5rem;
         padding: 2rem 2rem 4rem;
+    }
+
+    /* Evita che selettore/form si allarghino troppo su desktop */
+    .campaign-bar {
+        max-width: 640px;
     }
 
     .welcome h1 {
