@@ -1,0 +1,40 @@
+@implements IDisposable
+@inject PwaUpdateService PwaUpdate
+
+@if (Visible)
+{
+    <div class="pwa-update-banner" role="alert">
+        <span class="pwa-update-text">È disponibile una nuova versione</span>
+        <button type="button" class="pwa-update-btn" @onclick="OnUpdateClickAsync">Aggiorna</button>
+        <button type="button" class="pwa-update-dismiss" title="Ignora" aria-label="Ignora"
+                @onclick="Dismiss">✕</button>
+    </div>
+}
+
+@code {
+    private bool dismissed;
+
+    // Visibile solo su update reali (lato JS la guardia controller != null esclude la
+    // prima installazione) e finché l'utente non lo ignora con la X.
+    private bool Visible => PwaUpdate.UpdateAvailable && !dismissed;
+
+    protected override void OnInitialized()
+    {
+        PwaUpdate.OnUpdateAvailable += HandleUpdateAvailable;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Registra il callback .NET presso window.pwaUpdate (idempotente nel servizio).
+        if (firstRender)
+            await PwaUpdate.InitializeAsync();
+    }
+
+    private void HandleUpdateAvailable() => InvokeAsync(StateHasChanged);
+
+    private async Task OnUpdateClickAsync() => await PwaUpdate.ApplyUpdateAsync();
+
+    private void Dismiss() => dismissed = true;
+
+    public void Dispose() => PwaUpdate.OnUpdateAvailable -= HandleUpdateAvailable;
+}

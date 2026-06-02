@@ -11,5 +11,6 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddSingleton<SupabaseService>();
 builder.Services.AddSingleton<AuthStateService>();
 builder.Services.AddSingleton<CampaignStateService>();
+builder.Services.AddSingleton<PwaUpdateService>();
 
 await builder.Build().RunAsync();

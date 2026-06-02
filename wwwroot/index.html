@@ -57,7 +57,99 @@
         <span class="dismiss">🗙</span>
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
-    <script>navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });</script>
+    <script>
+        // Aggiornamento PWA on-demand: rileva un nuovo service worker in "waiting" e lo
+        // segnala a Blazor (window.pwaUpdate.registerCallback). Il banner mostra "Aggiorna";
+        // al click si forza skipWaiting e si ricarica via 'controllerchange'.
+        // NB: path RELATIVO 'service-worker.js' -> rispetta il <base href> (in prod /dnd-companion-app/).
+        (function () {
+            if (!('serviceWorker' in navigator)) return;
+
+            let swRegistration = null;   // ServiceWorkerRegistration una volta pronta
+            let dotNetRef = null;        // DotNetObjectReference del PwaUpdateService
+            let updatePending = false;   // true se c'è un SW aggiornato in attesa
+            let refreshing = false;      // guardia anti-doppio-reload
+
+            window.pwaUpdate = {
+                // Blazor registra qui il proprio callback. Se l'update è stato rilevato
+                // PRIMA che Blazor fosse pronto (updatePending), notifica subito.
+                registerCallback: function (ref) {
+                    dotNetRef = ref;
+                    if (updatePending) notifyBlazor();
+                },
+                // Click su "Aggiorna": chiede al SW in attesa di attivarsi subito.
+                // Il reload arriva dal listener 'controllerchange' qui sotto.
+                applyUpdate: function () {
+                    if (swRegistration && swRegistration.waiting) {
+                        swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    } else {
+                        // Nessun worker in attesa (caso limite): fallback a reload semplice.
+                        window.location.reload();
+                    }
+                }
+            };
+
+            function notifyBlazor() {
+                if (dotNetRef) dotNetRef.invokeMethodAsync('NotifyUpdateAvailable');
+            }
+
+            // controller != null => esiste già una versione attiva => questo è un UPDATE,
+            // non la prima installazione (in tal caso NON notifichiamo, niente banner).
+            function maybeNotifyUpdate() {
+                if (navigator.serviceWorker.controller) {
+                    updatePending = true;
+                    notifyBlazor();
+                }
+            }
+
+            // Reload una sola volta quando il nuovo SW prende il controllo della pagina.
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
+            });
+
+            // Traccia un worker in installazione: notifica quando raggiunge 'installed'
+            // (a quel punto è in waiting, dato che onInstall non chiama skipWaiting).
+            function trackInstalling(worker) {
+                if (!worker) return;
+                if (worker.state === 'installed') { maybeNotifyUpdate(); return; }
+                worker.addEventListener('statechange', function () {
+                    if (worker.state === 'installed') maybeNotifyUpdate();
+                });
+            }
+
+            navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+                .then(function (registration) {
+                    swRegistration = registration;
+
+                    // Caso A: un SW aggiornato è GIÀ in waiting al load (rilevato in una
+                    // sessione precedente). 'updatefound' non riscatterà: controlliamo subito.
+                    if (registration.waiting) maybeNotifyUpdate();
+
+                    // Caso B: un SW è GIÀ in 'installing' quando register() risolve. L'evento
+                    // 'updatefound' potrebbe essere già scattato (race), quindi lo tracciamo ora.
+                    if (registration.installing) trackInstalling(registration.installing);
+
+                    // Caso C: un nuovo SW viene trovato più avanti durante questa sessione.
+                    registration.addEventListener('updatefound', function () {
+                        trackInstalling(registration.installing);
+                    });
+
+                    // Il router Blazor è client-side e NON triggera l'update check del browser:
+                    // forziamo un controllo periodico (~30 min) e al focus della finestra.
+                    setInterval(function () {
+                        registration.update().catch(function () { });
+                    }, 30 * 60 * 1000);
+                    window.addEventListener('focus', function () {
+                        if (swRegistration) swRegistration.update().catch(function () { });
+                    });
+                })
+                .catch(function (error) {
+                    console.error('Registrazione service worker fallita:', error);
+                });
+        })();
+    </script>
 </body>
 
 </html>

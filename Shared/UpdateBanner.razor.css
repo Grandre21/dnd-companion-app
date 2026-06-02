@@ -1,0 +1,71 @@
+.pwa-update-banner {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    box-sizing: border-box;
+    max-width: min(92vw, 30rem);
+    width: max-content;
+    padding: 0.7rem 0.8rem 0.7rem 1.1rem;
+    background: #2a1d10;
+    color: #e8d4a0;
+    border: 1px solid #d4a574;
+    border-radius: 0.6rem;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    font-size: 0.95rem;
+    /* Rispetta la safe-area su iPhone (home indicator) quando in standalone */
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+    animation: pwa-slide-up 0.25s ease-out;
+}
+
+@keyframes pwa-slide-up {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 1rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.pwa-update-text {
+    flex: 1 1 auto;
+    line-height: 1.2;
+}
+
+.pwa-update-btn {
+    flex: 0 0 auto;
+    background: #d4a574;
+    color: #2a1d10;
+    border: none;
+    border-radius: 0.4rem;
+    padding: 0.45rem 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+    .pwa-update-btn:hover {
+        background: #e0b888;
+    }
+
+.pwa-update-dismiss {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    color: #c9b48a;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.25rem 0.4rem;
+}
+
+    .pwa-update-dismiss:hover {
+        color: #e8d4a0;
+    }
