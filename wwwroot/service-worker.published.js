@@ -7,8 +7,10 @@ self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
 self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 
 // Aggiornamento PWA on-demand: la pagina invia { type: 'SKIP_WAITING' } quando l'utente
-// clicca "Aggiorna" sul banner; il SW in waiting si attiva subito (NESSUNo skipWaiting
-// automatico in onInstall e NESSUN clients.claim: vogliamo l'attivazione solo su azione utente).
+// clicca "Aggiorna" sul banner; solo allora il SW in waiting si attiva. NESSUNO skipWaiting
+// automatico in onInstall: l'attivazione di un UPDATE resta on-demand.
+// (clients.claim è in onActivate, per controllare i client al primo caricamento -> offline
+// da subito; non rompe l'on-demand perché negli update onActivate gira solo dopo il click.)
 self.addEventListener('message', event => {
     if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
@@ -18,8 +20,11 @@ const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
 const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, /\.webmanifest$/ ];
 const offlineAssetsExclude = [ /^service-worker\.js$/ ];
 
-// Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
-const base = "/";
+// Base path derivato DINAMICAMENTE dallo scope del service worker: "/" in locale,
+// "/dnd-companion-app/" in produzione (GitHub Pages). Nessun hardcoding e nessun sed
+// sul SW: 'self.location' è l'URL dello script (.../service-worker.js), quindi './'
+// risolve esattamente la cartella da cui il SW è servito.
+const base = new URL('./', self.location).pathname;
 const baseUrl = new URL(base, self.origin);
 const manifestUrlList = self.assetsManifest.assets.map(asset => new URL(asset.url, baseUrl).href);
 
@@ -42,6 +47,14 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map(key => caches.delete(key)));
+
+    // Prende il controllo dei client già aperti SUBITO dopo l'attivazione, senza richiedere
+    // un reload manuale: così al PRIMO caricamento la pagina è controllata dal SW e l'offline
+    // funziona da subito (causa #1 risolta). Sicuro col FIX 1: il 'controllerchange' che ne
+    // deriva NON ricarica (userTriggeredUpdate è false). Negli update il SW resta in 'waiting'
+    // e onActivate (quindi claim) gira solo all'attivazione, cioè dopo il click su "Aggiorna":
+    // il flusso on-demand col banner resta intatto.
+    await self.clients.claim();
 }
 
 async function onFetch(event) {

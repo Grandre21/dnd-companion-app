@@ -65,10 +65,11 @@
         (function () {
             if (!('serviceWorker' in navigator)) return;
 
-            let swRegistration = null;   // ServiceWorkerRegistration una volta pronta
-            let dotNetRef = null;        // DotNetObjectReference del PwaUpdateService
-            let updatePending = false;   // true se c'è un SW aggiornato in attesa
-            let refreshing = false;      // guardia anti-doppio-reload
+            let swRegistration = null;       // ServiceWorkerRegistration una volta pronta
+            let dotNetRef = null;            // DotNetObjectReference del PwaUpdateService
+            let updatePending = false;       // true se c'è un SW aggiornato in attesa
+            let refreshing = false;          // guardia anti-doppio-reload
+            let userTriggeredUpdate = false; // true SOLO dopo click su "Aggiorna": gate del reload
 
             window.pwaUpdate = {
                 // Blazor registra qui il proprio callback. Se l'update è stato rilevato
@@ -78,8 +79,10 @@
                     if (updatePending) notifyBlazor();
                 },
                 // Click su "Aggiorna": chiede al SW in attesa di attivarsi subito.
-                // Il reload arriva dal listener 'controllerchange' qui sotto.
+                // Solo qui abilitiamo il reload (userTriggeredUpdate), così 'controllerchange'
+                // ricarica esclusivamente come conseguenza di QUESTA azione utente.
                 applyUpdate: function () {
+                    userTriggeredUpdate = true;
                     if (swRegistration && swRegistration.waiting) {
                         swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
                     } else {
@@ -102,8 +105,11 @@
                 }
             }
 
-            // Reload una sola volta quando il nuovo SW prende il controllo della pagina.
+            // Reload SOLO se l'utente ha cliccato "Aggiorna" (skipWaiting volontario).
+            // Se il nuovo SW si attivasse da solo (es. il vecchio perde tutti i client),
+            // NON ricarichiamo a sorpresa: l'utente continua a vedere il banner e decide.
             navigator.serviceWorker.addEventListener('controllerchange', function () {
+                if (!userTriggeredUpdate) return;
                 if (refreshing) return;
                 refreshing = true;
                 window.location.reload();
@@ -136,11 +142,10 @@
                         trackInstalling(registration.installing);
                     });
 
-                    // Il router Blazor è client-side e NON triggera l'update check del browser:
-                    // forziamo un controllo periodico (~30 min) e al focus della finestra.
-                    setInterval(function () {
-                        registration.update().catch(function () { });
-                    }, 30 * 60 * 1000);
+                    // Il router Blazor è client-side e NON triggera l'update check del browser.
+                    // Nessun timer/polling: controlliamo solo quando la finestra torna in focus
+                    // (evento, non timer). update() si limita a rilevare/installare il nuovo SW
+                    // (-> waiting): non attiva mai nulla, quindi non provoca reload.
                     window.addEventListener('focus', function () {
                         if (swRegistration) swRegistration.update().catch(function () { });
                     });
