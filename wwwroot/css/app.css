@@ -119,3 +119,42 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* ===== FAB (Floating Action Button "+") di creazione =====
+   Stile globale condiviso da tutte le pagine con creazione (Characters, Spells, Monsters,
+   Races, Classes, Notes): centralizzato qui per evitare duplicazioni divergenti nei singoli
+   .razor.css. z-index sotto il banner di aggiornamento PWA (1050) e sotto eventuali modali. */
+.fab {
+    position: fixed;
+    /* In basso a destra, con margine dai bordi + safe-area iPhone (notch / home indicator). */
+    right: calc(1.25rem + env(safe-area-inset-right, 0px));
+    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #d4a574 0%, #b8935f 100%);
+    border: 2px solid #f0dcb0;
+    color: #1a1410;
+    font-family: inherit;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(212, 165, 116, 0.2);
+    transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    z-index: 10;
+    touch-action: manipulation;
+}
+
+.fab:hover {
+    filter: brightness(1.06);
+    box-shadow: 0 8px 22px rgba(212, 165, 116, 0.4), 0 0 0 4px rgba(212, 165, 116, 0.28);
+}
+
+.fab:active {
+    transform: scale(0.95);
+}

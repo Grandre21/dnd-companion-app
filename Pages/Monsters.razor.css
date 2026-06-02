@@ -434,39 +434,6 @@
     border-color: #c45638;
 }
 
-/* ===== Floating + button ===== */
-.fab {
-    position: fixed;
-    bottom: 1.25rem;
-    right: 1.25rem;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(180deg, #d4a574 0%, #b8864d 100%);
-    border: 2px solid #f0dcb0;
-    color: #1a1410;
-    font-size: 2rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(212, 165, 116, 0.2);
-    transition: all 0.15s ease;
-    z-index: 10;
-}
-
-.fab:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 8px 22px rgba(212, 165, 116, 0.35), 0 0 0 4px rgba(212, 165, 116, 0.25);
-}
-
-.fab:active {
-    transform: translateY(0) scale(0.98);
-}
-
 /* ===== Form view ===== */
 .form-view {
     display: flex;
@@ -664,13 +631,5 @@
 
     .stat-value {
         font-size: 1.5rem;
-    }
-
-    .fab {
-        bottom: 2rem;
-        right: 2rem;
-        width: 64px;
-        height: 64px;
-        font-size: 2.2rem;
     }
 }
