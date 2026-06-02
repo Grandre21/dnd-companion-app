@@ -71,24 +71,16 @@ public class SupabaseService
                         {
                             // Nessuna eccezione ma sessione/utente non risolti: va reso visibile,
                             // altrimenti l'utente risulta "non loggato" senza alcun segnale.
-                            Console.Error.WriteLine(
-                                "[OAuth] GetSessionFromUrl ha restituito una sessione senza utente. URL: " + uri);
+                            // NB: NON loggare l'URL (contiene l'access token nel fragment).
+                            Console.Error.WriteLine("[OAuth] Login non completato: sessione senza utente.");
                         }
                     }
                     catch (Exception ex)
                     {
                         // Non silenziare: un fallimento del processing OAuth deve essere diagnosticabile.
-                        Console.Error.WriteLine("[OAuth] GetSessionFromUrl ha lanciato: " + ex);
+                        // Solo il messaggio: niente stack completo né URL (dati sensibili).
+                        Console.Error.WriteLine($"[OAuth] Errore nel processing del ritorno OAuth: {ex.Message}");
                     }
-                }
-                else if (uri.Contains("code="))
-                {
-                    // DIAGNOSTICA: ritorno in flusso PKCE (?code=...) che NON gestiamo (atteso Implicit
-                    // #access_token). Spiegherebbe un rimbalzo a console pulita: nessun token implicito
-                    // da processare → nessuna sessione stabilita. Richiederebbe ExchangeCodeForSession
-                    // con il code_verifier persistito al momento del SignIn.
-                    Console.Error.WriteLine(
-                        "[OAuth] Ritorno con ?code= (PKCE) non gestito; atteso #access_token (Implicit). URL: " + uri);
                 }
 
                 _initialized = true;

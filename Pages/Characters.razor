@@ -1291,15 +1291,12 @@
     private void RebuildSpellDisplay()
     {
         var views = new List<CharacterSpellView>();
-        var orphans = 0;
         foreach (var cs in selectedCharacterSpells)
         {
             var spell = allSpells.FirstOrDefault(s => s.Id == cs.SpellId);
-            if (spell is null) { orphans++; continue; }
+            if (spell is null) continue; // orfano: spell rimosso dal catalogo globale, scarta
             views.Add(new CharacterSpellView(cs, spell));
         }
-        if (orphans > 0)
-            Console.WriteLine($"[Characters] {orphans} incantesimo/i orfano/i filtrato/i (spell assente dal catalogo globale).");
         characterSpellsForDisplay = views;
     }
 
