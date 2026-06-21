@@ -155,10 +155,10 @@ mega-componente (quello resta in §3).
 
 ## 6. UI / UX / Accessibilità
 
-- 🟡 **Design token** — ✅ avviato (2026-06-21): palette definita in `:root` (`app.css`) — `--bg`, `--bg-card`,
-  `--gold`/`--gold-dark`/`--gold-light`/`--gold-muted`/`--gold-dim`, `--text`, `--text-on-gold`, `--error-*`.
-  Convertiti i colori globali (`html/body`, `.fab`) e `DbErrorBanner`. **Resta (incrementale):** convertire i
-  ~600 literal nei 14 `.razor.css` di pagina ai token. Riferimento visivo: `/_showroom`.
+- ✅ **Design token** — FATTO (2026-06-21): palette in `:root` (`app.css`) + **conversione dei literal in tutti
+  i `.razor.css`** (376 sostituzioni 1:1, valori identici → nessun cambiamento visivo). **Resta (minore):** le
+  `rgba()` con alpha (bordi/ombre oro semitrasparenti) e i pochi colori unici non hanno un token diretto —
+  valutare se aggiungere token con alpha. Riferimento visivo: `/_showroom`.
 - 🟠 **Accessibilità.** Sostituire gli `<span @onclick>` (pallini TS, toggle ispirazione, prep-toggle, slot
   incantesimo) con `<button>`; aggiungere `aria-label`/`aria-pressed`; alzare i contrasti sotto soglia
   WCAG AA. Rilevante anche per compliance e per il Play Store.

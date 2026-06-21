@@ -4,7 +4,7 @@
     min-height: 100vh;
     background:
         radial-gradient(ellipse at top, rgba(212, 165, 116, 0.08) 0%, transparent 50%),
-        linear-gradient(180deg, #1a0e1f 0%, #0d0a08 100%);
+        linear-gradient(180deg, var(--bg) 0%, #0d0a08 100%);
     color: #e8d9b5;
     font-family: 'Georgia', 'Cambria', serif;
     box-sizing: border-box;
@@ -22,7 +22,7 @@
 .back-btn {
     background: transparent;
     border: 1px solid rgba(212, 165, 116, 0.35);
-    color: #c9b88a;
+    color: var(--gold-muted);
     padding: 0.45rem 0.9rem;
     font-size: 0.9rem;
     border-radius: 6px;
@@ -33,7 +33,7 @@
 
 .back-btn:hover {
     background: rgba(212, 165, 116, 0.12);
-    color: #f0dcb0;
+    color: var(--gold-light);
     border-color: rgba(212, 165, 116, 0.6);
 }
 
@@ -41,14 +41,14 @@
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
-    color: #d4a574;
+    color: var(--gold);
     letter-spacing: 0.5px;
 }
 
 .error-banner {
     background: rgba(139, 35, 35, 0.25);
     border: 1px solid rgba(196, 86, 56, 0.5);
-    color: #f5c6a0;
+    color: var(--error-text);
     padding: 0.75rem 1rem;
     border-radius: 8px;
     margin-bottom: 1rem;
@@ -81,7 +81,7 @@
 .empty-text {
     margin: 0;
     font-size: 1.1rem;
-    color: #c9b88a;
+    color: var(--gold-muted);
 }
 
 .empty-note {
@@ -94,8 +94,8 @@
 
 /* ===== Buttons ===== */
 .primary-btn {
-    background: linear-gradient(180deg, #d4a574 0%, #b8864d 100%);
-    color: #1a1410;
+    background: linear-gradient(180deg, var(--gold) 0%, #b8864d 100%);
+    color: var(--text-on-gold);
     border: none;
     padding: 0.9rem 1.5rem;
     font-size: 1.05rem;
@@ -120,7 +120,7 @@
 
 .secondary-btn {
     background: transparent;
-    color: #c9b88a;
+    color: var(--gold-muted);
     border: 1px solid rgba(212, 165, 116, 0.4);
     padding: 0.9rem 1.5rem;
     font-size: 1.05rem;
@@ -133,7 +133,7 @@
 
 .secondary-btn:hover:not(:disabled) {
     background: rgba(212, 165, 116, 0.1);
-    color: #f0dcb0;
+    color: var(--gold-light);
 }
 
 .secondary-btn:disabled {
@@ -143,7 +143,7 @@
 
 .small-btn {
     background: transparent;
-    color: #d4a574;
+    color: var(--gold);
     border: 1px solid rgba(212, 165, 116, 0.45);
     padding: 0.5rem 1rem;
     font-size: 0.85rem;
@@ -157,7 +157,7 @@
 
 .small-btn:hover:not(:disabled) {
     background: rgba(212, 165, 116, 0.15);
-    color: #f0dcb0;
+    color: var(--gold-light);
 }
 
 .small-btn:disabled {
@@ -173,7 +173,7 @@
 }
 
 .list-card {
-    background: linear-gradient(180deg, #2a1f17 0%, #1f1710 100%);
+    background: linear-gradient(180deg, var(--bg-alt) 0%, #1f1710 100%);
     border: 2px solid #8b6f47;
     border-radius: 12px;
     padding: 1rem 1.25rem;
@@ -188,7 +188,7 @@
 .list-card:hover,
 .list-card:focus-visible {
     transform: translateY(-2px);
-    border-color: #d4a574;
+    border-color: var(--gold);
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
     outline: none;
 }
@@ -196,7 +196,7 @@
 .list-name {
     font-size: 1.2rem;
     font-weight: 700;
-    color: #f0dcb0;
+    color: var(--gold-light);
     margin-bottom: 0.25rem;
 }
 
@@ -208,7 +208,7 @@
 
 .list-hp {
     font-size: 0.85rem;
-    color: #c9b88a;
+    color: var(--gold-muted);
     font-variant-numeric: tabular-nums;
 }
 
@@ -245,23 +245,23 @@
 .character-header .back-btn {
     background: transparent;
     border: 1px solid #5a3f20;
-    color: #d4a574;
+    color: var(--gold);
 }
 
 .character-header .back-btn:hover {
     background: rgba(212, 165, 116, 0.12);
-    border-color: #8b6f3a;
+    border-color: var(--gold-dim);
 }
 
 .character-header .edit-btn {
-    background: #d4a574;
+    background: var(--gold);
     border: none;
-    color: #1a0e1f;
+    color: var(--bg);
     font-weight: 700;
 }
 
 .character-header .edit-btn:hover {
-    background: #e8d4a0;
+    background: var(--text);
 }
 
 .character-title {
@@ -275,7 +275,7 @@
     font-family: 'Georgia', 'Cambria', serif;
     font-size: 1.2rem;
     font-weight: 700;
-    color: #e8d4a0;
+    color: var(--text);
     letter-spacing: 0.3px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -286,7 +286,7 @@
     margin: 0.1rem 0 0;
     font-family: 'Segoe UI', system-ui, sans-serif;
     font-size: 0.72rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
 }
 
 /* ----- Tab bar ----- */
@@ -298,7 +298,7 @@
     gap: 4px;
     margin: 0 -1rem;
     padding: 0 1rem 8px;
-    background: #1a0e1f;
+    background: var(--bg);
     border-bottom: 0.5px solid #3a2818;
 }
 
@@ -313,7 +313,7 @@
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     padding: 8px 4px;
     border-radius: 6px 6px 0 0;
     cursor: pointer;
@@ -322,9 +322,9 @@
 }
 
 .tab-item.active {
-    background: #2a1d10;
-    border-bottom: 2px solid #d4a574;
-    color: #d4a574;
+    background: var(--bg-card);
+    border-bottom: 2px solid var(--gold);
+    color: var(--gold);
 }
 
 .tab-icon {
@@ -350,7 +350,7 @@
     margin: 0 0 0.4rem;
     font-size: 0.65rem;
     font-weight: 700;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     text-transform: uppercase;
     letter-spacing: 1px;
     text-align: center;
@@ -362,7 +362,7 @@
     font-family: 'Georgia', 'Cambria', serif;
     font-size: 11px;
     letter-spacing: 1px;
-    color: #d4a574;
+    color: var(--gold);
     text-transform: uppercase;
 }
 
@@ -375,7 +375,7 @@
 
 .hp-card,
 .ac-card {
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 10px;
     padding: 0.85rem 0.75rem;
@@ -397,9 +397,9 @@
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    border: 2px solid #d4a574;
+    border: 2px solid var(--gold);
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
-    color: #f0dcb0;
+    color: var(--gold-light);
     font-size: 1.5rem;
     font-weight: 700;
     cursor: pointer;
@@ -437,13 +437,13 @@
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
-    color: #e8d4a0;
+    color: var(--text);
     font-variant-numeric: tabular-nums;
 }
 
 .hp-max {
     font-size: 0.85rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     margin-left: 0.1rem;
 }
 
@@ -457,13 +457,13 @@
     margin: 0;
     font-size: 1.7rem;
     font-weight: 700;
-    color: #e8d4a0;
+    color: var(--text);
     font-variant-numeric: tabular-nums;
 }
 
 /* ===== Combat: TS contro morte ===== */
 .death-saves-card {
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 10px;
     padding: 0.85rem 0.75rem;
@@ -527,7 +527,7 @@
     display: flex;
     justify-content: space-between;
     gap: 0.4rem;
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 10px;
     padding: 0.75rem 0.6rem;
@@ -545,7 +545,7 @@
     margin: 0;
     font-size: 0.58rem;
     font-weight: 700;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -554,7 +554,7 @@
     margin: 0;
     font-size: 1.1rem;
     font-weight: 700;
-    color: #e8d4a0;
+    color: var(--text);
     font-variant-numeric: tabular-nums;
 }
 
@@ -564,7 +564,7 @@
 
 .mini-unit {
     font-size: 0.7rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     margin-left: 1px;
 }
 
@@ -572,7 +572,7 @@
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    border: 2px solid #d4a574;
+    border: 2px solid var(--gold);
     background: transparent;
     position: relative;
     cursor: pointer;
@@ -580,8 +580,8 @@
 }
 
 .inspiration-toggle.active {
-    background: #d4a574;
-    box-shadow: inset 0 0 0 2px #2a1d10;
+    background: var(--gold);
+    box-shadow: inset 0 0 0 2px var(--bg-card);
 }
 
 .inspiration-toggle::after {
@@ -597,7 +597,7 @@
 
 /* ===== Combat: armi ===== */
 .weapon-card {
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 8px;
     padding: 0.55rem 0.7rem;
@@ -615,7 +615,7 @@
 .weapon-name {
     margin: 0;
     font-weight: 700;
-    color: #e8d4a0;
+    color: var(--text);
 }
 
 .weapon-stats {
@@ -632,7 +632,7 @@
 .weapon-notes {
     margin: 0.3rem 0 0;
     font-size: 0.8rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-style: italic;
 }
 
@@ -664,12 +664,12 @@
 .bc-display {
     margin: 0 0 0.25rem;
     font-size: 12px;
-    color: #d4a574;
+    color: var(--gold);
 }
 
 .bc-display strong {
     font-weight: 500;
-    color: #e8d4a0;
+    color: var(--text);
 }
 
 .stats-grid {
@@ -702,7 +702,7 @@
 
 .bio-label {
     font-size: 12px;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     flex-shrink: 0;
@@ -710,7 +710,7 @@
 
 .bio-value {
     font-size: 13px;
-    color: #e8d4a0;
+    color: var(--text);
     text-align: right;
 }
 
@@ -722,7 +722,7 @@
     margin: 0 0 0.4rem;
     font-size: 11px;
     font-weight: 700;
-    color: #d4a574;
+    color: var(--gold);
     text-transform: uppercase;
     letter-spacing: 0.8px;
 }
@@ -751,13 +751,13 @@
 
 .notes-textarea:focus {
     outline: none;
-    border-color: #d4a574;
+    border-color: var(--gold);
     box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
 }
 
 /* ===== Combat tab: dadi vita ===== */
 .hit-dice-card {
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 10px;
     padding: 0.6rem 0.85rem;
@@ -782,7 +782,7 @@
     border-radius: 50%;
     border: 1.5px solid #8b6f47;
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
-    color: #f0dcb0;
+    color: var(--gold-light);
     font-size: 1.2rem;
     font-weight: 700;
     cursor: pointer;
@@ -809,13 +809,13 @@
 .hit-dice-value {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #e8d4a0;
+    color: var(--text);
     font-variant-numeric: tabular-nums;
 }
 
 .hit-dice-type {
     font-size: 0.75rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
 }
 
 /* ===== Items tab: header inventario + armi ===== */
@@ -828,12 +828,12 @@
 
 .inventory-summary {
     font-size: 0.72rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     margin: 0;
 }
 
 .weapon-badge {
-    color: #d4a574;
+    color: var(--gold);
     font-size: 0.95rem;
     flex-shrink: 0;
 }
@@ -845,7 +845,7 @@
     margin: 0.1rem 0 0.3rem;
     padding: 0 0.1rem;
     font-size: 0.78rem;
-    color: #d4a574;
+    color: var(--gold);
     font-variant-numeric: tabular-nums;
 }
 
@@ -855,7 +855,7 @@
     align-items: center;
     gap: 10px;
     padding: 12px;
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 8px;
 }
@@ -871,12 +871,12 @@
 
 .money-summary {
     flex: 1;
-    color: #e8d4a0;
+    color: var(--text);
     font-size: 15px;
 }
 
 .money-edit-hint {
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-size: 14px;
     flex-shrink: 0;
 }
@@ -897,7 +897,7 @@
 .money-field label {
     font-size: 0.6rem;
     font-weight: 700;
-    color: #d4a574;
+    color: var(--gold);
     letter-spacing: 0.5px;
     text-align: center;
 }
@@ -917,7 +917,7 @@
 
 .money-field input:focus {
     outline: none;
-    border-color: #d4a574;
+    border-color: var(--gold);
 }
 
 .money-editor-actions {
@@ -930,7 +930,7 @@
 .money-save-btn {
     padding: 0.5rem 1.2rem;
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
-    color: #f0dcb0;
+    color: var(--gold-light);
     border: 1.5px solid #8b6f47;
     border-radius: 6px;
     font-size: 0.85rem;
@@ -953,7 +953,7 @@
 }
 
 .attunement-icon {
-    color: #d4a574;
+    color: var(--gold);
     font-size: 14px;
     flex-shrink: 0;
 }
@@ -961,28 +961,28 @@
 .attunement-input {
     flex: 1;
     box-sizing: border-box;
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     padding: 8px 10px;
     border-radius: 6px;
-    color: #e8d4a0;
+    color: var(--text);
     font-size: 13px;
     font-family: inherit;
 }
 
 .attunement-input:focus {
     outline: none;
-    border-color: #d4a574;
+    border-color: var(--gold);
 }
 
 .attunement-text {
     flex: 1;
-    color: #e8d4a0;
+    color: var(--text);
     font-size: 13px;
 }
 
 .attunement-text.empty {
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-style: italic;
 }
 
@@ -994,7 +994,7 @@
 }
 
 .spell-stat-block {
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 10px;
     padding: 0.7rem 0.4rem;
@@ -1005,7 +1005,7 @@
     margin: 0;
     font-size: 1.3rem;
     font-weight: 700;
-    color: #e8d4a0;
+    color: var(--text);
     font-variant-numeric: tabular-nums;
 }
 
@@ -1019,7 +1019,7 @@
 
 .spell-slot-level {
     font-size: 0.85rem;
-    color: #d4a574;
+    color: var(--gold);
     font-weight: 600;
     min-width: 3.5rem;
 }
@@ -1035,8 +1035,8 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    border: 1px solid #d4a574;
-    background: #d4a574;
+    border: 1px solid var(--gold);
+    background: var(--gold);
     position: relative;
     cursor: pointer;
     touch-action: manipulation;
@@ -1059,7 +1059,7 @@
 
 .spell-slot-count {
     font-size: 0.8rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-variant-numeric: tabular-nums;
     min-width: 3rem;
     text-align: right;
@@ -1079,7 +1079,7 @@
 
 .spell-list-summary {
     font-size: 0.72rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     margin: 0;
 }
 
@@ -1092,7 +1092,7 @@
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 1px;
-    color: #d4a574;
+    color: var(--gold);
     margin: 0 0 0.4rem;
 }
 
@@ -1106,7 +1106,7 @@
 
 .spell-list-hint {
     font-size: 0.72rem;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-style: italic;
 }
 
@@ -1127,7 +1127,7 @@
 .back-link {
     background: transparent;
     border: none;
-    color: #c9b88a;
+    color: var(--gold-muted);
     font-size: 0.9rem;
     padding: 0.3rem 0.5rem;
     cursor: pointer;
@@ -1135,12 +1135,12 @@
 }
 
 .back-link:hover {
-    color: #f0dcb0;
+    color: var(--gold-light);
 }
 
 .edit-btn {
     background: transparent;
-    color: #d4a574;
+    color: var(--gold);
     border: 1px solid rgba(212, 165, 116, 0.5);
     padding: 0.45rem 1rem;
     font-size: 0.9rem;
@@ -1154,7 +1154,7 @@
 .form-title {
     margin: 0.5rem 0;
     font-size: 1.5rem;
-    color: #d4a574;
+    color: var(--gold);
     text-align: center;
 }
 
@@ -1177,7 +1177,7 @@
 .field label {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #c9b88a;
+    color: var(--gold-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1196,7 +1196,7 @@
 
 .input:focus {
     outline: none;
-    border-color: #d4a574;
+    border-color: var(--gold);
     box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
 }
 
@@ -1211,12 +1211,12 @@
     border: 1px solid rgba(212, 165, 116, 0.3);
     border-radius: 6px;
     font-size: 0.85rem;
-    color: #c9b88a;
+    color: var(--gold-muted);
     line-height: 1.45;
 }
 
 .info-summary strong {
-    color: #f0dcb0;
+    color: var(--gold-light);
     font-weight: 700;
 }
 
@@ -1232,7 +1232,7 @@ select.input {
 }
 
 select.input option {
-    background: #1a1410;
+    background: var(--text-on-gold);
     color: #e8d9b5;
 }
 
@@ -1245,7 +1245,7 @@ select.input option {
 .group-label {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #c9b88a;
+    color: var(--gold-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1304,7 +1304,7 @@ select.input option {
 }
 
 .form-section-chevron {
-    color: #d4a574;
+    color: var(--gold);
     font-size: 0.9rem;
     width: 1rem;
     flex: 0 0 auto;
@@ -1314,7 +1314,7 @@ select.input option {
     font-family: 'Georgia', 'Cambria', serif;
     font-size: 1.05rem;
     font-weight: 700;
-    color: #d4a574;
+    color: var(--gold);
     letter-spacing: 0.3px;
 }
 
@@ -1349,7 +1349,7 @@ select.input option {
 }
 
 .derived-info strong {
-    color: #d4a574;
+    color: var(--gold);
     font-weight: 700;
 }
 
@@ -1381,7 +1381,7 @@ select.input option {
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 1px;
-    color: #d4a574;
+    color: var(--gold);
     margin: 0.2rem 0 0.1rem;
 }
 
@@ -1395,7 +1395,7 @@ select.input option {
     align-items: center;
     gap: 0.6rem;
     min-height: 40px;
-    color: #c9b88a;
+    color: var(--gold-muted);
     font-size: 0.9rem;
     cursor: pointer;
 }
@@ -1403,7 +1403,7 @@ select.input option {
 .checkbox-row input[type="checkbox"] {
     width: 20px;
     height: 20px;
-    accent-color: #d4a574;
+    accent-color: var(--gold);
     flex: 0 0 auto;
     cursor: pointer;
 }
@@ -1444,13 +1444,13 @@ select.input option {
 
 .skill-name {
     font-size: 0.88rem;
-    color: #c9b88a;
+    color: var(--gold-muted);
 }
 
 .skill-check {
     width: 20px;
     height: 20px;
-    accent-color: #d4a574;
+    accent-color: var(--gold);
     justify-self: center;
     cursor: pointer;
 }
@@ -1498,7 +1498,7 @@ select.input option {
 
 .spell-slot-input-label {
     font-size: 0.85rem;
-    color: #d4a574;
+    color: var(--gold);
     font-weight: 600;
 }
 
@@ -1509,7 +1509,7 @@ select.input option {
 
 /* ===================== Inventory ===================== */
 .inventory-section {
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 10px;
     padding: 0.85rem;
@@ -1520,7 +1520,7 @@ select.input option {
     width: 100%;
     background: transparent;
     border: 1px dashed rgba(212, 165, 116, 0.5);
-    color: #d4a574;
+    color: var(--gold);
     padding: 0.7rem 1rem;
     font-size: 0.95rem;
     font-weight: 600;
@@ -1534,7 +1534,7 @@ select.input option {
 .inv-add-btn:hover {
     background: rgba(212, 165, 116, 0.1);
     border-style: solid;
-    color: #f0dcb0;
+    color: var(--gold-light);
 }
 
 .inv-form {
@@ -1611,7 +1611,7 @@ select.input option {
     gap: 0.4rem;
     background: transparent;
     border: none;
-    color: #f0dcb0;
+    color: var(--gold-light);
     font-family: inherit;
     font-size: 1rem;
     font-weight: 600;
@@ -1656,7 +1656,7 @@ select.input option {
     border-radius: 50%;
     border: 1.5px solid #8b6f47;
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
-    color: #f0dcb0;
+    color: var(--gold-light);
     font-size: 1.2rem;
     font-weight: 700;
     cursor: pointer;
@@ -1670,7 +1670,7 @@ select.input option {
 }
 
 .qty-btn:hover:not(:disabled) {
-    border-color: #d4a574;
+    border-color: var(--gold);
     background: linear-gradient(180deg, #4a3526 0%, #2d1e14 100%);
 }
 
@@ -1696,13 +1696,13 @@ select.input option {
     text-align: center;
     font-size: 1.1rem;
     font-weight: 700;
-    color: #f0dcb0;
+    color: var(--gold-light);
     font-variant-numeric: tabular-nums;
 }
 
 .qty-readonly {
     font-size: 1rem;
-    color: #c9b88a;
+    color: var(--gold-muted);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
@@ -1723,7 +1723,7 @@ select.input option {
     padding: 0.1rem 0.5rem;
     background: rgba(212, 165, 116, 0.12);
     border: 1px solid rgba(212, 165, 116, 0.35);
-    color: #d4a574;
+    color: var(--gold);
     border-radius: 999px;
     font-size: 0.7rem;
     font-weight: 700;
@@ -1752,7 +1752,7 @@ select.input option {
 }
 
 .inv-eq-toggle input {
-    accent-color: #d4a574;
+    accent-color: var(--gold);
     width: 15px;
     height: 15px;
     cursor: pointer;
@@ -1789,7 +1789,7 @@ select.input option {
     border-top: 1px dashed rgba(212, 165, 116, 0.2);
     font-size: 0.88rem;
     line-height: 1.5;
-    color: #c9b88a;
+    color: var(--gold-muted);
     white-space: pre-wrap;
 }
 

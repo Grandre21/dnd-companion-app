@@ -2,7 +2,7 @@
     border: 0.5px solid #3a2818;
     border-radius: 8px;
     margin-bottom: 6px;
-    background: #2a1d10;
+    background: var(--bg-card);
 }
 
 .spell-item.expanded {
@@ -37,15 +37,15 @@
 }
 
 .prep-toggle.prepared {
-    background: #d4a574;
-    border-color: #d4a574;
-    color: #2a1d10;
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--bg-card);
 }
 
 .prep-toggle.cantrip {
     background: transparent;
-    border-color: #8b6f3a;
-    color: #8b6f3a;
+    border-color: var(--gold-dim);
+    color: var(--gold-dim);
     cursor: default;
 }
 
@@ -60,7 +60,7 @@
 .spell-name {
     flex: 1;
     font-size: 14px;
-    color: #e8d4a0;
+    color: var(--text);
     font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -68,19 +68,19 @@
 }
 
 .spell-name.dimmed {
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-weight: 400;
 }
 
 .spell-school-tag {
     font-size: 11px;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-style: italic;
     flex-shrink: 0;
 }
 
 .spell-chevron {
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-size: 12px;
     flex-shrink: 0;
 }
@@ -95,7 +95,7 @@
     flex-wrap: wrap;
     gap: 10px;
     font-size: 11px;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     margin-bottom: 8px;
     margin-top: 8px;
 }
@@ -110,7 +110,7 @@
 
 .spell-classes {
     font-size: 12px;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     margin-top: 8px;
 }
 

@@ -2,18 +2,18 @@
     max-width: 720px;
     margin: 0 auto;
     padding: 1.5rem 1rem 5rem;
-    color: #e8d4a0;
+    color: var(--text);
 }
 
 .sr-head h1 {
-    color: #d4a574;
+    color: var(--gold);
     font-size: 1.6rem;
     margin: 0 0 0.4rem;
 }
 
 .sr-subtitle,
 .sr-note {
-    color: #c9b88a;
+    color: var(--gold-muted);
     font-size: 0.9rem;
     line-height: 1.4;
 }
@@ -29,7 +29,7 @@
 }
 
 .sr-section > h2 {
-    color: #f0dcb0;
+    color: var(--gold-light);
     font-size: 1.05rem;
     letter-spacing: 0.5px;
     margin: 0 0 0.9rem;
@@ -46,7 +46,7 @@
     border: 1px solid rgba(212, 165, 116, 0.2);
     border-radius: 8px;
     overflow: hidden;
-    background: #2a1d10;
+    background: var(--bg-card);
 }
 
 .sr-swatch {
@@ -62,19 +62,19 @@
 }
 
 .sr-swatch-label strong {
-    color: #e8d4a0;
+    color: var(--text);
 }
 
 .sr-swatch-label span {
-    color: #8b6f3a;
+    color: var(--gold-dim);
     font-family: monospace;
 }
 
 /* ---- tipografia ---- */
-.sr-demo-h1 { color: #d4a574; font-size: 1.5rem; margin: 0 0 0.5rem; }
-.sr-demo-h2 { color: #f0dcb0; font-size: 1.2rem; margin: 0 0 0.5rem; }
-.sr-demo-h3 { color: #c9b88a; font-size: 1rem; margin: 0 0 0.5rem; }
-.sr-demo-body { color: #e8d4a0; margin: 0; }
+.sr-demo-h1 { color: var(--gold); font-size: 1.5rem; margin: 0 0 0.5rem; }
+.sr-demo-h2 { color: var(--gold-light); font-size: 1.2rem; margin: 0 0 0.5rem; }
+.sr-demo-h3 { color: var(--gold-muted); font-size: 1rem; margin: 0 0 0.5rem; }
+.sr-demo-body { color: var(--text); margin: 0; }
 
 /* ---- bottoni ---- */
 .sr-row {
@@ -94,27 +94,27 @@
 }
 
 .sr-btn-primary {
-    background: linear-gradient(180deg, #d4a574 0%, #b8935f 100%);
-    border: 2px solid #f0dcb0;
-    color: #1a1410;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    border: 2px solid var(--gold-light);
+    color: var(--text-on-gold);
 }
 
 .sr-btn-secondary {
     background: transparent;
     border: 1px solid rgba(212, 165, 116, 0.6);
-    color: #d4a574;
+    color: var(--gold);
 }
 
 .sr-btn-danger {
     background: rgba(139, 35, 35, 0.3);
     border: 1px solid rgba(196, 86, 56, 0.7);
-    color: #f5c6a0;
+    color: var(--error-text);
 }
 
 /* ---- form ---- */
 .sr-label {
     display: block;
-    color: #c9b88a;
+    color: var(--gold-muted);
     font-size: 0.85rem;
     margin: 0.6rem 0 0.25rem;
 }
@@ -122,10 +122,10 @@
 .sr-input {
     width: 100%;
     box-sizing: border-box;
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid rgba(212, 165, 116, 0.4);
     border-radius: 6px;
-    color: #e8d4a0;
+    color: var(--text);
     padding: 0.55rem 0.7rem;
     font-family: inherit;
     font-size: 0.95rem;
@@ -133,14 +133,14 @@
 
 /* ---- card ---- */
 .sr-card {
-    background: #2a1d10;
+    background: var(--bg-card);
     border: 1px solid rgba(212, 165, 116, 0.25);
     border-radius: 10px;
     padding: 1rem;
 }
 
 .sr-card-title {
-    color: #d4a574;
+    color: var(--gold);
     font-weight: 700;
     margin-bottom: 0.4rem;
 }
@@ -149,7 +149,7 @@
 .sr-info-banner {
     background: rgba(212, 165, 116, 0.08);
     border: 1px dashed rgba(212, 165, 116, 0.4);
-    color: #c9b88a;
+    color: var(--gold-muted);
     padding: 0.75rem 1rem;
     border-radius: 8px;
     margin-bottom: 0.5rem;
@@ -159,7 +159,7 @@
 .sr-readonly-banner {
     background: rgba(139, 110, 58, 0.15);
     border: 1px solid rgba(139, 110, 58, 0.5);
-    color: #c9b88a;
+    color: var(--gold-muted);
     padding: 0.6rem 0.9rem;
     border-radius: 8px;
     font-size: 0.85rem;
@@ -173,9 +173,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(180deg, #d4a574 0%, #b8935f 100%);
-    border: 2px solid #f0dcb0;
-    color: #1a1410;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    border: 2px solid var(--gold-light);
+    color: var(--text-on-gold);
     font-size: 2rem;
     font-weight: 700;
     line-height: 1;
@@ -186,7 +186,7 @@
 /* ---- empty state ---- */
 .sr-empty {
     text-align: center;
-    color: #8b6f3a;
+    color: var(--gold-dim);
     padding: 2rem 1rem;
     border: 1px dashed rgba(212, 165, 116, 0.25);
     border-radius: 10px;
