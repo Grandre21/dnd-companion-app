@@ -151,9 +151,10 @@ mega-componente (quello resta in §3).
 
 ## 6. UI / UX / Accessibilità
 
-- 🟠 **Design token.** Centinaia di colori esadecimali hardcodati nei CSS, zero `var(--…)` di tema.
-  Definire una palette in `:root` (`--gold`, `--bg-card`, `--border`, `--text`…) e sostituire i literal.
-  Abilita theming/manutenzione; lavoro meccanico ma ampio. **Base di partenza: la galleria `/_showroom`** (quick-win B).
+- 🟡 **Design token** — ✅ avviato (2026-06-21): palette definita in `:root` (`app.css`) — `--bg`, `--bg-card`,
+  `--gold`/`--gold-dark`/`--gold-light`/`--gold-muted`/`--gold-dim`, `--text`, `--text-on-gold`, `--error-*`.
+  Convertiti i colori globali (`html/body`, `.fab`) e `DbErrorBanner`. **Resta (incrementale):** convertire i
+  ~600 literal nei 14 `.razor.css` di pagina ai token. Riferimento visivo: `/_showroom`.
 - 🟠 **Accessibilità.** Sostituire gli `<span @onclick>` (pallini TS, toggle ispirazione, prep-toggle, slot
   incantesimo) con `<button>`; aggiungere `aria-label`/`aria-pressed`; alzare i contrasti sotto soglia
   WCAG AA. Rilevante anche per compliance e per il Play Store.

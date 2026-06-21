@@ -1,9 +1,28 @@
+:root {
+    /* Palette dark fantasy — design token. Sostituiscono progressivamente i colori
+       esadecimali hardcodati negli scoped .razor.css (conversione incrementale).
+       Riferimento visivo: pagina /_showroom. */
+    --bg: #1a0e1f;            /* sfondo app / theme color */
+    --bg-card: #2a1d10;       /* sfondo card / input */
+    --bg-alt: #2a1f17;        /* sfondo alternativo */
+    --gold: #d4a574;          /* oro principale */
+    --gold-dark: #b8935f;     /* oro scuro (gradienti) */
+    --gold-light: #f0dcb0;    /* oro chiaro / bordi */
+    --gold-muted: #c9b88a;    /* oro tenue / testo secondario */
+    --gold-dim: #8b6f3a;      /* oro spento */
+    --text: #e8d4a0;          /* testo principale */
+    --text-on-gold: #1a1410;  /* testo su fondo oro */
+    --error-bg: rgba(139, 35, 35, 0.25);
+    --error-border: rgba(196, 86, 56, 0.5);
+    --error-text: #f5c6a0;
+}
+
 html, body {
     margin: 0;
     padding: 0;
     min-height: 100vh;
-    background-color: #1a0e1f; /* coerente col theme_color del manifest */
-    color: #e8d4a0;
+    background-color: var(--bg); /* coerente col theme_color del manifest */
+    color: var(--text);
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
@@ -136,9 +155,9 @@ code {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(180deg, #d4a574 0%, #b8935f 100%);
-    border: 2px solid #f0dcb0;
-    color: #1a1410;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    border: 2px solid var(--gold-light);
+    color: var(--text-on-gold);
     font-family: inherit;
     font-size: 2rem;
     font-weight: 700;
