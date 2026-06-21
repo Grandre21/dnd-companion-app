@@ -162,8 +162,8 @@ mega-componente (quello resta in §3).
 - 🟡 **Accessibilità** — ✅ avanzato (2026-06-21): resi accessibili da **tastiera** (`role`/`tabindex`/
   `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
   principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
-  i tiri salvezza morte, l'ispirazione e gli slot incantesimo. **Resta:** `aria-label` sui pulsanti icona-only
-  minori. **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
+  i tiri salvezza morte, l'ispirazione e gli slot incantesimo; `aria-label` sui pulsanti icona-pura di Combat
+  (PF +/−, rimuovi). **Resta:** `aria-label` sui pochi pulsanti simbolo minori (FAB, dismiss). **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
   verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
 - 🟡 **Feedback azioni** — ✅ fatto (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
   layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" su `SaveCharacterAsync` e su

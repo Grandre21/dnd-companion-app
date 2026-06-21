@@ -125,16 +125,16 @@
                     @if (isMaster)
                     {
                         <div class="hp-btns">
-                            <button type="button" class="hp-btn hp-minus"
+                            <button type="button" class="hp-btn hp-minus" aria-label="Diminuisci PF"
                                     @onclick="() => AdjustHp(c, -1)">
                                 −
                             </button>
-                            <button type="button" class="hp-btn hp-plus"
+                            <button type="button" class="hp-btn hp-plus" aria-label="Aumenta PF"
                                     @onclick="() => AdjustHp(c, 1)">
                                 +
                             </button>
                         </div>
-                        <button type="button" class="remove-btn" title="Rimuovi"
+                        <button type="button" class="remove-btn" title="Rimuovi" aria-label="Rimuovi combattente"
                                 @onclick="() => RemoveCombatant(c.Id)">
                             ✕
                         </button>
