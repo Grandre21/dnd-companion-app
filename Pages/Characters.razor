@@ -24,7 +24,7 @@
     @switch (mode)
     {
         case ViewMode.Loading:
-            <div class="state-message">Caricamento...</div>
+            <LoadingSpinner />
             break;
 
         case ViewMode.Empty:
@@ -422,7 +422,7 @@
 
                         @if (isLoadingInventory)
                         {
-                            <div class="inv-loading">Caricamento inventario...</div>
+                            <LoadingSpinner Text="Caricamento inventario..." />
                         }
                         else if (inventoryItems.Count == 0)
                         {

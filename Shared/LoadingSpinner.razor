@@ -1,0 +1,15 @@
+@*
+    Spinner di caricamento a tema (anello rotante oro + testo opzionale).
+    Sostituisce i "Caricamento..." testuali negli stati centrali di pagina.
+*@
+<div class="loading-spinner">
+    <div class="ls-ring" aria-hidden="true"></div>
+    @if (!string.IsNullOrEmpty(Text))
+    {
+        <span class="ls-text" role="status" aria-live="polite">@Text</span>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Text { get; set; } = "Caricamento...";
+}
