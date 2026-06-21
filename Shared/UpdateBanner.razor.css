@@ -11,9 +11,9 @@
     max-width: min(92vw, 30rem);
     width: max-content;
     padding: 0.7rem 0.8rem 0.7rem 1.1rem;
-    background: #2a1d10;
-    color: #e8d4a0;
-    border: 1px solid #d4a574;
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--gold);
     border-radius: 0.6rem;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
     font-size: 0.95rem;
@@ -41,8 +41,8 @@
 
 .pwa-update-btn {
     flex: 0 0 auto;
-    background: #d4a574;
-    color: #2a1d10;
+    background: var(--gold);
+    color: var(--bg-card);
     border: none;
     border-radius: 0.4rem;
     padding: 0.45rem 0.95rem;
@@ -67,5 +67,5 @@
 }
 
     .pwa-update-dismiss:hover {
-        color: #e8d4a0;
+        color: var(--text);
     }

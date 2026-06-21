@@ -12,7 +12,10 @@
 
     <div class="sc-row">
         <span class="@DotClass(GetSaveProf(Character, Ability), false)"
-              @onclick="() => CycleSave()" @onclick:stopPropagation="true"></span>
+              role="@DotRole" tabindex="@DotTabIndex"
+              aria-pressed="@AriaBool(GetSaveProf(Character, Ability))" aria-label="TS @Abbr(Ability)"
+              @onclick="() => CycleSave()" @onclick:stopPropagation="true"
+              @onkeydown="@(e => OnKey(e, CycleSave))" @onkeydown:stopPropagation="true"></span>
         <span class="sc-name @(GetSaveProf(Character, Ability) ? "on" : "off")">TS</span>
         <span class="sc-val @(GetSaveProf(Character, Ability) ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSaveBonus(Character, Ability))</span>
     </div>
@@ -23,7 +26,10 @@
         var exp = GetSkillExp(Character, skill);
         <div class="sc-row">
             <span class="@DotClass(prof, exp)"
-                  @onclick="() => CycleSkill(skill)" @onclick:stopPropagation="true"></span>
+                  role="@DotRole" tabindex="@DotTabIndex"
+                  aria-pressed="@AriaBool(prof || exp)" aria-label="@SkillLabel(skill)"
+                  @onclick="() => CycleSkill(skill)" @onclick:stopPropagation="true"
+                  @onkeydown="@(e => OnKey(e, () => CycleSkill(skill)))" @onkeydown:stopPropagation="true"></span>
             <span class="sc-name @(prof || exp ? "on" : "off")">@SkillLabel(skill)</span>
             <span class="sc-val @(prof || exp ? "on" : "off")">@FormatBonus(CharacterCalculations.GetSkillBonus(Character, skill))</span>
         </div>
@@ -55,6 +61,17 @@
         else if (prof && !exp) { SetSkillExp(Character, skill, true); }
         else { SetSkillProf(Character, skill, false); SetSkillExp(Character, skill, false); }
         await OnChanged.InvokeAsync();
+    }
+
+    // ---- Accessibilità tastiera (Enter/Space attivano il pallino, solo in edit mode) ----
+
+    private string? DotRole => IsEditMode ? "button" : null;
+    private int DotTabIndex => IsEditMode ? 0 : -1;
+    private static string AriaBool(bool b) => b ? "true" : "false";
+
+    private async Task OnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, Func<Task> action)
+    {
+        if (e.Key == "Enter" || e.Key == " ") await action();
     }
 
     // ---- Formattazione ----

@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-06-20**.
+> Aggiornato: **2026-06-21**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -46,8 +46,11 @@ nei log OAuth).
 **Consolidamento UX e fondamenta (giu 2026).** Tre quick-win nati dall'uso reale: tasto di **riparazione
 cache** negli errori di connessione (`DbErrorBanner` + `repairApp`, risolve il caso Firefox senza far
 ri-loggare), pagina interna **`/_showroom`** come libreria UI, e **scheda PG più leggibile** (sezioni del
-form numerate + riepilogo bonus). Poi un giro di consolidamento sulle fondamenta: prima **suite di test**
-(`DndCompanion.Tests`, xUnit, su `CharacterCalculations`), avvio dei **design token** in `:root` (per
-centralizzare i colori, oggi sparsi), **`ErrorBoundary`** globale a tema, e dedup del parsing dei dadi vita.
-Restano da fare con verifica a runtime (vedi [DA-FARE.md](./DA-FARE.md)): accessibilità, performance,
-bump CI, sicurezza RLS e le feature (combat condiviso, AI).
+form numerate + riepilogo bonus). Poi un giro di consolidamento sulle fondamenta: **suite di test**
+(`DndCompanion.Tests`, xUnit, su `CharacterCalculations`), **`ErrorBoundary`** globale a tema, dedup del
+parsing dei dadi vita, **design token** (palette in `:root` e conversione completa dei colori nei
+`.razor.css`), **accessibilità da tastiera** dei controlli interattivi (`StatCard`, `SpellListItem` e i toggle
+di `Characters.razor`: death save, ispirazione, slot incantesimo — role/aria/Enter-Space, senza cambiare
+l'aspetto), e uno **spinner di caricamento** a tema al posto dei "Caricamento..." testuali.
+Restano (scelte di prodotto o lavoro più grande, vedi [DA-FARE.md](./DA-FARE.md)): contrasti WCAG, toast di
+feedback, mega-refactor (`Characters.razor`/`SupabaseService`), sicurezza RLS e le feature (combat, AI).

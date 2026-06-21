@@ -24,7 +24,7 @@
     @switch (mode)
     {
         case ViewMode.Loading:
-            <div class="state-message">Caricamento...</div>
+            <LoadingSpinner />
             break;
 
         case ViewMode.Empty:
@@ -162,7 +162,10 @@
                                         {
                                             var n = i;
                                             <span class="ds-dot @(selected.DeathSaveSuccesses >= n ? "filled success" : "")"
-                                                  @onclick="() => SetDeathSaveSuccesses(n == selected.DeathSaveSuccesses ? n - 1 : n)"></span>
+                                                  role="button" tabindex="0"
+                                                  aria-pressed="@AriaBool(selected.DeathSaveSuccesses >= n)" aria-label="Successo tiro salvezza @n"
+                                                  @onclick="() => SetDeathSaveSuccesses(n == selected.DeathSaveSuccesses ? n - 1 : n)"
+                                                  @onkeydown="@(e => OnKey(e, () => SetDeathSaveSuccesses(n == selected.DeathSaveSuccesses ? n - 1 : n)))"></span>
                                         }
                                     </div>
                                 </div>
@@ -173,7 +176,10 @@
                                         {
                                             var n = i;
                                             <span class="ds-dot @(selected.DeathSaveFailures >= n ? "filled failure" : "")"
-                                                  @onclick="() => SetDeathSaveFailures(n == selected.DeathSaveFailures ? n - 1 : n)"></span>
+                                                  role="button" tabindex="0"
+                                                  aria-pressed="@AriaBool(selected.DeathSaveFailures >= n)" aria-label="Fallimento tiro salvezza @n"
+                                                  @onclick="() => SetDeathSaveFailures(n == selected.DeathSaveFailures ? n - 1 : n)"
+                                                  @onkeydown="@(e => OnKey(e, () => SetDeathSaveFailures(n == selected.DeathSaveFailures ? n - 1 : n)))"></span>
                                         }
                                     </div>
                                 </div>
@@ -197,7 +203,10 @@
                         <div class="mini-stat">
                             <p class="mini-label">ISPIRAZIONE</p>
                             <span class="inspiration-toggle @(selected.HeroicInspiration ? "active" : "")"
-                                  @onclick="ToggleHeroicInspiration"></span>
+                                  role="button" tabindex="0"
+                                  aria-pressed="@AriaBool(selected.HeroicInspiration)" aria-label="Ispirazione eroica"
+                                  @onclick="ToggleHeroicInspiration"
+                                  @onkeydown="@(e => OnKey(e, ToggleHeroicInspiration))"></span>
                         </div>
                     </div>
 
@@ -422,7 +431,7 @@
 
                         @if (isLoadingInventory)
                         {
-                            <div class="inv-loading">Caricamento inventario...</div>
+                            <LoadingSpinner Text="Caricamento inventario..." />
                         }
                         else if (inventoryItems.Count == 0)
                         {
@@ -626,7 +635,10 @@
                                     {
                                         var idx = i;
                                         <span class="spell-slot-dot @(idx > (max - used) ? "spent" : "")"
-                                              @onclick="@(() => ToggleSpellSlot(lvl, idx))"></span>
+                                              role="button" tabindex="0"
+                                              aria-pressed="@AriaBool(idx > (max - used))" aria-label="Slot livello @lvl"
+                                              @onclick="@(() => ToggleSpellSlot(lvl, idx))"
+                                              @onkeydown="@(e => OnKey(e, () => ToggleSpellSlot(lvl, idx)))"></span>
                                     }
                                 </div>
                                 <span class="spell-slot-count">@(max - used) / @max</span>
@@ -1962,6 +1974,13 @@
 
     private Task DecreaseHp() => AdjustHpAsync(-1);
     private Task IncreaseHp() => AdjustHpAsync(1);
+
+    private static string AriaBool(bool b) => b ? "true" : "false";
+
+    private async Task OnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, Func<Task> action)
+    {
+        if (e.Key == "Enter" || e.Key == " ") await action();
+    }
 
     private async Task SetDeathSaveSuccesses(int value)
     {

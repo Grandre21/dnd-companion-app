@@ -6,7 +6,7 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-06-20**
+> Ultimo aggiornamento: **2026-06-21**
 
 Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
 
@@ -155,16 +155,15 @@ mega-componente (quello resta in §3).
 
 ## 6. UI / UX / Accessibilità
 
-- 🟡 **Design token** — ✅ avviato (2026-06-21): palette definita in `:root` (`app.css`) — `--bg`, `--bg-card`,
-  `--gold`/`--gold-dark`/`--gold-light`/`--gold-muted`/`--gold-dim`, `--text`, `--text-on-gold`, `--error-*`.
-  Convertiti i colori globali (`html/body`, `.fab`) e `DbErrorBanner`. **Resta (incrementale):** convertire i
-  ~600 literal nei 14 `.razor.css` di pagina ai token. Riferimento visivo: `/_showroom`.
-- 🟠 **Accessibilità.** Sostituire gli `<span @onclick>` (pallini TS, toggle ispirazione, prep-toggle, slot
-  incantesimo) con `<button>`; aggiungere `aria-label`/`aria-pressed`; alzare i contrasti sotto soglia
-  WCAG AA. Rilevante anche per compliance e per il Play Store.
-  **Valutato nel loop (2026-06-21): rimandato** — `span→button` + ARIA + gestione tastiera cambiano il
-  comportamento interattivo (e l'aspetto) della scheda PG, verificabile solo con tastiera/screen reader: non
-  testabile in locale.
+- ✅ **Design token** — FATTO (2026-06-21): palette in `:root` (`app.css`) + **conversione dei literal in tutti
+  i `.razor.css`** (376 sostituzioni 1:1, valori identici → nessun cambiamento visivo). **Resta (minore):** le
+  `rgba()` con alpha (bordi/ombre oro semitrasparenti) e i pochi colori unici non hanno un token diretto —
+  valutare se aggiungere token con alpha. Riferimento visivo: `/_showroom`.
+- 🟡 **Accessibilità** — ✅ avanzato (2026-06-21): resi accessibili da **tastiera** (`role`/`tabindex`/
+  `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
+  principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
+  i tiri salvezza morte, l'ispirazione e gli slot incantesimo. **Resta:** `aria-label` sui pulsanti icona-only
+  minori e l'innalzamento dei **contrasti** sotto soglia WCAG (modifica estetica, da decidere insieme ai toni).
 - 🟡 **Feedback azioni.** Toast "salvato"/"errore" centralizzati; dialog di conferma a tema al posto dei
   `confirm()` nativi.
 
