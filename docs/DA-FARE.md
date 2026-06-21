@@ -184,13 +184,13 @@ mega-componente (quello resta in §3).
 > Richieste nate dall'uso reale che **non sono quick-win**: ognuna merita un proprio giro di
 > brainstorming → design prima dello sviluppo.
 
-- 🟠 **Combat condiviso + polling.** *Oggi il tracker è interamente locale al browser del Master*
-  (`Combat.razor`: `List<Combatant>` in memoria, nessuna persistenza, nessun model): il giocatore non vede
-  mai il combattimento, perciò i suoi PF e il turno attivo non si aggiornano. Serve renderlo un dato
-  condiviso: tabella `combat_state` (`campaign_id`, `combatants` jsonb, `current_turn_index`,
-  `round_number`, `updated_at`); load/save in `SupabaseService`; il Master fa upsert a ogni azione, il
-  giocatore legge; **polling ~4-5s attivo solo durante un combat in corso** (deciso: niente Realtime, niente
-  polling globale). Stima ~1 giornata. Nota: con le RLS permissive attuali funziona ma andrà protetto (§1).
+- 🟡 **Combat condiviso + polling** — ✅ implementato (2026-06-21), **da verificare a runtime**: tabella
+  `combat_state` creata + model `CombatState`/`Combatant`; `GetCombatStateAsync`/`SaveCombatStateAsync`
+  (upsert) in `SupabaseService`; `Combat.razor` carica/salva lo stato — il Master fa upsert a ogni azione, i
+  giocatori (non-master) leggono con **polling ~4s**. **Da verificare a vista:** serializzazione jsonb dei
+  combattenti, l'upsert, e che il giocatore veda i cambi del Master. Con RLS permissive funziona, andrà
+  protetto (§1). Limite noto: l'iniziativa modificata inline si persiste al successivo salvataggio
+  (es. "Ordina"/"Prossimo turno"), non all'istante.
 - 🟡 **Aiuto AI alla compilazione della scheda.** Assistere/velocizzare la compilazione (es. bozza scheda da
   descrizione testuale, suggerimenti su bonus/competenze). Da progettare: provider LLM, **gestione della API
   key** (la anon key è già esposta nel bundle → serve un proxy/edge function, non chiamate dirette dal

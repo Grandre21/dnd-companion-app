@@ -1,4 +1,6 @@
 @page "/combat"
+@using DndCompanion.Models
+@implements IDisposable
 @inject SupabaseService SupabaseService
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
@@ -156,21 +158,14 @@
 </div>
 
 @code {
-    private class Combatant
-    {
-        public string Id { get; init; } = Guid.NewGuid().ToString();
-        public string Name { get; set; } = string.Empty;
-        public int Initiative { get; set; }
-        public int CurrentHp { get; set; }
-        public int MaxHp { get; set; }
-    }
-
     private readonly List<Combatant> combatants = new();
     private int currentTurnIndex;
     private int roundNumber = 1;
     private bool isMaster;
     private bool isImporting;
     private string? errorMessage;
+    private string? campaignId;
+    private CancellationTokenSource? pollCts;
 
     private Combatant newDraft = new() { CurrentHp = 10, MaxHp = 10 };
 
@@ -183,9 +178,90 @@
     {
         await CampaignState.InitializeAsync();
         isMaster = CampaignState.IsMaster;
+        campaignId = CampaignState.ActiveCampaignId;
+
+        await LoadCombatStateAsync();
+
+        // I giocatori (non Master) non modificano lo stato: lo aggiornano via polling leggero
+        // mentre sono sulla pagina, così vedono i cambi di turno/PF decisi dal Master.
+        if (!isMaster)
+            StartPolling();
     }
 
-    private void AddCombatant()
+    // ----- Stato condiviso (combat_state) -----
+
+    private async Task LoadCombatStateAsync()
+    {
+        if (string.IsNullOrEmpty(campaignId)) return;
+        try
+        {
+            var state = await SupabaseService.GetCombatStateAsync(campaignId);
+            combatants.Clear();
+            if (state is not null)
+            {
+                combatants.AddRange(state.Combatants);
+                roundNumber = state.RoundNumber;
+                currentTurnIndex = state.CurrentTurnIndex < combatants.Count ? state.CurrentTurnIndex : 0;
+            }
+            else
+            {
+                currentTurnIndex = 0;
+                roundNumber = 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento combattimento: {ex.Message}";
+        }
+    }
+
+    // Master: persiste lo stato corrente; i giocatori lo rileggono via polling.
+    private async Task SaveCombatStateAsync()
+    {
+        if (!isMaster || string.IsNullOrEmpty(campaignId)) return;
+        try
+        {
+            await SupabaseService.SaveCombatStateAsync(new CombatState
+            {
+                CampaignId = campaignId,
+                Combatants = combatants.ToList(),
+                CurrentTurnIndex = currentTurnIndex,
+                RoundNumber = roundNumber
+            });
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore salvataggio combattimento: {ex.Message}";
+        }
+    }
+
+    private void StartPolling()
+    {
+        pollCts = new CancellationTokenSource();
+        _ = PollLoopAsync(pollCts.Token);
+    }
+
+    private async Task PollLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(4000, ct);
+                if (ct.IsCancellationRequested) break;
+                await LoadCombatStateAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Polling fermato in Dispose: normale.
+        }
+    }
+
+    // ----- Azioni del Master (ognuna persiste lo stato) -----
+
+    private async Task AddCombatant()
     {
         if (!isMaster) return;
 
@@ -206,9 +282,10 @@
             MaxHp = newDraft.MaxHp
         });
 
-        SortByInitiative();
+        SortByInitiativeInternal();
         newDraft = new Combatant { CurrentHp = 10, MaxHp = 10 };
         errorMessage = null;
+        await SaveCombatStateAsync();
     }
 
     private async Task ImportCharactersAsync()
@@ -219,7 +296,6 @@
         errorMessage = null;
         try
         {
-            var campaignId = CampaignState.ActiveCampaignId;
             if (string.IsNullOrEmpty(campaignId))
             {
                 errorMessage = "Nessuna campagna attiva.";
@@ -243,6 +319,7 @@
                     MaxHp = ch.MaxHitPoints
                 });
             }
+            await SaveCombatStateAsync();
         }
         catch (Exception ex)
         {
@@ -254,7 +331,7 @@
         }
     }
 
-    private void RemoveCombatant(string id)
+    private async Task RemoveCombatant(string id)
     {
         if (!isMaster) return;
 
@@ -267,10 +344,8 @@
         if (combatants.Count == 0)
         {
             currentTurnIndex = 0;
-            return;
         }
-
-        if (currentId is not null && currentId != id)
+        else if (currentId is not null && currentId != id)
         {
             var newIdx = combatants.FindIndex(c => c.Id == currentId);
             if (newIdx >= 0) currentTurnIndex = newIdx;
@@ -280,15 +355,18 @@
         {
             currentTurnIndex = 0;
         }
+
+        await SaveCombatStateAsync();
     }
 
-    private void AdjustHp(Combatant c, int delta)
+    private async Task AdjustHp(Combatant c, int delta)
     {
         if (!isMaster) return;
         c.CurrentHp = Math.Clamp(c.CurrentHp + delta, 0, c.MaxHp);
+        await SaveCombatStateAsync();
     }
 
-    private void NextTurn()
+    private async Task NextTurn()
     {
         if (!isMaster || combatants.Count == 0) return;
 
@@ -298,18 +376,27 @@
             currentTurnIndex = 0;
             roundNumber++;
         }
+        await SaveCombatStateAsync();
     }
 
-    private void ResetRound()
+    private async Task ResetRound()
     {
         if (!isMaster) return;
         currentTurnIndex = 0;
         roundNumber = 1;
+        await SaveCombatStateAsync();
     }
 
-    private void SortByInitiative()
+    private async Task SortByInitiative()
     {
         if (!isMaster || combatants.Count == 0) return;
+        SortByInitiativeInternal();
+        await SaveCombatStateAsync();
+    }
+
+    private void SortByInitiativeInternal()
+    {
+        if (combatants.Count == 0) return;
 
         var currentId = CurrentCombatant?.Id;
         var sorted = combatants
@@ -342,5 +429,12 @@
         currentTurnIndex = 0;
         roundNumber = 1;
         errorMessage = null;
+        await SaveCombatStateAsync();
+    }
+
+    public void Dispose()
+    {
+        pollCts?.Cancel();
+        pollCts?.Dispose();
     }
 }

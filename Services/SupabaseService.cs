@@ -232,6 +232,26 @@ public class SupabaseService
         await client.From<Note>().Where(n => n.Id == id).Delete();
     }
 
+    // =====================================================================
+    // Combattimento condiviso (combat_state: una riga per campagna)
+    // =====================================================================
+
+    public async Task<CombatState?> GetCombatStateAsync(string campaignId)
+    {
+        var client = await GetClientAsync();
+        var response = await client.From<CombatState>()
+            .Where(c => c.CampaignId == campaignId)
+            .Get();
+        return response.Models.FirstOrDefault();
+    }
+
+    public async Task SaveCombatStateAsync(CombatState state)
+    {
+        state.UpdatedAt = DateTime.UtcNow;
+        var client = await GetClientAsync();
+        await client.From<CombatState>().Upsert(state);
+    }
+
     public async Task<List<Profile>> GetProfilesAsync()
     {
         var client = await GetClientAsync();
