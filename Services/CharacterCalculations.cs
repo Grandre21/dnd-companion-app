@@ -112,15 +112,15 @@ public static class CharacterCalculations
         return GetModifier(GetAbilityScore(c, ability.Value));
     }
 
-    /// <summary>Dadi vita rimanenti: somma dei blocchi di HitDiceMax meno HitDiceSpent (0 se non parsabile).</summary>
-    public static int GetHitDiceRemaining(Character c)
+    /// <summary>Totale dadi vita: somma dei blocchi "NdM" di una stringa tipo "3d12+2d8" (0 se non parsabile).</summary>
+    public static int GetHitDiceTotal(string? hitDiceMax)
     {
-        if (string.IsNullOrWhiteSpace(c.HitDiceMax)) return 0;
+        if (string.IsNullOrWhiteSpace(hitDiceMax)) return 0;
 
         try
         {
             var total = 0;
-            foreach (var block in c.HitDiceMax.Split('+'))
+            foreach (var block in hitDiceMax.Split('+'))
             {
                 var trimmed = block.Trim();
                 if (trimmed.Length == 0) continue;
@@ -128,12 +128,19 @@ public static class CharacterCalculations
                 if (int.TryParse(countPart, out var count))
                     total += count;
             }
-            return total - c.HitDiceSpent;
+            return total;
         }
         catch
         {
             return 0;
         }
+    }
+
+    /// <summary>Dadi vita rimanenti: totale meno HitDiceSpent (0 se HitDiceMax assente).</summary>
+    public static int GetHitDiceRemaining(Character c)
+    {
+        if (string.IsNullOrWhiteSpace(c.HitDiceMax)) return 0;
+        return GetHitDiceTotal(c.HitDiceMax) - c.HitDiceSpent;
     }
 
     // ---------------------------------------------------------------

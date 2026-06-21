@@ -211,4 +211,25 @@ public class CharacterCalculationsTests
         c.HitDiceMax = value;
         Assert.Equal(0, CharacterCalculations.GetHitDiceRemaining(c));
     }
+
+    // ---- GetHitDiceTotal: somma blocchi (senza sottrarre gli spesi) ----
+    [Theory]
+    [InlineData("3d12", 3)]
+    [InlineData("3d12+2d8", 5)]
+    [InlineData("2d6 + 1d8", 3)]
+    [InlineData("5d10", 5)]
+    [InlineData("", 0)]
+    [InlineData(null, 0)]
+    [InlineData("non valido", 0)]
+    public void GetHitDiceTotal_sums_blocks(string? value, int expected)
+        => Assert.Equal(expected, CharacterCalculations.GetHitDiceTotal(value));
+
+    [Fact]
+    public void GetHitDiceRemaining_is_zero_when_max_empty_even_with_spent()
+    {
+        var c = Char();
+        c.HitDiceMax = "";
+        c.HitDiceSpent = 3;
+        Assert.Equal(0, CharacterCalculations.GetHitDiceRemaining(c));
+    }
 }

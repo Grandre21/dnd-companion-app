@@ -110,11 +110,15 @@ mega-componente (quello resta in §3).
 - 🟡 **Gestione errori coerente.** `<ErrorBoundary>` nei layout; far ritornare ai metodi service l'esito
   reale delle Delete (alcune ritornano sempre `true`); banner/toast centralizzato per gli errori
   (il `DbErrorBanner` del quick-win A è un primo mattone in questa direzione).
-- 🟢 **Deduplicare il parsing dei dadi vita** tra `CharacterCalculations` e `Characters.razor`.
+- ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
+  riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
 - 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**
-  (`actions/checkout@v4`, `actions/configure-pages@v4`, `actions/setup-dotnet@v4`, `actions/upload-artifact@v4`),
-  che GitHub sta deprecando (oggi forzate su Node 24 con warning). Bumpare alle versioni più recenti prima che
-  Node 20 venga rimosso dai runner, per non rischiare la rottura del deploy.
+  (`actions/checkout@v4`, `actions/setup-dotnet@v4`, `actions/configure-pages@v4`, `actions/upload-pages-artifact@v3`,
+  `actions/deploy-pages@v4`), che GitHub sta deprecando (oggi forzate su Node 24 con warning). Bumpare alle versioni
+  più recenti prima che Node 20 venga rimosso dai runner, per non rischiare la rottura del deploy.
+  **Valutato nel loop (2026-06-21): NON bumpato in autonomia** — su un workflow di deploy pubblico non testabile in
+  locale, un bump alla cieca (versione errata o breaking change negli input) romperebbe il deploy. Da fare verificando
+  le versioni reali, idealmente con un run di prova.
 
 ---
 
