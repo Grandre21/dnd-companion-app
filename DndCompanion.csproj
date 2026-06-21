@@ -42,4 +42,12 @@
     <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Tests/ è il progetto separato DndCompanion.Tests: escluso dalla compilazione del bundle WASM
+         (altrimenti il glob implicito dell'SDK lo includerebbe qui, senza i riferimenti a xUnit). -->
+    <Compile Remove="Tests\**\*.cs" />
+    <Content Remove="Tests\**\*" />
+    <None Remove="Tests\**\*" />
+  </ItemGroup>
+
 </Project>

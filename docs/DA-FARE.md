@@ -111,18 +111,23 @@ mega-componente (quello resta in §3).
   reale delle Delete (alcune ritornano sempre `true`); banner/toast centralizzato per gli errori
   (il `DbErrorBanner` del quick-win A è un primo mattone in questa direzione).
 - 🟢 **Deduplicare il parsing dei dadi vita** tra `CharacterCalculations` e `Characters.razor`.
+- 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**
+  (`actions/checkout@v4`, `actions/configure-pages@v4`, `actions/setup-dotnet@v4`, `actions/upload-artifact@v4`),
+  che GitHub sta deprecando (oggi forzate su Node 24 con warning). Bumpare alle versioni più recenti prima che
+  Node 20 venga rimosso dai runner, per non rischiare la rottura del deploy.
 
 ---
 
 ## 4. Test
 
-- 🟠 **Introdurre una suite di test** (oggi assente). Ordine di valore:
-  1. `CharacterCalculations` (formule pure — alto valore, costo minimo).
+- 🟠 **Suite di test** — ✅ progetto `DndCompanion.Tests` (xUnit) creato; **`CharacterCalculations` coperto,
+  54 test** (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita
+  incl. parsing `HitDiceMax`). Restano da coprire:
+  1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅
   2. Normalizzazione/clamp dei form PG (`NormalizeDraft`, edge: negativi, vuoti, oltre-limite).
-  3. Parsing `HitDiceMax`.
-  4. Autorizzazioni (`CanEdit`/`isMaster`) — specie dopo lo spostamento server-side.
-  5. Filtro/JOIN incantesimi del PG (gestione orfani).
-  6. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui).
+  3. Autorizzazioni (`CanEdit`/`isMaster`) — specie dopo lo spostamento server-side.
+  4. Filtro/JOIN incantesimi del PG (gestione orfani).
+  5. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui).
 - 🟡 **Refactoring abilitanti**: interfacce sui service + estrazione logica dai `.razor` per poter usare
   bUnit.
 
