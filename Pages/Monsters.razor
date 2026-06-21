@@ -6,6 +6,7 @@
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ToastService Toasts
 
 <PageTitle>Mostri - D&amp;D Companion</PageTitle>
 
@@ -504,6 +505,7 @@
 
             expandedId = saved.Id;
             mode = ViewMode.List;
+            Toasts.ShowSuccess("Salvato");
         }
         catch (Exception ex)
         {
@@ -527,6 +529,7 @@
             await SupabaseService.DeleteMonsterAsync(monster.Id);
             allMonsters.RemoveAll(m => m.Id == monster.Id);
             if (expandedId == monster.Id) expandedId = null;
+            Toasts.ShowSuccess("Eliminato");
         }
         catch (Exception ex)
         {

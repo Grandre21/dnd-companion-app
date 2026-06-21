@@ -6,6 +6,7 @@
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ToastService Toasts
 
 <PageTitle>Incantesimi - D&amp;D Companion</PageTitle>
 
@@ -418,6 +419,7 @@
 
             expandedId = saved.Id;
             mode = ViewMode.List;
+            Toasts.ShowSuccess("Salvato");
         }
         catch (Exception ex)
         {
@@ -441,6 +443,7 @@
             await SupabaseService.DeleteSpellAsync(spell.Id);
             allSpells.RemoveAll(s => s.Id == spell.Id);
             if (expandedId == spell.Id) expandedId = null;
+            Toasts.ShowSuccess("Eliminato");
         }
         catch (Exception ex)
         {

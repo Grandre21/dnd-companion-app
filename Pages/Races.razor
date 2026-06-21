@@ -6,6 +6,7 @@
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ToastService Toasts
 
 <PageTitle>Razze - D&amp;D Companion</PageTitle>
 
@@ -360,6 +361,7 @@
 
             expandedId = saved.Id;
             mode = ViewMode.List;
+            Toasts.ShowSuccess("Salvato");
         }
         catch (Exception ex)
         {
@@ -383,6 +385,7 @@
             await SupabaseService.DeleteRaceAsync(race.Id);
             allRaces.RemoveAll(r => r.Id == race.Id);
             if (expandedId == race.Id) expandedId = null;
+            Toasts.ShowSuccess("Eliminato");
         }
         catch (Exception ex)
         {

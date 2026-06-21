@@ -165,10 +165,10 @@ mega-componente (quello resta in §3).
   i tiri salvezza morte, l'ispirazione e gli slot incantesimo. **Resta:** `aria-label` sui pulsanti icona-only
   minori. **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
   verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
-- 🟡 **Feedback azioni** — ✅ avviato (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
-  layout, auto-dismiss, a tema con i token) integrata; "✓ Personaggio salvato" su `SaveCharacterAsync`.
-  **Resta:** estendere `ShowSuccess`/`ShowError` agli altri salvataggi e ai CRUD dei cataloghi; dialog di
-  conferma a tema al posto dei `confirm()` nativi.
+- 🟡 **Feedback azioni** — ✅ fatto (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
+  layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" su `SaveCharacterAsync` e su
+  **tutti i CRUD** dei cataloghi (Spell/Monster/Race/Class) e delle Note. **Resta:** dialog di conferma a tema
+  al posto dei `confirm()` nativi.
 
 ---
 
