@@ -1,0 +1,39 @@
+@implements IDisposable
+@inject ToastService Toasts
+
+@*
+    Contenitore dei toast (in fondo allo schermo). Mostra i messaggi inviati da ToastService
+    con auto-dismiss dopo qualche secondo. aria-live=polite per gli screen reader.
+*@
+<div class="toast-host" aria-live="polite" aria-atomic="false">
+    @foreach (var t in toasts)
+    {
+        <div class="toast toast-@t.Type.ToString().ToLowerInvariant()" @key="t.Id">@t.Message</div>
+    }
+</div>
+
+@code {
+    private readonly List<ToastItem> toasts = new();
+    private long nextId;
+
+    private sealed record ToastItem(long Id, string Message, ToastType Type);
+
+    protected override void OnInitialized() => Toasts.OnShow += Show;
+
+    private void Show(string message, ToastType type)
+    {
+        var id = ++nextId;
+        toasts.Add(new ToastItem(id, message, type));
+        InvokeAsync(StateHasChanged);
+        _ = DismissAfterDelayAsync(id);
+    }
+
+    private async Task DismissAfterDelayAsync(long id)
+    {
+        await Task.Delay(2500);
+        toasts.RemoveAll(t => t.Id == id);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Toasts.OnShow -= Show;
+}

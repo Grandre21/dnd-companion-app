@@ -163,9 +163,12 @@ mega-componente (quello resta in §3).
   `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
   principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
   i tiri salvezza morte, l'ispirazione e gli slot incantesimo. **Resta:** `aria-label` sui pulsanti icona-only
-  minori e l'innalzamento dei **contrasti** sotto soglia WCAG (modifica estetica, da decidere insieme ai toni).
-- 🟡 **Feedback azioni.** Toast "salvato"/"errore" centralizzati; dialog di conferma a tema al posto dei
-  `confirm()` nativi.
+  minori. **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
+  verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
+- 🟡 **Feedback azioni** — ✅ avviato (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
+  layout, auto-dismiss, a tema con i token) integrata; "✓ Personaggio salvato" su `SaveCharacterAsync`.
+  **Resta:** estendere `ShowSuccess`/`ShowError` agli altri salvataggi e ai CRUD dei cataloghi; dialog di
+  conferma a tema al posto dei `confirm()` nativi.
 
 ---
 

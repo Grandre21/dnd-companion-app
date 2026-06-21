@@ -5,6 +5,7 @@
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ToastService Toasts
 
 <PageTitle>Personaggi - D&amp;D Companion</PageTitle>
 
@@ -1835,6 +1836,7 @@
             if (idx >= 0) characters[idx] = saved;
             else characters.Add(saved);
 
+            Toasts.ShowSuccess("Personaggio salvato");
             await OpenDetailAsync(saved);
         }
         catch (Exception ex)

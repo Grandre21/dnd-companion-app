@@ -9,7 +9,7 @@
     --gold-dark: #b8935f;     /* oro scuro (gradienti) */
     --gold-light: #f0dcb0;    /* oro chiaro / bordi */
     --gold-muted: #c9b88a;    /* oro tenue / testo secondario */
-    --gold-dim: #8b6f3a;      /* oro spento */
+    --gold-dim: #b08842;      /* oro spento (alzato da #8b6f3a per contrasto WCAG su fondo scuro) */
     --text: #e8d4a0;          /* testo principale */
     --text-on-gold: #1a1410;  /* testo su fondo oro */
     --error-bg: rgba(139, 35, 35, 0.25);

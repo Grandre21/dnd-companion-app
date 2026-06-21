@@ -12,5 +12,6 @@ builder.Services.AddSingleton<SupabaseService>();
 builder.Services.AddSingleton<AuthStateService>();
 builder.Services.AddSingleton<CampaignStateService>();
 builder.Services.AddSingleton<PwaUpdateService>();
+builder.Services.AddSingleton<ToastService>();
 
 await builder.Build().RunAsync();
