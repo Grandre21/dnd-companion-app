@@ -1,12 +1,18 @@
 @using DndCompanion.Models
 
 <div class="spell-item @(isExpanded ? "expanded" : "")">
-    <div class="spell-item-header" @onclick="() => isExpanded = !isExpanded">
+    <div class="spell-item-header" role="button" tabindex="0"
+         aria-expanded="@AriaBool(isExpanded)"
+         @onclick="ToggleExpand"
+         @onkeydown="@(e => OnKey(e, ToggleExpand))">
         @if (Spell.Level > 0)
         {
             <span class="prep-toggle @(CharacterSpell.IsPrepared ? "prepared" : "")"
+                  role="button" tabindex="0"
+                  aria-pressed="@AriaBool(CharacterSpell.IsPrepared)" aria-label="Preparato"
                   @onclick:stopPropagation="true"
                   @onclick="HandleTogglePrepared"
+                  @onkeydown="@(e => OnKey(e, HandleTogglePrepared))" @onkeydown:stopPropagation="true"
                   title="@(CharacterSpell.IsPrepared ? "Preparato (clicca per spreparare)" : "Non preparato (clicca per preparare)")">
                 @(CharacterSpell.IsPrepared ? "✓" : "")
             </span>
@@ -57,6 +63,14 @@
     [Parameter] public EventCallback<CharacterSpell> OnRemove { get; set; }
 
     private bool isExpanded = false;
+
+    private Task ToggleExpand() { isExpanded = !isExpanded; return Task.CompletedTask; }
+    private static string AriaBool(bool b) => b ? "true" : "false";
+
+    private async Task OnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, Func<Task> action)
+    {
+        if (e.Key == "Enter" || e.Key == " ") await action();
+    }
 
     // Trucchetto (liv 0): sempre lanciabile. Liv 1+: solo se preparato.
     private bool IsCastableNow()

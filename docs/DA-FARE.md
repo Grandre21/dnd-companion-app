@@ -159,12 +159,11 @@ mega-componente (quello resta in §3).
   i `.razor.css`** (376 sostituzioni 1:1, valori identici → nessun cambiamento visivo). **Resta (minore):** le
   `rgba()` con alpha (bordi/ombre oro semitrasparenti) e i pochi colori unici non hanno un token diretto —
   valutare se aggiungere token con alpha. Riferimento visivo: `/_showroom`.
-- 🟠 **Accessibilità.** Sostituire gli `<span @onclick>` (pallini TS, toggle ispirazione, prep-toggle, slot
-  incantesimo) con `<button>`; aggiungere `aria-label`/`aria-pressed`; alzare i contrasti sotto soglia
-  WCAG AA. Rilevante anche per compliance e per il Play Store.
-  **Valutato nel loop (2026-06-21): rimandato** — `span→button` + ARIA + gestione tastiera cambiano il
-  comportamento interattivo (e l'aspetto) della scheda PG, verificabile solo con tastiera/screen reader: non
-  testabile in locale.
+- 🟡 **Accessibilità** — ✅ avviato (2026-06-21): `StatCard` (pallini TS/skill) e `SpellListItem` (prep-toggle
+  + header espandibile) resi accessibili da **tastiera** — `role`/`tabindex`/`aria-pressed`/`aria-expanded` +
+  Enter/Space — **senza `span→button`**, per non cambiarne l'aspetto (additivo, zero impatto visivo).
+  **Resta:** i toggle in `Characters.razor` (ispirazione, slot incantesimo), gli altri controlli icona-only
+  (`aria-label`), e i contrasti sotto soglia WCAG AA. Verifica con tastiera/screen reader.
 - 🟡 **Feedback azioni.** Toast "salvato"/"errore" centralizzati; dialog di conferma a tema al posto dei
   `confirm()` nativi.
 
