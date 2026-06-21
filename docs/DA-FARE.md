@@ -146,6 +146,8 @@ mega-componente (quello resta in §3).
   view nickname-only. (Si lega alla sicurezza, §1.)
 - 🟡 **Virtualizzazione liste.** Nessun `<Virtualize>`: con cataloghi lunghi di spell/mostri, virtualizzare
   e **memoizzare i filtri** (oggi `FilteredSpells` è una property che ricalcola la LINQ a ogni render).
+  **Valutato nel loop (2026-06-21): rimandato** — memoize/`<Virtualize>` cambiano il comportamento di liste e
+  ricerca (invalidazione, scroll), verificabile solo a runtime: rischioso in autonomia senza test manuale.
 - 🟢 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
 - 🟢 **Stati di caricamento.** Sostituire i "Caricamento..." testuali con spinner/skeleton a tema.
 
@@ -160,6 +162,9 @@ mega-componente (quello resta in §3).
 - 🟠 **Accessibilità.** Sostituire gli `<span @onclick>` (pallini TS, toggle ispirazione, prep-toggle, slot
   incantesimo) con `<button>`; aggiungere `aria-label`/`aria-pressed`; alzare i contrasti sotto soglia
   WCAG AA. Rilevante anche per compliance e per il Play Store.
+  **Valutato nel loop (2026-06-21): rimandato** — `span→button` + ARIA + gestione tastiera cambiano il
+  comportamento interattivo (e l'aspetto) della scheda PG, verificabile solo con tastiera/screen reader: non
+  testabile in locale.
 - 🟡 **Feedback azioni.** Toast "salvato"/"errore" centralizzati; dialog di conferma a tema al posto dei
   `confirm()` nativi.
 
