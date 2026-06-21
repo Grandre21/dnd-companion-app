@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-06-20**.
+> Aggiornato: **2026-06-21**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -46,8 +46,10 @@ nei log OAuth).
 **Consolidamento UX e fondamenta (giu 2026).** Tre quick-win nati dall'uso reale: tasto di **riparazione
 cache** negli errori di connessione (`DbErrorBanner` + `repairApp`, risolve il caso Firefox senza far
 ri-loggare), pagina interna **`/_showroom`** come libreria UI, e **scheda PG più leggibile** (sezioni del
-form numerate + riepilogo bonus). Poi un giro di consolidamento sulle fondamenta: prima **suite di test**
-(`DndCompanion.Tests`, xUnit, su `CharacterCalculations`), avvio dei **design token** in `:root` (per
-centralizzare i colori, oggi sparsi), **`ErrorBoundary`** globale a tema, e dedup del parsing dei dadi vita.
-Restano da fare con verifica a runtime (vedi [DA-FARE.md](./DA-FARE.md)): accessibilità, performance,
-bump CI, sicurezza RLS e le feature (combat condiviso, AI).
+form numerate + riepilogo bonus). Poi un giro di consolidamento sulle fondamenta: **suite di test**
+(`DndCompanion.Tests`, xUnit, su `CharacterCalculations`), **`ErrorBoundary`** globale a tema, dedup del
+parsing dei dadi vita, **design token** (palette in `:root` e conversione completa dei colori nei
+`.razor.css`), e **accessibilità da tastiera** dei componenti `StatCard`/`SpellListItem` (role/aria/Enter-Space,
+senza cambiarne l'aspetto).
+Restano (verifica a runtime o scelte di prodotto, vedi [DA-FARE.md](./DA-FARE.md)): performance, toggle a11y in
+`Characters.razor` e contrasti, bump CI, sicurezza RLS e le feature (combat condiviso, AI).
