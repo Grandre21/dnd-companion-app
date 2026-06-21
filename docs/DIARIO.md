@@ -42,3 +42,12 @@ Realtime è disattivato (`AutoConnectRealtime = false`) ma la dipendenza è anco
 **Rifinitura pre-lancio.** Restyling Home a tema dark fantasy, FAB di creazione centralizzato in `app.css`,
 meta tag iOS per l'installazione su iPhone, e pulizia dei log diagnostici (rimosso un leak dell'access token
 nei log OAuth).
+
+**Consolidamento UX e fondamenta (giu 2026).** Tre quick-win nati dall'uso reale: tasto di **riparazione
+cache** negli errori di connessione (`DbErrorBanner` + `repairApp`, risolve il caso Firefox senza far
+ri-loggare), pagina interna **`/_showroom`** come libreria UI, e **scheda PG più leggibile** (sezioni del
+form numerate + riepilogo bonus). Poi un giro di consolidamento sulle fondamenta: prima **suite di test**
+(`DndCompanion.Tests`, xUnit, su `CharacterCalculations`), avvio dei **design token** in `:root` (per
+centralizzare i colori, oggi sparsi), **`ErrorBoundary`** globale a tema, e dedup del parsing dei dadi vita.
+Restano da fare con verifica a runtime (vedi [DA-FARE.md](./DA-FARE.md)): accessibilità, performance,
+bump CI, sicurezza RLS e le feature (combat condiviso, AI).

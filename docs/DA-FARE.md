@@ -107,22 +107,33 @@ mega-componente (quello resta in §3).
   con `CurrentUser { Id, Nickname, IsMaster }` riduce duplicazione e round-trip a localStorage.
   Collegato: completare il `TODO(campagne)` in `AuthStateService.GetRoleAsync()` (oggi ritorna `null`;
   il ruolo vive in `CampaignStateService`).
-- 🟡 **Gestione errori coerente.** `<ErrorBoundary>` nei layout; far ritornare ai metodi service l'esito
-  reale delle Delete (alcune ritornano sempre `true`); banner/toast centralizzato per gli errori
-  (il `DbErrorBanner` del quick-win A è un primo mattone in questa direzione).
-- 🟢 **Deduplicare il parsing dei dadi vita** tra `CharacterCalculations` e `Characters.razor`.
+- 🟡 **Gestione errori coerente.** ✅ `<ErrorBoundary>` aggiunto in `MainLayout` (fallback a tema + "Ripara e
+  ricarica") e `DbErrorBanner` centralizzato (quick-win A). **Resta:** far ritornare ai metodi `Delete` di
+  `SupabaseService` l'esito reale (oggi `RemoveCharacterSpellAsync` ritorna sempre `true`; gli altri sono
+  `void`) — da fare verificando se Postgrest 0.16.2 lancia su errore (non testabile in locale); toast
+  "salvato"/"errore" centralizzati.
+- ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
+  riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
+- 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**
+  (`actions/checkout@v4`, `actions/setup-dotnet@v4`, `actions/configure-pages@v4`, `actions/upload-pages-artifact@v3`,
+  `actions/deploy-pages@v4`), che GitHub sta deprecando (oggi forzate su Node 24 con warning). Bumpare alle versioni
+  più recenti prima che Node 20 venga rimosso dai runner, per non rischiare la rottura del deploy.
+  **Valutato nel loop (2026-06-21): NON bumpato in autonomia** — su un workflow di deploy pubblico non testabile in
+  locale, un bump alla cieca (versione errata o breaking change negli input) romperebbe il deploy. Da fare verificando
+  le versioni reali, idealmente con un run di prova.
 
 ---
 
 ## 4. Test
 
-- 🟠 **Introdurre una suite di test** (oggi assente). Ordine di valore:
-  1. `CharacterCalculations` (formule pure — alto valore, costo minimo).
+- 🟠 **Suite di test** — ✅ progetto `DndCompanion.Tests` (xUnit) creato; **`CharacterCalculations` coperto,
+  54 test** (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita
+  incl. parsing `HitDiceMax`). Restano da coprire:
+  1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅
   2. Normalizzazione/clamp dei form PG (`NormalizeDraft`, edge: negativi, vuoti, oltre-limite).
-  3. Parsing `HitDiceMax`.
-  4. Autorizzazioni (`CanEdit`/`isMaster`) — specie dopo lo spostamento server-side.
-  5. Filtro/JOIN incantesimi del PG (gestione orfani).
-  6. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui).
+  3. Autorizzazioni (`CanEdit`/`isMaster`) — specie dopo lo spostamento server-side.
+  4. Filtro/JOIN incantesimi del PG (gestione orfani).
+  5. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui).
 - 🟡 **Refactoring abilitanti**: interfacce sui service + estrazione logica dai `.razor` per poter usare
   bUnit.
 
@@ -135,6 +146,8 @@ mega-componente (quello resta in §3).
   view nickname-only. (Si lega alla sicurezza, §1.)
 - 🟡 **Virtualizzazione liste.** Nessun `<Virtualize>`: con cataloghi lunghi di spell/mostri, virtualizzare
   e **memoizzare i filtri** (oggi `FilteredSpells` è una property che ricalcola la LINQ a ogni render).
+  **Valutato nel loop (2026-06-21): rimandato** — memoize/`<Virtualize>` cambiano il comportamento di liste e
+  ricerca (invalidazione, scroll), verificabile solo a runtime: rischioso in autonomia senza test manuale.
 - 🟢 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
 - 🟢 **Stati di caricamento.** Sostituire i "Caricamento..." testuali con spinner/skeleton a tema.
 
@@ -142,12 +155,16 @@ mega-componente (quello resta in §3).
 
 ## 6. UI / UX / Accessibilità
 
-- 🟠 **Design token.** Centinaia di colori esadecimali hardcodati nei CSS, zero `var(--…)` di tema.
-  Definire una palette in `:root` (`--gold`, `--bg-card`, `--border`, `--text`…) e sostituire i literal.
-  Abilita theming/manutenzione; lavoro meccanico ma ampio. **Base di partenza: la galleria `/_showroom`** (quick-win B).
+- 🟡 **Design token** — ✅ avviato (2026-06-21): palette definita in `:root` (`app.css`) — `--bg`, `--bg-card`,
+  `--gold`/`--gold-dark`/`--gold-light`/`--gold-muted`/`--gold-dim`, `--text`, `--text-on-gold`, `--error-*`.
+  Convertiti i colori globali (`html/body`, `.fab`) e `DbErrorBanner`. **Resta (incrementale):** convertire i
+  ~600 literal nei 14 `.razor.css` di pagina ai token. Riferimento visivo: `/_showroom`.
 - 🟠 **Accessibilità.** Sostituire gli `<span @onclick>` (pallini TS, toggle ispirazione, prep-toggle, slot
   incantesimo) con `<button>`; aggiungere `aria-label`/`aria-pressed`; alzare i contrasti sotto soglia
   WCAG AA. Rilevante anche per compliance e per il Play Store.
+  **Valutato nel loop (2026-06-21): rimandato** — `span→button` + ARIA + gestione tastiera cambiano il
+  comportamento interattivo (e l'aspetto) della scheda PG, verificabile solo con tastiera/screen reader: non
+  testabile in locale.
 - 🟡 **Feedback azioni.** Toast "salvato"/"errore" centralizzati; dialog di conferma a tema al posto dei
   `confirm()` nativi.
 

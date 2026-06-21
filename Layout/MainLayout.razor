@@ -1,11 +1,27 @@
 @inherits LayoutComponentBase
+@inject IJSRuntime JS
 
 <AuthRedirect />
 
 <main>
     <article class="content px-4">
-        @Body
+        <ErrorBoundary>
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent>
+                <div class="app-error">
+                    <h2>Qualcosa è andato storto</h2>
+                    <p>Si è verificato un errore imprevisto. Prova a ricaricare; se persiste, ripara l'app.</p>
+                    <button type="button" class="app-error-btn" @onclick="Repair">🔧 Ripara e ricarica</button>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
     </article>
 </main>
 
 <UpdateBanner />
+
+@code {
+    private async Task Repair() => await JS.InvokeVoidAsync("repairApp");
+}

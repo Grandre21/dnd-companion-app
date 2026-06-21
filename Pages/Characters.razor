@@ -1412,19 +1412,7 @@
 
     // ===== Dadi vita =====
 
-    private int HitDiceTotal()
-    {
-        if (selected is null || string.IsNullOrWhiteSpace(selected.HitDiceMax)) return 0;
-        var total = 0;
-        foreach (var block in selected.HitDiceMax.Split('+'))
-        {
-            var t = block.Trim();
-            if (t.Length == 0) continue;
-            var countPart = t.Split('d')[0].Trim();
-            if (int.TryParse(countPart, out var n)) total += n;
-        }
-        return total;
-    }
+    private int HitDiceTotal() => CharacterCalculations.GetHitDiceTotal(selected?.HitDiceMax);
 
     // ===== Denaro =====
 
