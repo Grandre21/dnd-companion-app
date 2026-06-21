@@ -159,11 +159,11 @@ mega-componente (quello resta in §3).
   i `.razor.css`** (376 sostituzioni 1:1, valori identici → nessun cambiamento visivo). **Resta (minore):** le
   `rgba()` con alpha (bordi/ombre oro semitrasparenti) e i pochi colori unici non hanno un token diretto —
   valutare se aggiungere token con alpha. Riferimento visivo: `/_showroom`.
-- 🟡 **Accessibilità** — ✅ avviato (2026-06-21): `StatCard` (pallini TS/skill) e `SpellListItem` (prep-toggle
-  + header espandibile) resi accessibili da **tastiera** — `role`/`tabindex`/`aria-pressed`/`aria-expanded` +
-  Enter/Space — **senza `span→button`**, per non cambiarne l'aspetto (additivo, zero impatto visivo).
-  **Resta:** i toggle in `Characters.razor` (ispirazione, slot incantesimo), gli altri controlli icona-only
-  (`aria-label`), e i contrasti sotto soglia WCAG AA. Verifica con tastiera/screen reader.
+- 🟡 **Accessibilità** — ✅ avanzato (2026-06-21): resi accessibili da **tastiera** (`role`/`tabindex`/
+  `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
+  principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
+  i tiri salvezza morte, l'ispirazione e gli slot incantesimo. **Resta:** `aria-label` sui pulsanti icona-only
+  minori e l'innalzamento dei **contrasti** sotto soglia WCAG (modifica estetica, da decidere insieme ai toni).
 - 🟡 **Feedback azioni.** Toast "salvato"/"errore" centralizzati; dialog di conferma a tema al posto dei
   `confirm()` nativi.
 
