@@ -28,10 +28,7 @@
         </button>
     </header>
 
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
-    }
+    <DbErrorBanner Message="@errorMessage" OnDismiss="@(() => errorMessage = null)" />
 
     @if (isLoading)
     {

@@ -17,10 +17,7 @@
         <h1 class="page-title">Classi</h1>
     </header>
 
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
-    }
+    <DbErrorBanner Message="@errorMessage" OnDismiss="@(() => errorMessage = null)" />
 
     @if (mode == ViewMode.Form)
     {

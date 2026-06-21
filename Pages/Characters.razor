@@ -19,10 +19,7 @@
         </header>
     }
 
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <div class="error-banner" @onclick="() => errorMessage = null">@errorMessage</div>
-    }
+    <DbErrorBanner Message="@errorMessage" OnDismiss="@(() => errorMessage = null)" />
 
     @switch (mode)
     {
@@ -702,7 +699,7 @@
                     <div class="form-section">
                         <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("identity")'>
                             <span class="form-section-chevron">@(formSections["identity"] ? "▾" : "▸")</span>
-                            <span class="form-section-title">Identità</span>
+                            <span class="form-section-title">1. Identità</span>
                         </button>
                         @if (formSections["identity"])
                         {
@@ -812,7 +809,7 @@
                     <div class="form-section">
                         <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("combat")'>
                             <span class="form-section-chevron">@(formSections["combat"] ? "▾" : "▸")</span>
-                            <span class="form-section-title">Combattimento</span>
+                            <span class="form-section-title">2. Combattimento</span>
                         </button>
                         @if (formSections["combat"])
                         {
@@ -882,11 +879,20 @@
                     <div class="form-section">
                         <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("stats")'>
                             <span class="form-section-chevron">@(formSections["stats"] ? "▾" : "▸")</span>
-                            <span class="form-section-title">Caratteristiche e competenze</span>
+                            <span class="form-section-title">3. Caratteristiche e competenze</span>
                         </button>
                         @if (formSections["stats"])
                         {
                             <div class="form-section-body">
+                                <div class="derived-info">
+                                    Competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(editDraft.Level))</strong>
+                                    · FOR <strong>@FormatBonus(CharacterCalculations.GetModifier(editDraft.Strength))</strong>
+                                    · DES <strong>@FormatBonus(CharacterCalculations.GetModifier(editDraft.Dexterity))</strong>
+                                    · COS <strong>@FormatBonus(CharacterCalculations.GetModifier(editDraft.Constitution))</strong>
+                                    · INT <strong>@FormatBonus(CharacterCalculations.GetModifier(editDraft.Intelligence))</strong>
+                                    · SAG <strong>@FormatBonus(CharacterCalculations.GetModifier(editDraft.Wisdom))</strong>
+                                    · CAR <strong>@FormatBonus(CharacterCalculations.GetModifier(editDraft.Charisma))</strong>
+                                </div>
                                 <div class="score-grid">
                                     <div class="field stat-field">
                                         <label title="Forza">FOR</label>
@@ -1047,7 +1053,7 @@
                     <div class="form-section">
                         <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("defenses")'>
                             <span class="form-section-chevron">@(formSections["defenses"] ? "▾" : "▸")</span>
-                            <span class="form-section-title">Difese</span>
+                            <span class="form-section-title">4. Difese</span>
                         </button>
                         @if (formSections["defenses"])
                         {
@@ -1081,7 +1087,7 @@
                     <div class="form-section">
                         <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("lore")'>
                             <span class="form-section-chevron">@(formSections["lore"] ? "▾" : "▸")</span>
-                            <span class="form-section-title">Aspetto e storia</span>
+                            <span class="form-section-title">5. Aspetto e storia</span>
                         </button>
                         @if (formSections["lore"])
                         {
@@ -1129,7 +1135,7 @@
                     <div class="form-section">
                         <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("resources")'>
                             <span class="form-section-chevron">@(formSections["resources"] ? "▾" : "▸")</span>
-                            <span class="form-section-title">Risorse</span>
+                            <span class="form-section-title">6. Risorse</span>
                         </button>
                         @if (formSections["resources"])
                         {
@@ -1186,7 +1192,7 @@
                     <div class="form-section">
                         <button type="button" class="form-section-header" @onclick='() => ToggleFormSection("spellcasting")'>
                             <span class="form-section-chevron">@(formSections["spellcasting"] ? "▾" : "▸")</span>
-                            <span class="form-section-title">Incantesimi</span>
+                            <span class="form-section-title">7. Incantesimi</span>
                         </button>
                         @if (formSections["spellcasting"])
                         {

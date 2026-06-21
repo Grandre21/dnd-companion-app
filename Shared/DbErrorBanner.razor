@@ -1,0 +1,44 @@
+@inject IJSRuntime JS
+
+@*
+    Banner di errore riutilizzabile. Mostra il messaggio (click per chiudere) e, solo per gli
+    errori di SISTEMA/connessione, un pulsante "Ripara e ricarica" che pulisce service worker +
+    cache PWA senza toccare la sessione. Sostituisce il vecchio <div class="error-banner">.
+*@
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="db-error-banner">
+        <span class="db-error-text" @onclick="Dismiss">@Message</span>
+        @if (IsSystemError)
+        {
+            <button type="button" class="db-error-repair" @onclick="RepairAsync" disabled="@repairing">
+                @(repairing ? "Riavvio..." : "🔧 Ripara e ricarica")
+            </button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public EventCallback OnDismiss { get; set; }
+
+    private bool repairing;
+
+    // Gli errori di sistema/connessione iniziano con "Errore" (es. "Errore caricamento: ...");
+    // quelli di validazione no ("Il nome è obbligatorio"). Il tasto di riparazione ha senso solo
+    // per i primi, quindi lo mostriamo in base a questo prefisso.
+    private bool IsSystemError =>
+        !string.IsNullOrEmpty(Message)
+        && Message.StartsWith("Errore", StringComparison.OrdinalIgnoreCase);
+
+    private async Task Dismiss()
+    {
+        if (OnDismiss.HasDelegate) await OnDismiss.InvokeAsync();
+    }
+
+    private async Task RepairAsync()
+    {
+        repairing = true;
+        await JS.InvokeVoidAsync("repairApp");
+    }
+}

@@ -1,0 +1,173 @@
+@page "/_showroom"
+@layout LoginLayout
+@using DndCompanion.Models
+
+@*
+    Galleria interna di riferimento visivo (NON in navigazione: si raggiunge via URL /_showroom).
+    Raccoglie in un punto colori, tipografia e componenti a tema: serve come banco di lavoro per
+    estrarre i design token (oggi i colori sono hardcodati e sparsi nei vari .razor.css).
+*@
+
+<PageTitle>Showroom UI - D&amp;D Companion</PageTitle>
+
+<div class="sr-page">
+    <header class="sr-head">
+        <h1>Showroom — Libreria UI</h1>
+        <p class="sr-subtitle">
+            Pagina interna di riferimento (rotta <code>/_showroom</code>, fuori dalla navigazione).
+            Base di lavoro per estrarre i design token del tema dark fantasy.
+        </p>
+    </header>
+
+    @* ---------- PALETTE ---------- *@
+    <section class="sr-section">
+        <h2>Palette colori</h2>
+        <div class="sr-swatches">
+            @foreach (var c in palette)
+            {
+                <div class="sr-swatch-wrap">
+                    <div class="sr-swatch" style="background:@c.Css"></div>
+                    <div class="sr-swatch-label">
+                        <strong>@c.Nome</strong>
+                        <span>@c.Css</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    @* ---------- TIPOGRAFIA ---------- *@
+    <section class="sr-section">
+        <h2>Tipografia</h2>
+        <h1 class="sr-demo-h1">Titolo H1 — Personaggi</h1>
+        <h2 class="sr-demo-h2">Sottotitolo H2 — Combattimento</h2>
+        <h3 class="sr-demo-h3">Sezione H3 — Incantesimi</h3>
+        <p class="sr-demo-body">Testo corrente: descrizioni, note e contenuti della scheda.</p>
+    </section>
+
+    @* ---------- BOTTONI ---------- *@
+    <section class="sr-section">
+        <h2>Bottoni</h2>
+        <div class="sr-row">
+            <button type="button" class="sr-btn sr-btn-primary">Primario</button>
+            <button type="button" class="sr-btn sr-btn-secondary">Secondario</button>
+            <button type="button" class="sr-btn sr-btn-danger">Elimina</button>
+        </div>
+    </section>
+
+    @* ---------- FORM ---------- *@
+    <section class="sr-section">
+        <h2>Campi form</h2>
+        <label class="sr-label">Nome</label>
+        <input class="sr-input" placeholder="Es. Aelar Sentinella" />
+        <label class="sr-label">Note</label>
+        <textarea class="sr-input" rows="2" placeholder="Appunti..."></textarea>
+    </section>
+
+    @* ---------- CARD ---------- *@
+    <section class="sr-section">
+        <h2>Card / box</h2>
+        <div class="sr-card">
+            <div class="sr-card-title">Box a tema</div>
+            <p>Contenitore standard per raggruppare informazioni della scheda.</p>
+        </div>
+    </section>
+
+    @* ---------- BANNER ---------- *@
+    <section class="sr-section">
+        <h2>Banner</h2>
+        <p class="sr-note">Errore di sistema → mostra "Ripara e ricarica":</p>
+        <DbErrorBanner Message="Errore di connessione al database (esempio)" OnDismiss="Noop" />
+        <p class="sr-note">Errore di validazione → nessun tasto di riparazione:</p>
+        <DbErrorBanner Message="Il nome è obbligatorio" OnDismiss="Noop" />
+        <p class="sr-note">Info / sola lettura:</p>
+        <div class="sr-info-banner">Nessun combattimento in corso. Il Master non ha ancora avviato l'iniziativa.</div>
+        <div class="sr-readonly-banner">👁 Sola lettura — solo il Master può modificare.</div>
+    </section>
+
+    @* ---------- STATCARD ---------- *@
+    <section class="sr-section">
+        <h2>StatCard (caratteristica + TS/skill)</h2>
+        <div class="sr-row">
+            <StatCard Ability="AbilityType.Dexterity" Character="demoCharacter" />
+            <StatCard Ability="AbilityType.Charisma" Character="demoCharacter" />
+        </div>
+    </section>
+
+    @* ---------- SPELL ITEM ---------- *@
+    <section class="sr-section">
+        <h2>SpellListItem (clic per espandere)</h2>
+        <SpellListItem CharacterSpell="demoCharacterSpell" Spell="demoSpell" />
+    </section>
+
+    @* ---------- FAB ---------- *@
+    <section class="sr-section">
+        <h2>FAB di creazione</h2>
+        <p class="sr-note">
+            Nell'app è <code>position: fixed</code> in basso a destra (classe globale <code>.fab</code>).
+            Qui in versione statica per la vetrina:
+        </p>
+        <button type="button" class="sr-fab">+</button>
+    </section>
+
+    @* ---------- EMPTY STATE ---------- *@
+    <section class="sr-section">
+        <h2>Empty state</h2>
+        <div class="sr-empty">
+            <div class="sr-empty-icon">⚔️</div>
+            <p>Nessun personaggio. Creane uno con il pulsante +.</p>
+        </div>
+    </section>
+</div>
+
+@code {
+    // Colori reali oggi sparsi nei .razor.css: candidati a diventare design token (--gold, --bg-card, ...).
+    private readonly (string Css, string Nome)[] palette = new[]
+    {
+        ("#1a0e1f", "Sfondo app (theme)"),
+        ("#2a1d10", "Sfondo scuro / card"),
+        ("#2a1f17", "Sfondo alternativo"),
+        ("#d4a574", "Oro principale"),
+        ("#b8935f", "Oro scuro (gradiente)"),
+        ("#f0dcb0", "Oro chiaro / bordi"),
+        ("#c9b88a", "Oro tenue"),
+        ("#8b6f3a", "Oro spento"),
+        ("#e8d4a0", "Testo principale"),
+        ("#1a1410", "Testo su oro"),
+        ("#f5c6a0", "Testo errore"),
+        ("rgba(139,35,35,0.45)", "Sfondo errore"),
+    };
+
+    private readonly Character demoCharacter = new()
+    {
+        Name = "Aelar",
+        Level = 5,
+        Strength = 14,
+        Dexterity = 16,
+        Constitution = 13,
+        Intelligence = 10,
+        Wisdom = 12,
+        Charisma = 18,
+        ProfSaveDexterity = true,
+        ProfAcrobatics = true,
+        ExpStealth = true,
+        ProfPersuasion = true,
+    };
+
+    private readonly Spell demoSpell = new()
+    {
+        Name = "Palla di Fuoco",
+        Level = 3,
+        School = "Evocazione",
+        CastingTime = "1 azione",
+        Range = "45 metri",
+        Duration = "Istantanea",
+        Components = "V, S, M",
+        Description = "Una sfera di fuoco esplode in un punto a portata, infliggendo danni da fuoco nell'area.",
+        Classes = "Mago, Stregone",
+    };
+
+    private readonly CharacterSpell demoCharacterSpell = new() { IsPrepared = true };
+
+    private void Noop() { }
+}

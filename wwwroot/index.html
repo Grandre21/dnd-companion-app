@@ -155,6 +155,28 @@
                 });
         })();
     </script>
+    <script>
+        // Riparazione app per cache PWA corrotta (caso tipico: Firefox). Quando il service worker
+        // serve asset/risposte stantii l'app mostra un errore di connessione al DB. repairApp()
+        // deregistra il SW e svuota tutte le Cache API, poi ricarica. NON tocca localStorage, così
+        // la sessione Google (Gotrue) resta valida e l'utente non deve rifare il login.
+        window.repairApp = async function () {
+            try {
+                if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(regs.map(function (r) { return r.unregister(); }));
+                }
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                }
+            } catch (e) {
+                console.error('repairApp fallita:', e);
+            } finally {
+                window.location.reload();
+            }
+        };
+    </script>
 </body>
 
 </html>

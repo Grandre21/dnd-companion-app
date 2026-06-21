@@ -1,0 +1,40 @@
+.db-error-banner {
+    background: rgba(139, 35, 35, 0.25);
+    border: 1px solid rgba(196, 86, 56, 0.5);
+    color: #f5c6a0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+
+.db-error-text {
+    flex: 1 1 auto;
+    cursor: pointer;
+}
+
+.db-error-repair {
+    flex: 0 0 auto;
+    background: rgba(212, 165, 116, 0.15);
+    border: 1px solid rgba(212, 165, 116, 0.5);
+    color: #f0dcb0;
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.db-error-repair:hover {
+    background: rgba(212, 165, 116, 0.25);
+}
+
+.db-error-repair:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
