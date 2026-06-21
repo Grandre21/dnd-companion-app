@@ -107,9 +107,11 @@ mega-componente (quello resta in §3).
   con `CurrentUser { Id, Nickname, IsMaster }` riduce duplicazione e round-trip a localStorage.
   Collegato: completare il `TODO(campagne)` in `AuthStateService.GetRoleAsync()` (oggi ritorna `null`;
   il ruolo vive in `CampaignStateService`).
-- 🟡 **Gestione errori coerente.** `<ErrorBoundary>` nei layout; far ritornare ai metodi service l'esito
-  reale delle Delete (alcune ritornano sempre `true`); banner/toast centralizzato per gli errori
-  (il `DbErrorBanner` del quick-win A è un primo mattone in questa direzione).
+- 🟡 **Gestione errori coerente.** ✅ `<ErrorBoundary>` aggiunto in `MainLayout` (fallback a tema + "Ripara e
+  ricarica") e `DbErrorBanner` centralizzato (quick-win A). **Resta:** far ritornare ai metodi `Delete` di
+  `SupabaseService` l'esito reale (oggi `RemoveCharacterSpellAsync` ritorna sempre `true`; gli altri sono
+  `void`) — da fare verificando se Postgrest 0.16.2 lancia su errore (non testabile in locale); toast
+  "salvato"/"errore" centralizzati.
 - ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
   riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
 - 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**
