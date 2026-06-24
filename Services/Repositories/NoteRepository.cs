@@ -20,6 +20,12 @@ public class NoteRepository : INoteRepository
     public async Task<List<Note>> GetNotesForCampaignAsync(string campaignId, string userId)
     {
         var client = await _supabase.GetClientAsync();
+        // Filtro per campagna lato server; visibilità (condivise + proprie private) e ordinamento
+        // (UpdatedAt ?? CreatedAt) lato client in FilterAndSortVisible.
+        // NB: tentato il filtro di visibilità server-side `.Where(... && (n.IsShared || n.OwnerId == userId))`
+        // ma postgrest-csharp 3.5.1 va in NullReferenceException sul predicato con OR annidato. L'RLS filtra
+        // comunque le note per visibilità lato server (le private restano del proprietario), quindi non si
+        // scaricano note private altrui: il filtro client è difesa in profondità + ordinamento.
         var response = await client.From<Note>()
             .Where(n => n.CampaignId == campaignId)
             .Get();
