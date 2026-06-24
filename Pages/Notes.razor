@@ -286,7 +286,7 @@
 
         if (string.IsNullOrWhiteSpace(editDraft.Title))
         {
-            errorMessage = "Il titolo è obbligatorio";
+            Toasts.ShowError("Il titolo è obbligatorio");
             return;
         }
 

@@ -341,7 +341,7 @@
     {
         if (string.IsNullOrWhiteSpace(editDraft.Name))
         {
-            errorMessage = "Il nome è obbligatorio";
+            Toasts.ShowError("Il nome è obbligatorio");
             return;
         }
 

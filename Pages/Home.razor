@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ConfirmService Confirm
+@inject ToastService Toasts
 
 <PageTitle>D&amp;D Companion</PageTitle>
 
@@ -251,7 +252,7 @@
     {
         if (string.IsNullOrWhiteSpace(newCampaignName))
         {
-            errorMessage = "Inserisci un nome per la campagna";
+            Toasts.ShowError("Inserisci un nome per la campagna");
             return;
         }
         if (string.IsNullOrEmpty(userId)) return;
@@ -279,7 +280,7 @@
     {
         if (string.IsNullOrWhiteSpace(joinCode))
         {
-            errorMessage = "Inserisci un codice invito";
+            Toasts.ShowError("Inserisci un codice invito");
             return;
         }
         if (string.IsNullOrEmpty(userId)) return;
@@ -291,7 +292,7 @@
             var joined = await CampaignRepository.JoinCampaignAsync(joinCode.Trim(), userId);
             if (joined is null)
             {
-                errorMessage = "Codice invito non valido";
+                Toasts.ShowError("Codice invito non valido");
                 return;
             }
 

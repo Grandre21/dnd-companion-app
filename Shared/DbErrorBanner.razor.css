@@ -38,3 +38,19 @@
     opacity: 0.6;
     cursor: default;
 }
+
+.db-error-dismiss {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    color: var(--error-text);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.db-error-dismiss:hover {
+    background: rgba(255, 255, 255, 0.08);
+}

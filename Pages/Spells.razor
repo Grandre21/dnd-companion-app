@@ -379,12 +379,12 @@
     {
         if (string.IsNullOrWhiteSpace(editDraft.Name))
         {
-            errorMessage = "Il nome è obbligatorio";
+            Toasts.ShowError("Il nome è obbligatorio");
             return;
         }
         if (editDraft.Level < 0 || editDraft.Level > 9)
         {
-            errorMessage = "Il livello deve essere tra 0 e 9";
+            Toasts.ShowError("Il livello deve essere tra 0 e 9");
             return;
         }
 

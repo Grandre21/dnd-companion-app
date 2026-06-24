@@ -374,12 +374,12 @@
     {
         if (string.IsNullOrWhiteSpace(editDraft.Name))
         {
-            errorMessage = "Il nome è obbligatorio";
+            Toasts.ShowError("Il nome è obbligatorio");
             return;
         }
         if (editDraft.MaxHitPoints < 1)
         {
-            errorMessage = "Gli HP massimi devono essere almeno 1";
+            Toasts.ShowError("Gli HP massimi devono essere almeno 1");
             return;
         }
         if (editDraft.HitPoints > editDraft.MaxHitPoints)

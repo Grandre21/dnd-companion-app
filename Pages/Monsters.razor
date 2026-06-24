@@ -470,7 +470,7 @@
         var validationError = FormValidation.ValidateMonster(editDraft);
         if (validationError is not null)
         {
-            errorMessage = validationError;
+            Toasts.ShowError(validationError);
             return;
         }
 

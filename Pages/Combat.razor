@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ConfirmService Confirm
+@inject ToastService Toasts
 
 <PageTitle>Combattimento - D&amp;D Companion</PageTitle>
 
@@ -313,7 +314,7 @@
 
         if (string.IsNullOrWhiteSpace(newDraft.Name))
         {
-            errorMessage = "Inserisci il nome del combattente";
+            Toasts.ShowError("Inserisci il nome del combattente");
             return;
         }
         if (newDraft.MaxHp < 1) newDraft.MaxHp = 1;

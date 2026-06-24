@@ -13,7 +13,9 @@
     max-width: 90vw;
 }
 
-.toast {
+/* NB: classe 'app-toast' (NON 'toast'): Bootstrap definisce '.toast:not(.show){display:none}' che
+   nasconderebbe i nostri toast (non usiamo la classe .show). Vedi commit del fix. */
+.app-toast {
     pointer-events: auto;
     padding: 0.6rem 1rem;
     border-radius: 8px;
@@ -26,12 +28,12 @@
     animation: toast-in 0.18s ease-out;
 }
 
-.toast-success {
+.app-toast-success {
     border-color: rgba(120, 170, 90, 0.7);
     color: #d7e8c0;
 }
 
-.toast-error {
+.app-toast-error {
     border-color: var(--error-border);
     color: var(--error-text);
 }
@@ -42,5 +44,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .toast { animation: none; }
+    .app-toast { animation: none; }
 }

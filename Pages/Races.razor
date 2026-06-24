@@ -327,7 +327,7 @@
         var validationError = FormValidation.ValidateRace(editDraft);
         if (validationError is not null)
         {
-            errorMessage = validationError;
+            Toasts.ShowError(validationError);
             return;
         }
 
