@@ -82,6 +82,26 @@ public class SupabaseService
                         Console.Error.WriteLine($"[OAuth] Errore nel processing del ritorno OAuth: {ex.Message}");
                     }
                 }
+                else
+                {
+                    // Sessione ripristinata da localStorage: se l'access token è SCADUTO, LoadSession
+                    // (sincrono, no rete) l'ha caricata comunque scaduta → ogni chiamata REST darebbe
+                    // "JWT expired". La rinnoviamo col refresh token; se anche quello è scaduto/invalido
+                    // azzeriamo la sessione, così l'utente finisce al login invece di restare bloccato.
+                    var current = _client.Auth.CurrentSession;
+                    if (current is not null && current.Expired())
+                    {
+                        try
+                        {
+                            await _client.Auth.RefreshSession();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine($"[Auth] Refresh sessione fallito, eseguo il logout: {ex.Message}");
+                            await _client.Auth.SignOut();
+                        }
+                    }
+                }
 
                 _initialized = true;
 
