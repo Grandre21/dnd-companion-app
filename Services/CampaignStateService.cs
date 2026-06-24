@@ -1,3 +1,4 @@
+using DndCompanion.Services.Repositories;
 using Microsoft.JSInterop;
 
 namespace DndCompanion.Services;
@@ -12,14 +13,14 @@ public class CampaignStateService
     private const string ActiveCampaignKey = "active_campaign_id";
 
     private readonly IJSRuntime _js;
-    private readonly SupabaseService _supabase;
+    private readonly ICampaignRepository _campaigns;
     private readonly AuthStateService _auth;
     private bool _initialized;
 
-    public CampaignStateService(IJSRuntime js, SupabaseService supabase, AuthStateService auth)
+    public CampaignStateService(IJSRuntime js, ICampaignRepository campaigns, AuthStateService auth)
     {
         _js = js;
-        _supabase = supabase;
+        _campaigns = campaigns;
         _auth = auth;
     }
 
@@ -72,6 +73,6 @@ public class CampaignStateService
             ActiveCampaignRole = null;
             return;
         }
-        ActiveCampaignRole = await _supabase.GetUserRoleInCampaignAsync(userId, ActiveCampaignId);
+        ActiveCampaignRole = await _campaigns.GetUserRoleInCampaignAsync(userId, ActiveCampaignId);
     }
 }

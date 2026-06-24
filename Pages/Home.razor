@@ -2,6 +2,8 @@
 @using DndCompanion.Models
 @inject AuthStateService AuthState
 @inject SupabaseService SupabaseService
+@inject IProfileRepository ProfileRepository
+@inject ICampaignRepository CampaignRepository
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -193,10 +195,10 @@
             }
 
             displayName = await AuthState.GetDisplayNameAsync();
-            await SupabaseService.EnsureProfileAsync(userId, displayName);
+            await ProfileRepository.EnsureProfileAsync(userId, displayName);
 
             await CampaignState.InitializeAsync();
-            campaigns = await SupabaseService.GetUserCampaignsAsync(userId);
+            campaigns = await CampaignRepository.GetUserCampaignsAsync(userId);
 
             // Se la campagna attiva memorizzata non è più valida, azzerala.
             var activeId = CampaignState.ActiveCampaignId;
@@ -258,7 +260,7 @@
         errorMessage = null;
         try
         {
-            var created = await SupabaseService.CreateCampaignAsync(newCampaignName.Trim(), userId);
+            var created = await CampaignRepository.CreateCampaignAsync(newCampaignName.Trim(), userId);
             campaigns.Add(created);
             await CampaignState.SetActiveCampaignAsync(created.Id);
             formKind = FormKind.None;
@@ -286,7 +288,7 @@
         errorMessage = null;
         try
         {
-            var joined = await SupabaseService.JoinCampaignAsync(joinCode.Trim(), userId);
+            var joined = await CampaignRepository.JoinCampaignAsync(joinCode.Trim(), userId);
             if (joined is null)
             {
                 errorMessage = "Codice invito non valido";
@@ -324,7 +326,7 @@
         errorMessage = null;
         try
         {
-            await SupabaseService.DeleteCampaignAsync(campaign.Id);
+            await CampaignRepository.DeleteCampaignAsync(campaign.Id);
             campaigns.RemoveAll(c => c.Id == campaign.Id);
             if (CampaignState.ActiveCampaignId == campaign.Id)
                 await CampaignState.ClearActiveCampaign();
@@ -355,7 +357,7 @@
         errorMessage = null;
         try
         {
-            await SupabaseService.LeaveCampaignAsync(campaign.Id, userId);
+            await CampaignRepository.LeaveCampaignAsync(campaign.Id, userId);
             campaigns.RemoveAll(c => c.Id == campaign.Id);
             if (CampaignState.ActiveCampaignId == campaign.Id)
                 await CampaignState.ClearActiveCampaign();
