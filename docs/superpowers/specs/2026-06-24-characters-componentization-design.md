@@ -50,22 +50,28 @@ Tutti in `Shared/CharacterTabs/`. Responsabilità e superficie:
 |---|---|---|---|
 | `CharacterStatsTab` | bonus competenza + 6 `StatCard` (`:277-290`) | `Character`, `CanEdit`, `OnChanged` | Quasi triviale: incapsula i 6 `StatCard`. |
 | `CharacterBioTab` | righe bio + blocchi (aspetto/storia/tratti/talenti) + textarea "note libere" (`:293-360`) | `Character`, `CanEdit`, `EventCallback OnSaveNotes` | Possiede `notesDraft`/`isSavingNotes`; il bottone "Salva note" resta dedicato: setta `Character.Notes` e invoca `OnSaveNotes` (il genitore persiste). |
-| `CharacterCombatTab` | PF/PF temp/CA, tiri salvezza morte, ispirazione, dadi vita, difese, denaro (`:117-277`) | `Character`, `CanEdit`, `OnChanged` | Il più ricco di interazioni su scalari. Possiede `isSavingHp`/`isEditingMoney`. Usa `CharacterView` (FormatMoney/SplitDefenses) e `CharacterCalculations.GetHitDiceTotal`. |
-| `CharacterItemsTab` | inventario: lista + add/edit/remove/equip + peso totale (`:363-608`) | `Character` | **Sotto-collezione**: vedi §4. Inietta `SupabaseService`, possiede `inventoryItems` + CRUD + loading. |
-| `CharacterMagicTab` | slot incantesimo (campi `Character`) + incantesimi noti via `SpellPicker` (`:608-…`) | `Character`, `CanEdit`, `OnChanged` | **Sotto-collezione** `character_spells`: come §4. Slot = campi scalari → `OnChanged`. |
+| `CharacterCombatTab` | PF/PF temp/CA, dadi vita, tiri salvezza morte, INI/VEL/PERC/ispirazione, **armi (lette dall'inventario)**, difese (`:117-274`) | `Character`, `CanEdit`, `OnChanged`, `IReadOnlyList<InventoryItem> Weapons` | Possiede `isSavingHp`. Le armi arrivano dal genitore (inventario condiviso, §4). Usa `CharacterView` + `CharacterCalculations`. |
+| `CharacterItemsTab` | inventario CRUD + denaro + sintonie (`:363-605`) | `Character`, `CanEdit`, `IReadOnlyList<InventoryItem> Items`, `EventCallback OnInventoryChanged` | Inietta `SupabaseService` per il CRUD; la **lista resta del genitore** (§4). Possiede draft/flag locali, `FormatMoney`, attunements. |
+| `CharacterMagicTab` | stats incantesimo, slot, incantesimi noti via `SpellPicker` (`:608-694`) | `Character`, `CanEdit`, `OnChanged`, `IReadOnlyList<Spell> AllSpells` | Inietta `SupabaseService` per `character_spells` (privato, §4); slot = campi scalari → `OnChanged`; catalogo `AllSpells` dal genitore. |
 
-## 4. Tab con sotto-collezioni (Items, Magic)
+## 4. Dati oltre i campi di `Character`: inventario (condiviso) vs incantesimi (privato)
 
-`CharacterItemsTab` (tabella `inventory`) e `CharacterMagicTab` (tabella `character_spells`) gestiscono dati
-**oltre** i campi di `Character`. Scelta: **iniettano `SupabaseService`** e **possiedono il proprio sotto-dominio**
-end-to-end (lista in memoria, loading, CRUD, draft). Ricevono il `Character` per ricavare `character_id` e i
-permessi (`CanEditInventory`).
+Due tab gestiscono tabelle separate, ma con un'**asimmetria emersa leggendo il codice** (importante per non
+rompere il comportamento):
 
-- Caricano la propria collezione in `OnParametersSetAsync` quando cambia il `Character` selezionato (oggi lo fa
-  il genitore alla selezione: comportamento da preservare).
-- Restano coesi: il tab Items è l'**unico** responsabile dell'inventario.
-- Migrazione futura (sotto-fase A): l'iniezione passerà da `SupabaseService` a `IInventoryRepository` /
-  `ICharacterSpellRepository` senza cambiare l'interfaccia del componente.
+- **Inventario (`inventory`) è CONDIVISO.** Il Combat tab legge le **armi** dall'inventario
+  (`Characters.razor:119`), mentre l'Items tab ne fa il CRUD. Perciò la **lista `inventoryItems` resta di
+  proprietà del genitore** (caricata alla selezione del PG, come oggi). `CharacterItemsTab` inietta
+  `SupabaseService`, fa il CRUD e poi invoca `EventCallback OnInventoryChanged` → il genitore **ricarica** la
+  lista e ri-renderizza, così il Combat tab vede le armi aggiornate. `CharacterCombatTab` riceve il
+  sottoinsieme `Weapons` (sola lettura), derivato dal genitore.
+- **Incantesimi (`character_spells`) è PRIVATO del Magic tab.** Nessun altro tab li legge. `CharacterMagicTab`
+  inietta `SupabaseService` e possiede la collezione end-to-end (lista, loading in `OnParametersSetAsync` al
+  cambio di `Character`, add/remove/toggle-prepared). Riceve dal genitore il catalogo globale `AllSpells`
+  (già caricato per il form). Gli slot incantesimo sono campi scalari di `Character` → mutati con `OnChanged`.
+
+Migrazione futura (sotto-fase A): le iniezioni di `SupabaseService` passeranno alle interfacce repository
+(`IInventoryRepository` / `ICharacterSpellRepository`) senza cambiare la superficie dei componenti.
 
 ## 5. Flusso dati e re-render
 
