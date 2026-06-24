@@ -205,3 +205,30 @@ code {
 .fab:active {
     transform: scale(0.95);
 }
+/* ===== Etichette/sezioni condivise dai tab della scheda PG (estratte da Characters.razor.css) ===== */
+.card-label {
+    margin: 0 0 0.4rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+.section-header {
+    margin: 14px 0 6px 4px;
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--gold);
+    text-transform: uppercase;
+}
+
+.empty-note {
+    color: #7a6b4d;
+    font-style: italic;
+    font-size: 0.9rem;
+    margin: 0.25rem 0 0;
+    padding: 0.4rem 0;
+}

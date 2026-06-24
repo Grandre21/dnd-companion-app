@@ -1,0 +1,352 @@
+/* ===== Combat: vitals ===== */
+.combat-vitals {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 0.75rem;
+}
+
+.hp-card,
+.ac-card {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.85rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.hp-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.hp-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
+    color: var(--gold-light);
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.12s ease;
+}
+
+.hp-circle:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.hp-circle:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.hp-circle:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.hp-minus {
+    border-color: #c5746b;
+}
+
+.hp-plus {
+    border-color: #7a9a6a;
+}
+
+.hp-value {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.hp-max {
+    font-size: 0.85rem;
+    color: var(--gold-dim);
+    margin-left: 0.1rem;
+}
+
+.temp-hp {
+    margin: 0.4rem 0 0;
+    font-size: 0.75rem;
+    color: #6b9ec5;
+}
+
+.ac-value {
+    margin: 0;
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===== Combat: TS contro morte ===== */
+.death-saves-card {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.85rem 0.75rem;
+}
+
+.death-saves-row {
+    display: flex;
+    justify-content: space-around;
+    gap: 0.75rem;
+}
+
+.death-saves-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ds-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ds-label.success { color: #7a9a6a; }
+.ds-label.failure { color: #c5746b; }
+
+.ds-dots {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.ds-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid #5a3f20;
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.ds-dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.ds-dot.filled.success { background: #7a9a6a; border-color: #7a9a6a; }
+.ds-dot.filled.failure { background: #c5746b; border-color: #c5746b; }
+
+/* ===== Combat: stat secondarie ===== */
+.secondary-stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.4rem;
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.75rem 0.6rem;
+}
+
+.mini-stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.mini-label {
+    margin: 0;
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mini-value {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.mini-value-large {
+    font-size: 1.35rem;
+}
+
+.mini-unit {
+    font-size: 0.7rem;
+    color: var(--gold-dim);
+    margin-left: 1px;
+}
+
+.inspiration-toggle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.inspiration-toggle.active {
+    background: var(--gold);
+    box-shadow: inset 0 0 0 2px var(--bg-card);
+}
+
+.inspiration-toggle::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+/* ===== Combat: armi ===== */
+.weapon-card {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.4rem;
+}
+
+.weapon-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.weapon-name {
+    margin: 0;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.weapon-stats {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #c8b88a;
+    font-variant-numeric: tabular-nums;
+}
+
+.weapon-stats span {
+    margin-left: 0.25rem;
+}
+
+.weapon-notes {
+    margin: 0.3rem 0 0;
+    font-size: 0.8rem;
+    color: var(--gold-dim);
+    font-style: italic;
+}
+
+/* ===== Combat: difese ===== */
+.defenses-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.defense-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.defense-badge.resistance        { color: #97c459; border-color: #97c459; background: #1f2818; }
+.defense-badge.immunity          { color: #6b9ec5; border-color: #6b9ec5; background: #1f242a; }
+.defense-badge.vulnerability     { color: #c5746b; border-color: #c5746b; background: #2a1f1f; }
+.defense-badge.condition-immunity { color: #a16bb8; border-color: #a16bb8; background: #221f2a; }
+
+/* ===== Combat tab: dadi vita ===== */
+.hit-dice-card {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.6rem;
+}
+
+.hit-dice-card .card-label {
+    text-align: center;
+    margin: 0 0 0.4rem;
+}
+
+.hit-dice-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.hd-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid #8b6f47;
+    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
+    color: var(--gold-light);
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.hd-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.hit-dice-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 6rem;
+}
+
+.hit-dice-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.hit-dice-type {
+    font-size: 0.75rem;
+    color: var(--gold-dim);
+}

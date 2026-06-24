@@ -116,161 +116,8 @@
                 @* ===================== TAB COMBAT ===================== *@
                 @if (activeTab == "combat")
                 {
-                    var weapons = inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList();
-                    <div class="combat-vitals">
-                        <div class="hp-card">
-                            <p class="card-label">PUNTI FERITA</p>
-                            <div class="hp-row">
-                                <button class="hp-circle hp-minus" @onclick="DecreaseHp"
-                                        disabled="@(!CanEdit || isSavingHp || selected.HitPoints <= 0)">−</button>
-                                <p class="hp-value">@selected.HitPoints<span class="hp-max">/@selected.MaxHitPoints</span></p>
-                                <button class="hp-circle hp-plus" @onclick="IncreaseHp"
-                                        disabled="@(!CanEdit || isSavingHp || selected.HitPoints >= selected.MaxHitPoints)">+</button>
-                            </div>
-                            @if (selected.TempHitPoints > 0)
-                            {
-                                <p class="temp-hp">+@selected.TempHitPoints temp</p>
-                            }
-                        </div>
-                        <div class="ac-card">
-                            <p class="card-label">CA</p>
-                            <p class="ac-value">@selected.ArmorClass</p>
-                        </div>
-                    </div>
-
-                    <div class="hit-dice-card">
-                        <p class="card-label">DADI VITA</p>
-                        <div class="hit-dice-row">
-                            <button class="hd-btn" @onclick="DecrementHitDice"
-                                    disabled="@(!CanEdit || selected.HitDiceSpent <= 0)">−</button>
-                            <div class="hit-dice-display">
-                                <span class="hit-dice-value">@(HitDiceTotal() - selected.HitDiceSpent) / @HitDiceTotal()</span>
-                                <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(selected.HitDiceMax) ? "—" : selected.HitDiceMax)</span>
-                            </div>
-                            <button class="hd-btn" @onclick="IncrementHitDice"
-                                    disabled="@(!CanEdit || selected.HitDiceSpent >= HitDiceTotal())">+</button>
-                        </div>
-                    </div>
-
-                    @if (ShowDeathSaves)
-                    {
-                        <div class="death-saves-card">
-                            <p class="card-label">TIRI SALVEZZA CONTRO MORTE</p>
-                            <div class="death-saves-row">
-                                <div class="death-saves-group">
-                                    <span class="ds-label success">Successi</span>
-                                    <div class="ds-dots">
-                                        @for (int i = 1; i <= 3; i++)
-                                        {
-                                            var n = i;
-                                            <span class="ds-dot @(selected.DeathSaveSuccesses >= n ? "filled success" : "")"
-                                                  role="button" tabindex="0"
-                                                  aria-pressed="@AriaBool(selected.DeathSaveSuccesses >= n)" aria-label="Successo tiro salvezza @n"
-                                                  @onclick="() => SetDeathSaveSuccesses(n == selected.DeathSaveSuccesses ? n - 1 : n)"
-                                                  @onkeydown="@(e => OnKey(e, () => SetDeathSaveSuccesses(n == selected.DeathSaveSuccesses ? n - 1 : n)))"></span>
-                                        }
-                                    </div>
-                                </div>
-                                <div class="death-saves-group">
-                                    <span class="ds-label failure">Fallimenti</span>
-                                    <div class="ds-dots">
-                                        @for (int i = 1; i <= 3; i++)
-                                        {
-                                            var n = i;
-                                            <span class="ds-dot @(selected.DeathSaveFailures >= n ? "filled failure" : "")"
-                                                  role="button" tabindex="0"
-                                                  aria-pressed="@AriaBool(selected.DeathSaveFailures >= n)" aria-label="Fallimento tiro salvezza @n"
-                                                  @onclick="() => SetDeathSaveFailures(n == selected.DeathSaveFailures ? n - 1 : n)"
-                                                  @onkeydown="@(e => OnKey(e, () => SetDeathSaveFailures(n == selected.DeathSaveFailures ? n - 1 : n)))"></span>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-
-                    <div class="secondary-stats">
-                        <div class="mini-stat">
-                            <p class="mini-label">INI</p>
-                            <p class="mini-value mini-value-large">@FormatBonus(CharacterCalculations.GetInitiative(selected))</p>
-                        </div>
-                        <div class="mini-stat">
-                            <p class="mini-label">VEL</p>
-                            <p class="mini-value">@selected.Speed<span class="mini-unit">m</span></p>
-                        </div>
-                        <div class="mini-stat">
-                            <p class="mini-label">PERC</p>
-                            <p class="mini-value">@CharacterCalculations.GetPassivePerception(selected)</p>
-                        </div>
-                        <div class="mini-stat">
-                            <p class="mini-label">ISPIRAZIONE</p>
-                            <span class="inspiration-toggle @(selected.HeroicInspiration ? "active" : "")"
-                                  role="button" tabindex="0"
-                                  aria-pressed="@AriaBool(selected.HeroicInspiration)" aria-label="Ispirazione eroica"
-                                  @onclick="ToggleHeroicInspiration"
-                                  @onkeydown="@(e => OnKey(e, ToggleHeroicInspiration))"></span>
-                        </div>
-                    </div>
-
-                    <p class="section-header">ARMI</p>
-                    @if (weapons.Any())
-                    {
-                        @foreach (var w in weapons)
-                        {
-                            <div class="weapon-card">
-                                <div class="weapon-header">
-                                    <p class="weapon-name">@w.Name</p>
-                                    <p class="weapon-stats">
-                                        @if (!string.IsNullOrWhiteSpace(w.AttackBonus)) { <span>@w.AttackBonus</span> }
-                                        @if (!string.IsNullOrWhiteSpace(w.Damage)) { <span>· @w.Damage @w.DamageType?.ToLower()</span> }
-                                    </p>
-                                </div>
-                                @if (!string.IsNullOrWhiteSpace(w.AttackNotes))
-                                {
-                                    <p class="weapon-notes">@w.AttackNotes</p>
-                                }
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <p class="empty-note">Nessuna arma equipaggiata</p>
-                    }
-
-                    @if (HasDefenses)
-                    {
-                        <p class="section-header">DIFESE</p>
-                        <div class="defenses-badges">
-                            @if (!string.IsNullOrWhiteSpace(selected.DamageResistances))
-                            {
-                                @foreach (var item in SplitDefenses(selected.DamageResistances))
-                                {
-                                    <span class="defense-badge resistance">RES @item</span>
-                                }
-                            }
-                            @if (!string.IsNullOrWhiteSpace(selected.DamageImmunities))
-                            {
-                                @foreach (var item in SplitDefenses(selected.DamageImmunities))
-                                {
-                                    <span class="defense-badge immunity">IMM @item</span>
-                                }
-                            }
-                            @if (!string.IsNullOrWhiteSpace(selected.DamageVulnerabilities))
-                            {
-                                @foreach (var item in SplitDefenses(selected.DamageVulnerabilities))
-                                {
-                                    <span class="defense-badge vulnerability">VUL @item</span>
-                                }
-                            }
-                            @if (!string.IsNullOrWhiteSpace(selected.ConditionImmunities))
-                            {
-                                @foreach (var item in SplitDefenses(selected.ConditionImmunities))
-                                {
-                                    <span class="defense-badge condition-immunity">IMM @item</span>
-                                }
-                            }
-                        </div>
-                    }
+                    <CharacterCombatTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
+                                        Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()" />
                 }
 
                 @* ===================== TAB STATS ===================== *@
@@ -1302,7 +1149,6 @@
     private bool isMaster;
 
     private bool isBusy;
-    private bool isSavingHp;
     private bool isEditingMoney;
     private string? errorMessage;
 
@@ -1315,39 +1161,12 @@
     private double TotalInventoryWeight =>
         inventoryItems.Sum(i => (i.Weight ?? 0) * i.Quantity);
 
-    // ===== Vital signs / combattimento =====
-
-    private bool ShowDeathSaves =>
-        selected is not null &&
-        (selected.HitPoints == 0 || selected.DeathSaveSuccesses > 0 || selected.DeathSaveFailures > 0);
-
-    private bool HasDefenses =>
-        selected is not null &&
-        (!string.IsNullOrWhiteSpace(selected.DamageResistances) ||
-         !string.IsNullOrWhiteSpace(selected.DamageImmunities) ||
-         !string.IsNullOrWhiteSpace(selected.DamageVulnerabilities) ||
-         !string.IsNullOrWhiteSpace(selected.ConditionImmunities));
-
-    private static IEnumerable<string> SplitDefenses(string? s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) yield break;
-        foreach (var p in s.Split(new[] { ',', ';', '\n' },
-                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            yield return p;
-        }
-    }
-
     private static string SpellAbilityShort(string? a)
     {
         if (string.IsNullOrWhiteSpace(a)) return string.Empty;
         var t = a.Trim();
         return (t.Length <= 3 ? t : t[..3]).ToUpperInvariant();
     }
-
-    // ===== Dadi vita =====
-
-    private int HitDiceTotal() => CharacterCalculations.GetHitDiceTotal(selected?.HitDiceMax);
 
     // ===== Denaro =====
 
@@ -1814,37 +1633,6 @@
         editDraft.PlatinumPieces = Math.Max(0, editDraft.PlatinumPieces);
     }
 
-    private async Task AdjustHpAsync(int delta)
-    {
-        if (selected is null) return;
-
-        var newHp = Math.Clamp(selected.HitPoints + delta, 0, selected.MaxHitPoints);
-        if (newHp == selected.HitPoints) return;
-
-        var previous = selected.HitPoints;
-        selected.HitPoints = newHp;
-        isSavingHp = true;
-        errorMessage = null;
-        try
-        {
-            var saved = await SupabaseService.UpdateCharacterAsync(selected);
-            if (saved is not null)
-            {
-                selected.HitPoints = saved.HitPoints;
-                SyncListFromSelected();
-            }
-        }
-        catch (Exception ex)
-        {
-            selected.HitPoints = previous;
-            errorMessage = $"Errore salvataggio HP: {ex.Message}";
-        }
-        finally
-        {
-            isSavingHp = false;
-        }
-    }
-
     // Persistenza delle note (invocata da CharacterBioTab via OnSaveNotes); il draft e il flag di
     // salvataggio vivono nel componente.
     private async Task SaveNotesAsync(string text)
@@ -1887,49 +1675,6 @@
         {
             errorMessage = $"Errore salvataggio caratteristiche: {ex.Message}";
         }
-    }
-
-    // ===== Azioni vital signs / risorse =====
-
-    private Task DecreaseHp() => AdjustHpAsync(-1);
-    private Task IncreaseHp() => AdjustHpAsync(1);
-
-    private async Task SetDeathSaveSuccesses(int value)
-    {
-        if (selected is null || !CanEdit) return;
-        value = Math.Clamp(value, 0, 3);
-        if (value == selected.DeathSaveSuccesses) return;
-        selected.DeathSaveSuccesses = value;
-        await SaveCharacterAsync();
-    }
-
-    private async Task SetDeathSaveFailures(int value)
-    {
-        if (selected is null || !CanEdit) return;
-        value = Math.Clamp(value, 0, 3);
-        if (value == selected.DeathSaveFailures) return;
-        selected.DeathSaveFailures = value;
-        await SaveCharacterAsync();
-    }
-
-    private async Task ToggleHeroicInspiration()
-    {
-        if (selected is null || !CanEdit) return;
-        selected.HeroicInspiration = !selected.HeroicInspiration;
-        await SaveCharacterAsync();
-    }
-
-    private Task DecrementHitDice() => AdjustHitDiceSpentAsync(-1);
-    private Task IncrementHitDice() => AdjustHitDiceSpentAsync(1);
-
-    private async Task AdjustHitDiceSpentAsync(int delta)
-    {
-        if (selected is null || !CanEdit) return;
-        var total = HitDiceTotal();
-        var v = Math.Clamp(selected.HitDiceSpent + delta, 0, total);
-        if (v == selected.HitDiceSpent) return;
-        selected.HitDiceSpent = v;
-        await SaveCharacterAsync();
     }
 
     private async Task ToggleSpellSlot(int level, int index)

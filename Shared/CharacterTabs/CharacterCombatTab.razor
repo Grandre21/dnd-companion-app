@@ -1,0 +1,239 @@
+@using DndCompanion.Models
+@using DndCompanion.Services
+
+<div class="combat-vitals">
+    <div class="hp-card">
+        <p class="card-label">PUNTI FERITA</p>
+        <div class="hp-row">
+            <button class="hp-circle hp-minus" @onclick="DecreaseHp"
+                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints <= 0)">−</button>
+            <p class="hp-value">@Character.HitPoints<span class="hp-max">/@Character.MaxHitPoints</span></p>
+            <button class="hp-circle hp-plus" @onclick="IncreaseHp"
+                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints >= Character.MaxHitPoints)">+</button>
+        </div>
+        @if (Character.TempHitPoints > 0)
+        {
+            <p class="temp-hp">+@Character.TempHitPoints temp</p>
+        }
+    </div>
+    <div class="ac-card">
+        <p class="card-label">CA</p>
+        <p class="ac-value">@Character.ArmorClass</p>
+    </div>
+</div>
+
+<div class="hit-dice-card">
+    <p class="card-label">DADI VITA</p>
+    <div class="hit-dice-row">
+        <button class="hd-btn" @onclick="DecrementHitDice"
+                disabled="@(!CanEdit || Character.HitDiceSpent <= 0)">−</button>
+        <div class="hit-dice-display">
+            <span class="hit-dice-value">@(HitDiceTotal() - Character.HitDiceSpent) / @HitDiceTotal()</span>
+            <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(Character.HitDiceMax) ? "—" : Character.HitDiceMax)</span>
+        </div>
+        <button class="hd-btn" @onclick="IncrementHitDice"
+                disabled="@(!CanEdit || Character.HitDiceSpent >= HitDiceTotal())">+</button>
+    </div>
+</div>
+
+@if (ShowDeathSaves)
+{
+    <div class="death-saves-card">
+        <p class="card-label">TIRI SALVEZZA CONTRO MORTE</p>
+        <div class="death-saves-row">
+            <div class="death-saves-group">
+                <span class="ds-label success">Successi</span>
+                <div class="ds-dots">
+                    @for (int i = 1; i <= 3; i++)
+                    {
+                        var n = i;
+                        <span class="ds-dot @(Character.DeathSaveSuccesses >= n ? "filled success" : "")"
+                              role="button" tabindex="0"
+                              aria-pressed="@AriaBool(Character.DeathSaveSuccesses >= n)" aria-label="Successo tiro salvezza @n"
+                              @onclick="() => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)"
+                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)))"></span>
+                    }
+                </div>
+            </div>
+            <div class="death-saves-group">
+                <span class="ds-label failure">Fallimenti</span>
+                <div class="ds-dots">
+                    @for (int i = 1; i <= 3; i++)
+                    {
+                        var n = i;
+                        <span class="ds-dot @(Character.DeathSaveFailures >= n ? "filled failure" : "")"
+                              role="button" tabindex="0"
+                              aria-pressed="@AriaBool(Character.DeathSaveFailures >= n)" aria-label="Fallimento tiro salvezza @n"
+                              @onclick="() => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)"
+                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)))"></span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="secondary-stats">
+    <div class="mini-stat">
+        <p class="mini-label">INI</p>
+        <p class="mini-value mini-value-large">@FormatBonus(CharacterCalculations.GetInitiative(Character))</p>
+    </div>
+    <div class="mini-stat">
+        <p class="mini-label">VEL</p>
+        <p class="mini-value">@Character.Speed<span class="mini-unit">m</span></p>
+    </div>
+    <div class="mini-stat">
+        <p class="mini-label">PERC</p>
+        <p class="mini-value">@CharacterCalculations.GetPassivePerception(Character)</p>
+    </div>
+    <div class="mini-stat">
+        <p class="mini-label">ISPIRAZIONE</p>
+        <span class="inspiration-toggle @(Character.HeroicInspiration ? "active" : "")"
+              role="button" tabindex="0"
+              aria-pressed="@AriaBool(Character.HeroicInspiration)" aria-label="Ispirazione eroica"
+              @onclick="ToggleHeroicInspiration"
+              @onkeydown="@(e => OnKey(e, ToggleHeroicInspiration))"></span>
+    </div>
+</div>
+
+<p class="section-header">ARMI</p>
+@if (Weapons.Any())
+{
+    @foreach (var w in Weapons)
+    {
+        <div class="weapon-card">
+            <div class="weapon-header">
+                <p class="weapon-name">@w.Name</p>
+                <p class="weapon-stats">
+                    @if (!string.IsNullOrWhiteSpace(w.AttackBonus)) { <span>@w.AttackBonus</span> }
+                    @if (!string.IsNullOrWhiteSpace(w.Damage)) { <span>· @w.Damage @w.DamageType?.ToLower()</span> }
+                </p>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(w.AttackNotes))
+            {
+                <p class="weapon-notes">@w.AttackNotes</p>
+            }
+        </div>
+    }
+}
+else
+{
+    <p class="empty-note">Nessuna arma equipaggiata</p>
+}
+
+@if (HasDefenses)
+{
+    <p class="section-header">DIFESE</p>
+    <div class="defenses-badges">
+        @if (!string.IsNullOrWhiteSpace(Character.DamageResistances))
+        {
+            @foreach (var item in SplitDefenses(Character.DamageResistances))
+            {
+                <span class="defense-badge resistance">RES @item</span>
+            }
+        }
+        @if (!string.IsNullOrWhiteSpace(Character.DamageImmunities))
+        {
+            @foreach (var item in SplitDefenses(Character.DamageImmunities))
+            {
+                <span class="defense-badge immunity">IMM @item</span>
+            }
+        }
+        @if (!string.IsNullOrWhiteSpace(Character.DamageVulnerabilities))
+        {
+            @foreach (var item in SplitDefenses(Character.DamageVulnerabilities))
+            {
+                <span class="defense-badge vulnerability">VUL @item</span>
+            }
+        }
+        @if (!string.IsNullOrWhiteSpace(Character.ConditionImmunities))
+        {
+            @foreach (var item in SplitDefenses(Character.ConditionImmunities))
+            {
+                <span class="defense-badge condition-immunity">IMM @item</span>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public Character Character { get; set; } = default!;
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public IReadOnlyList<InventoryItem> Weapons { get; set; } = Array.Empty<InventoryItem>();
+
+    private bool isSavingHp;
+
+    private bool ShowDeathSaves =>
+        Character.HitPoints == 0 || Character.DeathSaveSuccesses > 0 || Character.DeathSaveFailures > 0;
+
+    private bool HasDefenses =>
+        !string.IsNullOrWhiteSpace(Character.DamageResistances) ||
+        !string.IsNullOrWhiteSpace(Character.DamageImmunities) ||
+        !string.IsNullOrWhiteSpace(Character.DamageVulnerabilities) ||
+        !string.IsNullOrWhiteSpace(Character.ConditionImmunities);
+
+    private int HitDiceTotal() => CharacterCalculations.GetHitDiceTotal(Character.HitDiceMax);
+
+    private static IEnumerable<string> SplitDefenses(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) yield break;
+        foreach (var p in s.Split(new[] { ',', ';', '\n' },
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            yield return p;
+        }
+    }
+
+    private async Task AdjustHpAsync(int delta)
+    {
+        if (!CanEdit) return;
+        var newHp = Math.Clamp(Character.HitPoints + delta, 0, Character.MaxHitPoints);
+        if (newHp == Character.HitPoints) return;
+        Character.HitPoints = newHp;
+        isSavingHp = true;
+        await OnChanged.InvokeAsync();
+        isSavingHp = false;
+    }
+
+    private Task DecreaseHp() => AdjustHpAsync(-1);
+    private Task IncreaseHp() => AdjustHpAsync(1);
+
+    private async Task SetDeathSaveSuccesses(int value)
+    {
+        if (!CanEdit) return;
+        value = Math.Clamp(value, 0, 3);
+        if (value == Character.DeathSaveSuccesses) return;
+        Character.DeathSaveSuccesses = value;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task SetDeathSaveFailures(int value)
+    {
+        if (!CanEdit) return;
+        value = Math.Clamp(value, 0, 3);
+        if (value == Character.DeathSaveFailures) return;
+        Character.DeathSaveFailures = value;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ToggleHeroicInspiration()
+    {
+        if (!CanEdit) return;
+        Character.HeroicInspiration = !Character.HeroicInspiration;
+        await OnChanged.InvokeAsync();
+    }
+
+    private Task DecrementHitDice() => AdjustHitDiceSpentAsync(-1);
+    private Task IncrementHitDice() => AdjustHitDiceSpentAsync(1);
+
+    private async Task AdjustHitDiceSpentAsync(int delta)
+    {
+        if (!CanEdit) return;
+        var total = HitDiceTotal();
+        var v = Math.Clamp(Character.HitDiceSpent + delta, 0, total);
+        if (v == Character.HitDiceSpent) return;
+        Character.HitDiceSpent = v;
+        await OnChanged.InvokeAsync();
+    }
+}
