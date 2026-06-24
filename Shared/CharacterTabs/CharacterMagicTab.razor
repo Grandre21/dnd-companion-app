@@ -206,16 +206,9 @@
     {
         try
         {
-            var ok = await CharacterSpellRepository.RemoveCharacterSpellAsync(entry.Id);
-            if (ok)
-            {
-                selectedCharacterSpells.Remove(entry);
-                RebuildSpellDisplay();
-            }
-            else
-            {
-                await OnError.InvokeAsync("Impossibile rimuovere l'incantesimo.");
-            }
+            await CharacterSpellRepository.RemoveCharacterSpellAsync(entry.Id);
+            selectedCharacterSpells.Remove(entry);
+            RebuildSpellDisplay();
         }
         catch (Exception ex)
         {

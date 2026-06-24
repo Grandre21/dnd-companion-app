@@ -117,11 +117,17 @@ mega-componente (quello resta in §3).
   (`InitializeAsync` + lettura di `userId`/`isMaster`/`campaignId` + 3 campi locali) con una sola chiamata,
   leggendo dal facade. Rimosso `AuthStateService.GetRoleAsync()` (era codice morto: il ruolo vive già in
   `CampaignStateService`). `Home` resta hub auth/campagna. Con questo la **§3 è completa**.
-- 🟡 **Gestione errori coerente.** ✅ `<ErrorBoundary>` aggiunto in `MainLayout` (fallback a tema + "Ripara e
-  ricarica") e `DbErrorBanner` centralizzato (quick-win A). **Resta:** far ritornare ai metodi `Delete` di
-  dei repository l'esito reale (oggi `RemoveCharacterSpellAsync` ritorna sempre `true`; gli altri sono
-  `void`) — da fare verificando se Postgrest 0.16.2 lancia su errore (non testabile in locale); toast
-  "salvato"/"errore" centralizzati.
+- 🟡 **Gestione errori coerente.** ✅ `<ErrorBoundary>` in `MainLayout` (fallback a tema + "Ripara e ricarica"),
+  `DbErrorBanner` centralizzato, e firme `Delete` dei repository ora **coerenti** (tutte `Task`;
+  `RemoveCharacterSpellAsync` non ritorna più un `bool` sempre `true` con ramo `else` morto).
+  **Indagine (2026-06-24):** far ritornare ai `Delete` l'esito reale (per intercettare il blocco RLS silenzioso)
+  **non è fattibile in modo pulito con supabase-csharp 0.16.2** — `Table.Delete(QueryOptions)` ritorna `void`
+  (niente `Models`) e col default segnala "successo" anche quando l'RLS blocca la cancellazione (0 righe; bug noto
+  `postgrest-csharp` #91). Gli errori HTTP/rete lanciano comunque `PostgrestException` (gestiti dai try/catch →
+  banner). Il blocco RLS silenzioso **non si presenta nell'uso normale** perché la UI fa da gate via
+  `CanEdit`/`AccessControl` (speculare alle RLS). **Da rivalutare** su upgrade libreria (Delete che ritorni la
+  rappresentazione) o con un check di esistenza post-delete (round-trip extra). **Eventuale (UX, opzionale):**
+  toast anche per gli errori (oggi successi→toast, errori→banner persistente — scelta ragionevole).
 - ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
   riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
 - 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**

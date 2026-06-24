@@ -7,7 +7,7 @@ public interface ICharacterSpellRepository
     Task<List<CharacterSpell>> GetCharacterSpellsAsync(string characterId);
     Task<CharacterSpell?> AddSpellToCharacterAsync(CharacterSpell entry);
     Task<bool> UpdateCharacterSpellAsync(CharacterSpell entry);
-    Task<bool> RemoveCharacterSpellAsync(string id);
+    Task RemoveCharacterSpellAsync(string id);
 }
 
 /// <summary>Accesso dati per gli incantesimi noti del singolo PG (tabella <c>character_spells</c>).</summary>
@@ -42,10 +42,13 @@ public class CharacterSpellRepository : ICharacterSpellRepository
         return response.Models.Count > 0;
     }
 
-    public async Task<bool> RemoveCharacterSpellAsync(string id)
+    // Coerente con gli altri Delete dei repository: Task (no bool). Postgrest lancia PostgrestException
+    // sugli errori HTTP (gestiti dal try/catch del chiamante); un Delete bloccato dall'RLS però ritorna
+    // "successo" silenziosamente (limite di supabase-csharp 0.16.2, vedi DA-FARE §3): la UI gate via
+    // CanEdit rispecchia comunque le RLS, quindi il caso non si presenta nell'uso normale.
+    public async Task RemoveCharacterSpellAsync(string id)
     {
         var client = await _supabase.GetClientAsync();
         await client.From<CharacterSpell>().Where(cs => cs.Id == id).Delete();
-        return true;
     }
 }
