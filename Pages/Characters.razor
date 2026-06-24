@@ -158,6 +158,11 @@
             <CharacterEditForm Draft="@editDraft" Classes="@classes" Races="@races"
                                IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm" />
             break;
+
+        case ViewMode.Wizard:
+            <CharacterWizard Draft="@editDraft" Classes="@classes" Races="@races"
+                             IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm" />
+            break;
     }
 
     @* Creazione personaggio: per OGNI membro (player e master), in ogni vista tranne il form. *@
@@ -170,7 +175,7 @@
 </div>
 
 @code {
-    private enum ViewMode { Loading, Empty, List, Detail, Form }
+    private enum ViewMode { Loading, Empty, List, Detail, Form, Wizard }
 
     private ViewMode mode = ViewMode.Loading;
     private List<Character> characters = new();
@@ -344,7 +349,7 @@
             Wisdom = 10,
             Charisma = 10
         };
-        mode = ViewMode.Form;
+        mode = ViewMode.Wizard;
     }
 
     private void OpenEditForm()

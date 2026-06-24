@@ -1,0 +1,118 @@
+@using DndCompanion.Models
+
+<div class="wizard-view">
+    <div class="wizard-top">
+        <button type="button" class="wiz-cancel" @onclick="@(() => OnCancel.InvokeAsync())">← Annulla</button>
+    </div>
+
+    <h2 class="wizard-title">Nuovo Personaggio</h2>
+
+    <div class="wizard-steps">
+        @for (var i = 0; i < TotalSteps; i++)
+        {
+            var idx = i;
+            <button type="button"
+                    class="wiz-step-dot @(idx == currentStep ? "active" : "") @(idx < currentStep ? "done" : "")"
+                    @onclick="() => GoToStep(idx)"
+                    aria-label="@($"Vai al passo {idx + 1}: {StepTitles[idx]}")">
+                @(idx + 1)
+            </button>
+        }
+    </div>
+    <p class="wiz-step-caption">Passo @(currentStep + 1) di @TotalSteps — @StepTitles[currentStep]</p>
+
+    <div class="wizard-body">
+        @switch (currentStep)
+        {
+            case 0: <p class="wiz-placeholder">Identità</p> break;
+            case 1: <p class="wiz-placeholder">Caratteristiche</p> break;
+            case 2: <p class="wiz-placeholder">Vitalità &amp; combattimento</p> break;
+            case 3: <p class="wiz-placeholder">Competenze</p> break;
+            case 4: <p class="wiz-placeholder">Incantesimi</p> break;
+            case 5: <p class="wiz-placeholder">Riepilogo</p> break;
+        }
+    </div>
+
+    <div class="wizard-nav">
+        @if (currentStep > 0)
+        {
+            <button type="button" class="secondary-btn" @onclick="Prev" disabled="@IsBusy">← Indietro</button>
+        }
+        @if (currentStep < TotalSteps - 1)
+        {
+            <button type="button" class="primary-btn" @onclick="Next">Avanti →</button>
+        }
+        else
+        {
+            <button type="button" class="primary-btn" @onclick="@(() => OnSave.InvokeAsync())" disabled="@IsBusy">
+                @(IsBusy ? "Salvataggio..." : "Salva personaggio")
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Character Draft { get; set; } = default!;
+    [Parameter] public List<CharacterClass> Classes { get; set; } = new();
+    [Parameter] public List<Race> Races { get; set; } = new();
+    [Parameter] public bool IsBusy { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private const int TotalSteps = 6;
+    private const string CustomOptionValue = "__custom__";
+
+    private static readonly string[] StepTitles =
+        { "Identità", "Caratteristiche", "Vitalità & combattimento", "Competenze", "Incantesimi", "Riepilogo" };
+
+    private int currentStep;
+    private int[] baseScores = { 10, 10, 10, 10, 10, 10 };
+    private bool isClassCustom;
+    private bool isRaceCustom;
+    private Character? _lastDraft;
+
+    // Reset a ogni apertura: il genitore passa un nuovo editDraft (nuovo riferimento) per ogni creazione.
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Draft, _lastDraft)) return;
+        _lastDraft = Draft;
+
+        currentStep = 0;
+        // In creazione il Draft parte con caratteristiche a 10: sono i "base" del wizard.
+        baseScores = new[]
+        {
+            Draft.Strength, Draft.Dexterity, Draft.Constitution,
+            Draft.Intelligence, Draft.Wisdom, Draft.Charisma
+        };
+        isClassCustom = !string.IsNullOrEmpty(Draft.Class)
+            && Classes.All(c => !string.Equals(c.Name, Draft.Class, StringComparison.Ordinal));
+        isRaceCustom = !string.IsNullOrEmpty(Draft.Race)
+            && Races.All(r => !string.Equals(r.Name, Draft.Race, StringComparison.Ordinal));
+    }
+
+    private Race? SelectedRace =>
+        (!isRaceCustom && !string.IsNullOrEmpty(Draft.Race))
+            ? Races.FirstOrDefault(r => r.Name == Draft.Race)
+            : null;
+
+    private CharacterClass? SelectedClass =>
+        (!isClassCustom && !string.IsNullOrEmpty(Draft.Class))
+            ? Classes.FirstOrDefault(c => c.Name == Draft.Class)
+            : null;
+
+    // Riscrive i finali del Draft dai base + bonus razza. Chiamato a ogni cambio di base o razza.
+    private void RecalcFinals()
+    {
+        var f = CharacterWizardLogic.FinalAbilityScores(baseScores, SelectedRace);
+        Draft.Strength = f[0];
+        Draft.Dexterity = f[1];
+        Draft.Constitution = f[2];
+        Draft.Intelligence = f[3];
+        Draft.Wisdom = f[4];
+        Draft.Charisma = f[5];
+    }
+
+    private void GoToStep(int step) => currentStep = Math.Clamp(step, 0, TotalSteps - 1);
+    private void Next() => GoToStep(currentStep + 1);
+    private void Prev() => GoToStep(currentStep - 1);
+}
