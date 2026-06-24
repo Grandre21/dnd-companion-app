@@ -272,7 +272,42 @@
                     </div>
                 </div>
                 break;
-            case 4: <p class="wiz-placeholder">Incantesimi</p> break;
+            case 4:
+                <div class="wiz-step">
+                    <div class="field">
+                        <label>Caratteristica da incantatore</label>
+                        <select class="input" @bind="Draft.SpellcastingAbility">
+                            <option value="">-- Nessuna (non incantatore) --</option>
+                            <option value="intelligence">Intelligenza</option>
+                            <option value="wisdom">Saggezza</option>
+                            <option value="charisma">Carisma</option>
+                        </select>
+                        <span class="field-hint">Se "Nessuna", il personaggio non è un incantatore e il tab Magic non comparirà.</span>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(Draft.SpellcastingAbility))
+                    {
+                        <div class="derived-info">
+                            CD Incantesimo: <strong>@(CharacterCalculations.GetSpellSaveDc(Draft) ?? 0)</strong>
+                            · Bonus Attacco: <strong>@FormatBonus(CharacterCalculations.GetSpellAttackBonus(Draft) ?? 0)</strong>
+                        </div>
+
+                        <p class="sub-block-title">SLOT INCANTESIMO (MASSIMI)</p>
+                        <div class="spell-slots-head"><span>Livello</span><span>Massimi</span></div>
+                        @for (var level = 1; level <= 9; level++)
+                        {
+                            var lvl = level;
+                            <div class="spell-slot-input-row">
+                                <span class="spell-slot-input-label">Liv @lvl</span>
+                                <input type="number" class="input" min="0" max="9"
+                                       value="@GetSpellSlotMax(Draft, lvl)"
+                                       @onchange="e => OnSpellSlotMaxChanged(lvl, e)" />
+                            </div>
+                        }
+                        <p class="field-hint">Imposta gli slot massimi secondo la tabella della tua classe. Gli "usati" si gestiscono in sessione dal tab Magic.</p>
+                    }
+                </div>
+                break;
             case 5: <p class="wiz-placeholder">Riepilogo</p> break;
         }
     </div>
@@ -481,6 +516,28 @@
                 case "wisdom": Draft.ProfSaveWisdom = true; break;
                 case "charisma": Draft.ProfSaveCharisma = true; break;
             }
+        }
+    }
+
+    private void OnSpellSlotMaxChanged(int level, ChangeEventArgs e)
+    {
+        var v = int.TryParse(e.Value?.ToString(), out var n) ? Math.Clamp(n, 0, 9) : 0;
+        SetSpellSlotMax(Draft, level, v);
+    }
+
+    private static void SetSpellSlotMax(Character c, int level, int v)
+    {
+        switch (level)
+        {
+            case 1: c.SpellSlots1Max = v; break;
+            case 2: c.SpellSlots2Max = v; break;
+            case 3: c.SpellSlots3Max = v; break;
+            case 4: c.SpellSlots4Max = v; break;
+            case 5: c.SpellSlots5Max = v; break;
+            case 6: c.SpellSlots6Max = v; break;
+            case 7: c.SpellSlots7Max = v; break;
+            case 8: c.SpellSlots8Max = v; break;
+            case 9: c.SpellSlots9Max = v; break;
         }
     }
 }
