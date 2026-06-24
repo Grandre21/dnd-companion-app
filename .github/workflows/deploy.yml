@@ -32,6 +32,11 @@ jobs:
       - name: Rewrite base href for GitHub Pages
         run: sed -i 's|<base href="/" />|<base href="/dnd-companion-app/" />|' wwwroot/index.html
 
+      # localhost in connect-src serve SOLO agli strumenti dev (hot-reload/Browser Link): lo togliamo
+      # dalla CSP in produzione per non indebolirla. Vedi commento accanto al <meta> in index.html.
+      - name: Strip dev-only localhost from CSP (prod)
+        run: sed -i 's| ws://localhost:\* wss://localhost:\* http://localhost:\*||' wwwroot/index.html
+
       - name: Publish
         run: dotnet publish DndCompanion.csproj -c Release -o publish
 

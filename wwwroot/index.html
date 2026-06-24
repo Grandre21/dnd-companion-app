@@ -12,7 +12,8 @@
       object-src 'none', base-uri 'self', default-src 'self'. L'app non rende mai HTML grezzo (Blazor
       auto-escapa) → rischio di script inline iniettati teorico. 'wasm-unsafe-eval' è obbligatorio per Blazor WASM.
       connect-src include localhost (ws/wss/http) SOLO per gli strumenti di sviluppo (hot-reload + Browser Link di
-      Visual Studio): in produzione sono voci inerti (nessuno si connette al proprio localhost).
+      Visual Studio): vengono RIMOSSE dalla CSP in produzione dal workflow di deploy (step "Strip dev-only localhost"
+      in .github/workflows/deploy.yml), così la CSP di prod resta pulita.
     -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://tbgjwtfmijrcmeracfzh.supabase.co ws://localhost:* wss://localhost:* http://localhost:*; object-src 'none'; base-uri 'self'; manifest-src 'self'; worker-src 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
