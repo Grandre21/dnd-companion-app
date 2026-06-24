@@ -5,6 +5,7 @@
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ConfirmService Confirm
 
 <PageTitle>D&amp;D Companion</PageTitle>
 
@@ -313,7 +314,7 @@
         var campaign = ActiveCampaign;
         if (campaign is null || !isMaster || isBusy) return;
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
+        var confirmed = await Confirm.ShowAsync(
             $"Eliminare la campagna \"{campaign.Name}\"?\n\n" +
             "Questa azione è IRREVERSIBILE: cancella i personaggi di TUTTI i giocatori, le note, " +
             "gli incantesimi, i mostri, le razze e le classi di questa campagna.");
@@ -344,7 +345,7 @@
         var campaign = ActiveCampaign;
         if (campaign is null || isMaster || isBusy || string.IsNullOrEmpty(userId)) return;
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
+        var confirmed = await Confirm.ShowAsync(
             $"Uscire dalla campagna \"{campaign.Name}\"?\n\n" +
             "Non farai più parte della campagna. Il tuo personaggio resta nella campagna e " +
             "il Master potrà ancora vederlo.");

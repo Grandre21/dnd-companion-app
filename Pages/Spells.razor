@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ToastService Toasts
+@inject ConfirmService Confirm
 
 <PageTitle>Incantesimi - D&amp;D Companion</PageTitle>
 
@@ -433,7 +434,7 @@
 
     private async Task DeleteSpellAsync(Spell spell)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Eliminare l'incantesimo \"{spell.Name}\"?");
+        var confirmed = await Confirm.ShowAsync($"Eliminare l'incantesimo \"{spell.Name}\"?");
         if (!confirmed) return;
 
         isBusy = true;

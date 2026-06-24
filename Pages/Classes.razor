@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ToastService Toasts
+@inject ConfirmService Confirm
 
 <PageTitle>Classi - D&amp;D Companion</PageTitle>
 
@@ -390,7 +391,7 @@
 
     private async Task DeleteClassAsync(CharacterClass cls)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Eliminare la classe \"{cls.Name}\"?");
+        var confirmed = await Confirm.ShowAsync($"Eliminare la classe \"{cls.Name}\"?");
         if (!confirmed) return;
 
         isBusy = true;

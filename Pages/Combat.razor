@@ -6,6 +6,7 @@
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ConfirmService Confirm
 
 <PageTitle>Combattimento - D&amp;D Companion</PageTitle>
 
@@ -420,7 +421,7 @@
 
         if (combatants.Count > 0)
         {
-            var confirmed = await JS.InvokeAsync<bool>("confirm",
+            var confirmed = await Confirm.ShowAsync(
                 "Iniziare un nuovo combattimento? La lista corrente verrà cancellata.");
             if (!confirmed) return;
         }

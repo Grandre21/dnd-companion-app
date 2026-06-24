@@ -167,8 +167,8 @@ mega-componente (quello resta in §3).
   verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
 - 🟡 **Feedback azioni** — ✅ fatto (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
   layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" su `SaveCharacterAsync` e su
-  **tutti i CRUD** dei cataloghi (Spell/Monster/Race/Class) e delle Note. **Resta:** dialog di conferma a tema
-  al posto dei `confirm()` nativi.
+  **tutti i CRUD** dei cataloghi (Spell/Monster/Race/Class) e delle Note. **dialog di conferma a tema**
+  (`ConfirmService` + `ConfirmDialog`) al posto di **tutti** i `confirm()` nativi (10 punti in 8 pagine). ✅ fatto.
 
 ---
 
@@ -184,7 +184,7 @@ mega-componente (quello resta in §3).
 > Richieste nate dall'uso reale che **non sono quick-win**: ognuna merita un proprio giro di
 > brainstorming → design prima dello sviluppo.
 
-- 🟡 **Combat condiviso + polling** — ✅ implementato (2026-06-21), **da verificare a runtime**: tabella
+- ✅ **Combat condiviso + polling** — FATTO e verificato (2026-06-21): tabella
   `combat_state` creata + model `CombatState`/`Combatant`; `GetCombatStateAsync`/`SaveCombatStateAsync`
   (upsert) in `SupabaseService`; `Combat.razor` carica/salva lo stato — il Master fa upsert a ogni azione, i
   giocatori (non-master) leggono con **polling ~4s**. **Da verificare a vista:** serializzazione jsonb dei

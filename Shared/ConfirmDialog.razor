@@ -1,0 +1,48 @@
+@implements IDisposable
+@inject ConfirmService Confirm
+
+@*
+    Dialog di conferma a tema, montato una volta nel MainLayout. Sostituisce window.confirm():
+    le pagine chiamano `await Confirm.ShowAsync("...")` e ricevono true/false.
+*@
+@if (visible)
+{
+    <div class="confirm-overlay" @onclick="Cancel">
+        <div class="confirm-box" @onclick:stopPropagation="true" role="dialog" aria-modal="true">
+            <p class="confirm-msg">@message</p>
+            <div class="confirm-actions">
+                <button type="button" class="confirm-cancel" @onclick="Cancel">Annulla</button>
+                <button type="button" class="confirm-ok" @onclick="Ok">Conferma</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool visible;
+    private string message = "";
+    private TaskCompletionSource<bool>? tcs;
+
+    protected override void OnInitialized() => Confirm.Register(Show);
+
+    private Task<bool> Show(string msg)
+    {
+        message = msg;
+        visible = true;
+        tcs = new TaskCompletionSource<bool>();
+        InvokeAsync(StateHasChanged);
+        return tcs.Task;
+    }
+
+    private void Ok() => Close(true);
+    private void Cancel() => Close(false);
+
+    private void Close(bool result)
+    {
+        visible = false;
+        tcs?.TrySetResult(result);
+        StateHasChanged();
+    }
+
+    public void Dispose() => Confirm.Unregister();
+}

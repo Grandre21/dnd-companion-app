@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ToastService Toasts
+@inject ConfirmService Confirm
 
 <PageTitle>Personaggi - D&amp;D Companion</PageTitle>
 
@@ -2331,7 +2332,7 @@
 
         if (newQty <= 0)
         {
-            var confirmed = await JS.InvokeAsync<bool>("confirm",
+            var confirmed = await Confirm.ShowAsync(
                 $"Eliminare \"{item.Name}\" dall'inventario?");
             if (!confirmed) return;
             await DeleteItemInternalAsync(item);
@@ -2393,7 +2394,7 @@
     {
         if (!CanEditInventory) return;
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
+        var confirmed = await Confirm.ShowAsync(
             $"Eliminare \"{item.Name}\" dall'inventario?");
         if (!confirmed) return;
 

@@ -13,5 +13,6 @@ builder.Services.AddSingleton<AuthStateService>();
 builder.Services.AddSingleton<CampaignStateService>();
 builder.Services.AddSingleton<PwaUpdateService>();
 builder.Services.AddSingleton<ToastService>();
+builder.Services.AddSingleton<ConfirmService>();
 
 await builder.Build().RunAsync();

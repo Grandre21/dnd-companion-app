@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ToastService Toasts
+@inject ConfirmService Confirm
 
 <PageTitle>Appunti - D&amp;D Companion</PageTitle>
 
@@ -339,7 +340,7 @@
     {
         if (editDraft is null || string.IsNullOrEmpty(editDraft.Id) || !isEditable) return;
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm",
+        var confirmed = await Confirm.ShowAsync(
             $"Eliminare la nota \"{editDraft.Title}\"? L'operazione non può essere annullata.");
         if (!confirmed) return;
 

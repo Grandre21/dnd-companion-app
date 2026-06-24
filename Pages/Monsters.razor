@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ToastService Toasts
+@inject ConfirmService Confirm
 
 <PageTitle>Mostri - D&amp;D Companion</PageTitle>
 
@@ -519,7 +520,7 @@
 
     private async Task DeleteMonsterAsync(Monster monster)
     {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Eliminare il mostro \"{monster.Name}\"?");
+        var confirmed = await Confirm.ShowAsync($"Eliminare il mostro \"{monster.Name}\"?");
         if (!confirmed) return;
 
         isBusy = true;
