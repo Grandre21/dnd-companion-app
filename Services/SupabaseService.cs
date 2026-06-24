@@ -1,18 +1,20 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.JSInterop;
+using Supabase.Gotrue;
 
 namespace DndCompanion.Services;
 
 /// <summary>
-/// Provider del client Supabase e gestore della sessione (init + ripristino da localStorage +
-/// processing del ritorno OAuth + refresh token). NON contiene più accesso ai dati: ogni aggregato
-/// ha il suo repository in <c>DndCompanion.Services.Repositories</c>, che ottiene il client da qui
-/// tramite <see cref="GetClientAsync"/>.
+/// Provider di sessione/client Supabase. Dopo lo split standalone non usa più il meta-client:
+/// costruisce un Gotrue.Client (auth) + un Postgrest.Client (dati) e li espone tramite la facade
+/// <see cref="SupabaseClient"/> (superficie invariata per repository/AuthStateService).
 /// </summary>
 public class SupabaseService
 {
-    private readonly Supabase.Client _client;
+    private readonly Client _auth;
+    private readonly Postgrest.Client _postgrest;
+    private readonly SupabaseClient _facade;
     private readonly NavigationManager _navigation;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
@@ -23,98 +25,94 @@ public class SupabaseService
 
         var url = configuration["Supabase:Url"]
             ?? throw new InvalidOperationException("Supabase:Url non configurato in appsettings.json");
-
         var anonKey = configuration["Supabase:AnonKey"]
             ?? throw new InvalidOperationException("Supabase:AnonKey non configurato in appsettings.json");
 
-        var options = new Supabase.SupabaseOptions
+        // Auth (Gotrue). In gotrue-csharp 4.2.7 ClientOptions NON è generico e non espone una proprietà
+        // di persistenza nell'initializer: la persistenza su localStorage (BrowserSessionHandler) si
+        // collega con Client.SetPersistence(...). L'apikey va nel campo Headers delle opzioni.
+        _auth = new Client(new ClientOptions
         {
-            AutoConnectRealtime = false,
-            // Persistenza sessione su localStorage: il meta-client collega questo
-            // handler a Gotrue e ne carica la sessione durante InitializeAsync().
-            // In WASM IJSRuntime è anche IJSInProcessRuntime (sync), richiesto dall'handler.
-            SessionHandler = new BrowserSessionHandler((IJSInProcessRuntime)js)
+            Url = $"{url}/auth/v1",
+            Headers = new Dictionary<string, string> { { "apikey", anonKey } },
+        });
+        _auth.SetPersistence(new BrowserSessionHandler((IJSInProcessRuntime)js));
+
+        // Dati (Postgrest). Il token entra per-richiesta via GetHeaders: apikey + Bearer del token corrente
+        // (anon se non loggato), così l'RLS vede sempre il token valido — come faceva il meta-client.
+        _postgrest = new Postgrest.Client($"{url}/rest/v1", new Postgrest.ClientOptions
+        {
+            Headers = new Dictionary<string, string> { { "apikey", anonKey } },
+        })
+        {
+            GetHeaders = () => new Dictionary<string, string>
+            {
+                { "apikey", anonKey },
+                { "Authorization", $"Bearer {_auth.CurrentSession?.AccessToken ?? anonKey}" },
+            },
         };
 
-        _client = new Supabase.Client(url, anonKey, options);
+        _facade = new SupabaseClient(_auth, _postgrest);
     }
 
     /// <summary>
-    /// Punto unico di bootstrap della sessione. Serializzato da _initLock: il PRIMO chiamante
-    /// (Home o AuthRedirect, non importa l'ordine) esegue init + ripristino sessione persistita
-    /// + eventuale processing del ritorno OAuth; tutti gli altri ricevono un client con la
-    /// sessione GIÀ risolta. Questo elimina la race tra AuthRedirect e l'init delle pagine.
+    /// Bootstrap della sessione (idempotente, serializzato): ripristino da localStorage + processing
+    /// del ritorno OAuth + refresh se scaduta. Stessa sequenza di prima, ora su Gotrue diretto.
     /// </summary>
-    public async Task<Supabase.Client> GetClientAsync()
+    public async Task<SupabaseClient> GetClientAsync()
     {
-        if (_initialized) return _client;
+        if (_initialized) return _facade;
 
         await _initLock.WaitAsync();
         try
         {
             if (!_initialized)
             {
-                await _client.InitializeAsync();
+                // 1) Ripristina la sessione persistita (sync, no rete) → utente loggato al reload.
+                _auth.LoadSession();
 
-                // 1) Ripristina la sessione persistita (localStorage) → l'utente resta loggato al reload.
-                //    LoadSession è sincrono e non fa rete: nessuna superficie di errore qui.
-                _client.Auth.LoadSession();
-
-                // 2) Ritorno OAuth (flusso Implicit, default libreria): i token sono nel fragment
-                //    #access_token=...; un fallimento in error_description=. Va processato QUI,
-                //    così la sessione è pronta prima che qualunque pagina legga l'identità.
+                // 2) Ritorno OAuth (flusso Implicit): token nel fragment #access_token=.
                 var uri = _navigation.Uri;
-                // Flusso Implicit (default libreria): i token sono nel fragment #access_token=.
                 var isOAuthReturn = uri.Contains("access_token=") || uri.Contains("error_description=");
                 if (isOAuthReturn)
                 {
                     try
                     {
-                        var session = await _client.Auth.GetSessionFromUrl(new Uri(uri), storeSession: true);
+                        // gotrue-csharp 4.2.7: l'unico overload richiede storeSession (lo passiamo true,
+                        // come faceva il meta-client, così la sessione OAuth viene persistita).
+                        var session = await _auth.GetSessionFromUrl(new Uri(uri), storeSession: true);
                         if (session?.User is null)
-                        {
-                            // Nessuna eccezione ma sessione/utente non risolti: va reso visibile,
-                            // altrimenti l'utente risulta "non loggato" senza alcun segnale.
                             // NB: NON loggare l'URL (contiene l'access token nel fragment).
                             Console.Error.WriteLine("[OAuth] Login non completato: sessione senza utente.");
-                        }
                     }
                     catch (Exception ex)
                     {
-                        // Non silenziare: un fallimento del processing OAuth deve essere diagnosticabile.
-                        // Solo il messaggio: niente stack completo né URL (dati sensibili).
                         Console.Error.WriteLine($"[OAuth] Errore nel processing del ritorno OAuth: {ex.Message}");
                     }
                 }
                 else
                 {
-                    // Sessione ripristinata da localStorage: se l'access token è SCADUTO, LoadSession
-                    // (sincrono, no rete) l'ha caricata comunque scaduta → ogni chiamata REST darebbe
-                    // "JWT expired". La rinnoviamo col refresh token; se anche quello è scaduto/invalido
-                    // azzeriamo la sessione, così l'utente finisce al login invece di restare bloccato.
-                    var current = _client.Auth.CurrentSession;
+                    // Sessione ripristinata ma access token scaduto → refresh; se fallisce, logout pulito.
+                    var current = _auth.CurrentSession;
                     if (current is not null && current.Expired())
                     {
                         try
                         {
-                            await _client.Auth.RefreshSession();
+                            await _auth.RefreshSession();
                         }
                         catch (Exception ex)
                         {
                             Console.Error.WriteLine($"[Auth] Refresh sessione fallito, eseguo il logout: {ex.Message}");
-                            await _client.Auth.SignOut();
+                            await _auth.SignOut();
                         }
                     }
                 }
 
                 _initialized = true;
 
-                // 3) Pulisce l'URL dai token DOPO aver marcato _initialized (le ri-renderizzazioni
-                //    indotte dalla navigazione trovano già il client pronto, niente nuovo bootstrap).
+                // 3) Pulisce l'URL dai token dopo aver marcato _initialized.
                 if (isOAuthReturn)
-                {
                     _navigation.NavigateTo(_navigation.BaseUri, forceLoad: false, replace: true);
-                }
             }
         }
         finally
@@ -122,6 +120,6 @@ public class SupabaseService
             _initLock.Release();
         }
 
-        return _client;
+        return _facade;
     }
 }
