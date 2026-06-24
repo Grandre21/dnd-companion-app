@@ -110,7 +110,7 @@
             <div class="results-info">
                 @if (isLoading)
                 {
-                    <span>Caricamento...</span>
+                    <LoadingSpinner Text="Caricamento razze..." />
                 }
                 else
                 {
@@ -211,7 +211,7 @@
         </div>
 
         @* Creazione razza: ogni membro della campagna può aggiungere. *@
-        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova razza">
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova razza" aria-label="Nuova razza">
             +
         </button>
     }
@@ -324,9 +324,10 @@
 
     private async Task SaveFormAsync()
     {
-        if (string.IsNullOrWhiteSpace(editDraft.Name))
+        var validationError = FormValidation.ValidateRace(editDraft);
+        if (validationError is not null)
         {
-            errorMessage = "Il nome è obbligatorio";
+            errorMessage = validationError;
             return;
         }
 

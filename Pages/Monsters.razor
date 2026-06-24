@@ -156,7 +156,7 @@
             <div class="results-info">
                 @if (isLoading)
                 {
-                    <span>Caricamento...</span>
+                    <LoadingSpinner Text="Caricamento mostri..." />
                 }
                 else
                 {
@@ -270,7 +270,7 @@
         </div>
 
         @* Creazione mostro: ogni membro della campagna può aggiungere. *@
-        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo mostro">
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo mostro" aria-label="Nuovo mostro">
             +
         </button>
     }
@@ -467,9 +467,10 @@
 
     private async Task SaveFormAsync()
     {
-        if (string.IsNullOrWhiteSpace(editDraft.Name))
+        var validationError = FormValidation.ValidateMonster(editDraft);
+        if (validationError is not null)
         {
-            errorMessage = "Il nome è obbligatorio";
+            errorMessage = validationError;
             return;
         }
 

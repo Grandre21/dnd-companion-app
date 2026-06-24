@@ -98,7 +98,7 @@
             <div class="results-info">
                 @if (isLoading)
                 {
-                    <span>Caricamento...</span>
+                    <LoadingSpinner Text="Caricamento classi..." />
                 }
                 else
                 {
@@ -226,7 +226,7 @@
         </div>
 
         @* Creazione classe: ogni membro della campagna può aggiungere. *@
-        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova classe">
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova classe" aria-label="Nuova classe">
             +
         </button>
     }

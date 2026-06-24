@@ -95,7 +95,7 @@
             <div class="results-info">
                 @if (isLoading)
                 {
-                    <span>Caricamento...</span>
+                    <LoadingSpinner Text="Caricamento note..." />
                 }
                 else
                 {
@@ -150,7 +150,7 @@
             </div>
         }
 
-        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova nota">
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuova nota" aria-label="Nuova nota">
             +
         </button>
     }

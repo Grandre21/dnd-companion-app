@@ -163,7 +163,7 @@
     @* Creazione personaggio: per OGNI membro (player e master), in ogni vista tranne il form. *@
     @if (mode is ViewMode.List or ViewMode.Empty or ViewMode.Detail)
     {
-        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo personaggio">
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo personaggio" aria-label="Nuovo personaggio">
             +
         </button>
     }
