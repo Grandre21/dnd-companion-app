@@ -1,0 +1,395 @@
+/* ===== Regole campo/controllo copiate da CharacterEditForm.razor.css (CSS isolation) ===== */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.input {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(212, 165, 116, 0.35);
+    color: #e8d9b5;
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 8px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
+}
+
+.custom-input {
+    margin-top: 0.4rem;
+}
+
+.info-summary {
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.85rem;
+    background: rgba(212, 165, 116, 0.08);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+    line-height: 1.45;
+}
+
+.info-summary strong {
+    color: var(--gold-light);
+    font-weight: 700;
+}
+
+.field-hint {
+    font-size: 0.72rem;
+    color: #8b7a52;
+    line-height: 1.4;
+    margin: 0.1rem 0 0;
+}
+
+.derived-info {
+    padding: 0.55rem 0.75rem;
+    background: rgba(212, 165, 116, 0.06);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: #a8946a;
+    line-height: 1.5;
+}
+
+.derived-info strong {
+    color: var(--gold);
+    font-weight: 700;
+}
+
+/* Sotto-blocchi (TS competenti / Abilità competenti / Denari / Slot) */
+.sub-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+}
+
+.sub-block-title {
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gold);
+    margin: 0.2rem 0 0.1rem;
+}
+
+.checkbox-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 40px;
+    color: var(--gold-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--gold);
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+
+/* Tabella skill: nome | competente | expertise */
+.skill-head {
+    display: grid;
+    grid-template-columns: 1fr 3rem 3rem;
+    gap: 0.4rem;
+    font-size: 0.68rem;
+    color: #8b7a52;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 0.1rem;
+}
+
+.skill-head span:not(:first-child) {
+    text-align: center;
+}
+
+.skill-group {
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #a8946a;
+    margin: 0.5rem 0 0.1rem;
+}
+
+.skill-row {
+    display: grid;
+    grid-template-columns: 1fr 3rem 3rem;
+    gap: 0.4rem;
+    align-items: center;
+    min-height: 40px;
+    border-bottom: 0.5px solid rgba(212, 165, 116, 0.12);
+}
+
+.skill-name {
+    font-size: 0.88rem;
+    color: var(--gold-muted);
+}
+
+.skill-check {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--gold);
+    justify-self: center;
+    cursor: pointer;
+}
+
+/* Slot incantesimo: livello | massimi | usati */
+.spell-slots-head {
+    display: grid;
+    grid-template-columns: 4rem 1fr 1fr;
+    gap: 0.5rem;
+    font-size: 0.68rem;
+    color: #8b7a52;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 0.1rem;
+}
+
+.spell-slots-head span:not(:first-child) {
+    text-align: center;
+}
+
+.spell-slot-input-row {
+    display: grid;
+    grid-template-columns: 4rem 1fr 1fr;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.spell-slot-input-label {
+    font-size: 0.85rem;
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.spell-slot-input-row .input {
+    text-align: center;
+    padding: 0.5rem 0.25rem;
+}
+
+/* ===== Classi condivise duplicate (CSS isolation) ===== */
+.primary-btn {
+    background: linear-gradient(180deg, var(--gold) 0%, #b8864d 100%);
+    color: var(--text-on-gold);
+    border: none;
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(212, 165, 116, 0.3);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(212, 165, 116, 0.4);
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: rgba(212, 165, 116, 0.1);
+    color: var(--gold-light);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== Chrome del wizard ===== */
+.wizard-view {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0.5rem 1rem 2rem;
+}
+
+.wizard-top { margin: 0.5rem 0; }
+
+.wiz-cancel {
+    background: none;
+    border: none;
+    color: var(--gold-muted);
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0.25rem 0;
+}
+.wiz-cancel:hover { color: var(--gold); }
+
+.wizard-title {
+    color: var(--gold);
+    text-align: center;
+    margin: 0.25rem 0 1rem;
+}
+
+.wizard-steps {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.wiz-step-dot {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: 1px solid var(--gold-dim);
+    background: var(--bg-card);
+    color: var(--gold-muted);
+    cursor: pointer;
+    font-weight: 600;
+}
+.wiz-step-dot.active {
+    border-color: var(--gold-light);
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--bg);
+}
+.wiz-step-dot.done { color: var(--gold); border-color: var(--gold); }
+
+.wiz-step-caption {
+    text-align: center;
+    color: var(--gold-muted);
+    font-size: 0.9rem;
+    margin: 0 0 1rem;
+}
+
+.wizard-body { margin-bottom: 1.5rem; }
+.wiz-step { display: flex; flex-direction: column; gap: 0.75rem; }
+.wiz-placeholder { color: var(--gold-muted); text-align: center; padding: 2rem 0; }
+
+.wizard-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.wizard-nav .primary-btn { margin-left: auto; }
+
+/* ===== Step Caratteristiche ===== */
+.wiz-array-btn { align-self: flex-start; }
+
+.wiz-ability-head,
+.wiz-ability-row {
+    display: grid;
+    grid-template-columns: 3rem 1fr 2.5rem 4.5rem;
+    align-items: center;
+    gap: 0.5rem;
+}
+.wiz-ability-head {
+    color: var(--gold-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+.wiz-ability-name { color: var(--gold); font-weight: 600; }
+.wiz-stepper { display: flex; align-items: center; gap: 0.25rem; }
+.wiz-base-input { width: 3.5rem; text-align: center; }
+.wiz-ability-bonus { color: var(--gold-muted); text-align: center; }
+.wiz-ability-total { color: var(--gold-light); font-weight: 600; }
+.wiz-ability-total small { color: var(--gold-muted); font-weight: 400; }
+
+.qty-btn {
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 4px;
+    border: 1px solid var(--gold-dim);
+    background: var(--bg-card);
+    color: var(--gold);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+}
+.qty-btn:hover { border-color: var(--gold); }
+
+/* ===== Step Vitalità & competenze ===== */
+.wiz-hp-row { display: flex; gap: 0.5rem; align-items: center; }
+.wiz-hp-row .input { flex: 1; }
+.wiz-suggest-btn { white-space: nowrap; }
+
+.wiz-suggest-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    background: var(--bg-alt);
+    border: 1px solid var(--gold-dim);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    color: var(--gold-muted);
+    font-size: 0.9rem;
+}
+
+/* ===== Step Riepilogo ===== */
+.wiz-summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--gold-dim);
+    border-radius: 8px;
+    padding: 1rem;
+}
+.wiz-summary-name { color: var(--gold); margin: 0 0 0.25rem; }
+.wiz-summary-line { color: var(--gold-muted); margin: 0.5rem 0; }
+.wiz-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    margin: 0.75rem 0;
+}
+.wiz-summary-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--bg-alt);
+    border-radius: 6px;
+    padding: 0.4rem 0;
+}
+.wiz-summary-stat-label { color: var(--gold-muted); font-size: 0.75rem; }
+.wiz-summary-stat-val { color: var(--gold-light); font-weight: 600; font-size: 1.1rem; }
+.wiz-summary-stat-mod { color: var(--gold-muted); font-size: 0.8rem; }
+
+.req { color: #e0a0a0; }
