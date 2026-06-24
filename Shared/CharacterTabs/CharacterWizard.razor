@@ -24,7 +24,98 @@
     <div class="wizard-body">
         @switch (currentStep)
         {
-            case 0: <p class="wiz-placeholder">Identità</p> break;
+            case 0:
+                <div class="wiz-step">
+                    <div class="field">
+                        <label>Nome <span class="req">*</span></label>
+                        <input type="text" class="input" maxlength="64" @bind="Draft.Name" />
+                    </div>
+
+                    <div class="field">
+                        <label>Classe</label>
+                        <select class="input" value="@CurrentClassSelection" @onchange="OnClassSelectionChanged">
+                            <option value="">-- Seleziona --</option>
+                            @foreach (var c in Classes.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <option value="@c.Name">@c.Name</option>
+                            }
+                            <option value="@CustomOptionValue">Altro (testo libero)</option>
+                        </select>
+                        @if (isClassCustom)
+                        {
+                            <input type="text" class="input custom-input" maxlength="40"
+                                   placeholder="Scrivi la classe" @bind="Draft.Class" @bind:event="oninput" />
+                        }
+                        @if (SelectedClass is not null)
+                        {
+                            <div class="info-summary">
+                                <strong>Dado vita:</strong> @(string.IsNullOrEmpty(SelectedClass.HitDie) ? "—" : SelectedClass.HitDie)
+                                @if (!string.IsNullOrWhiteSpace(SelectedClass.PrimaryAbility))
+                                {
+                                    <span> · <strong>Abilità primaria:</strong> @SelectedClass.PrimaryAbility</span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="field">
+                        <label>Sottoclasse</label>
+                        <input type="text" class="input" maxlength="60"
+                               placeholder="es. Berserker, Campione..." @bind="Draft.Subclass" />
+                    </div>
+
+                    <div class="field">
+                        <label>Razza</label>
+                        <select class="input" value="@CurrentRaceSelection" @onchange="OnRaceSelectionChanged">
+                            <option value="">-- Seleziona --</option>
+                            @foreach (var r in Races.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <option value="@r.Name">@r.Name</option>
+                            }
+                            <option value="@CustomOptionValue">Altro (testo libero)</option>
+                        </select>
+                        @if (isRaceCustom)
+                        {
+                            <input type="text" class="input custom-input" maxlength="40"
+                                   placeholder="Scrivi la razza" @bind="Draft.Race" @bind:event="oninput" />
+                        }
+                        @if (SelectedRace is not null)
+                        {
+                            <div class="info-summary">
+                                <strong>Bonus razziali:</strong> @FormatRaceBonuses(SelectedRace)
+                                · <strong>Velocità:</strong> @SelectedRace.Speed
+                            </div>
+                        }
+                    </div>
+
+                    <div class="field">
+                        <label>Livello</label>
+                        <input type="number" class="input" min="1" max="20" @bind="Draft.Level" />
+                    </div>
+
+                    <div class="field">
+                        <label>Background</label>
+                        <input type="text" class="input" maxlength="60"
+                               placeholder="es. Soldato, Criminale..." @bind="Draft.Background" />
+                    </div>
+
+                    <div class="field">
+                        <label>Allineamento</label>
+                        <select class="input" @bind="Draft.Alignment">
+                            <option value="">-- Nessuno --</option>
+                            <option value="Legale Buono">Legale Buono</option>
+                            <option value="Neutrale Buono">Neutrale Buono</option>
+                            <option value="Caotico Buono">Caotico Buono</option>
+                            <option value="Legale Neutrale">Legale Neutrale</option>
+                            <option value="Neutrale Puro">Neutrale Puro</option>
+                            <option value="Caotico Neutrale">Caotico Neutrale</option>
+                            <option value="Legale Malvagio">Legale Malvagio</option>
+                            <option value="Neutrale Malvagio">Neutrale Malvagio</option>
+                            <option value="Caotico Malvagio">Caotico Malvagio</option>
+                        </select>
+                    </div>
+                </div>
+                break;
             case 1: <p class="wiz-placeholder">Caratteristiche</p> break;
             case 2: <p class="wiz-placeholder">Vitalità &amp; combattimento</p> break;
             case 3: <p class="wiz-placeholder">Competenze</p> break;
@@ -115,4 +206,39 @@
     private void GoToStep(int step) => currentStep = Math.Clamp(step, 0, TotalSteps - 1);
     private void Next() => GoToStep(currentStep + 1);
     private void Prev() => GoToStep(currentStep - 1);
+
+    private string CurrentClassSelection => isClassCustom ? CustomOptionValue : (Draft.Class ?? string.Empty);
+    private string CurrentRaceSelection => isRaceCustom ? CustomOptionValue : (Draft.Race ?? string.Empty);
+
+    private void OnClassSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue) { isClassCustom = true; Draft.Class = string.Empty; }
+        else { isClassCustom = false; Draft.Class = val; }
+        // La classe non tocca le caratteristiche: nessun RecalcFinals qui.
+    }
+
+    private void OnRaceSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue) { isRaceCustom = true; Draft.Race = string.Empty; }
+        else { isRaceCustom = false; Draft.Race = val; }
+        RecalcFinals(); // i bonus razziali cambiano i finali
+    }
+
+    private static string FormatRaceBonuses(Race race)
+    {
+        var parts = new List<string>();
+        void Add(int val, string label)
+        {
+            if (val != 0) parts.Add($"{(val > 0 ? "+" : "")}{val} {label}");
+        }
+        Add(race.StrBonus, "FOR");
+        Add(race.DexBonus, "DES");
+        Add(race.ConBonus, "COS");
+        Add(race.IntBonus, "INT");
+        Add(race.WisBonus, "SAG");
+        Add(race.ChaBonus, "CAR");
+        return parts.Count > 0 ? string.Join(", ", parts) : "nessuno";
+    }
 }
