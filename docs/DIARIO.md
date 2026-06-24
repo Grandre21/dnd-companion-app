@@ -79,4 +79,12 @@ slot incantesimo) importati via `@using static`. Estrazione a **comportamento in
 verifica in locale; il CSS isolato spostato per-tab (classi davvero condivise — `card-label`/`section-header`/
 `empty-note` — promosse in `app.css`). Note d'architettura: l'inventario resta del genitore (Combat ne legge le
 armi → `OnInventoryChanged` ricarica), il catalogo incantesimi resta in cache nel genitore e si passa ai figli.
-**Resta** il form di modifica (follow-up) e le sotto-fasi A (`SupabaseService` → repository) e C (stato auth/ruolo).
+**Form estratto (follow-up Fase 2B, 2026-06-24):** anche il form di modifica/creazione è ora un componente,
+`CharacterEditForm` (accordion a 7 sezioni + lo stato UI del solo form: `formSections`, classe/razza custom,
+handler degli slot incantesimo), con interfaccia `Draft`/`Classes`/`Races`/`IsBusy`/`OnSave`/`OnCancel`; il
+genitore mantiene la proprietà del draft, `NormalizeDraft`/`SaveFormAsync`/`CancelForm` e il cambio vista. Il
+componente si auto-inizializza in `OnParametersSet` (confronto `ReferenceEquals` sul `Draft`), così `OpenEditForm`
+non setta più `formSections`/custom. La media query desktop di `.form-view` è stata **replicata** nel CSS del
+componente (lo scope isolato del genitore non raggiunge il figlio — vale anche per le `@media`). `Characters.razor`
+è così scesa da ~1.35k a **~660 righe**. Della componentizzazione non resta nulla; aperte solo le sotto-fasi
+A (`SupabaseService` → repository) e C (stato auth/ruolo).

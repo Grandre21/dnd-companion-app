@@ -100,10 +100,11 @@ mega-componente (quello resta in §3).
 
 ## 3. Architettura & manutenibilità
 
-- 🟠 **Spezzare `Characters.razor`.** ✅ **Tab estratti (Fase 2B, 2026-06-24):** i 5 tab sono componenti in
-  `Shared/CharacterTabs/` (`CharacterBioTab`/`StatsTab`/`CombatTab`/`ItemsTab`/`MagicTab`) + helper `CharacterView`;
-  la pagina è scesa da ~2.4k a ~1.35k righe, comportamento invariato. **Resta (follow-up):** estrarre il **form di
-  modifica** (`CharacterEditForm`, `editDraft` + accordion + `NormalizeDraft`), il blocco più grosso ancora nel file.
+- ✅ **Spezzare `Characters.razor`** — FATTO (Fase 2B, 2026-06-24). I 5 tab **e** il form di modifica/creazione sono
+  componenti in `Shared/CharacterTabs/` (`CharacterBioTab`/`StatsTab`/`CombatTab`/`ItemsTab`/`MagicTab` +
+  `CharacterEditForm`) con helper `CharacterView`; la pagina è scesa da ~2.4k a ~660 righe, comportamento invariato.
+  Il genitore resta proprietario di stato/persistenza (draft + `NormalizeDraft`/`SaveFormAsync`, inventario,
+  catalogo incantesimi). Restano (indipendenti) le sotto-fasi A (repository) e C (stato auth) qui sotto.
 - 🟡 **Spezzare `SupabaseService` (god-object, ~40 metodi).** Repository per aggregato dietro interfacce
   (`ICharacterRepository`, `ISpellRepository`, `INoteService`…); abilita anche il mocking nei test.
 - 🟡 **Centralizzare lo stato di auth/ruolo.** Oggi ogni pagina rilegge identità/ruolo; un provider reattivo
