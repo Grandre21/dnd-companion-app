@@ -128,6 +128,8 @@ mega-componente (quello resta in §3).
   `CanEdit`/`AccessControl` (speculare alle RLS). **Da rivalutare** su upgrade libreria (Delete che ritorni la
   rappresentazione) o con un check di esistenza post-delete (round-trip extra). **Eventuale (UX, opzionale):**
   toast anche per gli errori (oggi successi→toast, errori→banner persistente — scelta ragionevole).
+  **Decisione (2026-06-24): accettato** lo stato attuale (il gate `CanEdit` copre il caso pratico); il
+  delete-outcome si rivaluta solo su upgrade della libreria.
 - ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
   riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
 - 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**
@@ -213,6 +215,13 @@ mega-componente (quello resta in §3).
   combattenti, l'upsert, e che il giocatore veda i cambi del Master. Con RLS permissive funziona, andrà
   protetto (§1). Limite noto: l'iniziativa modificata inline si persiste al successivo salvataggio
   (es. "Ordina"/"Prossimo turno"), non all'istante.
+- 🟡 **Import mostri nel combattimento.** Oggi `Combat.razor` ha solo "Importa personaggi"; quando il Master avvia
+  il combattimento dovrebbe poter importare come combattenti anche i **mostri** creati nella tab Mostri della
+  campagna (se ce ne sono). Requisiti emersi (2026-06-24): **selezione multipla** (uno o più mostri); possibilità
+  di aggiungere **più copie dello stesso** mostro (es. "Goblin", "Goblin 2"…) con parametri **ritoccabili per
+  istanza** (nome, PF/PF max, iniziativa). Mappatura `Monster` → `Combatant`; iniziativa tirata o inserita a mano.
+  Sorgente dati già pronta: `IMonsterRepository.GetMonstersForCampaignAsync`. UX: un selettore/dialog con quantità
+  per mostro. (Da progettare insieme al combat; vedi sopra.)
 - 🟡 **Aiuto AI alla compilazione (generazione da testo).** Da una descrizione testuale, generare bozze di
   **personaggi, classi, incantesimi, razze, mostri** (estende in modo strutturale il bisogno dei quick-win C).
   Requisiti emersi (2026-06-24):
