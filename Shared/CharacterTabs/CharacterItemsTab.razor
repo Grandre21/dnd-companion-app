@@ -1,5 +1,5 @@
 @using DndCompanion.Models
-@inject SupabaseService SupabaseService
+@inject IInventoryRepository InventoryRepository
 @inject ConfirmService Confirm
 
 <div class="inventory-header">
@@ -329,7 +329,7 @@ else
         try
         {
             newItemDraft.CharacterId = Character.Id;
-            var saved = await SupabaseService.CreateInventoryItemAsync(newItemDraft);
+            var saved = await InventoryRepository.CreateInventoryItemAsync(newItemDraft);
             if (saved is null)
             {
                 await OnError.InvokeAsync("Il server non ha restituito l'oggetto salvato.");
@@ -370,7 +370,7 @@ else
         await OnError.InvokeAsync(null);
         try
         {
-            var saved = await SupabaseService.UpdateInventoryItemAsync(item);
+            var saved = await InventoryRepository.UpdateInventoryItemAsync(item);
             if (saved is not null)
             {
                 item.Quantity = saved.Quantity;
@@ -398,7 +398,7 @@ else
         await OnError.InvokeAsync(null);
         try
         {
-            var saved = await SupabaseService.UpdateInventoryItemAsync(item);
+            var saved = await InventoryRepository.UpdateInventoryItemAsync(item);
             if (saved is not null)
             {
                 item.IsEquipped = saved.IsEquipped;
@@ -432,7 +432,7 @@ else
         await OnError.InvokeAsync(null);
         try
         {
-            await SupabaseService.DeleteInventoryItemAsync(item.Id);
+            await InventoryRepository.DeleteInventoryItemAsync(item.Id);
             if (expandedItemId == item.Id) expandedItemId = null;
             await OnInventoryChanged.InvokeAsync(); // il genitore ricarica (rimuove l'item + Combat aggiornato)
         }

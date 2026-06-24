@@ -1,6 +1,6 @@
 @using DndCompanion.Models
 @using DndCompanion.Services
-@inject SupabaseService SupabaseService
+@inject ICharacterSpellRepository CharacterSpellRepository
 
 <div class="spell-stats">
     <div class="spell-stat-block">
@@ -119,7 +119,7 @@
 
         try
         {
-            selectedCharacterSpells = await SupabaseService.GetCharacterSpellsAsync(Character.Id);
+            selectedCharacterSpells = await CharacterSpellRepository.GetCharacterSpellsAsync(Character.Id);
             RebuildSpellDisplay();
         }
         catch (Exception ex)
@@ -177,7 +177,7 @@
         };
         try
         {
-            var saved = await SupabaseService.AddSpellToCharacterAsync(entry);
+            var saved = await CharacterSpellRepository.AddSpellToCharacterAsync(entry);
             if (saved is not null)
             {
                 selectedCharacterSpells.Add(saved);
@@ -199,7 +199,7 @@
         // entry.IsPrepared è già stato invertito dal componente figlio.
         try
         {
-            var ok = await SupabaseService.UpdateCharacterSpellAsync(entry);
+            var ok = await CharacterSpellRepository.UpdateCharacterSpellAsync(entry);
             if (!ok)
             {
                 entry.IsPrepared = !entry.IsPrepared; // revert
@@ -217,7 +217,7 @@
     {
         try
         {
-            var ok = await SupabaseService.RemoveCharacterSpellAsync(entry.Id);
+            var ok = await CharacterSpellRepository.RemoveCharacterSpellAsync(entry.Id);
             if (ok)
             {
                 selectedCharacterSpells.Remove(entry);

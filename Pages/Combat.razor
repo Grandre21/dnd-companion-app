@@ -1,7 +1,8 @@
 @page "/combat"
 @using DndCompanion.Models
 @implements IDisposable
-@inject SupabaseService SupabaseService
+@inject ICombatStateRepository CombatStateRepository
+@inject ICharacterRepository CharacterRepository
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
@@ -196,7 +197,7 @@
         if (string.IsNullOrEmpty(campaignId)) return;
         try
         {
-            var state = await SupabaseService.GetCombatStateAsync(campaignId);
+            var state = await CombatStateRepository.GetCombatStateAsync(campaignId);
             combatants.Clear();
             if (state is not null)
             {
@@ -222,7 +223,7 @@
         if (!isMaster || string.IsNullOrEmpty(campaignId)) return;
         try
         {
-            await SupabaseService.SaveCombatStateAsync(new CombatState
+            await CombatStateRepository.SaveCombatStateAsync(new CombatState
             {
                 CampaignId = campaignId,
                 Combatants = combatants.ToList(),
@@ -303,7 +304,7 @@
                 return;
             }
 
-            var characters = await SupabaseService.GetCharactersForCampaignAsync(campaignId);
+            var characters = await CharacterRepository.GetCharactersForCampaignAsync(campaignId);
             if (characters.Count == 0)
             {
                 errorMessage = "Nessun personaggio nella campagna da importare.";

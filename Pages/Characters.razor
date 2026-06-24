@@ -1,6 +1,10 @@
 @page "/characters"
 @using DndCompanion.Models
-@inject SupabaseService SupabaseService
+@inject ICharacterRepository CharacterRepository
+@inject IRaceRepository RaceRepository
+@inject IClassRepository ClassRepository
+@inject ISpellRepository SpellRepository
+@inject IInventoryRepository InventoryRepository
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
@@ -215,9 +219,9 @@
             }
 
             // Tutti i personaggi della campagna; il permesso di modifica è per-personaggio (CanEdit).
-            var charsFetch = SupabaseService.GetCharactersForCampaignAsync(campaignId);
-            var racesTask = SupabaseService.GetRacesForCampaignAsync(campaignId);
-            var classesTask = SupabaseService.GetClassesForCampaignAsync(campaignId);
+            var charsFetch = CharacterRepository.GetCharactersForCampaignAsync(campaignId);
+            var racesTask = RaceRepository.GetRacesForCampaignAsync(campaignId);
+            var classesTask = ClassRepository.GetClassesForCampaignAsync(campaignId);
 
             await Task.WhenAll(charsFetch, racesTask, classesTask);
 
@@ -271,7 +275,7 @@
         if (spellsLoaded) return;
         try
         {
-            allSpells = await SupabaseService.GetSpellsForCampaignAsync(campaignId ?? string.Empty);
+            allSpells = await SpellRepository.GetSpellsForCampaignAsync(campaignId ?? string.Empty);
             spellsLoaded = true;
         }
         catch (Exception ex)
@@ -293,7 +297,7 @@
         isLoadingInventory = true;
         try
         {
-            inventoryItems = await SupabaseService.GetInventoryForCharacterAsync(characterId);
+            inventoryItems = await InventoryRepository.GetInventoryForCharacterAsync(characterId);
         }
         catch (Exception ex)
         {
@@ -402,11 +406,11 @@
             {
                 editDraft.OwnerId = userId ?? string.Empty;
                 editDraft.CampaignId = campaignId ?? string.Empty;
-                saved = await SupabaseService.CreateCharacterAsync(editDraft);
+                saved = await CharacterRepository.CreateCharacterAsync(editDraft);
             }
             else
             {
-                saved = await SupabaseService.UpdateCharacterAsync(editDraft);
+                saved = await CharacterRepository.UpdateCharacterAsync(editDraft);
             }
 
             if (saved is null)
@@ -487,7 +491,7 @@
         errorMessage = null;
         try
         {
-            var saved = await SupabaseService.UpdateCharacterAsync(selected);
+            var saved = await CharacterRepository.UpdateCharacterAsync(selected);
             if (saved is not null)
             {
                 selected.Notes = saved.Notes;
@@ -508,7 +512,7 @@
         errorMessage = null;
         try
         {
-            var saved = await SupabaseService.UpdateCharacterAsync(selected);
+            var saved = await CharacterRepository.UpdateCharacterAsync(selected);
             if (saved is not null)
             {
                 SyncListFromSelected();
