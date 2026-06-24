@@ -98,3 +98,14 @@ resta il **provider di sessione/client** (`GetClientAsync` + bootstrap OAuth/ref
 righe; lo usano ancora `AuthRedirect`/`Login`/`Home`/`AuthStateService` per il client. Tutti Singleton in DI.
 Vantaggio chiave: superficie testabile (mocking dei repo, §4 di [DA-FARE.md](.\DA-FARE.md)). Resta della §3 solo
 la sotto-fase C (stato auth/ruolo centralizzato). Piano in `docs/superpowers/`.
+
+**Sotto-fase C — stato utente centralizzato (2026-06-24).** Nuovo `CurrentUserService`, facade su
+`AuthStateService` + `CampaignStateService`: espone `UserId`/`DisplayName`/`IsMaster`/`CampaignId` dietro un'unica
+`EnsureLoadedAsync()`. Le 7 pagine dati (Characters, Combat, Spells, Classes, Races, Notes, Monsters) hanno
+sostituito il boilerplate ripetuto (`InitializeAsync` + lettura di `userId`/`isMaster`/`campaignId` + 3 campi
+locali) con una sola chiamata, leggendo direttamente dal facade; rimosse da quelle pagine le iniezioni di
+`AuthState`/`CampaignState`. `Home` resta l'hub auth/campagna (logout, scelta/uscita campagna). Rimosso
+`AuthStateService.GetRoleAsync()` perché codice morto (il ruolo vive in `CampaignStateService`). Scelta di
+**non** fare un provider full-reactive con eventi (YAGNI: nessuna pagina ha bisogno di aggiornarsi live al cambio
+auth/campagna). Comportamento invariato, build 0/0 + 62 test. **Con questo la §3 (architettura) è completa**:
+restano aperte solo voci minori (gestione errori, performance, a11y) e le feature di prodotto.

@@ -111,13 +111,15 @@ mega-componente (quello resta in §3).
   `IClassRepository`, `IInventoryRepository`, `ICharacterSpellRepository`, `ICampaignRepository`). `SupabaseService`
   resta il **provider di sessione/client** (`GetClientAsync` + bootstrap OAuth/refresh), da 577 a 127 righe. I
   consumatori iniettano i repo; abilita il mocking nei test (§4). Comportamento invariato, build 0/0 + 62 test.
-- 🟡 **Centralizzare lo stato di auth/ruolo.** Oggi ogni pagina rilegge identità/ruolo; un provider reattivo
-  con `CurrentUser { Id, Nickname, IsMaster }` riduce duplicazione e round-trip a localStorage.
-  Collegato: completare il `TODO(campagne)` in `AuthStateService.GetRoleAsync()` (oggi ritorna `null`;
-  il ruolo vive in `CampaignStateService`).
+- ✅ **Centralizzare lo stato di auth/ruolo** — FATTO (sotto-fase C, 2026-06-24). Nuovo `CurrentUserService`
+  (facade su `AuthStateService` + `CampaignStateService`): espone `UserId`/`DisplayName`/`IsMaster`/`CampaignId`
+  dietro un'unica `EnsureLoadedAsync()`. Le 7 pagine dati hanno sostituito il boilerplate ripetuto
+  (`InitializeAsync` + lettura di `userId`/`isMaster`/`campaignId` + 3 campi locali) con una sola chiamata,
+  leggendo dal facade. Rimosso `AuthStateService.GetRoleAsync()` (era codice morto: il ruolo vive già in
+  `CampaignStateService`). `Home` resta hub auth/campagna. Con questo la **§3 è completa**.
 - 🟡 **Gestione errori coerente.** ✅ `<ErrorBoundary>` aggiunto in `MainLayout` (fallback a tema + "Ripara e
   ricarica") e `DbErrorBanner` centralizzato (quick-win A). **Resta:** far ritornare ai metodi `Delete` di
-  `SupabaseService` l'esito reale (oggi `RemoveCharacterSpellAsync` ritorna sempre `true`; gli altri sono
+  dei repository l'esito reale (oggi `RemoveCharacterSpellAsync` ritorna sempre `true`; gli altri sono
   `void`) — da fare verificando se Postgrest 0.16.2 lancia su errore (non testabile in locale); toast
   "salvato"/"errore" centralizzati.
 - ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
