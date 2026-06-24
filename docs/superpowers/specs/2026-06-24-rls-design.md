@@ -1,7 +1,13 @@
 # Spec — Fase 1: Row-Level Security (RLS) su Supabase
 
-> Stato: **design approvato** (2026-06-24), in attesa di review dello spec scritto prima di passare al piano.
+> Stato: **completata** (2026-06-24) — vedi l'addendum post-audit qui sotto.
 > Contesto: vedi [DA-FARE.md §1](../../DA-FARE.md) (sicurezza) e [DIARIO.md](../../DIARIO.md).
+>
+> **Addendum post-audit (2026-06-24):** l'audit (Step 0) ha rivelato che le RLS erano **già implementate e
+> corrette** su quasi tutte le tabelle (helper, FK+cascade, policy). Lo scope reale si è ridotto alla chiusura
+> di **due gap** — `combat_state` spalancato e `campaign_members_insert` permissivo — più la RPC `join_campaign`.
+> Le sezioni sotto restano valide come riferimento del modello completo; l'implementazione effettiva è nel
+> piano `../plans/2026-06-24-rls.md` (Task 3-5).
 
 ## 1. Obiettivo e perché
 

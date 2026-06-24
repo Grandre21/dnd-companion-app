@@ -60,23 +60,26 @@ mega-componente (quello resta in §3).
 
 ## 1. Sicurezza — prerequisito al lancio pubblico
 
-> Con la migrazione a Supabase Auth l'identità è ora
-> un JWT firmato, ma **manca l'autorità lato server sui dati**: le RLS sono permissive e il client filtra
-> da solo. Finché è così, chiunque con la anon key (pubblica nel bundle) può leggere/scrivere tutte le
-> tabelle via REST bypassando la UI.
+> **Stato (2026-06-24): RLS attive e corrette su tutte le tabelle.** L'audit del DB ha rivelato che le
+> Row-Level Security erano **già implementate** (non permissive come annotato in passato); abbiamo chiuso i
+> due gap residui. L'autorità sui dati è ora lato server: chi ha la anon key non può più leggere/scrivere
+> dati altrui via REST. Dettaglio in `docs/superpowers/` (spec + piano del 2026-06-24).
 
-- 🔴 **Scrivere e testare le RLS per ogni tabella.** Regole per `characters`, `campaign_members`,
-  `notes`, cataloghi: un Player legge/modifica solo ciò che gli compete; le note private restano del Master.
-  Senza questo nessun altro fix di sicurezza ha valore reale.
-- 🔴 **Spostare le autorizzazioni sul server.** Ruolo e proprietà (`isMaster`, owner del PG) oggi sono
-  derivati lato client: vanno applicati via RLS / policy basate sul JWT, non solo nella UI.
+- ✅ **Scrivere e testare le RLS per ogni tabella** — FATTO (2026-06-24). Policy su `characters`,
+  `campaign_members`, `notes`, inventario/incantesimi, cataloghi e `campaigns`: un Player legge/modifica solo
+  ciò che gli compete; le note private restano del proprietario. Chiusi i due gap emersi dall'audit:
+  `combat_state` (era `ALL true/true` → ora scrittura al solo master) e `campaign_members_insert` (consentiva
+  l'auto-promozione a master → ora i join passano dalla RPC `join_campaign`). Verificato a due account + REST.
+- ✅ **Spostare le autorizzazioni sul server** — FATTO. Ruolo e proprietà (`isMaster`, owner del PG) sono
+  applicati via RLS basate su `auth.uid()` e sugli helper `is_campaign_member`/`is_campaign_master`, non più
+  solo nella UI.
 - 🟠 **Gate di registrazione/ingresso.** Se l'app diventa a pagamento, legare l'accesso all'entitlement
   d'acquisto (Play Billing) anziché a un codice invito; validare i codici invito server-side
   (monouso/scadenza) se restano.
-- 🟡 **Vincoli e validazione a livello DB.** `NOT NULL`, lunghezze, `CHECK` su livelli/punteggi; integrità
-  referenziale con **FK + `ON DELETE CASCADE`** per evitare inventario/incantesimi orfani
-  (il codice oggi filtra gli orfani lato client: sintomo che il problema è reale). Da verificare sul DB
-  Supabase, non deducibile dal solo C#.
+- 🟡 **Vincoli e validazione a livello DB.** ✅ Integrità referenziale: l'audit (2026-06-24) ha confermato
+  **FK + `ON DELETE CASCADE`** già presenti su tutte le relazioni verso `campaigns`/`characters` (gli
+  `added_by` dei cataloghi sono `SET NULL`, corretto). **Resta:** `NOT NULL`, lunghezze, `CHECK` su
+  livelli/punteggi (validazione di dominio, non ancora a livello DB).
 - 🟢 **Header di sicurezza.** GitHub Pages non permette CSP/HSTS via header: valutare almeno una CSP in
   `<meta>`, o un hosting con controllo header.
 

@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-06-21**.
+> Aggiornato: **2026-06-24**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -60,6 +60,13 @@ l'access token scaduto non veniva rinnovato (`LoadSession` non fa rete) → "JWT
 tenta il refresh col refresh token e, se fallisce, logout pulito. **Feedback**: toast a tema
 ("✓ Salvato/Eliminato") sul salvataggio PG e su tutti i CRUD; **dialog di conferma a tema** (`ConfirmDialog`)
 al posto dei `confirm()` nativi; contrasto `--gold-dim` alzato.
-Restano (lavoro grande o lato DB, vedi [DA-FARE.md](./DA-FARE.md)): **sicurezza RLS** (gate del pubblico),
-**mega-refactor** (`Characters.razor`/`SupabaseService`), e le feature di prodotto (AI alla compilazione,
-wizard scheda, i18n).
+Restano (lavoro grande, vedi [DA-FARE.md](./DA-FARE.md)): **mega-refactor**
+(`Characters.razor`/`SupabaseService`), e le feature di prodotto (AI alla compilazione, wizard scheda, i18n).
+
+**Sicurezza RLS (giu 2026).** Audit del DB: le Row-Level Security erano **già attive e corrette** su tutte le
+tabelle (helper `is_campaign_member`/`is_campaign_master`, FK già `ON DELETE CASCADE`), contrariamente a quanto
+annotato in passato. Chiusi i **due gap** residui: `combat_state` era spalancato (policy `ALL true/true`) → ora
+lettura ai membri e scrittura al solo master; e `campaign_members` permetteva l'auto-promozione a master → ora i
+join dei player passano dalla RPC `SECURITY DEFINER` `join_campaign` (codice validato server-side) e l'insert
+diretto è riservato all'owner. Con questo il **gate del lancio pubblico è soddisfatto**. Spec e piano in
+`docs/superpowers/`.
