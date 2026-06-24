@@ -116,7 +116,39 @@
                     </div>
                 </div>
                 break;
-            case 1: <p class="wiz-placeholder">Caratteristiche</p> break;
+            case 1:
+                <div class="wiz-step">
+                    <div class="derived-info">
+                        Bonus competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(Draft.Level))</strong>
+                    </div>
+
+                    <button type="button" class="secondary-btn wiz-array-btn" @onclick="LoadStandardArray">
+                        Carica array standard (15,14,13,12,10,8)
+                    </button>
+
+                    <div class="wiz-ability-head">
+                        <span>Caratteristica</span><span>Base</span><span>Razza</span><span>Totale</span>
+                    </div>
+
+                    @for (var i = 0; i < 6; i++)
+                    {
+                        var idx = i;
+                        <div class="wiz-ability-row">
+                            <span class="wiz-ability-name">@AbilityShort[idx]</span>
+                            <div class="wiz-stepper">
+                                <button type="button" class="qty-btn" @onclick="() => DecBase(idx)" aria-label="Diminuisci">−</button>
+                                <input type="number" class="input wiz-base-input" min="1" max="30"
+                                       value="@baseScores[idx]"
+                                       @onchange="e => SetBase(idx, e)" />
+                                <button type="button" class="qty-btn" @onclick="() => IncBase(idx)" aria-label="Aumenta">+</button>
+                            </div>
+                            <span class="wiz-ability-bonus">@FormatBonus(BaseBonus(idx))</span>
+                            <span class="wiz-ability-total">@FinalScore(idx) <small>(@FormatBonus(CharacterCalculations.GetModifier(FinalScore(idx))))</small></span>
+                        </div>
+                    }
+                    <p class="field-hint">Il totale = base + bonus razziale, limitato a 1–30. Il modificatore è tra parentesi.</p>
+                </div>
+                break;
             case 2: <p class="wiz-placeholder">Vitalità &amp; combattimento</p> break;
             case 3: <p class="wiz-placeholder">Competenze</p> break;
             case 4: <p class="wiz-placeholder">Incantesimi</p> break;
@@ -240,5 +272,46 @@
         Add(race.WisBonus, "SAG");
         Add(race.ChaBonus, "CAR");
         return parts.Count > 0 ? string.Join(", ", parts) : "nessuno";
+    }
+
+    private static readonly string[] AbilityShort = { "FOR", "DES", "COS", "INT", "SAG", "CAR" };
+
+    private int BaseBonus(int idx)
+    {
+        var race = SelectedRace;
+        if (race is null) return 0;
+        return idx switch
+        {
+            0 => race.StrBonus, 1 => race.DexBonus, 2 => race.ConBonus,
+            3 => race.IntBonus, 4 => race.WisBonus, 5 => race.ChaBonus, _ => 0
+        };
+    }
+
+    // Totale 1–30 della singola caratteristica (coerente con FinalAbilityScores).
+    private int FinalScore(int idx) => Math.Clamp(baseScores[idx] + BaseBonus(idx), 1, 30);
+
+    private void SetBase(int idx, ChangeEventArgs e)
+    {
+        var v = int.TryParse(e.Value?.ToString(), out var n) ? n : baseScores[idx];
+        baseScores[idx] = Math.Clamp(v, 1, 30);
+        RecalcFinals();
+    }
+
+    private void IncBase(int idx)
+    {
+        baseScores[idx] = Math.Clamp(baseScores[idx] + 1, 1, 30);
+        RecalcFinals();
+    }
+
+    private void DecBase(int idx)
+    {
+        baseScores[idx] = Math.Clamp(baseScores[idx] - 1, 1, 30);
+        RecalcFinals();
+    }
+
+    private void LoadStandardArray()
+    {
+        baseScores = new[] { 15, 14, 13, 12, 10, 8 };
+        RecalcFinals();
     }
 }
