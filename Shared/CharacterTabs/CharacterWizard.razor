@@ -361,7 +361,7 @@
         }
         else
         {
-            <button type="button" class="primary-btn" @onclick="@(() => OnSave.InvokeAsync())" disabled="@IsBusy">
+            <button type="button" class="primary-btn" @onclick="SaveAsync" disabled="@IsBusy">
                 @(IsBusy ? "Salvataggio..." : "Salva personaggio")
             </button>
         }
@@ -555,6 +555,12 @@
                 case "charisma": Draft.ProfSaveCharisma = true; break;
             }
         }
+    }
+
+    private Task SaveAsync()
+    {
+        Draft.HitPoints = Draft.MaxHitPoints; // creazione: i PF correnti partono al massimo
+        return OnSave.InvokeAsync();
     }
 
     private void OnSpellSlotMaxChanged(int level, ChangeEventArgs e)
