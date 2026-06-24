@@ -135,246 +135,9 @@
                 @* ===================== TAB ITEMS ===================== *@
                 @if (activeTab == "items")
                 {
-                    <div class="inventory-header">
-                        <p class="section-header" style="margin: 0;">INVENTARIO</p>
-                        <p class="inventory-summary">@inventoryItems.Count oggetti · Peso @FormatWeight(TotalInventoryWeight) kg</p>
-                    </div>
-                    <div class="inventory-section">
-
-                        @if (CanEditInventory)
-                        {
-                            @if (!isAddingItem)
-                            {
-                                <button type="button" class="inv-add-btn" @onclick="OpenAddItemForm">
-                                    + Aggiungi oggetto
-                                </button>
-                            }
-                            else
-                            {
-                                <div class="inv-form">
-                                    <div class="inv-form-grid">
-                                        <div class="field field-full">
-                                            <label>Nome</label>
-                                            <input type="text" class="input" maxlength="80"
-                                                   placeholder="Nome dell'oggetto"
-                                                   @bind="newItemDraft.Name" />
-                                        </div>
-
-                                        <div class="field">
-                                            <label>Quantità</label>
-                                            <input type="number" class="input" min="1" @bind="newItemDraft.Quantity" />
-                                        </div>
-
-                                        <div class="field">
-                                            <label>Peso</label>
-                                            <input type="number" class="input" step="0.1" min="0"
-                                                   @bind="newItemDraft.Weight" />
-                                        </div>
-
-                                        <div class="field field-full">
-                                            <label>Tipo</label>
-                                            <select class="input" @bind="newItemDraft.ItemType">
-                                                @foreach (var o in ItemTypeOptions)
-                                                {
-                                                    <option value="@o.Value">@o.Label</option>
-                                                }
-                                            </select>
-                                        </div>
-
-                                        <div class="field field-full">
-                                            <label>Descrizione (opzionale)</label>
-                                            <textarea class="input" rows="3"
-                                                      @bind="newItemDraft.Description"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="inv-form-actions">
-                                        <button type="button" class="primary-btn"
-                                                @onclick="SaveNewItemAsync"
-                                                disabled="@isSavingInventory">
-                                            @(isSavingInventory ? "Salvataggio..." : "Salva")
-                                        </button>
-                                        <button type="button" class="secondary-btn"
-                                                @onclick="CancelAddItem"
-                                                disabled="@isSavingInventory">
-                                            Annulla
-                                        </button>
-                                    </div>
-                                </div>
-                            }
-                        }
-
-                        @if (isLoadingInventory)
-                        {
-                            <LoadingSpinner Text="Caricamento inventario..." />
-                        }
-                        else if (inventoryItems.Count == 0)
-                        {
-                            <div class="inv-empty">Nessun oggetto nell'inventario.</div>
-                        }
-                        else
-                        {
-                            <div class="inv-list">
-                                @foreach (var item in inventoryItems)
-                                {
-                                    var isItemExpanded = expandedItemId == item.Id;
-                                    var isWeapon = string.Equals(item.ItemType, "weapon", StringComparison.OrdinalIgnoreCase);
-                                    var hasWeaponStats = isWeapon &&
-                                        (!string.IsNullOrWhiteSpace(item.AttackBonus) ||
-                                         !string.IsNullOrWhiteSpace(item.Damage) ||
-                                         !string.IsNullOrWhiteSpace(item.DamageType));
-                                    <div class="inv-item @(item.IsEquipped ? "equipped" : "")">
-                                        <div class="inv-row">
-                                            <button type="button" class="inv-name-btn"
-                                                    @onclick="() => ToggleItemExpand(item.Id)">
-                                                @if (isWeapon)
-                                                {
-                                                    <span class="weapon-badge" title="Arma">⚔</span>
-                                                }
-                                                else if (item.IsEquipped)
-                                                {
-                                                    <span class="eq-icon" title="Equipaggiato">⚔️</span>
-                                                }
-                                                <span class="inv-name-text">@item.Name</span>
-                                                @if (!string.IsNullOrWhiteSpace(item.Description))
-                                                {
-                                                    <span class="inv-exp-icon">@(isItemExpanded ? "▾" : "▸")</span>
-                                                }
-                                            </button>
-
-                                            @if (CanEditInventory)
-                                            {
-                                                <div class="qty-controls">
-                                                    <button type="button" class="qty-btn qty-minus"
-                                                            @onclick="() => AdjustQuantityAsync(item, -1)"
-                                                            disabled="@isSavingInventory">
-                                                        −
-                                                    </button>
-                                                    <span class="qty-value">@item.Quantity</span>
-                                                    <button type="button" class="qty-btn qty-plus"
-                                                            @onclick="() => AdjustQuantityAsync(item, 1)"
-                                                            disabled="@isSavingInventory">
-                                                        +
-                                                    </button>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <div class="qty-readonly">×@item.Quantity</div>
-                                            }
-                                        </div>
-
-                                        @if (hasWeaponStats)
-                                        {
-                                            <p class="inv-weapon-stats">
-                                                @if (!string.IsNullOrWhiteSpace(item.AttackBonus)) { <span>@item.AttackBonus</span> }
-                                                @if (!string.IsNullOrWhiteSpace(item.Damage)) { <span>· @item.Damage @item.DamageType?.ToLower()</span> }
-                                            </p>
-                                        }
-
-                                        <div class="inv-meta">
-                                            @if (!string.IsNullOrWhiteSpace(item.ItemType))
-                                            {
-                                                <span class="inv-type-badge">@(isWeapon ? "Arma" : item.ItemType)</span>
-                                            }
-                                            @if (item.Weight.HasValue)
-                                            {
-                                                <span class="inv-weight">@FormatWeight(item.Weight.Value * item.Quantity)</span>
-                                            }
-
-                                            @if (CanEditInventory)
-                                            {
-                                                <label class="inv-eq-toggle">
-                                                    <input type="checkbox" checked="@item.IsEquipped"
-                                                           @onchange="@(e => ToggleEquippedAsync(item, (bool)(e.Value ?? false)))"
-                                                           disabled="@isSavingInventory" />
-                                                    <span>Equipaggiato</span>
-                                                </label>
-
-                                                <button type="button" class="inv-delete-btn"
-                                                        title="Elimina oggetto"
-                                                        @onclick="() => DeleteItemAsync(item)"
-                                                        disabled="@isSavingInventory">
-                                                    🗑️
-                                                </button>
-                                            }
-                                        </div>
-
-                                        @if (isItemExpanded && !string.IsNullOrWhiteSpace(item.Description))
-                                        {
-                                            <div class="inv-description">@item.Description</div>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                        }
-                    </div>
-
-                    <p class="section-header">DENARO</p>
-                    @if (isEditingMoney)
-                    {
-                        <div class="money-editor">
-                            <div class="money-field">
-                                <label>MP</label>
-                                <input type="number" min="0" @bind="selected.PlatinumPieces" />
-                            </div>
-                            <div class="money-field">
-                                <label>MO</label>
-                                <input type="number" min="0" @bind="selected.GoldPieces" />
-                            </div>
-                            <div class="money-field">
-                                <label>ME</label>
-                                <input type="number" min="0" @bind="selected.ElectrumPieces" />
-                            </div>
-                            <div class="money-field">
-                                <label>MA</label>
-                                <input type="number" min="0" @bind="selected.SilverPieces" />
-                            </div>
-                            <div class="money-field">
-                                <label>MR</label>
-                                <input type="number" min="0" @bind="selected.CopperPieces" />
-                            </div>
-                            <div class="money-editor-actions">
-                                <button class="money-save-btn" @onclick="SaveMoney">Salva</button>
-                            </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="money-compact @(CanEdit ? "editable" : "")" @onclick="@(() => { if (CanEdit) isEditingMoney = true; })">
-                            <span class="money-icon">🪙</span>
-                            <span class="money-summary">@FormatMoney()</span>
-                            @if (CanEdit)
-                            {
-                                <span class="money-edit-hint">✎</span>
-                            }
-                        </div>
-                    }
-
-                    <p class="section-header">SINTONIE OGGETTI MAGICI</p>
-                    <div class="attunements-compact">
-                        @for (int slot = 1; slot <= 3; slot++)
-                        {
-                            var n = slot;
-                            var current = AttunementValue(n);
-                            <div class="attunement-row">
-                                <span class="attunement-icon">✦</span>
-                                @if (CanEdit)
-                                {
-                                    <input type="text" class="attunement-input" maxlength="80"
-                                           placeholder="(slot libero)"
-                                           value="@current"
-                                           @onchange="@(e => SetAttunementAsync(n, e.Value?.ToString()))" />
-                                }
-                                else
-                                {
-                                    <span class="attunement-text @(string.IsNullOrWhiteSpace(current) ? "empty" : "")">
-                                        @(string.IsNullOrWhiteSpace(current) ? "(slot libero)" : current)
-                                    </span>
-                                }
-                            </div>
-                        }
-                    </div>
+                    <CharacterItemsTab Character="@selected" CanEdit="@CanEdit" Items="@inventoryItems"
+                                       IsLoading="@isLoadingInventory" OnChanged="@SaveCharacterAsync"
+                                       OnInventoryChanged="@ReloadInventoryAsync" OnError="@SetError" />
                 }
 
                 @* ===================== TAB MAGIC ===================== *@
@@ -1061,11 +824,7 @@
     private const string CustomOptionValue = "__custom__";
 
     private List<InventoryItem> inventoryItems = new();
-    private InventoryItem newItemDraft = new();
-    private bool isAddingItem;
-    private string? expandedItemId;
     private bool isLoadingInventory;
-    private bool isSavingInventory;
 
     // ===== Incantesimi del PG (tab Magic) =====
     // allSpells = catalogo globale (caricato una sola volta, in cache).
@@ -1090,19 +849,6 @@
         }
         characterSpellsForDisplay = views;
     }
-
-    // Le armi (Value "weapon") vengono mostrate nella sezione Combattimento,
-    // non nella lista Inventario. Le altre voci usano Value == Label.
-    private static readonly (string Value, string Label)[] ItemTypeOptions =
-    {
-        ("Altro", "Altro"),
-        ("weapon", "Arma"),
-        ("Armatura", "Armatura"),
-        ("Pozione", "Pozione"),
-        ("Pergamena", "Pergamena"),
-        ("Strumento", "Strumento"),
-        ("Tesoro", "Tesoro")
-    };
 
     // ===== Navigazione a tab della vista detail =====
     // valori: combat | stats | bio | items | magic
@@ -1149,17 +895,10 @@
     private bool isMaster;
 
     private bool isBusy;
-    private bool isEditingMoney;
     private string? errorMessage;
-
-    private bool CanEditInventory =>
-        selected is not null && (isMaster || selected.OwnerId == userId);
 
     private bool CanEdit =>
         selected is not null && (isMaster || selected.OwnerId == userId);
-
-    private double TotalInventoryWeight =>
-        inventoryItems.Sum(i => (i.Weight ?? 0) * i.Quantity);
 
     private static string SpellAbilityShort(string? a)
     {
@@ -1167,41 +906,6 @@
         var t = a.Trim();
         return (t.Length <= 3 ? t : t[..3]).ToUpperInvariant();
     }
-
-    // ===== Denaro =====
-
-    // Stringa compatta delle sole valute > 0, in ordine di valore decrescente (MP>MO>ME>MA>MR).
-    private string FormatMoney()
-    {
-        if (selected is null) return "Nessuna moneta";
-        var parts = new List<string>();
-        if (selected.PlatinumPieces > 0) parts.Add($"{selected.PlatinumPieces} MP");
-        if (selected.GoldPieces > 0) parts.Add($"{selected.GoldPieces} MO");
-        if (selected.ElectrumPieces > 0) parts.Add($"{selected.ElectrumPieces} ME");
-        if (selected.SilverPieces > 0) parts.Add($"{selected.SilverPieces} MA");
-        if (selected.CopperPieces > 0) parts.Add($"{selected.CopperPieces} MR");
-        return parts.Count > 0 ? string.Join(" · ", parts) : "Nessuna moneta";
-    }
-
-    private async Task SaveMoney()
-    {
-        if (selected is null || !CanEdit) return;
-        selected.PlatinumPieces = Math.Max(0, selected.PlatinumPieces);
-        selected.GoldPieces = Math.Max(0, selected.GoldPieces);
-        selected.ElectrumPieces = Math.Max(0, selected.ElectrumPieces);
-        selected.SilverPieces = Math.Max(0, selected.SilverPieces);
-        selected.CopperPieces = Math.Max(0, selected.CopperPieces);
-        await SaveCharacterAsync();
-        isEditingMoney = false;
-    }
-
-    private string? AttunementValue(int slot) => slot switch
-    {
-        1 => selected?.AttunedItem1,
-        2 => selected?.AttunedItem2,
-        3 => selected?.AttunedItem3,
-        _ => null
-    };
 
     // ===== Slot incantesimo =====
 
@@ -1345,9 +1049,6 @@
         selected = c;
         mode = ViewMode.Detail;
         activeTab = "combat";
-        expandedItemId = null;
-        isAddingItem = false;
-        isEditingMoney = false;
         await LoadInventoryAsync(c.Id);
         await LoadSpellsForSelectedAsync(c);
     }
@@ -1411,6 +1112,15 @@
             isLoadingInventory = false;
         }
     }
+
+    // Ricarica l'inventario dopo una modifica strutturale di CharacterItemsTab (add/delete),
+    // così anche le armi mostrate nel tab Combat restano allineate.
+    private async Task ReloadInventoryAsync()
+    {
+        if (selected is not null) await LoadInventoryAsync(selected.Id);
+    }
+
+    private void SetError(string? message) => errorMessage = message;
 
     private void BackToListOrEmpty()
     {
@@ -1693,20 +1403,6 @@
         await SaveCharacterAsync();
     }
 
-    private async Task SetAttunementAsync(int slot, string? raw)
-    {
-        if (selected is null || !CanEdit) return;
-        var val = string.IsNullOrWhiteSpace(raw) ? null : raw.Trim();
-        switch (slot)
-        {
-            case 1: selected.AttunedItem1 = val; break;
-            case 2: selected.AttunedItem2 = val; break;
-            case 3: selected.AttunedItem3 = val; break;
-            default: return;
-        }
-        await SaveCharacterAsync();
-    }
-
     private void SyncListFromSelected()
     {
         if (selected is null) return;
@@ -1910,174 +1606,4 @@
         SpellSlots9Max = c.SpellSlots9Max, SpellSlots9Used = c.SpellSlots9Used
     };
 
-    // ====================== Inventory ======================
-
-    private void ToggleItemExpand(string id)
-    {
-        expandedItemId = expandedItemId == id ? null : id;
-    }
-
-    private void OpenAddItemForm()
-    {
-        if (!CanEditInventory || selected is null) return;
-        newItemDraft = new InventoryItem
-        {
-            CharacterId = selected.Id,
-            Quantity = 1,
-            ItemType = ItemTypeOptions[0].Value
-        };
-        isAddingItem = true;
-        errorMessage = null;
-    }
-
-    private void CancelAddItem()
-    {
-        isAddingItem = false;
-        newItemDraft = new InventoryItem();
-    }
-
-    private async Task SaveNewItemAsync()
-    {
-        if (!CanEditInventory || selected is null) return;
-
-        if (string.IsNullOrWhiteSpace(newItemDraft.Name))
-        {
-            errorMessage = "Il nome dell'oggetto è obbligatorio";
-            return;
-        }
-        if (newItemDraft.Quantity < 1) newItemDraft.Quantity = 1;
-
-        isSavingInventory = true;
-        errorMessage = null;
-        try
-        {
-            newItemDraft.CharacterId = selected.Id;
-            var saved = await SupabaseService.CreateInventoryItemAsync(newItemDraft);
-            if (saved is null)
-            {
-                errorMessage = "Il server non ha restituito l'oggetto salvato.";
-                return;
-            }
-
-            inventoryItems.Add(saved);
-            inventoryItems = inventoryItems
-                .OrderBy(i => i.ItemType ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            isAddingItem = false;
-            newItemDraft = new InventoryItem();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Errore creazione oggetto: {ex.Message}";
-        }
-        finally
-        {
-            isSavingInventory = false;
-        }
-    }
-
-    private async Task AdjustQuantityAsync(InventoryItem item, int delta)
-    {
-        if (!CanEditInventory) return;
-
-        var newQty = item.Quantity + delta;
-
-        if (newQty <= 0)
-        {
-            var confirmed = await Confirm.ShowAsync(
-                $"Eliminare \"{item.Name}\" dall'inventario?");
-            if (!confirmed) return;
-            await DeleteItemInternalAsync(item);
-            return;
-        }
-
-        var previous = item.Quantity;
-        item.Quantity = newQty;
-        isSavingInventory = true;
-        errorMessage = null;
-        try
-        {
-            var saved = await SupabaseService.UpdateInventoryItemAsync(item);
-            if (saved is not null)
-            {
-                item.Quantity = saved.Quantity;
-            }
-        }
-        catch (Exception ex)
-        {
-            item.Quantity = previous;
-            errorMessage = $"Errore salvataggio quantità: {ex.Message}";
-        }
-        finally
-        {
-            isSavingInventory = false;
-        }
-    }
-
-    private async Task ToggleEquippedAsync(InventoryItem item, bool newValue)
-    {
-        if (!CanEditInventory) return;
-        if (item.IsEquipped == newValue) return;
-
-        var previous = item.IsEquipped;
-        item.IsEquipped = newValue;
-        isSavingInventory = true;
-        errorMessage = null;
-        try
-        {
-            var saved = await SupabaseService.UpdateInventoryItemAsync(item);
-            if (saved is not null)
-            {
-                item.IsEquipped = saved.IsEquipped;
-            }
-        }
-        catch (Exception ex)
-        {
-            item.IsEquipped = previous;
-            errorMessage = $"Errore salvataggio equipaggiamento: {ex.Message}";
-        }
-        finally
-        {
-            isSavingInventory = false;
-        }
-    }
-
-    private async Task DeleteItemAsync(InventoryItem item)
-    {
-        if (!CanEditInventory) return;
-
-        var confirmed = await Confirm.ShowAsync(
-            $"Eliminare \"{item.Name}\" dall'inventario?");
-        if (!confirmed) return;
-
-        await DeleteItemInternalAsync(item);
-    }
-
-    private async Task DeleteItemInternalAsync(InventoryItem item)
-    {
-        isSavingInventory = true;
-        errorMessage = null;
-        try
-        {
-            await SupabaseService.DeleteInventoryItemAsync(item.Id);
-            inventoryItems.RemoveAll(i => i.Id == item.Id);
-            if (expandedItemId == item.Id) expandedItemId = null;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Errore eliminazione oggetto: {ex.Message}";
-        }
-        finally
-        {
-            isSavingInventory = false;
-        }
-    }
-
-    private static string FormatWeight(double weight)
-    {
-        if (weight <= 0) return "0";
-        return weight.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-    }
 }
