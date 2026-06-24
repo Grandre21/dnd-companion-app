@@ -1,0 +1,95 @@
+@using DndCompanion.Models
+
+<div class="bio-blocks">
+    <div class="bio-row">
+        <span class="bio-label">Allineamento</span>
+        <span class="bio-value">@(string.IsNullOrWhiteSpace(Character.Alignment) ? "—" : Character.Alignment)</span>
+    </div>
+    <div class="bio-row">
+        <span class="bio-label">Background</span>
+        <span class="bio-value">@(string.IsNullOrWhiteSpace(Character.Background) ? "—" : Character.Background)</span>
+    </div>
+    <div class="bio-row">
+        <span class="bio-label">Lingue</span>
+        <span class="bio-value">@(string.IsNullOrWhiteSpace(Character.Languages) ? "—" : Character.Languages)</span>
+    </div>
+    <div class="bio-row">
+        <span class="bio-label">Esperienza</span>
+        <span class="bio-value">@Character.ExperiencePoints PE</span>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Character.Appearance))
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">ASPETTO</p>
+            <p class="bio-block-text">@Character.Appearance</p>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Character.Backstory))
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">STORIA</p>
+            <p class="bio-block-text">@Character.Backstory</p>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Character.SpeciesTraits))
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">TRATTI DELLA SPECIE</p>
+            <p class="bio-block-text">@Character.SpeciesTraits</p>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Character.ClassFeatures))
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">PRIVILEGI DI CLASSE</p>
+            <p class="bio-block-text">@Character.ClassFeatures</p>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Character.Feats))
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">TALENTI</p>
+            <p class="bio-block-text">@Character.Feats</p>
+        </div>
+    }
+
+    <div class="bio-block">
+        <p class="bio-block-title">NOTE LIBERE</p>
+        <textarea class="notes-textarea" rows="5" @bind="notesDraft"
+                  placeholder="Equipaggiamento, background, obiettivi..."></textarea>
+        <button type="button" class="small-btn"
+                @onclick="SaveNotes"
+                disabled="@(isSavingNotes || notesDraft == (Character.Notes ?? string.Empty))">
+            @(isSavingNotes ? "Salvataggio..." : "Salva note")
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Character Character { get; set; } = default!;
+
+    /// <summary>Il genitore persiste le note (UpdateCharacter + sync della lista) e gestisce gli errori.</summary>
+    [Parameter] public EventCallback<string> OnSaveNotes { get; set; }
+
+    private string notesDraft = string.Empty;
+    private bool isSavingNotes;
+    private string? _lastId;
+
+    // Re-inizializza il draft quando cambia il PG mostrato (prima lo faceva il genitore alla selezione).
+    protected override void OnParametersSet()
+    {
+        if (Character.Id != _lastId)
+        {
+            _lastId = Character.Id;
+            notesDraft = Character.Notes ?? string.Empty;
+        }
+    }
+
+    private async Task SaveNotes()
+    {
+        isSavingNotes = true;
+        await OnSaveNotes.InvokeAsync(notesDraft);
+        isSavingNotes = false;
+    }
+}

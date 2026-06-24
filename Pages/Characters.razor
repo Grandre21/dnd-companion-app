@@ -292,71 +292,7 @@
                 @* ===================== TAB BIO ===================== *@
                 @if (activeTab == "bio")
                 {
-                    <div class="bio-blocks">
-                        <div class="bio-row">
-                            <span class="bio-label">Allineamento</span>
-                            <span class="bio-value">@(string.IsNullOrWhiteSpace(selected.Alignment) ? "—" : selected.Alignment)</span>
-                        </div>
-                        <div class="bio-row">
-                            <span class="bio-label">Background</span>
-                            <span class="bio-value">@(string.IsNullOrWhiteSpace(selected.Background) ? "—" : selected.Background)</span>
-                        </div>
-                        <div class="bio-row">
-                            <span class="bio-label">Lingue</span>
-                            <span class="bio-value">@(string.IsNullOrWhiteSpace(selected.Languages) ? "—" : selected.Languages)</span>
-                        </div>
-                        <div class="bio-row">
-                            <span class="bio-label">Esperienza</span>
-                            <span class="bio-value">@selected.ExperiencePoints PE</span>
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(selected.Appearance))
-                        {
-                            <div class="bio-block">
-                                <p class="bio-block-title">ASPETTO</p>
-                                <p class="bio-block-text">@selected.Appearance</p>
-                            </div>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(selected.Backstory))
-                        {
-                            <div class="bio-block">
-                                <p class="bio-block-title">STORIA</p>
-                                <p class="bio-block-text">@selected.Backstory</p>
-                            </div>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(selected.SpeciesTraits))
-                        {
-                            <div class="bio-block">
-                                <p class="bio-block-title">TRATTI DELLA SPECIE</p>
-                                <p class="bio-block-text">@selected.SpeciesTraits</p>
-                            </div>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(selected.ClassFeatures))
-                        {
-                            <div class="bio-block">
-                                <p class="bio-block-title">PRIVILEGI DI CLASSE</p>
-                                <p class="bio-block-text">@selected.ClassFeatures</p>
-                            </div>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(selected.Feats))
-                        {
-                            <div class="bio-block">
-                                <p class="bio-block-title">TALENTI</p>
-                                <p class="bio-block-text">@selected.Feats</p>
-                            </div>
-                        }
-
-                        <div class="bio-block">
-                            <p class="bio-block-title">NOTE LIBERE</p>
-                            <textarea class="notes-textarea" rows="5" @bind="notesDraft"
-                                      placeholder="Equipaggiamento, background, obiettivi..."></textarea>
-                            <button type="button" class="small-btn"
-                                    @onclick="SaveNotesAsync"
-                                    disabled="@(isSavingNotes || notesDraft == (selected.Notes ?? string.Empty))">
-                                @(isSavingNotes ? "Salvataggio..." : "Salva note")
-                            </button>
-                        </div>
-                    </div>
+                    <CharacterBioTab Character="@selected" OnSaveNotes="@SaveNotesAsync" />
                 }
 
                 @* ===================== TAB ITEMS ===================== *@
@@ -1281,8 +1217,6 @@
     private List<Character> characters = new();
     private Character? selected;
     private Character editDraft = new();
-    private string notesDraft = string.Empty;
-
     private List<Race> races = new();
     private List<CharacterClass> classes = new();
     private bool isRaceCustom;
@@ -1379,7 +1313,6 @@
 
     private bool isBusy;
     private bool isSavingHp;
-    private bool isSavingNotes;
     private bool isEditingMoney;
     private string? errorMessage;
 
@@ -1601,7 +1534,6 @@
     private async Task OpenDetailAsync(Character c)
     {
         selected = c;
-        notesDraft = c.Notes ?? string.Empty;
         mode = ViewMode.Detail;
         activeTab = "combat";
         expandedItemId = null;
@@ -1923,13 +1855,14 @@
         }
     }
 
-    private async Task SaveNotesAsync()
+    // Persistenza delle note (invocata da CharacterBioTab via OnSaveNotes); il draft e il flag di
+    // salvataggio vivono nel componente.
+    private async Task SaveNotesAsync(string text)
     {
         if (selected is null) return;
 
         var previous = selected.Notes;
-        selected.Notes = notesDraft;
-        isSavingNotes = true;
+        selected.Notes = text;
         errorMessage = null;
         try
         {
@@ -1937,7 +1870,6 @@
             if (saved is not null)
             {
                 selected.Notes = saved.Notes;
-                notesDraft = saved.Notes ?? string.Empty;
                 SyncListFromSelected();
             }
         }
@@ -1945,10 +1877,6 @@
         {
             selected.Notes = previous;
             errorMessage = $"Errore salvataggio note: {ex.Message}";
-        }
-        finally
-        {
-            isSavingNotes = false;
         }
     }
 
