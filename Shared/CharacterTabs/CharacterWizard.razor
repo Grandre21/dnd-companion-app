@@ -212,7 +212,66 @@
                     </div>
                 </div>
                 break;
-            case 3: <p class="wiz-placeholder">Competenze</p> break;
+            case 3:
+                <div class="wiz-step">
+                    <div class="sub-block">
+                        <p class="sub-block-title">TIRI SALVEZZA COMPETENTI</p>
+                        @if (SaveSuggestions.Count > 0)
+                        {
+                            <div class="wiz-suggest-chip">
+                                <span>Suggeriti dalla classe: <strong>@SaveSuggestionLabel</strong></span>
+                                <button type="button" class="secondary-btn" @onclick="ApplySaveSuggestions">Applica</button>
+                            </div>
+                        }
+                        <div class="checkbox-col">
+                            <label class="checkbox-row"><input type="checkbox" @bind="Draft.ProfSaveStrength" /> <span>Forza</span></label>
+                            <label class="checkbox-row"><input type="checkbox" @bind="Draft.ProfSaveDexterity" /> <span>Destrezza</span></label>
+                            <label class="checkbox-row"><input type="checkbox" @bind="Draft.ProfSaveConstitution" /> <span>Costituzione</span></label>
+                            <label class="checkbox-row"><input type="checkbox" @bind="Draft.ProfSaveIntelligence" /> <span>Intelligenza</span></label>
+                            <label class="checkbox-row"><input type="checkbox" @bind="Draft.ProfSaveWisdom" /> <span>Saggezza</span></label>
+                            <label class="checkbox-row"><input type="checkbox" @bind="Draft.ProfSaveCharisma" /> <span>Carisma</span></label>
+                        </div>
+                    </div>
+
+                    <div class="sub-block">
+                        <p class="sub-block-title">ABILITÀ COMPETENTI</p>
+                        @if (SelectedClass is not null && !string.IsNullOrWhiteSpace(SelectedClass.SkillChoices))
+                        {
+                            <p class="field-hint">La classe permette di scegliere: @SelectedClass.SkillChoices</p>
+                        }
+                        <div class="skill-head"><span>Skill</span><span>Comp</span><span>Exp</span></div>
+
+                        <p class="skill-group">FORZA</p>
+                        <div class="skill-row"><span class="skill-name">Atletica</span><input type="checkbox" class="skill-check" @bind="Draft.ProfAthletics" /><input type="checkbox" class="skill-check" @bind="Draft.ExpAthletics" /></div>
+
+                        <p class="skill-group">DESTREZZA</p>
+                        <div class="skill-row"><span class="skill-name">Acrobazia</span><input type="checkbox" class="skill-check" @bind="Draft.ProfAcrobatics" /><input type="checkbox" class="skill-check" @bind="Draft.ExpAcrobatics" /></div>
+                        <div class="skill-row"><span class="skill-name">Rapidità di mano</span><input type="checkbox" class="skill-check" @bind="Draft.ProfSleightOfHand" /><input type="checkbox" class="skill-check" @bind="Draft.ExpSleightOfHand" /></div>
+                        <div class="skill-row"><span class="skill-name">Furtività</span><input type="checkbox" class="skill-check" @bind="Draft.ProfStealth" /><input type="checkbox" class="skill-check" @bind="Draft.ExpStealth" /></div>
+
+                        <p class="skill-group">INTELLIGENZA</p>
+                        <div class="skill-row"><span class="skill-name">Arcano</span><input type="checkbox" class="skill-check" @bind="Draft.ProfArcana" /><input type="checkbox" class="skill-check" @bind="Draft.ExpArcana" /></div>
+                        <div class="skill-row"><span class="skill-name">Storia</span><input type="checkbox" class="skill-check" @bind="Draft.ProfHistory" /><input type="checkbox" class="skill-check" @bind="Draft.ExpHistory" /></div>
+                        <div class="skill-row"><span class="skill-name">Indagare</span><input type="checkbox" class="skill-check" @bind="Draft.ProfInvestigation" /><input type="checkbox" class="skill-check" @bind="Draft.ExpInvestigation" /></div>
+                        <div class="skill-row"><span class="skill-name">Natura</span><input type="checkbox" class="skill-check" @bind="Draft.ProfNature" /><input type="checkbox" class="skill-check" @bind="Draft.ExpNature" /></div>
+                        <div class="skill-row"><span class="skill-name">Religione</span><input type="checkbox" class="skill-check" @bind="Draft.ProfReligion" /><input type="checkbox" class="skill-check" @bind="Draft.ExpReligion" /></div>
+
+                        <p class="skill-group">SAGGEZZA</p>
+                        <div class="skill-row"><span class="skill-name">Addestrare animali</span><input type="checkbox" class="skill-check" @bind="Draft.ProfAnimalHandling" /><input type="checkbox" class="skill-check" @bind="Draft.ExpAnimalHandling" /></div>
+                        <div class="skill-row"><span class="skill-name">Intuizione</span><input type="checkbox" class="skill-check" @bind="Draft.ProfInsight" /><input type="checkbox" class="skill-check" @bind="Draft.ExpInsight" /></div>
+                        <div class="skill-row"><span class="skill-name">Medicina</span><input type="checkbox" class="skill-check" @bind="Draft.ProfMedicine" /><input type="checkbox" class="skill-check" @bind="Draft.ExpMedicine" /></div>
+                        <div class="skill-row"><span class="skill-name">Percezione</span><input type="checkbox" class="skill-check" @bind="Draft.ProfPerception" /><input type="checkbox" class="skill-check" @bind="Draft.ExpPerception" /></div>
+                        <div class="skill-row"><span class="skill-name">Sopravvivenza</span><input type="checkbox" class="skill-check" @bind="Draft.ProfSurvival" /><input type="checkbox" class="skill-check" @bind="Draft.ExpSurvival" /></div>
+
+                        <p class="skill-group">CARISMA</p>
+                        <div class="skill-row"><span class="skill-name">Inganno</span><input type="checkbox" class="skill-check" @bind="Draft.ProfDeception" /><input type="checkbox" class="skill-check" @bind="Draft.ExpDeception" /></div>
+                        <div class="skill-row"><span class="skill-name">Intimidire</span><input type="checkbox" class="skill-check" @bind="Draft.ProfIntimidation" /><input type="checkbox" class="skill-check" @bind="Draft.ExpIntimidation" /></div>
+                        <div class="skill-row"><span class="skill-name">Intrattenere</span><input type="checkbox" class="skill-check" @bind="Draft.ProfPerformance" /><input type="checkbox" class="skill-check" @bind="Draft.ExpPerformance" /></div>
+                        <div class="skill-row"><span class="skill-name">Persuasione</span><input type="checkbox" class="skill-check" @bind="Draft.ProfPersuasion" /><input type="checkbox" class="skill-check" @bind="Draft.ExpPersuasion" /></div>
+                        <p class="field-hint">L'Expertise senza Competenza non ha effetto: i calcoli lo ignorano.</p>
+                    </div>
+                </div>
+                break;
             case 4: <p class="wiz-placeholder">Incantesimi</p> break;
             case 5: <p class="wiz-placeholder">Riepilogo</p> break;
         }
@@ -391,5 +450,37 @@
     private void PrefillHitDice()
     {
         Draft.HitDiceMax = CharacterWizardLogic.BuildHitDice(SelectedClass?.HitDie, Draft.Level);
+    }
+
+    private IReadOnlyList<string> SaveSuggestions =>
+        CharacterWizardLogic.ParseSaveProficiencies(SelectedClass?.SavingThrows);
+
+    private string SaveSuggestionLabel
+    {
+        get
+        {
+            var map = new Dictionary<string, string>
+            {
+                ["strength"] = "Forza", ["dexterity"] = "Destrezza", ["constitution"] = "Costituzione",
+                ["intelligence"] = "Intelligenza", ["wisdom"] = "Saggezza", ["charisma"] = "Carisma"
+            };
+            return string.Join(", ", SaveSuggestions.Select(k => map.TryGetValue(k, out var v) ? v : k));
+        }
+    }
+
+    private void ApplySaveSuggestions()
+    {
+        foreach (var key in SaveSuggestions)
+        {
+            switch (key)
+            {
+                case "strength": Draft.ProfSaveStrength = true; break;
+                case "dexterity": Draft.ProfSaveDexterity = true; break;
+                case "constitution": Draft.ProfSaveConstitution = true; break;
+                case "intelligence": Draft.ProfSaveIntelligence = true; break;
+                case "wisdom": Draft.ProfSaveWisdom = true; break;
+                case "charisma": Draft.ProfSaveCharisma = true; break;
+            }
+        }
     }
 }
