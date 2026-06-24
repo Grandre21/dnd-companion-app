@@ -12,6 +12,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddSingleton<SupabaseService>();
 builder.Services.AddSingleton<AuthStateService>();
 builder.Services.AddSingleton<CampaignStateService>();
+builder.Services.AddSingleton<CurrentUserService>();
 builder.Services.AddSingleton<PwaUpdateService>();
 builder.Services.AddSingleton<ToastService>();
 builder.Services.AddSingleton<ConfirmService>();

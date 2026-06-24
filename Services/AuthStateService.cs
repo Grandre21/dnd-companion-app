@@ -60,10 +60,6 @@ public class AuthStateService
         return user.Email;
     }
 
-    // TODO(campagne): il ruolo non è più globale ma dipende dalla campagna
-    // (campaign_members.role). Verrà implementato nel prossimo step; per ora null.
-    public Task<string?> GetRoleAsync() => Task.FromResult<string?>(null);
-
     public async Task LogoutAsync()
     {
         var client = await _supabase.GetClientAsync();

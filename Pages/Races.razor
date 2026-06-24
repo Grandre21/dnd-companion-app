@@ -3,8 +3,7 @@
 @implements IDisposable
 @inject IRaceRepository RaceRepository
 @inject IProfileRepository ProfileRepository
-@inject AuthStateService AuthState
-@inject CampaignStateService CampaignState
+@inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ToastService Toasts
@@ -226,9 +225,6 @@
     private Dictionary<string, string> playerNicknames = new();
     private bool isLoading = true;
     private bool isBusy;
-    private bool isMaster;
-    private string? userId;
-    private string? campaignId;
     private string? errorMessage;
 
     private string searchInput = string.Empty;
@@ -242,14 +238,11 @@
     {
         try
         {
-            await CampaignState.InitializeAsync();
-            userId = await AuthState.GetUserIdAsync();
-            isMaster = CampaignState.IsMaster;
-            campaignId = CampaignState.ActiveCampaignId;
+            await CurrentUser.EnsureLoadedAsync();
 
-            if (string.IsNullOrEmpty(campaignId)) return;
+            if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
 
-            var racesTask = RaceRepository.GetRacesForCampaignAsync(campaignId);
+            var racesTask = RaceRepository.GetRacesForCampaignAsync(CurrentUser.CampaignId);
             var profilesTask = ProfileRepository.GetProfilesAsync();
             await Task.WhenAll(racesTask, profilesTask);
 
@@ -267,7 +260,7 @@
     }
 
     // Crea: ogni membro. Modifica/elimina: solo l'autore (added_by) o il master — allineato alle RLS.
-    private bool CanEdit(Race race) => isMaster || race.AddedBy == userId;
+    private bool CanEdit(Race race) => CurrentUser.IsMaster || race.AddedBy == CurrentUser.UserId;
 
     private string? GetAuthorName(string? authorId)
     {
@@ -315,8 +308,8 @@
         editDraft = new Race
         {
             Speed = 30,
-            AddedBy = userId,
-            CampaignId = campaignId ?? string.Empty
+            AddedBy = CurrentUser.UserId,
+            CampaignId = CurrentUser.CampaignId ?? string.Empty
         };
         mode = ViewMode.Form;
     }

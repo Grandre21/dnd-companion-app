@@ -3,8 +3,7 @@
 @implements IDisposable
 @inject INoteRepository NoteRepository
 @inject IProfileRepository ProfileRepository
-@inject AuthStateService AuthState
-@inject CampaignStateService CampaignState
+@inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ToastService Toasts
@@ -111,7 +110,7 @@
             <div class="notes-list">
                 @foreach (var note in FilteredNotes)
                 {
-                    var isMine = note.OwnerId == userId;
+                    var isMine = note.OwnerId == CurrentUser.UserId;
                     <button type="button" class="note-card" @onclick="() => OpenDetail(note)">
                         <div class="note-header">
                             <div class="note-title">@(string.IsNullOrWhiteSpace(note.Title) ? "(Senza titolo)" : note.Title)</div>
@@ -165,9 +164,6 @@
     private Dictionary<string, string> playerNicknames = new();
     private bool isLoading = true;
     private bool isBusy;
-    private bool isMaster;
-    private string? userId;
-    private string? campaignId;
     private string? errorMessage;
 
     private string searchInput = string.Empty;
@@ -186,18 +182,15 @@
     {
         try
         {
-            await CampaignState.InitializeAsync();
-            userId = await AuthState.GetUserIdAsync();
-            isMaster = CampaignState.IsMaster;
-            campaignId = CampaignState.ActiveCampaignId;
+            await CurrentUser.EnsureLoadedAsync();
 
-            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(campaignId))
+            if (string.IsNullOrEmpty(CurrentUser.UserId) || string.IsNullOrEmpty(CurrentUser.CampaignId))
             {
                 // Non loggato (AuthRedirect interviene) o nessuna campagna attiva.
                 return;
             }
 
-            var notesTask = NoteRepository.GetNotesForCampaignAsync(campaignId, userId);
+            var notesTask = NoteRepository.GetNotesForCampaignAsync(CurrentUser.CampaignId, CurrentUser.UserId);
             var profilesTask = ProfileRepository.GetProfilesAsync();
             await Task.WhenAll(notesTask, profilesTask);
 
@@ -266,8 +259,8 @@
     {
         editDraft = new Note
         {
-            OwnerId = userId ?? string.Empty,
-            CampaignId = campaignId ?? string.Empty,
+            OwnerId = CurrentUser.UserId ?? string.Empty,
+            CampaignId = CurrentUser.CampaignId ?? string.Empty,
             IsShared = false
         };
         isEditable = true;
@@ -277,7 +270,7 @@
     private void OpenDetail(Note note)
     {
         editDraft = CloneNote(note);
-        isEditable = isMaster || note.OwnerId == userId;
+        isEditable = CurrentUser.IsMaster || note.OwnerId == CurrentUser.UserId;
         mode = ViewMode.Form;
     }
 
@@ -304,8 +297,8 @@
             Note? saved;
             if (string.IsNullOrEmpty(editDraft.Id))
             {
-                editDraft.OwnerId = userId ?? string.Empty;
-                editDraft.CampaignId = campaignId ?? string.Empty;
+                editDraft.OwnerId = CurrentUser.UserId ?? string.Empty;
+                editDraft.CampaignId = CurrentUser.CampaignId ?? string.Empty;
                 saved = await NoteRepository.CreateNoteAsync(editDraft);
             }
             else

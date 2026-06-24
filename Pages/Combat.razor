@@ -3,8 +3,7 @@
 @implements IDisposable
 @inject ICombatStateRepository CombatStateRepository
 @inject ICharacterRepository CharacterRepository
-@inject AuthStateService AuthState
-@inject CampaignStateService CampaignState
+@inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ConfirmService Confirm
@@ -33,14 +32,14 @@
             }
         </div>
     }
-    else if (!isMaster)
+    else if (!CurrentUser.IsMaster)
     {
         <div class="info-banner">
             Nessun combattimento in corso. Il Master non ha ancora avviato l'iniziativa.
         </div>
     }
 
-    @if (isMaster)
+    @if (CurrentUser.IsMaster)
     {
         <div class="add-form">
             <div class="form-title">Aggiungi combattente</div>
@@ -87,7 +86,7 @@
         {
             <div class="empty-state">
                 <div class="empty-icon">⚔️</div>
-                @if (isMaster)
+                @if (CurrentUser.IsMaster)
                 {
                     <p class="empty-text">Nessun combattente. Aggiungili dal form qui sopra o importa i personaggi dal database.</p>
                 }
@@ -108,7 +107,7 @@
                 <div class="combatant-row @(isCurrent ? "current" : "") @(isDefeated ? "defeated" : "")">
                     <div class="pos">@pos</div>
 
-                    @if (isMaster)
+                    @if (CurrentUser.IsMaster)
                     {
                         <input type="number" class="init-input" @bind="c.Initiative" @bind:event="onchange" />
                     }
@@ -124,7 +123,7 @@
                         </div>
                     </div>
 
-                    @if (isMaster)
+                    @if (CurrentUser.IsMaster)
                     {
                         <div class="hp-btns">
                             <button type="button" class="hp-btn hp-minus" aria-label="Diminuisci PF"
@@ -146,7 +145,7 @@
         }
     </div>
 
-    @if (isMaster && combatants.Count > 0)
+    @if (CurrentUser.IsMaster && combatants.Count > 0)
     {
         <div class="turn-controls">
             <button type="button" class="reset-btn" @onclick="ResetRound" title="Torna al Round 1">
@@ -163,10 +162,8 @@
     private readonly List<Combatant> combatants = new();
     private int currentTurnIndex;
     private int roundNumber = 1;
-    private bool isMaster;
     private bool isImporting;
     private string? errorMessage;
-    private string? campaignId;
     private CancellationTokenSource? pollCts;
 
     private Combatant newDraft = new() { CurrentHp = 10, MaxHp = 10 };
@@ -178,15 +175,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await CampaignState.InitializeAsync();
-        isMaster = CampaignState.IsMaster;
-        campaignId = CampaignState.ActiveCampaignId;
+        await CurrentUser.EnsureLoadedAsync();
 
         await LoadCombatStateAsync();
 
         // I giocatori (non Master) non modificano lo stato: lo aggiornano via polling leggero
         // mentre sono sulla pagina, così vedono i cambi di turno/PF decisi dal Master.
-        if (!isMaster)
+        if (!CurrentUser.IsMaster)
             StartPolling();
     }
 
@@ -194,10 +189,10 @@
 
     private async Task LoadCombatStateAsync()
     {
-        if (string.IsNullOrEmpty(campaignId)) return;
+        if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
         try
         {
-            var state = await CombatStateRepository.GetCombatStateAsync(campaignId);
+            var state = await CombatStateRepository.GetCombatStateAsync(CurrentUser.CampaignId);
             combatants.Clear();
             if (state is not null)
             {
@@ -220,12 +215,12 @@
     // Master: persiste lo stato corrente; i giocatori lo rileggono via polling.
     private async Task SaveCombatStateAsync()
     {
-        if (!isMaster || string.IsNullOrEmpty(campaignId)) return;
+        if (!CurrentUser.IsMaster || string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
         try
         {
             await CombatStateRepository.SaveCombatStateAsync(new CombatState
             {
-                CampaignId = campaignId,
+                CampaignId = CurrentUser.CampaignId,
                 Combatants = combatants.ToList(),
                 CurrentTurnIndex = currentTurnIndex,
                 RoundNumber = roundNumber
@@ -265,7 +260,7 @@
 
     private async Task AddCombatant()
     {
-        if (!isMaster) return;
+        if (!CurrentUser.IsMaster) return;
 
         if (string.IsNullOrWhiteSpace(newDraft.Name))
         {
@@ -292,19 +287,19 @@
 
     private async Task ImportCharactersAsync()
     {
-        if (!isMaster) return;
+        if (!CurrentUser.IsMaster) return;
 
         isImporting = true;
         errorMessage = null;
         try
         {
-            if (string.IsNullOrEmpty(campaignId))
+            if (string.IsNullOrEmpty(CurrentUser.CampaignId))
             {
                 errorMessage = "Nessuna campagna attiva.";
                 return;
             }
 
-            var characters = await CharacterRepository.GetCharactersForCampaignAsync(campaignId);
+            var characters = await CharacterRepository.GetCharactersForCampaignAsync(CurrentUser.CampaignId);
             if (characters.Count == 0)
             {
                 errorMessage = "Nessun personaggio nella campagna da importare.";
@@ -335,7 +330,7 @@
 
     private async Task RemoveCombatant(string id)
     {
-        if (!isMaster) return;
+        if (!CurrentUser.IsMaster) return;
 
         var currentId = CurrentCombatant?.Id;
         var idx = combatants.FindIndex(c => c.Id == id);
@@ -363,14 +358,14 @@
 
     private async Task AdjustHp(Combatant c, int delta)
     {
-        if (!isMaster) return;
+        if (!CurrentUser.IsMaster) return;
         c.CurrentHp = Math.Clamp(c.CurrentHp + delta, 0, c.MaxHp);
         await SaveCombatStateAsync();
     }
 
     private async Task NextTurn()
     {
-        if (!isMaster || combatants.Count == 0) return;
+        if (!CurrentUser.IsMaster || combatants.Count == 0) return;
 
         currentTurnIndex++;
         if (currentTurnIndex >= combatants.Count)
@@ -383,7 +378,7 @@
 
     private async Task ResetRound()
     {
-        if (!isMaster) return;
+        if (!CurrentUser.IsMaster) return;
         currentTurnIndex = 0;
         roundNumber = 1;
         await SaveCombatStateAsync();
@@ -391,7 +386,7 @@
 
     private async Task SortByInitiative()
     {
-        if (!isMaster || combatants.Count == 0) return;
+        if (!CurrentUser.IsMaster || combatants.Count == 0) return;
         SortByInitiativeInternal();
         await SaveCombatStateAsync();
     }
@@ -418,7 +413,7 @@
 
     private async Task NewCombatAsync()
     {
-        if (!isMaster) return;
+        if (!CurrentUser.IsMaster) return;
 
         if (combatants.Count > 0)
         {
