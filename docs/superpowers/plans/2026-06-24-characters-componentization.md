@@ -450,3 +450,43 @@ git commit -m "docs: Fase 2B — estrazione tab di Characters.razor"
 - **Placeholder:** i corpi di `AriaBool`/`OnKey` (Task 0) e gli elenchi "spostare verbatim i membri" sono **mosse meccaniche di codice esistente** identificato per nome/riga, non placeholder; l'esatto set di membri si conferma con `grep` durante l'estrazione (incluso nei passi).
 - **Coerenza nomi/tipi:** `CharacterView.{FormatBonus,AriaBool,OnKey}`; parametri `Character`/`CanEdit`/`OnChanged`/`Weapons`/`Items`/`OnInventoryChanged`/`AllSpells` coerenti tra spec e task; `inventoryItems`+`ReloadInventoryAsync` restano nel genitore (Task 4) e alimentano `Weapons` (Task 3).
 - **Rischio chiave gestito:** dipendenza Combat→inventario risolta passando `Weapons` dal genitore; CSS isolation gestita per-tab con eccezione esplicita per i selettori condivisi.
+
+---
+
+## Note di ripresa (2026-06-24) — dettagli emersi dal codice per Task 4 (Items) e Task 5 (Magic)
+
+**Stato:** Task 0-3 fatti, verdi, committati. `Characters.razor` 2429 → 2083 righe.
+
+### Task 4 — Items (il più grosso). Approccio confermato dal codice:
+- **Il genitore TIENE** `inventoryItems`, `LoadInventoryAsync(charId)`, `isLoadingInventory` (Combat legge le armi; l'inventario è caricato alla selezione del PG).
+- **`CharacterItemsTab`**: `@inject SupabaseService` + `@inject ConfirmService Confirm`.
+  - Params: `Character`, `bool CanEdit`, `IReadOnlyList<InventoryItem> Items`, `bool IsLoading`,
+    `EventCallback OnChanged` (denaro/sintonie = campi Character → genitore `SaveCharacterAsync`),
+    `EventCallback OnInventoryChanged` (add/delete → genitore `ReloadInventoryAsync`),
+    `EventCallback<string> OnError` (errori CRUD → `errorMessage` del genitore).
+  - Possiede: `isAddingItem`, `newItemDraft`, `isSavingInventory`, `expandedItemId`, `isEditingMoney`;
+    `ItemTypeOptions` (static), `FormatWeight` (static); `CanEditInventory` (=> CanEdit),
+    `TotalInventoryWeight` (=> Items.Sum), `FormatMoney`/`AttunementValue` (su Character).
+    `OnParametersSet`: al cambio di `Character.Id` resetta expandedItemId/isAddingItem/isEditingMoney.
+  - Metodi: **quantità/equip** → muta `item` in-place + service + revert via `OnError` (niente reload: il SET
+    di armi non cambia). **add/delete** (`SaveNewItemAsync`/`DeleteItemInternalAsync`) → service +
+    `OnInventoryChanged` (genitore ricarica → Combat aggiornato). **denaro/sintonie** (`SaveMoney`/
+    `SetAttunementAsync`) → muta Character + `OnChanged`. Confirm su elimina/quantità≤0 resta (Confirm iniettato).
+- **Genitore**: aggiunge `ReloadInventoryAsync() => LoadInventoryAsync(selected.Id)` e
+  `SetError(string m){ errorMessage = m; }`; rimuove i membri spostati; toglie dal metodo di selezione i reset
+  di expandedItemId/isAddingItem/isEditingMoney (li fa il figlio). Markup parent 136-378 → `<CharacterItemsTab/>`.
+- **CSS (importante):** ogni pagina ha la PROPRIA copia scoped di `.field`/`.input`/`.primary-btn`/
+  `.secondary-btn` (nessuna globale). Quindi **DUPLICA** quelle classi dentro `CharacterItemsTab.razor.css`
+  (lasciale nel parent per il form di modifica). **SPOSTA** i blocchi Items-specifici da `Characters.razor.css`:
+  "Items tab: header" (~317-347), "denaro" (~348-437), "sintonie" (~438-484), "Inventory" (~1006-1291).
+  (Numeri di riga del CSS dopo l'estrazione del Combat; ricontrollare con grep prima di sed.)
+
+### Task 5 — Magic. Approccio:
+- `character_spells` è privato del Magic tab. Il **genitore TIENE** `allSpells` (catalogo globale in cache, usato
+  anche dal form) e il caricamento di `selectedCharacterSpells` alla selezione (o lo passa).
+- `CharacterMagicTab`: `@inject SupabaseService`; params `Character`, `CanEdit`, `OnChanged` (slot = campi
+  Character), `IReadOnlyList<Spell> AllSpells`. Possiede `selectedCharacterSpells`,
+  `characterSpellsForDisplay`, `RebuildSpellDisplay`, `SpellAbilityShort`, `GetSpellSlotMax/Used`,
+  `SetSpellSlotUsed`, `ToggleSpellSlot` (→ OnChanged), `AddSpellToCharacter`/`TogglePrepared`/
+  `RemoveSpellFromCharacter` (service + ricarica locale). Carica i character_spells in `OnParametersSet`.
+- CSS: "Magic tab" (~485-563) + "Lista incantesimi imparati" (~564-608) → `CharacterMagicTab.razor.css`.
