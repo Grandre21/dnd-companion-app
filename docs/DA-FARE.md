@@ -78,10 +78,19 @@ mega-componente (quello resta in §3).
   (monouso/scadenza) se restano.
 - 🟡 **Vincoli e validazione a livello DB.** ✅ Integrità referenziale: l'audit (2026-06-24) ha confermato
   **FK + `ON DELETE CASCADE`** già presenti su tutte le relazioni verso `campaigns`/`characters` (gli
-  `added_by` dei cataloghi sono `SET NULL`, corretto). **Resta:** `NOT NULL`, lunghezze, `CHECK` su
-  livelli/punteggi (validazione di dominio, non ancora a livello DB).
-- 🟢 **Header di sicurezza.** GitHub Pages non permette CSP/HSTS via header: valutare almeno una CSP in
-  `<meta>`, o un hosting con controllo header.
+  `added_by` dei cataloghi sono `SET NULL`, corretto). ✅ **Validazione di dominio lato client** (2026-06-24):
+  helper puro testato `Services/FormValidation.cs` (`ValidateMonster`/`ValidateRace`/`InRange`, 11 test);
+  form Mostri (caratteristiche 1–30, CA 0–40) e Razze (velocità 0–120) ora validano con messaggi chiari
+  (Incantesimi/Personaggi erano già coperti: livello 0–9 / `CharacterNormalizer`). **Resta (a livello DB):**
+  `NOT NULL`, lunghezze, `CHECK` SQL — serve accesso alle migrazioni Supabase, non ancora fatto.
+- 🟡 **Header di sicurezza.** ✅ **CSP in `<meta>`** (2026-06-24): `default-src 'self'`, `connect-src` ai soli
+  self+Supabase (blocca esfiltrazione), `object-src 'none'`, `base-uri 'self'`, `script-src` con
+  `'unsafe-inline'` + `'wasm-unsafe-eval'`. Scelta pragmatica: l'approccio a hash è insostenibile perché
+  .NET inietta un `<script type="importmap">` auto-generato il cui contenuto cambia ad ogni build (motivazione
+  completa nel commento accanto al `<meta>` in `wwwroot/index.html`). Verificato in locale (boot pulito,
+  login/CRUD ok). **Resta:** GitHub Pages non
+  permette header HTTP → `frame-ancestors` (anti-clickjacking)/HSTS/`report-uri` non ottenibili via `<meta>`;
+  servirebbe un hosting con controllo header.
 
 ---
 
@@ -181,12 +190,14 @@ mega-componente (quello resta in §3).
 - 🟡 **Caricamento intere tabelle filtrate nel client.** `GetNotesForPlayerAsync` e la mappatura nickname
   scaricano più del necessario: filtrare server-side (RLS + `.Where` su colonne indicizzate), esporre una
   view nickname-only. (Si lega alla sicurezza, §1.)
-- 🟡 **Virtualizzazione liste.** Nessun `<Virtualize>`: con cataloghi lunghi di spell/mostri, virtualizzare
-  e **memoizzare i filtri** (oggi `FilteredSpells` è una property che ricalcola la LINQ a ogni render).
-  **Valutato nel loop (2026-06-21): rimandato** — memoize/`<Virtualize>` cambiano il comportamento di liste e
-  ricerca (invalidazione, scroll), verificabile solo a runtime: rischioso in autonomia senza test manuale.
+- ✅/⛔ **Virtualizzazione liste — SCARTATA a questi volumi (2026-06-24).** Decisione confermata dall'utente: i
+  cataloghi restano sotto le ~50 voci, dove `<Virtualize>` non dà beneficio percepibile e la memoizzazione del
+  filtro su 50 elementi è microsecondi (YAGNI). Inoltre le card sono espandibili (altezza variabile), caso ostico
+  per `<Virtualize>`. **Da rivalutare solo se i cataloghi crescono** (es. import massivo / generazione AI, §8).
 - 🟢 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
-- 🟢 **Stati di caricamento.** Sostituire i "Caricamento..." testuali con spinner/skeleton a tema.
+- ✅ **Stati di caricamento** — FATTO (2026-06-24). I "Caricamento..." testuali rimasti (Incantesimi, Mostri,
+  Classi, Razze, Note) ora usano `<LoadingSpinner>` a tema (già usato da Combat/inventario). Skeleton non fatto
+  (spinner sufficiente).
 
 ---
 
@@ -200,7 +211,8 @@ mega-componente (quello resta in §3).
   `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
   principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
   i tiri salvezza morte, l'ispirazione e gli slot incantesimo; `aria-label` sui pulsanti icona-pura di Combat
-  (PF +/−, rimuovi). **Resta:** `aria-label` sui pochi pulsanti simbolo minori (FAB, dismiss). **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
+  (PF +/−, rimuovi). ✅ `aria-label` sui 6 FAB "+" (Spells/Monsters/Races/Notes/Classes/Characters) — 2026-06-24.
+  **Resta:** `aria-label` sui pochissimi pulsanti simbolo residui (es. dismiss del banner). **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
   verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
 - 🟡 **Feedback azioni** — ✅ fatto (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
   layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" su `SaveCharacterAsync` e su

@@ -131,3 +131,17 @@ non cambia il comportamento. Verifica manuale (login, CRUD, RLS) affidata all'ut
 `System.Threading.Channels`), **−124 KB Brotli** (3.57 → 3.45 MB) / −272 KB RAW. Delta contenuto perché
 `TrimMode=full` già sfrondava `System.Reactive`; il valore vero è rimuovere file interi. Smoke test del trim
 ok (gli assembly radicati Gotrue/Postgrest sopravvivono). Dettagli e caveat `wasm-tools` in [DA-FARE.md](./DA-FARE.md) §2.
+
+**Rifinitura UX/a11y + CSP + validazione (2026-06-24).** Tre interventi a basso rischio in un solo /loop.
+(1) **UX/a11y**: i "Caricamento..." testuali rimasti (Incantesimi/Mostri/Classi/Razze/Note) ora usano il
+componente `<LoadingSpinner>` a tema; `aria-label` aggiunte ai 6 FAB "+" per gli screen-reader. (2) **Validazione
+di dominio lato client**: nuovo helper puro `Services/FormValidation.cs` (`ValidateMonster`/`ValidateRace`/`InRange`,
+11 unit test) — il form Mostri valida caratteristiche 1–30 e CA 0–40, Razze la velocità 0–120 (Incantesimi e
+Personaggi erano già coperti). (3) **CSP** in `<meta>` (unica via su GitHub Pages): `default-src 'self'`,
+`connect-src` ai soli self+Supabase, `object-src 'none'`, `base-uri 'self'`. Inizialmente tentato l'approccio a
+**hash** sugli script inline (più forte), **abbandonato** perché .NET inietta un `<script type="importmap">`
+auto-generato il cui contenuto (fingerprint asset + integrity) cambia ad ogni build → hash fisso insostenibile;
+si è scelto `'unsafe-inline'` per gli script (l'app non rende mai HTML grezzo, rischio teorico) tenendo le
+direttive restrittive che danno il valore reale. Verificato in locale: boot pulito (0 violazioni CSP), login
+Google + CRUD ok, spinner e validazione ok. La virtualizzazione liste (§5) è stata **scartata** (cataloghi < ~50
+voci → YAGNI). Build 0/0, 122 test verdi. Spec/piano in `docs/superpowers/`.
