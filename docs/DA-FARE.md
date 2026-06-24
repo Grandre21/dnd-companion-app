@@ -136,16 +136,20 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- 🟠 **Suite di test** — ✅ progetto `DndCompanion.Tests` (xUnit) creato; **`CharacterCalculations` coperto,
-  54 test** (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita
-  incl. parsing `HitDiceMax`). Restano da coprire:
-  1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅
+- 🟠 **Suite di test** — ✅ progetto `DndCompanion.Tests` (xUnit), **71 test**. Coperti: `CharacterCalculations`
+  (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
+  `HitDiceMax`) e la **logica pura dei repository** (estratta in helper `internal static`, esposti via
+  `InternalsVisibleTo`): visibilità/ordinamento note (`NoteRepository.FilterAndSortVisible`, regola di sicurezza),
+  ordinamento inventario (`InventoryRepository.SortForDisplay`), codice invito (`CampaignRepository.GenerateInviteCode`).
+  Restano da coprire:
+  1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
   2. Normalizzazione/clamp dei form PG (`NormalizeDraft`, edge: negativi, vuoti, oltre-limite).
   3. Autorizzazioni (`CanEdit`/`isMaster`) — specie dopo lo spostamento server-side.
   4. Filtro/JOIN incantesimi del PG (gestione orfani).
   5. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui).
-- 🟡 **Refactoring abilitanti**: interfacce sui service + estrazione logica dai `.razor` per poter usare
-  bUnit.
+- 🟡 **Refactoring abilitanti**: ✅ interfacce sui repository (sotto-fase A) + estrazione di helper puri
+  testabili dai repository. **Resta:** estrarre la logica dai `.razor` (es. `NormalizeDraft`, `CanEdit`) per
+  testarla senza bUnit, oppure introdurre bUnit.
 
 ---
 
