@@ -105,8 +105,12 @@ mega-componente (quello resta in §3).
   `CharacterEditForm`) con helper `CharacterView`; la pagina è scesa da ~2.4k a ~660 righe, comportamento invariato.
   Il genitore resta proprietario di stato/persistenza (draft + `NormalizeDraft`/`SaveFormAsync`, inventario,
   catalogo incantesimi). Restano (indipendenti) le sotto-fasi A (repository) e C (stato auth) qui sotto.
-- 🟡 **Spezzare `SupabaseService` (god-object, ~40 metodi).** Repository per aggregato dietro interfacce
-  (`ICharacterRepository`, `ISpellRepository`, `INoteService`…); abilita anche il mocking nei test.
+- ✅ **Spezzare `SupabaseService` (god-object, ~40 metodi)** — FATTO (sotto-fase A, 2026-06-24). 11 repository per
+  aggregato dietro interfacce in `Services/Repositories/` (`ICharacterRepository`, `ISpellRepository`,
+  `IMonsterRepository`, `INoteRepository`, `ICombatStateRepository`, `IProfileRepository`, `IRaceRepository`,
+  `IClassRepository`, `IInventoryRepository`, `ICharacterSpellRepository`, `ICampaignRepository`). `SupabaseService`
+  resta il **provider di sessione/client** (`GetClientAsync` + bootstrap OAuth/refresh), da 577 a 127 righe. I
+  consumatori iniettano i repo; abilita il mocking nei test (§4). Comportamento invariato, build 0/0 + 62 test.
 - 🟡 **Centralizzare lo stato di auth/ruolo.** Oggi ogni pagina rilegge identità/ruolo; un provider reattivo
   con `CurrentUser { Id, Nickname, IsMaster }` riduce duplicazione e round-trip a localStorage.
   Collegato: completare il `TODO(campagne)` in `AuthStateService.GetRoleAsync()` (oggi ritorna `null`;

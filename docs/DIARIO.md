@@ -88,3 +88,13 @@ non setta più `formSections`/custom. La media query desktop di `.form-view` è 
 componente (lo scope isolato del genitore non raggiunge il figlio — vale anche per le `@media`). `Characters.razor`
 è così scesa da ~1.35k a **~660 righe**. Della componentizzazione non resta nulla; aperte solo le sotto-fasi
 A (`SupabaseService` → repository) e C (stato auth/ruolo).
+
+**Sotto-fase A — `SupabaseService` → repository (2026-06-24).** Il god-object dell'accesso dati (~43 metodi, 577
+righe) è stato spezzato in **11 repository per aggregato dietro interfacce** in `Services/Repositories/` (Character,
+Spell, Monster, Note, CombatState, Profile, Race, Class, Inventory, CharacterSpell, Campaign). Ogni repository
+dipende da `SupabaseService` per il client e mantiene i metodi **identici** (estrazione a comportamento invariato);
+i consumatori (9 pagine/tab + `CampaignStateService`) iniettano i repo invece del servizione. `SupabaseService`
+resta il **provider di sessione/client** (`GetClientAsync` + bootstrap OAuth/refresh/persistenza), sceso a 127
+righe; lo usano ancora `AuthRedirect`/`Login`/`Home`/`AuthStateService` per il client. Tutti Singleton in DI.
+Vantaggio chiave: superficie testabile (mocking dei repo, §4 di [DA-FARE.md](.\DA-FARE.md)). Resta della §3 solo
+la sotto-fase C (stato auth/ruolo centralizzato). Piano in `docs/superpowers/`.
