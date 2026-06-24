@@ -168,7 +168,9 @@ DB → nessun impatto su schema/RLS.**
 ## 7. Errori e validazione (riuso del pattern esistente)
 
 - Validazione al **Salva**, dentro `SaveFormAsync`: nome obbligatorio e PF max ≥ 1 → `Toasts.ShowError` (toast
-  `.app-toast`); PF correnti clampati. `CharacterNormalizer` fa da rete (trim/clamp, incl. caratteristiche 1–30).
+  `.app-toast`); PF correnti clampati. `CharacterNormalizer.Normalize` fa da rete su testi/numerici (trim, clamp di
+  livello/CA/PF/velocità/denari) ma **non** tocca le sei caratteristiche: il range 1–30 è garantito a monte dal wizard,
+  che scrive i finali sempre via `FinalAbilityScores` (clamp lì). Lo stepper base è comunque vincolato 1–30.
 - Errori di rete/salvataggio → `try/catch` del genitore → `errorMessage` nel `DbErrorBanner` ("Ripara e ricarica"),
   identico a oggi.
 - Casi limite: razza/classe non selezionate → nessuna automazione applicata, campi a default (PG comunque salvabile col
