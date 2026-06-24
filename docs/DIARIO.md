@@ -169,3 +169,13 @@ CSP in produzione** (dev-only via CI). Build 0/0, 122 test verdi; verifica local
 runtime Node 20 in deprecazione. Non testabile in locale → verificato col run reale del push stesso (deploy
 `success` + sito live che boota pulito). Con questo il backlog **autonomo code-side** è esaurito: il resto
 richiede decisioni di prodotto (i18n, tema chiaro, markdown, wizard, AI) o risorse esterne (test RLS, vincoli DB).
+
+**Test d'integrazione RLS (2026-06-24).** Le RLS sono applicate da Postgres → non testabili coi mock: serve un
+DB vero. Montato lo **stack Supabase locale** (`supabase` CLI via scoop + Docker): schema+policy importati da
+produzione con `supabase db dump` → `supabase/migrations/<ts>_remote_schema.sql` (12 tabelle, 45 policy, 5
+funzioni), applicati allo stack locale (`supabase start`, config alleggerito ai soli db/auth/rest). Nuovo progetto
+`Tests.Integration/` (xUnit + `Xunit.SkippableFact`, solo HttpClient): il fixture rileva lo stack (altrimenti
+**auto-skip**), crea 2 utenti e semina dati idempotenti via `service_role`. **6 scenari RLS verdi**: isolamento
+nota privata, visibilità condivisa al membro, gate non-membro, lettura propria, `combat_state` solo-master, niente
+auto-promozione a master. `db pull` non funzionava (motore `pgdelta` → "no schema changes"), aggirato con
+`db dump`. CI invariata (non esegue test). Istruzioni in `Tests.Integration/README.md`.

@@ -172,7 +172,8 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- 🟠 **Suite di test** — ✅ progetto `DndCompanion.Tests` (xUnit), **97 test**. Coperti: `CharacterCalculations`
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **122 unit test** + **suite d'integrazione RLS**
+  (`Tests.Integration/`, vedi voce 5). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
   `InternalsVisibleTo`): visibilità/ordinamento note (`NoteRepository.FilterAndSortVisible`, regola di sicurezza),
@@ -184,7 +185,12 @@ mega-componente (quello resta in §3).
   2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
   3. ~~Autorizzazioni (`CanEdit`/`isMaster`)~~ ✅ (`AccessControl`, usato da tutte le pagine)
   4. ~~Filtro/JOIN incantesimi del PG (gestione orfani)~~ ✅ (`CharacterSpellJoin.WithCatalog`)
-  5. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui) — richiede bUnit o un DB di prova.
+  5. ~~Test d'integrazione sulle **RLS**~~ ✅ **FATTO (2026-06-24).** Progetto separato `Tests.Integration/`
+     (xUnit + `Xunit.SkippableFact`) che gira contro uno **stack Supabase locale** (`supabase start`) il cui
+     schema+policy sono importati da produzione (`supabase/migrations/*_remote_schema.sql`). 6 scenari verdi:
+     un player non legge la nota privata altrui ma sì la condivisa; un non-membro non vede nulla; il proprietario
+     vede le proprie; un player non scrive `combat_state`; niente auto-promozione a master. **Auto-skip** se lo
+     stack locale non è attivo (non rompe CI/altre macchine). Istruzioni in `Tests.Integration/README.md`.
 - 🟡 **Refactoring abilitanti**: ✅ interfacce sui repository (sotto-fase A) + estrazione di helper puri
   testabili dai repository e dai `.razor` (`CharacterNormalizer`, `AccessControl`). **Resta:** per testare interi
   componenti (rendering/eventi) servirebbe bUnit; per ora si estrae la logica pura man mano.
