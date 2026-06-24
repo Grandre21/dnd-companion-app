@@ -6,7 +6,7 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-06-21**
+> Ultimo aggiornamento: **2026-06-24**
 
 Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
 
@@ -87,11 +87,13 @@ mega-componente (quello resta in §3).
 
 ## 2. Bundle & dipendenze
 
-- 🟠 **Eliminare Realtime / `System.Reactive`.** Realtime è disattivato ma la dipendenza viene comunque
-  inclusa (504 KB di `System.Reactive` + `Websocket.Client`). Sostituire il meta-pacchetto
-  `supabase-csharp` con i soli `postgrest-csharp` + `gotrue-csharp` (+ `supabase-core`) per tagliarla alla
-  radice. È un cambio architetturale da verificare con attenzione (è il prossimo passo già pianificato).
-  ⚠️ In tensione con il combat in Realtime (§8): decidere prima se il combat resta a polling.
+- ✅ **Eliminare Realtime / `System.Reactive`.** — FATTO (2026-06-24). Il meta-pacchetto `supabase-csharp`
+  è stato sostituito dagli standalone `postgrest-csharp 3.5.1` + `gotrue-csharp 4.2.7`; rimossi
+  `realtime-csharp`, `supabase-storage`, `System.Reactive` e `Websocket.Client`. Auth e dati vivono dietro
+  la facade `Services/SupabaseClient.cs` (`From<T>`/`Rpc<T>`/`Auth`), a superficie invariata per tutti i
+  repository e le pagine. Token per-request via `GetHeaders`. Build 0/0, 111 test verdi. Il combat resta a
+  polling (§8) — il punto di tensione non esiste più. Verifica runtime manuale (login/CRUD/RLS) in sospeso
+  prima del push.
 - 🟢 **Misurare il bundle pubblicato.** Dopo trimming `full` + feature-switch (già attivi), verificare il
   peso reale di `System.Reactive` e `System.Private.Xml` sulla build di Release e confermare i tagli.
 - ℹ️ `Newtonsoft.Json` **non è rimuovibile** finché si usa Supabase 0.16.x (serializzatore runtime dei Model).
@@ -241,7 +243,8 @@ mega-componente (quello resta in §3).
   da compilare, nessuna scaletta" è un **wizard guidato** di creazione/compilazione, da fare insieme al
   refactor di `Characters.razor` (§3).
 - 💡 **Combat in Realtime.** Evoluzione futura del combat condiviso con push istantaneo invece del polling —
-  solo se si decide di **mantenere** Realtime (in tensione con la rimozione in §2).
+  richiederebbe la reintroduzione di `realtime-csharp` (rimosso in §2); valutare solo se il costo bundle è
+  accettabile.
 
 ---
 
@@ -266,5 +269,5 @@ mega-componente (quello resta in §3).
 3. **Integrità DB: FK + cascade** (§1) — prima che il volume pubblico generi incoerenze.
 4. **Primi test su `CharacterCalculations`** (§4) — valore alto, costo basso, in parallelo.
 5. **Combat condiviso** (§8) — feature più sentita dall'uso reale.
-6. **Rimozione Realtime** (§2) e **design token / refactor `Characters.razor`** (§3, §6) — manutenibilità.
+6. ~~**Rimozione Realtime** (§2)~~ ✅ e **design token / refactor `Characters.razor`** (§3, §6) — manutenibilità.
 7. Il resto (AI compilazione, wizard scheda, performance, a11y, i18n, idee) secondo priorità di prodotto.

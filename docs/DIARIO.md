@@ -117,3 +117,13 @@ PF dal **primo intero** del testo libero del campo HitPoints (fallback 1, il Mas
 "Goblin 2"…), iniziativa 0 e `CurrentHp = MaxHp`. Coperto da test xUnit. In `Combat.razor` un pannello inline
 **master-only** "Importa mostri" carica i mostri via `IMonsterRepository` (lazy, al primo click), mostra uno
 stepper quantità per riga e aggiunge i combattenti via `SaveCombatStateAsync`. Nessuna modifica a DB o RLS.
+
+**Rimozione Realtime/System.Reactive (2026-06-24).** Il meta-pacchetto `supabase-csharp` è stato sostituito
+dagli standalone `postgrest-csharp 3.5.1` + `gotrue-csharp 4.2.7`; rimossi `realtime-csharp`,
+`supabase-storage`, `System.Reactive` e `Websocket.Client`. La riscrittura è trasparente ai consumatori:
+auth e dati sono esposti dalla facade `Services/SupabaseClient.cs` (`From<T>()`/`Rpc<T>()`/`Auth`) che
+replica la superficie pubblica del vecchio `SupabaseService`; il token di accesso viene iniettato
+per-request tramite `GetHeaders` (l'RLS del DB continua a ricevere il JWT corretto). Bundle alleggerito
+di una quota sostanziale (System.Reactive + Websocket.Client erano il prossimo target del trimming). Build
+0/0, 111 test verdi. Il combat resta a **polling** — il Realtime non era usato a runtime e la sua rimozione
+non cambia il comportamento. Verifica manuale (login, CRUD, RLS) affidata all'utente prima del push.
