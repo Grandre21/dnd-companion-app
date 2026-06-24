@@ -94,8 +94,19 @@ mega-componente (quello resta in §3).
   repository e le pagine. Token per-request via `GetHeaders`. Build 0/0, 111 test verdi. Il combat resta a
   polling (§8) — il punto di tensione non esiste più. Verifica runtime manuale (login/CRUD/RLS) in sospeso
   prima del push.
-- 🟢 **Misurare il bundle pubblicato.** Dopo trimming `full` + feature-switch (già attivi), verificare il
-  peso reale di `System.Reactive` e `System.Private.Xml` sulla build di Release e confermare i tagli.
+- ✅ **Misurare il bundle pubblicato** — FATTO (2026-06-24). Confronto publish Release `before` (commit
+  `f84e133`, meta `supabase-csharp 0.16.2`) vs `after` (`main`, split standalone) su `wwwroot/_framework`:
+  **−9 assembly** (77 → 68), **−272 KB** RAW (10.62 → 10.35 MB), **−124 KB Brotli** (3.57 → 3.45 MB),
+  −160 KB Gzip. Eliminati: `Supabase`(meta)/`Supabase.Realtime`/`Supabase.Functions`/`Supabase.Storage`,
+  `System.Reactive`, `Websocket.Client`, `System.Net.WebSockets`(+`.Client`), `System.Threading.Channels`.
+  **Smoke test trim `full`:** publish exit 0, 0 avvisi, gli assembly radicati `Supabase.Gotrue`/`Supabase.Postgrest`
+  presenti → nessun ctor strippato. Il delta è modesto perché `TrimMode=full` già sfrondava `System.Reactive`
+  (70.8 KB trimmato nel `before`); il guadagno vero è rimuovere **9 file interi** (meno richieste/decompressione
+  al cold-load). ⚠️ Numeri assoluti misurati **senza** workload `wasm-tools` (non installato in locale): in
+  produzione la CI fa `dotnet workload restore` → relinking nativo del `dotnet.native.wasm` (2.9 MB) → bundle
+  reale più piccolo. Il *delta* del taglio resta valido. **Prossimo target di peso indipendente da §2:**
+  `System.Private.Xml` regge a 1.28 MB anche dopo il trim (tirato da `System.Data.Common`/Newtonsoft) — da
+  indagare a parte.
 - ℹ️ `Newtonsoft.Json` **non è rimuovibile** finché si usa Supabase 0.16.x (serializzatore runtime dei Model).
 
 ---

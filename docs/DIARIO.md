@@ -123,7 +123,11 @@ dagli standalone `postgrest-csharp 3.5.1` + `gotrue-csharp 4.2.7`; rimossi `real
 `supabase-storage`, `System.Reactive` e `Websocket.Client`. La riscrittura è trasparente ai consumatori:
 auth e dati sono esposti dalla facade `Services/SupabaseClient.cs` (`From<T>()`/`Rpc<T>()`/`Auth`) che
 replica la superficie pubblica del vecchio `SupabaseService`; il token di accesso viene iniettato
-per-request tramite `GetHeaders` (l'RLS del DB continua a ricevere il JWT corretto). Bundle alleggerito
-di una quota sostanziale (System.Reactive + Websocket.Client erano il prossimo target del trimming). Build
+per-request tramite `GetHeaders` (l'RLS del DB continua a ricevere il JWT corretto). Build
 0/0, 111 test verdi. Il combat resta a **polling** — il Realtime non era usato a runtime e la sua rimozione
 non cambia il comportamento. Verifica manuale (login, CRUD, RLS) affidata all'utente prima del push.
+*Misura del taglio (publish Release before/after, 2026-06-24):* **−9 assembly** dal bundle
+(`Supabase.Realtime`/`Functions`/`Storage`/meta, `System.Reactive`, `Websocket.Client`, lo stack WebSockets,
+`System.Threading.Channels`), **−124 KB Brotli** (3.57 → 3.45 MB) / −272 KB RAW. Delta contenuto perché
+`TrimMode=full` già sfrondava `System.Reactive`; il valore vero è rimuovere file interi. Smoke test del trim
+ok (gli assembly radicati Gotrue/Postgrest sopravvivono). Dettagli e caveat `wasm-tools` in [DA-FARE.md](./DA-FARE.md) §2.
