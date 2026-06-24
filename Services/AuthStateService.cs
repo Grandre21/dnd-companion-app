@@ -62,8 +62,7 @@ public class AuthStateService
 
     public async Task LogoutAsync()
     {
-        var client = await _supabase.GetClientAsync();
-        await client.Auth.SignOut();
+        await _supabase.SignOutAsync();
         _navigation.NavigateTo("login");
     }
 }

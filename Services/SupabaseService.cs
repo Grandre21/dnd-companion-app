@@ -120,7 +120,7 @@ public class SupabaseService
                         {
                             // NB: logghiamo solo il messaggio, mai URL/token.
                             Console.Error.WriteLine($"[Auth] Refresh sessione fallito, eseguo il logout: {ex.Message}");
-                            await SignOutLocallyAsync();
+                            await SignOutAsync();
                         }
                     }
                 }
@@ -156,7 +156,7 @@ public class SupabaseService
     /// SignedOut che pulisce localStorage), poi lancia prima di qualsiasi chiamata di rete; (3) per
     /// sicurezza forziamo comunque <c>DestroySession()</c> dell'handler di persistenza su localStorage.
     /// </remarks>
-    private async Task SignOutLocallyAsync()
+    public async Task SignOutAsync()
     {
         // (1) Tentativo di logout lato server (revoca il refresh token). Avvolto: su token scaduto lancia.
         try
