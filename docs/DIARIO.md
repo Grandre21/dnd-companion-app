@@ -70,3 +70,13 @@ lettura ai membri e scrittura al solo master; e `campaign_members` permetteva l'
 join dei player passano dalla RPC `SECURITY DEFINER` `join_campaign` (codice validato server-side) e l'insert
 diretto è riservato all'owner. Con questo il **gate del lancio pubblico è soddisfatto**. Spec e piano in
 `docs/superpowers/`.
+
+**Refactor Characters.razor — tab estratti (Fase 2B, giu 2026).** La pagina monstre (~2.4k righe) è scesa a
+~1.35k: i 5 tab sono ora componenti in `Shared/CharacterTabs/` (`CharacterBioTab`, `CharacterStatsTab`,
+`CharacterCombatTab`, `CharacterItemsTab`, `CharacterMagicTab`), col pattern `Character` + `EventCallback`
+(precedente: `StatCard`). Gli helper puri condivisi vivono in `CharacterView` (FormatBonus/AriaBool/OnKey +
+slot incantesimo) importati via `@using static`. Estrazione a **comportamento invariato**, un tab per commit con
+verifica in locale; il CSS isolato spostato per-tab (classi davvero condivise — `card-label`/`section-header`/
+`empty-note` — promosse in `app.css`). Note d'architettura: l'inventario resta del genitore (Combat ne legge le
+armi → `OnInventoryChanged` ricarica), il catalogo incantesimi resta in cache nel genitore e si passa ai figli.
+**Resta** il form di modifica (follow-up) e le sotto-fasi A (`SupabaseService` → repository) e C (stato auth/ruolo).
