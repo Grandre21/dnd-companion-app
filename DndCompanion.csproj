@@ -49,11 +49,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Tests/ è il progetto separato DndCompanion.Tests: escluso dalla compilazione del bundle WASM
-         (altrimenti il glob implicito dell'SDK lo includerebbe qui, senza i riferimenti a xUnit). -->
+    <!-- Tests/ e Tests.Integration/ sono progetti separati (DndCompanion.Tests*): esclusi dalla
+         compilazione del bundle WASM (altrimenti il glob implicito dell'SDK li includerebbe qui,
+         senza i riferimenti a xUnit). -->
     <Compile Remove="Tests\**\*.cs" />
     <Content Remove="Tests\**\*" />
     <None Remove="Tests\**\*" />
+    <Compile Remove="Tests.Integration\**\*.cs" />
+    <Content Remove="Tests.Integration\**\*" />
+    <None Remove="Tests.Integration\**\*" />
   </ItemGroup>
 
 </Project>
