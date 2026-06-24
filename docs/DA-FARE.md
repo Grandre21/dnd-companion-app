@@ -162,13 +162,11 @@ mega-componente (quello resta in §3).
   con la classe `.toast` di Bootstrap (`.toast:not(.show){display:none}`) → rinominate le classi in `.app-toast`.
 - ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
   riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
-- 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**
-  (`actions/checkout@v4`, `actions/setup-dotnet@v4`, `actions/configure-pages@v4`, `actions/upload-pages-artifact@v3`,
-  `actions/deploy-pages@v4`), che GitHub sta deprecando (oggi forzate su Node 24 con warning). Bumpare alle versioni
-  più recenti prima che Node 20 venga rimosso dai runner, per non rischiare la rottura del deploy.
-  **Valutato nel loop (2026-06-21): NON bumpato in autonomia** — su un workflow di deploy pubblico non testabile in
-  locale, un bump alla cieca (versione errata o breaking change negli input) romperebbe il deploy. Da fare verificando
-  le versioni reali, idealmente con un run di prova.
+- ✅ **Manutenzione CI: GitHub Actions del deploy** — FATTO (2026-06-24). Bump alle ultime major (verificate via
+  API GitHub `releases/latest`): `checkout` v4→**v7**, `setup-dotnet` v4→**v5**, `configure-pages` v4→**v6**,
+  `upload-pages-artifact` v3→**v5**, `deploy-pages` v4→**v5**. Esce dal runtime Node 20 in deprecazione. Verificato
+  con un **run di prova reale** (il push stesso): deploy `success` (1m54s) + sito live che boota pulito. Il web
+  search dava versioni sbagliate → fidarsi dell'API GitHub.
 
 ---
 

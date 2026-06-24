@@ -158,5 +158,14 @@ in `.app-toast` (confermato in browser: `.app-toast` → display block, `.toast`
 (IL2104) → documentato, si libererà quando Supabase mollerà Newtonsoft. (4) **Filtro note server-side**: tentato
 ma **postgrest-csharp 3.5.1 va in NullReferenceException** sul predicato con OR annidato → ripristinata la query
 per-campagna (l'RLS filtra comunque le note per visibilità lato server, quindi nessuna perdita reale). Inoltre
-la CSP ora consente `localhost` (ws/wss/http) in `connect-src` **solo** per gli strumenti dev (hot-reload +
-Browser Link), inerti in produzione. Build 0/0, 122 test verdi; verifica locale (mostri/toast/note) ok.
+la CSP consente `localhost` (ws/wss/http) in `connect-src` **solo** per gli strumenti dev (hot-reload + Browser
+Link); su segnalazione del security-review automatico, un passo `sed` nel workflow di deploy lo **rimuove dalla
+CSP in produzione** (dev-only via CI). Build 0/0, 122 test verdi; verifica locale (mostri/toast/note) + prod
+(boot pulito, CSP pulita) ok.
+
+**Bump GitHub Actions del deploy (2026-06-24).** Aggiornate le 5 action di `deploy.yml` alle ultime major
+(verificate via API GitHub `releases/latest`, perché il web search dava versioni sbagliate): `checkout` v4→v7,
+`setup-dotnet` v4→v5, `configure-pages` v4→v6, `upload-pages-artifact` v3→v5, `deploy-pages` v4→v5. Esce dal
+runtime Node 20 in deprecazione. Non testabile in locale → verificato col run reale del push stesso (deploy
+`success` + sito live che boota pulito). Con questo il backlog **autonomo code-side** è esaurito: il resto
+richiede decisioni di prodotto (i18n, tema chiaro, markdown, wizard, AI) o risorse esterne (test RLS, vincoli DB).
