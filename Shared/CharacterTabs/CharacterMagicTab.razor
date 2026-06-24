@@ -98,8 +98,6 @@
     private List<CharacterSpellView> characterSpellsForDisplay = new();
     private string? _lastId;
 
-    private record CharacterSpellView(CharacterSpell Entry, Spell Spell);
-
     // Carica gli incantesimi del PG corrente al cambio di Character (prima lo faceva il genitore alla selezione).
     protected override async Task OnParametersSetAsync()
     {
@@ -131,17 +129,8 @@
     }
 
     // JOIN logico in memoria CharacterSpell -> Spell; scarta gli orfani (spell rimosso dal catalogo globale).
-    private void RebuildSpellDisplay()
-    {
-        var views = new List<CharacterSpellView>();
-        foreach (var cs in selectedCharacterSpells)
-        {
-            var spell = AllSpells.FirstOrDefault(s => s.Id == cs.SpellId);
-            if (spell is null) continue;
-            views.Add(new CharacterSpellView(cs, spell));
-        }
-        characterSpellsForDisplay = views;
-    }
+    private void RebuildSpellDisplay() =>
+        characterSpellsForDisplay = CharacterSpellJoin.WithCatalog(selectedCharacterSpells, AllSpells);
 
     private static string SpellAbilityShort(string? a)
     {
