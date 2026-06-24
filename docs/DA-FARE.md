@@ -136,18 +136,19 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- 🟠 **Suite di test** — ✅ progetto `DndCompanion.Tests` (xUnit), **91 test**. Coperti: `CharacterCalculations`
+- 🟠 **Suite di test** — ✅ progetto `DndCompanion.Tests` (xUnit), **97 test**. Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
   `InternalsVisibleTo`): visibilità/ordinamento note (`NoteRepository.FilterAndSortVisible`, regola di sicurezza),
   ordinamento inventario (`InventoryRepository.SortForDisplay`), codice invito (`CampaignRepository.GenerateInviteCode`);
-  e la **logica di dominio estratta dai `.razor`**: `CharacterNormalizer.Normalize` (trim/null/clamp del draft PG) e
-  `AccessControl.CanEdit` (autorizzazione master-o-proprietario). Restano da coprire:
+  e la **logica di dominio estratta dai `.razor`**: `CharacterNormalizer.Normalize` (trim/null/clamp del draft PG),
+  `AccessControl.CanEdit` (autorizzazione master-o-proprietario) e il JOIN incantesimi/orfani
+  (`CharacterSpellJoin.WithCatalog`). Restano da coprire:
   1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
   2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
   3. ~~Autorizzazioni (`CanEdit`/`isMaster`)~~ ✅ (`AccessControl`, usato da tutte le pagine)
-  4. Filtro/JOIN incantesimi del PG (gestione orfani).
-  5. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui).
+  4. ~~Filtro/JOIN incantesimi del PG (gestione orfani)~~ ✅ (`CharacterSpellJoin.WithCatalog`)
+  5. Test d'integrazione sulle **RLS** (un utente non legge note/PG altrui) — richiede bUnit o un DB di prova.
 - 🟡 **Refactoring abilitanti**: ✅ interfacce sui repository (sotto-fase A) + estrazione di helper puri
   testabili dai repository e dai `.razor` (`CharacterNormalizer`, `AccessControl`). **Resta:** per testare interi
   componenti (rendering/eventi) servirebbe bUnit; per ora si estrae la logica pura man mano.
