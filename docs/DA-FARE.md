@@ -215,13 +215,11 @@ mega-componente (quello resta in §3).
   combattenti, l'upsert, e che il giocatore veda i cambi del Master. Con RLS permissive funziona, andrà
   protetto (§1). Limite noto: l'iniziativa modificata inline si persiste al successivo salvataggio
   (es. "Ordina"/"Prossimo turno"), non all'istante.
-- 🟡 **Import mostri nel combattimento.** Oggi `Combat.razor` ha solo "Importa personaggi"; quando il Master avvia
-  il combattimento dovrebbe poter importare come combattenti anche i **mostri** creati nella tab Mostri della
-  campagna (se ce ne sono). Requisiti emersi (2026-06-24): **selezione multipla** (uno o più mostri); possibilità
-  di aggiungere **più copie dello stesso** mostro (es. "Goblin", "Goblin 2"…) con parametri **ritoccabili per
-  istanza** (nome, PF/PF max, iniziativa). Mappatura `Monster` → `Combatant`; iniziativa tirata o inserita a mano.
-  Sorgente dati già pronta: `IMonsterRepository.GetMonstersForCampaignAsync`. UX: un selettore/dialog con quantità
-  per mostro. (Da progettare insieme al combat; vedi sopra.)
+- ✅ **Import mostri nel combattimento.** — FATTO (2026-06-24). Pannello inline master-only "Importa mostri"
+  in `Combat.razor` (lazy-load via `IMonsterRepository`, stepper quantità per mostro, "Aggiungi N combattenti"
+  → `SaveCombatStateAsync`). Helper puro `Services/CombatImport.cs` testato (xUnit): `ParseLeadingHp` ricava i PF
+  dal **primo intero** del testo libero (fallback 1); `FromMonster(monster, quantity)` genera la lista di
+  `Combatant` con nomi numerati per le copie, iniziativa 0, `CurrentHp = MaxHp`. Nessuna modifica a DB/RLS.
 - 🟡 **Aiuto AI alla compilazione (generazione da testo).** Da una descrizione testuale, generare bozze di
   **personaggi, classi, incantesimi, razze, mostri** (estende in modo strutturale il bisogno dei quick-win C).
   Requisiti emersi (2026-06-24):

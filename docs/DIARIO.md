@@ -109,3 +109,11 @@ locali) con una sola chiamata, leggendo direttamente dal facade; rimosse da quel
 **non** fare un provider full-reactive con eventi (YAGNI: nessuna pagina ha bisogno di aggiornarsi live al cambio
 auth/campagna). Comportamento invariato, build 0/0 + 62 test. **Con questo la §3 (architettura) è completa**:
 restano aperte solo voci minori (gestione errori, performance, a11y) e le feature di prodotto.
+
+**Import mostri nel combattimento (2026-06-24).** Il tracker combattimento del Master ora permette di importare
+direttamente i mostri della campagna. Helper puro `Services/CombatImport.cs`: `ParseLeadingHp(string?)` estrae i
+PF dal **primo intero** del testo libero del campo HitPoints (fallback 1, il Master corregge inline);
+`FromMonster(monster, quantity)` genera una lista di `Combatant` con nomi numerati per le copie ("Goblin",
+"Goblin 2"…), iniziativa 0 e `CurrentHp = MaxHp`. Coperto da test xUnit. In `Combat.razor` un pannello inline
+**master-only** "Importa mostri" carica i mostri via `IMonsterRepository` (lazy, al primo click), mostra uno
+stepper quantità per riga e aggiunge i combattenti via `SaveCombatStateAsync`. Nessuna modifica a DB o RLS.
