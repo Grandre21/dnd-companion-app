@@ -145,3 +145,18 @@ si è scelto `'unsafe-inline'` per gli script (l'app non rende mai HTML grezzo, 
 direttive restrittive che danno il valore reale. Verificato in locale: boot pulito (0 violazioni CSP), login
 Google + CRUD ok, spinner e validazione ok. La virtualizzazione liste (§5) è stata **scartata** (cataloghi < ~50
 voci → YAGNI). Build 0/0, 122 test verdi. Spec/piano in `docs/superpowers/`.
+
+**Rifiniture code-side (2026-06-24, 2ª tornata).** Altro /loop su quattro voci puramente di codice.
+(1) **a11y banner errori**: `DbErrorBanner` ora si chiude con un vero pulsante **✕** (`aria-label`, da tastiera)
+invece del click-sul-testo. (2) **Toast sugli errori di validazione**: i messaggi di validazione input di 8
+pagine ora sono toast (`Toasts.ShowError`) anziché banner; sistema/operazione restano banner. **Bug scoperto e
+risolto** durante la verifica: *tutti* i toast (anche i "✓ Salvato") erano invisibili da sempre per una collisione
+con la classe `.toast` di **Bootstrap** (`.toast:not(.show){display:none}`) → rinominate le classi del componente
+in `.app-toast` (confermato in browser: `.app-toast` → display block, `.toast` → none). (3) **Indagine
+`System.Private.Xml`** (dump dipendenze del trimmer): i ~1.4 MB sono trascinati da
+`Newtonsoft.Json.Converters.XmlNodeConverter`; non eliminabile finché Newtonsoft è il serializzatore dei Model
+(IL2104) → documentato, si libererà quando Supabase mollerà Newtonsoft. (4) **Filtro note server-side**: tentato
+ma **postgrest-csharp 3.5.1 va in NullReferenceException** sul predicato con OR annidato → ripristinata la query
+per-campagna (l'RLS filtra comunque le note per visibilità lato server, quindi nessuna perdita reale). Inoltre
+la CSP ora consente `localhost` (ws/wss/http) in `connect-src` **solo** per gli strumenti dev (hot-reload +
+Browser Link), inerti in produzione. Build 0/0, 122 test verdi; verifica locale (mostri/toast/note) ok.

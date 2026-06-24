@@ -114,9 +114,13 @@ mega-componente (quello resta in §3).
   (70.8 KB trimmato nel `before`); il guadagno vero è rimuovere **9 file interi** (meno richieste/decompressione
   al cold-load). ⚠️ Numeri assoluti misurati **senza** workload `wasm-tools` (non installato in locale): in
   produzione la CI fa `dotnet workload restore` → relinking nativo del `dotnet.native.wasm` (2.9 MB) → bundle
-  reale più piccolo. Il *delta* del taglio resta valido. **Prossimo target di peso indipendente da §2:**
-  `System.Private.Xml` regge a 1.28 MB anche dopo il trim (tirato da `System.Data.Common`/Newtonsoft) — da
-  indagare a parte.
+  reale più piccolo. Il *delta* del taglio resta valido.
+- ✅ **Indagine `System.Private.Xml`** — FATTO (2026-06-24, dump dipendenze del trimmer). I ~1.4 MB di
+  `System.Private.Xml` (+ `System.Private.Xml.Linq`) sono trascinati da `Newtonsoft.Json.Converters.XmlNodeConverter`
+  (col suo `XObjectWrapper`/`XContainerWrapper`); il trimmer non può eliminarlo perché Newtonsoft produce trim
+  warning (IL2104, reflection). **Non eliminabile in sicurezza** finché Newtonsoft è il serializzatore dei Model
+  Postgrest (vedi sotto): si libererà da solo quando Supabase mollerà Newtonsoft. (Collaterale: anche
+  `System.Data.Common` ~463 KB nel bundle, target separato.)
 - ℹ️ `Newtonsoft.Json` **non è rimuovibile** finché si usa Supabase 0.16.x (serializzatore runtime dei Model).
 
 ---
@@ -149,10 +153,13 @@ mega-componente (quello resta in §3).
   `postgrest-csharp` #91). Gli errori HTTP/rete lanciano comunque `PostgrestException` (gestiti dai try/catch →
   banner). Il blocco RLS silenzioso **non si presenta nell'uso normale** perché la UI fa da gate via
   `CanEdit`/`AccessControl` (speculare alle RLS). **Da rivalutare** su upgrade libreria (Delete che ritorni la
-  rappresentazione) o con un check di esistenza post-delete (round-trip extra). **Eventuale (UX, opzionale):**
-  toast anche per gli errori (oggi successi→toast, errori→banner persistente — scelta ragionevole).
-  **Decisione (2026-06-24): accettato** lo stato attuale (il gate `CanEdit` copre il caso pratico); il
-  delete-outcome si rivaluta solo su upgrade della libreria.
+  rappresentazione) o con un check di esistenza post-delete (round-trip extra).
+  **Decisione (2026-06-24): accettato** lo stato attuale del delete-outcome (il gate `CanEdit` copre il caso
+  pratico); si rivaluta solo su upgrade della libreria.
+  ✅ **Toast sugli errori di validazione** (2026-06-24): i messaggi di validazione input (8 pagine) ora sono
+  toast (`Toasts.ShowError`) invece del banner; gli errori di sistema/operazione restano nel banner persistente
+  (con "Ripara e ricarica"). **Bug risolto nello stesso giro:** tutti i toast erano invisibili per una collisione
+  con la classe `.toast` di Bootstrap (`.toast:not(.show){display:none}`) → rinominate le classi in `.app-toast`.
 - ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
   riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
 - 🟢 **Manutenzione CI: aggiornare le GitHub Actions del deploy.** `deploy.yml` usa action su **Node.js 20**
@@ -188,9 +195,12 @@ mega-componente (quello resta in §3).
 
 ## 5. Performance
 
-- 🟡 **Caricamento intere tabelle filtrate nel client.** `GetNotesForPlayerAsync` e la mappatura nickname
-  scaricano più del necessario: filtrare server-side (RLS + `.Where` su colonne indicizzate), esporre una
-  view nickname-only. (Si lega alla sicurezza, §1.)
+- 🟡 **Caricamento intere tabelle filtrate nel client.** La mappatura nickname scarica più del necessario:
+  esporre una view nickname-only (richiede vista DB). **Note (2026-06-24):** tentato il filtro di visibilità
+  server-side nella query (`.Where(... && (IsShared || OwnerId == userId))`) ma **postgrest-csharp 3.5.1 va in
+  NullReferenceException** sul predicato con OR annidato → ripristinata la query per-campagna + filtro client.
+  Non è una perdita: **l'RLS filtra già le note per visibilità lato server**, quindi non si scaricano note
+  private altrui. Resta aperta solo la view nickname-only. (Si lega alla sicurezza, §1.)
 - ✅/⛔ **Virtualizzazione liste — SCARTATA a questi volumi (2026-06-24).** Decisione confermata dall'utente: i
   cataloghi restano sotto le ~50 voci, dove `<Virtualize>` non dà beneficio percepibile e la memoizzazione del
   filtro su 50 elementi è microsecondi (YAGNI). Inoltre le card sono espandibili (altezza variabile), caso ostico
@@ -213,7 +223,8 @@ mega-componente (quello resta in §3).
   principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
   i tiri salvezza morte, l'ispirazione e gli slot incantesimo; `aria-label` sui pulsanti icona-pura di Combat
   (PF +/−, rimuovi). ✅ `aria-label` sui 6 FAB "+" (Spells/Monsters/Races/Notes/Classes/Characters) — 2026-06-24.
-  **Resta:** `aria-label` sui pochissimi pulsanti simbolo residui (es. dismiss del banner). **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
+  ✅ `DbErrorBanner`: chiusura ora con un vero pulsante **✕** (`aria-label="Chiudi"`, da tastiera) al posto del
+  click-sul-testo — 2026-06-24. **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
   verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
 - 🟡 **Feedback azioni** — ✅ fatto (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
   layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" su `SaveCharacterAsync` e su
