@@ -143,90 +143,8 @@
                 @* ===================== TAB MAGIC ===================== *@
                 @if (activeTab == "magic" && !string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
                 {
-                    <div class="spell-stats">
-                        <div class="spell-stat-block">
-                            <p class="card-label">CD INCANTESIMO</p>
-                            <p class="spell-stat-value">@CharacterCalculations.GetSpellSaveDc(selected)</p>
-                        </div>
-                        <div class="spell-stat-block">
-                            <p class="card-label">BONUS ATTACCO</p>
-                            <p class="spell-stat-value">@FormatBonus(CharacterCalculations.GetSpellAttackBonus(selected) ?? 0)</p>
-                        </div>
-                        <div class="spell-stat-block">
-                            <p class="card-label">CARATT.</p>
-                            <p class="spell-stat-value">@SpellAbilityShort(selected.SpellcastingAbility)</p>
-                        </div>
-                    </div>
-
-                    <p class="section-header">SLOT INCANTESIMO</p>
-                    @for (int level = 1; level <= 9; level++)
-                    {
-                        var lvl = level;
-                        var max = GetSpellSlotMax(selected, lvl);
-                        var used = GetSpellSlotUsed(selected, lvl);
-                        if (max > 0)
-                        {
-                            <div class="spell-slot-row">
-                                <span class="spell-slot-level">Liv @lvl</span>
-                                <div class="spell-slot-dots">
-                                    @for (int i = 1; i <= max; i++)
-                                    {
-                                        var idx = i;
-                                        <span class="spell-slot-dot @(idx > (max - used) ? "spent" : "")"
-                                              role="button" tabindex="0"
-                                              aria-pressed="@AriaBool(idx > (max - used))" aria-label="Slot livello @lvl"
-                                              @onclick="@(() => ToggleSpellSlot(lvl, idx))"
-                                              @onkeydown="@(e => OnKey(e, () => ToggleSpellSlot(lvl, idx)))"></span>
-                                    }
-                                </div>
-                                <span class="spell-slot-count">@(max - used) / @max</span>
-                            </div>
-                        }
-                    }
-
-                    <div class="spell-list-section">
-                        <div class="spell-list-header">
-                            <p class="section-header" style="margin: 0;">INCANTESIMI IMPARATI</p>
-                            <p class="spell-list-summary">
-                                @characterSpellsForDisplay.Count(v => v.Spell.Level == 0) trucchetti ·
-                                @characterSpellsForDisplay.Count(v => v.Spell.Level > 0) incantesimi ·
-                                @characterSpellsForDisplay.Count(v => v.Entry.IsPrepared && v.Spell.Level > 0) preparati
-                            </p>
-                        </div>
-
-                        @if (CanEdit)
-                        {
-                            <SpellPicker AllSpells="@allSpells"
-                                         AlreadyAddedIds="@selectedCharacterSpells.Select(cs => cs.SpellId).ToHashSet()"
-                                         OnSpellSelected="@AddSpellToCharacter" />
-                        }
-
-                        @foreach (var group in characterSpellsForDisplay.GroupBy(v => v.Spell.Level).OrderBy(g => g.Key))
-                        {
-                            <div class="spell-level-group">
-                                <p class="spell-level-title">@(group.Key == 0 ? "Trucchetti" : $"Livello {group.Key}")</p>
-                                @foreach (var view in group.OrderBy(v => v.Spell.Name))
-                                {
-                                    <SpellListItem CharacterSpell="@view.Entry"
-                                                   Spell="@view.Spell"
-                                                   IsEditMode="@CanEdit"
-                                                   OnTogglePrepared="@TogglePrepared"
-                                                   OnRemove="@RemoveSpellFromCharacter" />
-                                }
-                            </div>
-                        }
-
-                        @if (!characterSpellsForDisplay.Any())
-                        {
-                            <p class="empty-note spell-list-empty">
-                                Nessun incantesimo imparato. @(CanEdit ? "Usa il campo sopra per cercare e aggiungere." : "")
-                                @if (CanEdit && allSpells.Count == 0)
-                                {
-                                    <span class="spell-list-hint">Suggerimento: il catalogo globale è vuoto. Aggiungete incantesimi dalla sezione Incantesimi della home.</span>
-                                }
-                            </p>
-                        }
-                    </div>
+                    <CharacterMagicTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
+                                       AllSpells="@allSpells" OnError="@SetError" />
                 }
 
                 </div>
@@ -826,29 +744,10 @@
     private List<InventoryItem> inventoryItems = new();
     private bool isLoadingInventory;
 
-    // ===== Incantesimi del PG (tab Magic) =====
-    // allSpells = catalogo globale (caricato una sola volta, in cache).
-    // selectedCharacterSpells = righe character_spells del PG corrente.
+    // Catalogo globale incantesimi (caricato una sola volta, in cache); passato a CharacterMagicTab e usato
+    // dal form. Gli incantesimi del singolo PG li gestisce CharacterMagicTab.
     private List<Spell> allSpells = new();
     private bool spellsLoaded;
-    private List<CharacterSpell> selectedCharacterSpells = new();
-    private List<CharacterSpellView> characterSpellsForDisplay = new();
-
-    private record CharacterSpellView(CharacterSpell Entry, Spell Spell);
-
-    // JOIN logico in memoria CharacterSpell -> Spell; scarta gli orfani (spell
-    // rimosso dal catalogo globale ma ancora referenziato dal PG).
-    private void RebuildSpellDisplay()
-    {
-        var views = new List<CharacterSpellView>();
-        foreach (var cs in selectedCharacterSpells)
-        {
-            var spell = allSpells.FirstOrDefault(s => s.Id == cs.SpellId);
-            if (spell is null) continue; // orfano: spell rimosso dal catalogo globale, scarta
-            views.Add(new CharacterSpellView(cs, spell));
-        }
-        characterSpellsForDisplay = views;
-    }
 
     // ===== Navigazione a tab della vista detail =====
     // valori: combat | stats | bio | items | magic
@@ -900,58 +799,7 @@
     private bool CanEdit =>
         selected is not null && (isMaster || selected.OwnerId == userId);
 
-    private static string SpellAbilityShort(string? a)
-    {
-        if (string.IsNullOrWhiteSpace(a)) return string.Empty;
-        var t = a.Trim();
-        return (t.Length <= 3 ? t : t[..3]).ToUpperInvariant();
-    }
-
-    // ===== Slot incantesimo =====
-
-    private static int GetSpellSlotMax(Character c, int level) => level switch
-    {
-        1 => c.SpellSlots1Max,
-        2 => c.SpellSlots2Max,
-        3 => c.SpellSlots3Max,
-        4 => c.SpellSlots4Max,
-        5 => c.SpellSlots5Max,
-        6 => c.SpellSlots6Max,
-        7 => c.SpellSlots7Max,
-        8 => c.SpellSlots8Max,
-        9 => c.SpellSlots9Max,
-        _ => 0
-    };
-
-    private static int GetSpellSlotUsed(Character c, int level) => level switch
-    {
-        1 => c.SpellSlots1Used,
-        2 => c.SpellSlots2Used,
-        3 => c.SpellSlots3Used,
-        4 => c.SpellSlots4Used,
-        5 => c.SpellSlots5Used,
-        6 => c.SpellSlots6Used,
-        7 => c.SpellSlots7Used,
-        8 => c.SpellSlots8Used,
-        9 => c.SpellSlots9Used,
-        _ => 0
-    };
-
-    private static void SetSpellSlotUsed(Character c, int level, int v)
-    {
-        switch (level)
-        {
-            case 1: c.SpellSlots1Used = v; break;
-            case 2: c.SpellSlots2Used = v; break;
-            case 3: c.SpellSlots3Used = v; break;
-            case 4: c.SpellSlots4Used = v; break;
-            case 5: c.SpellSlots5Used = v; break;
-            case 6: c.SpellSlots6Used = v; break;
-            case 7: c.SpellSlots7Used = v; break;
-            case 8: c.SpellSlots8Used = v; break;
-            case 9: c.SpellSlots9Used = v; break;
-        }
-    }
+    // ===== Slot incantesimo (del form; il tab Magic usa CharacterView via using static) =====
 
     private static void SetSpellSlotMax(Character c, int level, int v)
     {
@@ -1050,40 +898,23 @@
         mode = ViewMode.Detail;
         activeTab = "combat";
         await LoadInventoryAsync(c.Id);
-        await LoadSpellsForSelectedAsync(c);
+        await EnsureSpellCatalogAsync();
     }
 
     // Carica catalogo globale (una sola volta) + incantesimi del PG, solo per gli incantatori.
-    private async Task LoadSpellsForSelectedAsync(Character c)
+    // Carica una sola volta il catalogo globale incantesimi (per il SpellPicker di CharacterMagicTab e per il
+    // form). Gli incantesimi del singolo PG li carica il componente Magic in OnParametersSet.
+    private async Task EnsureSpellCatalogAsync()
     {
-        selectedCharacterSpells = new();
-        characterSpellsForDisplay = new();
-
-        if (string.IsNullOrWhiteSpace(c.SpellcastingAbility))
-            return;
-
+        if (spellsLoaded) return;
         try
         {
-            var charSpellsTask = SupabaseService.GetCharacterSpellsAsync(c.Id);
-            if (!spellsLoaded)
-            {
-                var allTask = SupabaseService.GetSpellsForCampaignAsync(campaignId ?? string.Empty);
-                await Task.WhenAll(allTask, charSpellsTask);
-                allSpells = allTask.Result;
-                spellsLoaded = true;
-            }
-            else
-            {
-                await charSpellsTask;
-            }
-            selectedCharacterSpells = charSpellsTask.Result;
-            RebuildSpellDisplay();
+            allSpells = await SupabaseService.GetSpellsForCampaignAsync(campaignId ?? string.Empty);
+            spellsLoaded = true;
         }
         catch (Exception ex)
         {
-            errorMessage = $"Errore caricamento incantesimi: {ex.Message}";
-            selectedCharacterSpells = new();
-            characterSpellsForDisplay = new();
+            errorMessage = $"Errore caricamento catalogo incantesimi: {ex.Message}";
         }
     }
 
@@ -1387,22 +1218,6 @@
         }
     }
 
-    private async Task ToggleSpellSlot(int level, int index)
-    {
-        if (selected is null || !CanEdit) return;
-        var max = GetSpellSlotMax(selected, level);
-        if (max <= 0) return;
-        var used = GetSpellSlotUsed(selected, level);
-        var available = max - used;
-        // Click su uno slot disponibile: spende fino a quel punto (ne restano index-1).
-        // Click su uno slot già speso: lo ripristina (ne restano index).
-        var newUsed = index <= available ? max - (index - 1) : max - index;
-        newUsed = Math.Clamp(newUsed, 0, max);
-        if (newUsed == used) return;
-        SetSpellSlotUsed(selected, level, newUsed);
-        await SaveCharacterAsync();
-    }
-
     private void SyncListFromSelected()
     {
         if (selected is null) return;
@@ -1410,75 +1225,6 @@
         if (idx >= 0) characters[idx] = selected;
     }
 
-    // ====================== Incantesimi del PG ======================
-
-    private async Task AddSpellToCharacter(Spell spell)
-    {
-        if (selected is null || !CanEdit) return;
-        var entry = new CharacterSpell
-        {
-            CharacterId = selected.Id,
-            SpellId = spell.Id,
-            IsPrepared = spell.Level == 0 // i trucchetti sono auto-preparati
-        };
-        try
-        {
-            var saved = await SupabaseService.AddSpellToCharacterAsync(entry);
-            if (saved is not null)
-            {
-                selectedCharacterSpells.Add(saved);
-                RebuildSpellDisplay();
-            }
-            else
-            {
-                errorMessage = "Impossibile aggiungere l'incantesimo.";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Errore aggiunta incantesimo: {ex.Message}";
-        }
-    }
-
-    private async Task TogglePrepared(CharacterSpell entry)
-    {
-        // entry.IsPrepared è già stato invertito dal componente figlio.
-        try
-        {
-            var ok = await SupabaseService.UpdateCharacterSpellAsync(entry);
-            if (!ok)
-            {
-                entry.IsPrepared = !entry.IsPrepared; // revert
-                errorMessage = "Impossibile aggiornare lo stato preparato.";
-            }
-        }
-        catch (Exception ex)
-        {
-            entry.IsPrepared = !entry.IsPrepared; // revert
-            errorMessage = $"Errore aggiornamento incantesimo: {ex.Message}";
-        }
-    }
-
-    private async Task RemoveSpellFromCharacter(CharacterSpell entry)
-    {
-        try
-        {
-            var ok = await SupabaseService.RemoveCharacterSpellAsync(entry.Id);
-            if (ok)
-            {
-                selectedCharacterSpells.Remove(entry);
-                RebuildSpellDisplay();
-            }
-            else
-            {
-                errorMessage = "Impossibile rimuovere l'incantesimo.";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Errore rimozione incantesimo: {ex.Message}";
-        }
-    }
 
     // Copia profonda di TUTTI i campi: il form di modifica deve fare round-trip
     // completo, altrimenti salvando si azzerano i campi non clonati.

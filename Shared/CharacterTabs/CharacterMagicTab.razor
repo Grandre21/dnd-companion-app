@@ -1,0 +1,236 @@
+@using DndCompanion.Models
+@using DndCompanion.Services
+@inject SupabaseService SupabaseService
+
+<div class="spell-stats">
+    <div class="spell-stat-block">
+        <p class="card-label">CD INCANTESIMO</p>
+        <p class="spell-stat-value">@CharacterCalculations.GetSpellSaveDc(Character)</p>
+    </div>
+    <div class="spell-stat-block">
+        <p class="card-label">BONUS ATTACCO</p>
+        <p class="spell-stat-value">@FormatBonus(CharacterCalculations.GetSpellAttackBonus(Character) ?? 0)</p>
+    </div>
+    <div class="spell-stat-block">
+        <p class="card-label">CARATT.</p>
+        <p class="spell-stat-value">@SpellAbilityShort(Character.SpellcastingAbility)</p>
+    </div>
+</div>
+
+<p class="section-header">SLOT INCANTESIMO</p>
+@for (int level = 1; level <= 9; level++)
+{
+    var lvl = level;
+    var max = GetSpellSlotMax(Character, lvl);
+    var used = GetSpellSlotUsed(Character, lvl);
+    if (max > 0)
+    {
+        <div class="spell-slot-row">
+            <span class="spell-slot-level">Liv @lvl</span>
+            <div class="spell-slot-dots">
+                @for (int i = 1; i <= max; i++)
+                {
+                    var idx = i;
+                    <span class="spell-slot-dot @(idx > (max - used) ? "spent" : "")"
+                          role="button" tabindex="0"
+                          aria-pressed="@AriaBool(idx > (max - used))" aria-label="Slot livello @lvl"
+                          @onclick="@(() => ToggleSpellSlot(lvl, idx))"
+                          @onkeydown="@(e => OnKey(e, () => ToggleSpellSlot(lvl, idx)))"></span>
+                }
+            </div>
+            <span class="spell-slot-count">@(max - used) / @max</span>
+        </div>
+    }
+}
+
+<div class="spell-list-section">
+    <div class="spell-list-header">
+        <p class="section-header" style="margin: 0;">INCANTESIMI IMPARATI</p>
+        <p class="spell-list-summary">
+            @characterSpellsForDisplay.Count(v => v.Spell.Level == 0) trucchetti ·
+            @characterSpellsForDisplay.Count(v => v.Spell.Level > 0) incantesimi ·
+            @characterSpellsForDisplay.Count(v => v.Entry.IsPrepared && v.Spell.Level > 0) preparati
+        </p>
+    </div>
+
+    @if (CanEdit)
+    {
+        <SpellPicker AllSpells="@AllSpells"
+                     AlreadyAddedIds="@selectedCharacterSpells.Select(cs => cs.SpellId).ToHashSet()"
+                     OnSpellSelected="@AddSpellToCharacter" />
+    }
+
+    @foreach (var group in characterSpellsForDisplay.GroupBy(v => v.Spell.Level).OrderBy(g => g.Key))
+    {
+        <div class="spell-level-group">
+            <p class="spell-level-title">@(group.Key == 0 ? "Trucchetti" : $"Livello {group.Key}")</p>
+            @foreach (var view in group.OrderBy(v => v.Spell.Name))
+            {
+                <SpellListItem CharacterSpell="@view.Entry"
+                               Spell="@view.Spell"
+                               IsEditMode="@CanEdit"
+                               OnTogglePrepared="@TogglePrepared"
+                               OnRemove="@RemoveSpellFromCharacter" />
+            }
+        </div>
+    }
+
+    @if (!characterSpellsForDisplay.Any())
+    {
+        <p class="empty-note spell-list-empty">
+            Nessun incantesimo imparato. @(CanEdit ? "Usa il campo sopra per cercare e aggiungere." : "")
+            @if (CanEdit && AllSpells.Count == 0)
+            {
+                <span class="spell-list-hint">Suggerimento: il catalogo globale è vuoto. Aggiungete incantesimi dalla sezione Incantesimi della home.</span>
+            }
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Character Character { get; set; } = default!;
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public List<Spell> AllSpells { get; set; } = new();
+    [Parameter] public EventCallback<string?> OnError { get; set; }
+
+    private List<CharacterSpell> selectedCharacterSpells = new();
+    private List<CharacterSpellView> characterSpellsForDisplay = new();
+    private string? _lastId;
+
+    private record CharacterSpellView(CharacterSpell Entry, Spell Spell);
+
+    // Carica gli incantesimi del PG corrente al cambio di Character (prima lo faceva il genitore alla selezione).
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Character.Id != _lastId)
+        {
+            _lastId = Character.Id;
+            await LoadCharacterSpellsAsync();
+        }
+    }
+
+    private async Task LoadCharacterSpellsAsync()
+    {
+        selectedCharacterSpells = new();
+        characterSpellsForDisplay = new();
+
+        if (string.IsNullOrWhiteSpace(Character.SpellcastingAbility)) return;
+
+        try
+        {
+            selectedCharacterSpells = await SupabaseService.GetCharacterSpellsAsync(Character.Id);
+            RebuildSpellDisplay();
+        }
+        catch (Exception ex)
+        {
+            await OnError.InvokeAsync($"Errore caricamento incantesimi: {ex.Message}");
+            selectedCharacterSpells = new();
+            characterSpellsForDisplay = new();
+        }
+    }
+
+    // JOIN logico in memoria CharacterSpell -> Spell; scarta gli orfani (spell rimosso dal catalogo globale).
+    private void RebuildSpellDisplay()
+    {
+        var views = new List<CharacterSpellView>();
+        foreach (var cs in selectedCharacterSpells)
+        {
+            var spell = AllSpells.FirstOrDefault(s => s.Id == cs.SpellId);
+            if (spell is null) continue;
+            views.Add(new CharacterSpellView(cs, spell));
+        }
+        characterSpellsForDisplay = views;
+    }
+
+    private static string SpellAbilityShort(string? a)
+    {
+        if (string.IsNullOrWhiteSpace(a)) return string.Empty;
+        var t = a.Trim();
+        return (t.Length <= 3 ? t : t[..3]).ToUpperInvariant();
+    }
+
+    private async Task ToggleSpellSlot(int level, int index)
+    {
+        if (!CanEdit) return;
+        var max = GetSpellSlotMax(Character, level);
+        if (max <= 0) return;
+        var used = GetSpellSlotUsed(Character, level);
+        var available = max - used;
+        // Click su uno slot disponibile: spende fino a quel punto (ne restano index-1).
+        // Click su uno slot già speso: lo ripristina (ne restano index).
+        var newUsed = index <= available ? max - (index - 1) : max - index;
+        newUsed = Math.Clamp(newUsed, 0, max);
+        if (newUsed == used) return;
+        SetSpellSlotUsed(Character, level, newUsed);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task AddSpellToCharacter(Spell spell)
+    {
+        if (!CanEdit) return;
+        var entry = new CharacterSpell
+        {
+            CharacterId = Character.Id,
+            SpellId = spell.Id,
+            IsPrepared = spell.Level == 0 // i trucchetti sono auto-preparati
+        };
+        try
+        {
+            var saved = await SupabaseService.AddSpellToCharacterAsync(entry);
+            if (saved is not null)
+            {
+                selectedCharacterSpells.Add(saved);
+                RebuildSpellDisplay();
+            }
+            else
+            {
+                await OnError.InvokeAsync("Impossibile aggiungere l'incantesimo.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await OnError.InvokeAsync($"Errore aggiunta incantesimo: {ex.Message}");
+        }
+    }
+
+    private async Task TogglePrepared(CharacterSpell entry)
+    {
+        // entry.IsPrepared è già stato invertito dal componente figlio.
+        try
+        {
+            var ok = await SupabaseService.UpdateCharacterSpellAsync(entry);
+            if (!ok)
+            {
+                entry.IsPrepared = !entry.IsPrepared; // revert
+                await OnError.InvokeAsync("Impossibile aggiornare lo stato preparato.");
+            }
+        }
+        catch (Exception ex)
+        {
+            entry.IsPrepared = !entry.IsPrepared; // revert
+            await OnError.InvokeAsync($"Errore aggiornamento incantesimo: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveSpellFromCharacter(CharacterSpell entry)
+    {
+        try
+        {
+            var ok = await SupabaseService.RemoveCharacterSpellAsync(entry.Id);
+            if (ok)
+            {
+                selectedCharacterSpells.Remove(entry);
+                RebuildSpellDisplay();
+            }
+            else
+            {
+                await OnError.InvokeAsync("Impossibile rimuovere l'incantesimo.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await OnError.InvokeAsync($"Errore rimozione incantesimo: {ex.Message}");
+        }
+    }
+}

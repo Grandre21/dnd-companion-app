@@ -1,0 +1,123 @@
+/* ===== Magic tab ===== */
+.spell-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.spell-stat-block {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.7rem 0.4rem;
+    text-align: center;
+}
+
+.spell-stat-value {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.spell-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0;
+    border-bottom: 0.5px solid #3a2818;
+}
+
+.spell-slot-level {
+    font-size: 0.85rem;
+    color: var(--gold);
+    font-weight: 600;
+    min-width: 3.5rem;
+}
+
+.spell-slot-dots {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.spell-slot-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--gold);
+    background: var(--gold);
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.spell-slot-dot.spent {
+    background: transparent;
+}
+
+.spell-slot-dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 32px;
+    height: 32px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.spell-slot-count {
+    font-size: 0.8rem;
+    color: var(--gold-dim);
+    font-variant-numeric: tabular-nums;
+    min-width: 3rem;
+    text-align: right;
+}
+
+/* ===== Lista incantesimi imparati del PG ===== */
+.spell-list-section {
+    margin-top: 1rem;
+}
+
+.spell-list-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.25rem;
+}
+
+.spell-list-summary {
+    font-size: 0.72rem;
+    color: var(--gold-dim);
+    margin: 0;
+}
+
+.spell-level-group {
+    margin-top: 0.75rem;
+}
+
+.spell-level-title {
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gold);
+    margin: 0 0 0.4rem;
+}
+
+.spell-list-empty {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    text-align: center;
+    padding: 1.5rem 1rem;
+}
+
+.spell-list-hint {
+    font-size: 0.72rem;
+    color: var(--gold-dim);
+    font-style: italic;
+}
