@@ -210,7 +210,6 @@
 
     // ----- Import mostri -----
     private bool showMonsterImport;
-    private bool monstersLoaded;
     private bool isLoadingMonsters;
     private List<Monster> campaignMonsters = new();
     private readonly Dictionary<string, int> monsterQty = new();
@@ -382,7 +381,7 @@
     {
         if (!CurrentUser.IsMaster) return;
         showMonsterImport = !showMonsterImport;
-        if (showMonsterImport && !monstersLoaded)
+        if (showMonsterImport)
             await LoadCampaignMonstersAsync();
     }
 
@@ -395,7 +394,6 @@
         {
             campaignMonsters = await MonsterRepository.GetMonstersForCampaignAsync(CurrentUser.CampaignId);
             monsterQty.Clear();
-            monstersLoaded = true;
         }
         catch (Exception ex)
         {
