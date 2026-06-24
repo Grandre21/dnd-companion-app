@@ -276,17 +276,7 @@
                 @* ===================== TAB STATS ===================== *@
                 @if (activeTab == "stats")
                 {
-                    <div class="stats-header">
-                        <p class="bc-display">Bonus di Competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(selected.Level))</strong></p>
-                    </div>
-                    <div class="stats-grid">
-                        <StatCard Ability="AbilityType.Strength"     Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
-                        <StatCard Ability="AbilityType.Dexterity"    Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
-                        <StatCard Ability="AbilityType.Constitution" Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
-                        <StatCard Ability="AbilityType.Intelligence" Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
-                        <StatCard Ability="AbilityType.Wisdom"       Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
-                        <StatCard Ability="AbilityType.Charisma"     Character="@selected" IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
-                    </div>
+                    <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
                 }
 
                 @* ===================== TAB BIO ===================== *@

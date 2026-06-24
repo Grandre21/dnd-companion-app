@@ -1,0 +1,20 @@
+@using DndCompanion.Models
+@using DndCompanion.Services
+
+<div class="stats-header">
+    <p class="bc-display">Bonus di Competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(Character.Level))</strong></p>
+</div>
+<div class="stats-grid">
+    <StatCard Ability="AbilityType.Strength"     Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
+    <StatCard Ability="AbilityType.Dexterity"    Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
+    <StatCard Ability="AbilityType.Constitution" Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
+    <StatCard Ability="AbilityType.Intelligence" Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
+    <StatCard Ability="AbilityType.Wisdom"       Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
+    <StatCard Ability="AbilityType.Charisma"     Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Character Character { get; set; } = default!;
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+}

@@ -632,35 +632,6 @@
 .defense-badge.vulnerability     { color: #c5746b; border-color: #c5746b; background: #2a1f1f; }
 .defense-badge.condition-immunity { color: #a16bb8; border-color: #a16bb8; background: #221f2a; }
 
-/* ===== Stats tab ===== */
-.stats-header {
-    text-align: center;
-}
-
-.bc-display {
-    margin: 0 0 0.25rem;
-    font-size: 12px;
-    color: var(--gold);
-}
-
-.bc-display strong {
-    font-weight: 500;
-    color: var(--text);
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    align-items: start;
-}
-
-@media (min-width: 768px) {
-    .stats-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
 /* ===== Combat tab: dadi vita ===== */
 .hit-dice-card {
     background: var(--bg-card);
