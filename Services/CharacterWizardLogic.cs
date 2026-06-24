@@ -49,6 +49,30 @@ public static class CharacterWizardLogic
         return Math.Max(1, hp);
     }
 
+    /// <summary>Testo libero dei tiri salvezza (es. "Forza, Costituzione") → chiavi caratteristica inglesi.
+    /// Tollerante a maiuscole/spazi; voci ignote scartate; nessun duplicato; vuoto/null → lista vuota.</summary>
+    public static IReadOnlyList<string> ParseSaveProficiencies(string? savingThrowsText)
+    {
+        if (string.IsNullOrWhiteSpace(savingThrowsText)) return Array.Empty<string>();
+
+        var result = new List<string>();
+        foreach (var raw in savingThrowsText.Split(','))
+        {
+            var key = raw.Trim().ToLowerInvariant() switch
+            {
+                "forza" => "strength",
+                "destrezza" => "dexterity",
+                "costituzione" => "constitution",
+                "intelligenza" => "intelligence",
+                "saggezza" => "wisdom",
+                "carisma" => "charisma",
+                _ => null
+            };
+            if (key is not null && !result.Contains(key)) result.Add(key);
+        }
+        return result;
+    }
+
     /// <summary>Dimensione del dado dopo la prima 'd'/'D' (es. "d12"/"1d6" → 12/6). null se assente o non parsabile.</summary>
     private static int? ParseDieSize(string? hitDie)
     {

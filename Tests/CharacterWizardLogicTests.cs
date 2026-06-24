@@ -85,4 +85,39 @@ public class CharacterWizardLogicTests
     [Fact]
     public void SuggestMaxHp_unrecognized_die_returns_0()
         => Assert.Equal(0, CharacterWizardLogic.SuggestMaxHp("custom", 2, 3));
+
+    // ===== ParseSaveProficiencies =====
+
+    [Fact]
+    public void ParseSaveProficiencies_maps_two_abilities()
+        => Assert.Equal(new[] { "strength", "constitution" },
+                        CharacterWizardLogic.ParseSaveProficiencies("Forza, Costituzione"));
+
+    [Fact]
+    public void ParseSaveProficiencies_is_case_and_space_insensitive()
+        => Assert.Equal(new[] { "strength", "constitution" },
+                        CharacterWizardLogic.ParseSaveProficiencies("  FORZA , costituzione "));
+
+    [Fact]
+    public void ParseSaveProficiencies_drops_unknown_tokens()
+        => Assert.Equal(new[] { "wisdom" },
+                        CharacterWizardLogic.ParseSaveProficiencies("Pippo, Saggezza"));
+
+    [Fact]
+    public void ParseSaveProficiencies_dedupes()
+        => Assert.Equal(new[] { "strength" },
+                        CharacterWizardLogic.ParseSaveProficiencies("Forza, Forza"));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public void ParseSaveProficiencies_empty_returns_empty(string? text)
+        => Assert.Empty(CharacterWizardLogic.ParseSaveProficiencies(text));
+
+    [Fact]
+    public void ParseSaveProficiencies_maps_all_six()
+        => Assert.Equal(
+            new[] { "strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma" },
+            CharacterWizardLogic.ParseSaveProficiencies("Forza, Destrezza, Costituzione, Intelligenza, Saggezza, Carisma"));
 }
