@@ -191,10 +191,23 @@ mega-componente (quello resta in §3).
   combattenti, l'upsert, e che il giocatore veda i cambi del Master. Con RLS permissive funziona, andrà
   protetto (§1). Limite noto: l'iniziativa modificata inline si persiste al successivo salvataggio
   (es. "Ordina"/"Prossimo turno"), non all'istante.
-- 🟡 **Aiuto AI alla compilazione della scheda.** Assistere/velocizzare la compilazione (es. bozza scheda da
-  descrizione testuale, suggerimenti su bonus/competenze). Da progettare: provider LLM, **gestione della API
-  key** (la anon key è già esposta nel bundle → serve un proxy/edge function, non chiamate dirette dal
-  client), prompt, costi, UX. Risponde allo stesso bisogno dei quick-win C ma in modo strutturale.
+- 🟡 **Aiuto AI alla compilazione (generazione da testo).** Da una descrizione testuale, generare bozze di
+  **personaggi, classi, incantesimi, razze, mostri** (estende in modo strutturale il bisogno dei quick-win C).
+  Requisiti emersi (2026-06-24):
+  - **Accesso riservato (entitlement).** Anche con l'app pubblica la feature resta attiva **solo per un
+    allowlist** (owner + amici). È una scelta di *autorizzazione server-side* (coerente con §1): vive
+    naturalmente nel **proxy/edge function** che custodisce la API key dell'LLM (la anon key è già nel bundle
+    → chiamate dirette dal client escluse). L'allowlist (`user_id`) sta lì → **nessuno schema DB nuovo**,
+    quindi **non blocca né cambia il lavoro RLS** (§1): le policy attuali restano valide quando si aggiunge l'AI.
+  - **Contesto dal manuale ufficiale.** Per ora solo **incollare testo**; in futuro valutare l'ingestione del
+    manuale acquistato. ⚠️ Caveat copyright: il manuale è protetto — uso privato del gruppo, non da caricare a
+    cuor leggero su provider terzi. Per la generazione *base* il modello conosce già lo **SRD 5e** (aperto): il
+    manuale serve solo per contenuti non-SRD/homebrew. Se servirà ingerire molto testo la strada è **RAG**
+    (chunk + embedding + retrieval), non l'intero manuale nel prompt.
+  - **Provider.** Valutare opzioni gratuite: free tier di **Gemini**, **Groq** (inferenza veloce di modelli
+    open — da non confondere con **Grok** di xAI). Da decidere nel brainstorm dedicato: provider, gestione
+    della API key nel proxy, prompt, parsing dell'output nei Model, costi/limiti, UX. **Merita il suo spec
+    separato**, da fare *dopo* le RLS.
 - 🟡 **Redesign del flusso scheda / wizard.** I quick-win C sono un tampone; il vero rimedio a "troppi posti
   da compilare, nessuna scaletta" è un **wizard guidato** di creazione/compilazione, da fare insieme al
   refactor di `Characters.razor` (§3).
