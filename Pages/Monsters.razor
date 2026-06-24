@@ -232,7 +232,7 @@
                                     </div>
                                 }
 
-                                @if (CurrentUser.IsMaster || monster.AddedBy == CurrentUser.UserId)
+                                @if (AccessControl.CanEdit(CurrentUser.IsMaster, monster.AddedBy, CurrentUser.UserId))
                                 {
                                     <div class="master-actions">
                                         <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(monster)" @onclick:stopPropagation>

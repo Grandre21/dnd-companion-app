@@ -195,7 +195,7 @@
     private string? errorMessage;
 
     private bool CanEdit =>
-        selected is not null && (CurrentUser.IsMaster || selected.OwnerId == CurrentUser.UserId);
+        selected is not null && AccessControl.CanEdit(CurrentUser.IsMaster, selected.OwnerId, CurrentUser.UserId);
 
     protected override async Task OnInitializedAsync()
     {
@@ -387,7 +387,7 @@
             editDraft.HitPoints = editDraft.MaxHitPoints;
         }
 
-        NormalizeDraft();
+        CharacterNormalizer.Normalize(editDraft);
 
         isBusy = true;
         errorMessage = null;
@@ -426,50 +426,6 @@
         {
             isBusy = false;
         }
-    }
-
-    // Trim su tutti i testi; vuoti -> null per i campi nullable. Clamp dei numerici.
-    private void NormalizeDraft()
-    {
-        static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-
-        editDraft.Name = editDraft.Name?.Trim() ?? string.Empty;
-        editDraft.Class = editDraft.Class?.Trim() ?? string.Empty;
-        editDraft.Race = editDraft.Race?.Trim() ?? string.Empty;
-        editDraft.Size = string.IsNullOrWhiteSpace(editDraft.Size) ? "Media" : editDraft.Size.Trim();
-
-        editDraft.Subclass = Clean(editDraft.Subclass);
-        editDraft.Background = Clean(editDraft.Background);
-        editDraft.Alignment = Clean(editDraft.Alignment);
-        editDraft.Appearance = Clean(editDraft.Appearance);
-        editDraft.Backstory = Clean(editDraft.Backstory);
-        editDraft.Languages = Clean(editDraft.Languages);
-        editDraft.HitDiceMax = Clean(editDraft.HitDiceMax);
-        editDraft.SpeciesTraits = Clean(editDraft.SpeciesTraits);
-        editDraft.ClassFeatures = Clean(editDraft.ClassFeatures);
-        editDraft.Feats = Clean(editDraft.Feats);
-        editDraft.Notes = Clean(editDraft.Notes);
-        editDraft.AttunedItem1 = Clean(editDraft.AttunedItem1);
-        editDraft.AttunedItem2 = Clean(editDraft.AttunedItem2);
-        editDraft.AttunedItem3 = Clean(editDraft.AttunedItem3);
-        editDraft.DamageResistances = Clean(editDraft.DamageResistances);
-        editDraft.DamageImmunities = Clean(editDraft.DamageImmunities);
-        editDraft.DamageVulnerabilities = Clean(editDraft.DamageVulnerabilities);
-        editDraft.ConditionImmunities = Clean(editDraft.ConditionImmunities);
-        editDraft.SpellcastingAbility = Clean(editDraft.SpellcastingAbility);
-
-        editDraft.Level = Math.Clamp(editDraft.Level, 1, 20);
-        editDraft.ArmorClass = Math.Max(0, editDraft.ArmorClass);
-        editDraft.HitPoints = Math.Max(0, editDraft.HitPoints);
-        editDraft.TempHitPoints = Math.Max(0, editDraft.TempHitPoints);
-        editDraft.Speed = Math.Max(0, editDraft.Speed);
-        editDraft.HitDiceSpent = Math.Max(0, editDraft.HitDiceSpent);
-        editDraft.ExperiencePoints = Math.Max(0, editDraft.ExperiencePoints);
-        editDraft.CopperPieces = Math.Max(0, editDraft.CopperPieces);
-        editDraft.SilverPieces = Math.Max(0, editDraft.SilverPieces);
-        editDraft.ElectrumPieces = Math.Max(0, editDraft.ElectrumPieces);
-        editDraft.GoldPieces = Math.Max(0, editDraft.GoldPieces);
-        editDraft.PlatinumPieces = Math.Max(0, editDraft.PlatinumPieces);
     }
 
     // Persistenza delle note (invocata da CharacterBioTab via OnSaveNotes); il draft e il flag di

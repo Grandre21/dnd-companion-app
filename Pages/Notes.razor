@@ -270,7 +270,7 @@
     private void OpenDetail(Note note)
     {
         editDraft = CloneNote(note);
-        isEditable = CurrentUser.IsMaster || note.OwnerId == CurrentUser.UserId;
+        isEditable = AccessControl.CanEdit(CurrentUser.IsMaster, note.OwnerId, CurrentUser.UserId);
         mode = ViewMode.Form;
     }
 

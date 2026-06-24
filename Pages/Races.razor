@@ -260,7 +260,7 @@
     }
 
     // Crea: ogni membro. Modifica/elimina: solo l'autore (added_by) o il master — allineato alle RLS.
-    private bool CanEdit(Race race) => CurrentUser.IsMaster || race.AddedBy == CurrentUser.UserId;
+    private bool CanEdit(Race race) => AccessControl.CanEdit(CurrentUser.IsMaster, race.AddedBy, CurrentUser.UserId);
 
     private string? GetAuthorName(string? authorId)
     {
