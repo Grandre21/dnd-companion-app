@@ -308,7 +308,45 @@
                     }
                 </div>
                 break;
-            case 5: <p class="wiz-placeholder">Riepilogo</p> break;
+            case 5:
+                <div class="wiz-step wiz-summary">
+                    <div class="wiz-summary-card">
+                        <h3 class="wiz-summary-name">@(string.IsNullOrWhiteSpace(Draft.Name) ? "(senza nome)" : Draft.Name)</h3>
+                        <p class="wiz-summary-line">
+                            Liv @Draft.Level
+                            · @(string.IsNullOrWhiteSpace(Draft.Class) ? "Classe —" : Draft.Class)@(string.IsNullOrWhiteSpace(Draft.Subclass) ? "" : $" ({Draft.Subclass})")
+                            · @(string.IsNullOrWhiteSpace(Draft.Race) ? "Razza —" : Draft.Race)
+                        </p>
+
+                        <div class="wiz-summary-grid">
+                            @for (var i = 0; i < 6; i++)
+                            {
+                                var idx = i;
+                                <div class="wiz-summary-stat">
+                                    <span class="wiz-summary-stat-label">@AbilityShort[idx]</span>
+                                    <span class="wiz-summary-stat-val">@FinalScore(idx)</span>
+                                    <span class="wiz-summary-stat-mod">@FormatBonus(CharacterCalculations.GetModifier(FinalScore(idx)))</span>
+                                </div>
+                            }
+                        </div>
+
+                        <p class="wiz-summary-line">
+                            CA <strong>@Draft.ArmorClass</strong>
+                            · PF <strong>@Draft.MaxHitPoints</strong>
+                            · Velocità <strong>@Draft.Speed m</strong>
+                            @if (!string.IsNullOrWhiteSpace(Draft.HitDiceMax))
+                            {
+                                <span> · Dadi vita <strong>@Draft.HitDiceMax</strong></span>
+                            }
+                        </p>
+
+                        <p class="wiz-summary-line">
+                            Incantatore: <strong>@(string.IsNullOrWhiteSpace(Draft.SpellcastingAbility) ? "no" : "sì")</strong>
+                        </p>
+                    </div>
+                    <p class="field-hint">Controlla i dati e premi "Salva personaggio". Potrai rifinire tutto il resto (aspetto, storia, denari, difese, inventario) dalla scheda.</p>
+                </div>
+                break;
         }
     </div>
 
