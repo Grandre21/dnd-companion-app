@@ -278,9 +278,14 @@ mega-componente (quello resta in §3).
     open — da non confondere con **Grok** di xAI). Da decidere nel brainstorm dedicato: provider, gestione
     della API key nel proxy, prompt, parsing dell'output nei Model, costi/limiti, UX. **Merita il suo spec
     separato**, da fare *dopo* le RLS.
-- 🟡 **Redesign del flusso scheda / wizard.** I quick-win C sono un tampone; il vero rimedio a "troppi posti
-  da compilare, nessuna scaletta" è un **wizard guidato** di creazione/compilazione, da fare insieme al
-  refactor di `Characters.razor` (§3).
+- ✅ **Redesign del flusso scheda / wizard** — FATTO (2026-06-25). Wizard di **sola creazione** a 6 step
+  (Identità → Caratteristiche → Vitalità & combattimento → Competenze → Incantesimi → Riepilogo), accessibile
+  via `ViewMode.Wizard` in `Characters.razor`. Automazione intermedia: bonus razza applicati alle
+  caratteristiche e dado vita pre-compilato alla scelta di razza/classe; PF e tiri salvezza suggeriti con un
+  tap. Helper puri testabili in `Services/CharacterWizardLogic.cs` (`FinalAbilityScores`, `BuildHitDice`,
+  `SuggestMaxHp`, `ParseSaveProficiencies`). L'accordion `CharacterEditForm` resta **invariato** per la
+  modifica di PG esistenti. Zero impatto su DB/RLS (nessuna tabella nuova, `SaveFormAsync` riusato). 147 test
+  verdi, build Release 0/0. Verifica manuale end-to-end (scenario spec §9 in locale) in sospeso prima del push.
 - 💡 **Combat in Realtime.** Evoluzione futura del combat condiviso con push istantaneo invece del polling —
   richiederebbe la reintroduzione di `realtime-csharp` (rimosso in §2); valutare solo se il costo bundle è
   accettabile.

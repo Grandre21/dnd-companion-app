@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-06-24**.
+> Aggiornato: **2026-06-25**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -179,3 +179,18 @@ funzioni), applicati allo stack locale (`supabase start`, config alleggerito ai 
 nota privata, visibilità condivisa al membro, gate non-membro, lettura propria, `combat_state` solo-master, niente
 auto-promozione a master. `db pull` non funzionava (motore `pgdelta` → "no schema changes"), aggirato con
 `db dump`. CI invariata (non esegue test). Istruzioni in `Tests.Integration/README.md`.
+
+**Wizard di creazione scheda PG (2026-06-25).** Implementato il **wizard guidato di sola creazione** a 6 step
+(Identità → Caratteristiche → Vitalità & combattimento → Competenze → Incantesimi → Riepilogo), accessibile via
+`ViewMode.Wizard` in `Pages/Characters.razor`. Automazione intermedia: i bonus razza vengono applicati
+automaticamente alle caratteristiche alla selezione della razza, e il dado vita viene pre-compilato alla scelta
+della classe; PF massimi e tiri salvezza suggeriti con un tap (non forzati, il giocatore può sovrascrivere).
+Helper puri e completamente testabili in `Services/CharacterWizardLogic.cs` (`FinalAbilityScores`,
+`BuildHitDice`, `SuggestMaxHp`, `ParseSaveProficiencies`). Il salvataggio riusa `SaveFormAsync`/`CancelForm`
+già esistenti: zero duplicazione logica. L'accordion `CharacterEditForm` resta **invariato** per la modifica di
+PG esistenti. Zero impatto su DB/RLS: nessuna tabella nuova, nessuna policy modificata. 147 test verdi (suite
+`DndCompanion.Tests`), build Release 0 warning / 0 errori. Verifica manuale end-to-end (scenario spec §9 in
+locale a `https://localhost:7076`) affidata all'utente prima del push.
+File toccati: `Services/CharacterWizardLogic.cs`, `Tests/CharacterWizardLogicTests.cs`,
+`Shared/CharacterTabs/CharacterWizard.razor`, `Shared/CharacterTabs/CharacterWizard.razor.css`,
+`Pages/Characters.razor`.
