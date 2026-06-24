@@ -23,11 +23,18 @@ public class InventoryRepository : IInventoryRepository
         var response = await client.From<InventoryItem>()
             .Where(i => i.CharacterId == characterId)
             .Get();
-        return response.Models
+        return SortForDisplay(response.Models);
+    }
+
+    /// <summary>
+    /// Ordina l'inventario per tipo poi nome (case-insensitive); tipo nullo trattato come stringa vuota.
+    /// Pura: testabile in isolamento dal DB.
+    /// </summary>
+    internal static List<InventoryItem> SortForDisplay(IEnumerable<InventoryItem> items) =>
+        items
             .OrderBy(i => i.ItemType ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
 
     public async Task<InventoryItem?> CreateInventoryItemAsync(InventoryItem item)
     {

@@ -22,7 +22,7 @@ public class CampaignRepository : ICampaignRepository
     public CampaignRepository(SupabaseService supabase) => _supabase = supabase;
 
     // Alfabeto senza caratteri ambigui (niente 0/O, 1/I/L) per i codici invito.
-    private const string InviteCodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    internal const string InviteCodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
     public async Task<List<Campaign>> GetUserCampaignsAsync(string userId)
     {
@@ -153,7 +153,7 @@ public class CampaignRepository : ICampaignRepository
     // accesso ai dati condivisi della campagna).
     private const int InviteCodeLength = 8;
 
-    private static string GenerateInviteCode()
+    internal static string GenerateInviteCode()
     {
         var alphabetLen = InviteCodeAlphabet.Length;
         // Soglia di rejection sampling per eliminare il bias di modulo.

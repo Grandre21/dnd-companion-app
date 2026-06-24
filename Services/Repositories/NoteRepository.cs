@@ -23,12 +23,18 @@ public class NoteRepository : INoteRepository
         var response = await client.From<Note>()
             .Where(n => n.CampaignId == campaignId)
             .Get();
-        // Visibili nella campagna: le condivise + le proprie note private.
-        return response.Models
+        return FilterAndSortVisible(response.Models, userId);
+    }
+
+    /// <summary>
+    /// Note visibili nella campagna: le condivise + le proprie private; ordinate per ultima modifica
+    /// (fallback alla creazione) decrescente. Pura: testabile in isolamento dal DB.
+    /// </summary>
+    internal static List<Note> FilterAndSortVisible(IEnumerable<Note> notes, string userId) =>
+        notes
             .Where(n => n.IsShared || n.OwnerId == userId)
             .OrderByDescending(n => n.UpdatedAt ?? n.CreatedAt ?? DateTime.MinValue)
             .ToList();
-    }
 
     public async Task<Note?> CreateNoteAsync(Note note)
     {
