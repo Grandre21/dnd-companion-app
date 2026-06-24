@@ -555,3 +555,52 @@
         padding: 1.1rem 1.75rem;
     }
 }
+
+/* ===== Import mostri ===== */
+.monster-import {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mi-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.mi-name {
+    flex: 1;
+    min-width: 0;
+    color: var(--gold-light);
+    font-weight: 600;
+}
+
+.mi-hp {
+    color: #9a8c6a;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.mi-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.mi-qty {
+    min-width: 1.5rem;
+    text-align: center;
+    font-weight: 700;
+    color: var(--gold-light);
+    font-variant-numeric: tabular-nums;
+}
+
+.mi-empty {
+    color: #7a6b4d;
+    font-style: italic;
+    font-size: 0.9rem;
+    padding: 0.5rem 0;
+}

@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject ICombatStateRepository CombatStateRepository
 @inject ICharacterRepository CharacterRepository
+@inject IMonsterRepository MonsterRepository
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -72,6 +73,9 @@
             <button type="button" class="ctrl-btn" @onclick="ImportCharactersAsync" disabled="@isImporting">
                 @(isImporting ? "Importazione..." : "📥 Importa personaggi")
             </button>
+            <button type="button" class="ctrl-btn" @onclick="ToggleMonsterImportAsync" disabled="@isImporting">
+                👹 Importa mostri
+            </button>
             <button type="button" class="ctrl-btn" @onclick="SortByInitiative" disabled="@(combatants.Count == 0)">
                 ↕ Ordina per iniziativa
             </button>
@@ -79,6 +83,42 @@
                 🗑 Nuovo combattimento
             </button>
         </div>
+
+        @if (showMonsterImport)
+        {
+            <div class="add-form monster-import">
+                <div class="form-title">Importa mostri</div>
+                @if (isLoadingMonsters)
+                {
+                    <LoadingSpinner Text="Caricamento mostri..." />
+                }
+                else if (campaignMonsters.Count == 0)
+                {
+                    <div class="mi-empty">Nessun mostro nella campagna.</div>
+                }
+                else
+                {
+                    @foreach (var m in campaignMonsters)
+                    {
+                        <div class="mi-row">
+                            <span class="mi-name">@m.Name</span>
+                            <span class="mi-hp">PF @CombatImport.ParseLeadingHp(m.HitPoints)</span>
+                            <div class="mi-stepper">
+                                <button type="button" class="hp-btn hp-minus" aria-label="Meno"
+                                        @onclick="() => AdjustQty(m.Id, -1)" disabled="@(GetQty(m.Id) == 0)">−</button>
+                                <span class="mi-qty">@GetQty(m.Id)</span>
+                                <button type="button" class="hp-btn hp-plus" aria-label="Più"
+                                        @onclick="() => AdjustQty(m.Id, 1)">+</button>
+                            </div>
+                        </div>
+                    }
+                    <button type="button" class="add-btn" @onclick="AddSelectedMonstersAsync"
+                            disabled="@(TotalMonsterQty == 0 || isImporting)">
+                        @(isImporting ? "Aggiunta..." : $"Aggiungi {TotalMonsterQty} combattenti")
+                    </button>
+                }
+            </div>
+        }
     }
 
     <div class="combatants-list">
@@ -167,6 +207,16 @@
     private CancellationTokenSource? pollCts;
 
     private Combatant newDraft = new() { CurrentHp = 10, MaxHp = 10 };
+
+    // ----- Import mostri -----
+    private bool showMonsterImport;
+    private bool monstersLoaded;
+    private bool isLoadingMonsters;
+    private List<Monster> campaignMonsters = new();
+    private readonly Dictionary<string, int> monsterQty = new();
+
+    private int TotalMonsterQty => monsterQty.Values.Sum();
+    private int GetQty(string monsterId) => monsterQty.TryGetValue(monsterId, out var q) ? q : 0;
 
     private Combatant? CurrentCombatant =>
         (combatants.Count > 0 && currentTurnIndex < combatants.Count)
@@ -321,6 +371,64 @@
         catch (Exception ex)
         {
             errorMessage = $"Errore importazione: {ex.Message}";
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private async Task ToggleMonsterImportAsync()
+    {
+        if (!CurrentUser.IsMaster) return;
+        showMonsterImport = !showMonsterImport;
+        if (showMonsterImport && !monstersLoaded)
+            await LoadCampaignMonstersAsync();
+    }
+
+    private async Task LoadCampaignMonstersAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+        isLoadingMonsters = true;
+        errorMessage = null;
+        try
+        {
+            campaignMonsters = await MonsterRepository.GetMonstersForCampaignAsync(CurrentUser.CampaignId);
+            monsterQty.Clear();
+            monstersLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento mostri: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingMonsters = false;
+        }
+    }
+
+    private void AdjustQty(string monsterId, int delta)
+        => monsterQty[monsterId] = Math.Max(0, GetQty(monsterId) + delta);
+
+    private async Task AddSelectedMonstersAsync()
+    {
+        if (!CurrentUser.IsMaster) return;
+        isImporting = true;
+        errorMessage = null;
+        try
+        {
+            foreach (var m in campaignMonsters)
+            {
+                var qty = GetQty(m.Id);
+                if (qty > 0) combatants.AddRange(CombatImport.FromMonster(m, qty));
+            }
+            await SaveCombatStateAsync();
+            showMonsterImport = false;
+            monsterQty.Clear();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore importazione mostri: {ex.Message}";
         }
         finally
         {
