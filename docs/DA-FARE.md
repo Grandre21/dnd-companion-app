@@ -7,6 +7,10 @@
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
 > Ultimo aggiornamento: **2026-06-24**
+>
+> I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
+> in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
+> la monetizzazione.
 
 Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
 
@@ -73,9 +77,6 @@ mega-componente (quello resta in §3).
 - ✅ **Spostare le autorizzazioni sul server** — FATTO. Ruolo e proprietà (`isMaster`, owner del PG) sono
   applicati via RLS basate su `auth.uid()` e sugli helper `is_campaign_member`/`is_campaign_master`, non più
   solo nella UI.
-- 🟠 **Gate di registrazione/ingresso.** Se l'app diventa a pagamento, legare l'accesso all'entitlement
-  d'acquisto (Play Billing) anziché a un codice invito; validare i codici invito server-side
-  (monouso/scadenza) se restano.
 - 🟡 **Vincoli e validazione a livello DB.** ✅ Integrità referenziale: l'audit (2026-06-24) ha confermato
   **FK + `ON DELETE CASCADE`** già presenti su tutte le relazioni verso `campaigns`/`characters` (gli
   `added_by` dei cataloghi sono `SET NULL`, corretto). ✅ **Validazione di dominio lato client** (2026-06-24):
@@ -278,7 +279,6 @@ mega-componente (quello resta in §3).
 - 💡 **Offline dei dati read-only.** Oggi offline funziona solo la shell; cache dei cataloghi per
   consultazione senza rete, se diventa una promessa del prodotto.
 - 💡 **Markdown nelle note** (oggi plain text).
-- 💡 **Modello di monetizzazione.** Free vs a pagamento, entitlement, cosa sta dietro al paywall.
 - 💡 **Tema chiaro / multi-tema** (sbloccato dai design token del §6).
 - 💡 **Hosting alternativo** con header di sicurezza (CSP/HSTS) e dominio custom, se GitHub Pages diventa
   un limite.
