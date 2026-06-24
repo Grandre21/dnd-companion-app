@@ -52,5 +52,14 @@ parsing dei dadi vita, **design token** (palette in `:root` e conversione comple
 `.razor.css`), **accessibilità da tastiera** dei controlli interattivi (`StatCard`, `SpellListItem` e i toggle
 di `Characters.razor`: death save, ispirazione, slot incantesimo — role/aria/Enter-Space, senza cambiare
 l'aspetto), e uno **spinner di caricamento** a tema al posto dei "Caricamento..." testuali.
-Restano (scelte di prodotto o lavoro più grande, vedi [DA-FARE.md](./DA-FARE.md)): contrasti WCAG, toast di
-feedback, mega-refactor (`Characters.razor`/`SupabaseService`), sicurezza RLS e le feature (combat, AI).
+
+**Funzionalità e robustezza (giu 2026, 2ª parte).** **Combat condiviso**: il tracker iniziativa, prima locale
+al solo Master, è diventato un dato condiviso per campagna (tabella `combat_state` con `combatants` jsonb +
+polling ~4s per i giocatori) — i giocatori vedono turno e PF in tempo quasi reale. **Fix auth**: al riavvio
+l'access token scaduto non veniva rinnovato (`LoadSession` non fa rete) → "JWT expired" e app bloccata; ora si
+tenta il refresh col refresh token e, se fallisce, logout pulito. **Feedback**: toast a tema
+("✓ Salvato/Eliminato") sul salvataggio PG e su tutti i CRUD; **dialog di conferma a tema** (`ConfirmDialog`)
+al posto dei `confirm()` nativi; contrasto `--gold-dim` alzato.
+Restano (lavoro grande o lato DB, vedi [DA-FARE.md](./DA-FARE.md)): **sicurezza RLS** (gate del pubblico),
+**mega-refactor** (`Characters.razor`/`SupabaseService`), e le feature di prodotto (AI alla compilazione,
+wizard scheda, i18n).
