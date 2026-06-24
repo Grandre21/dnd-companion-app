@@ -149,7 +149,69 @@
                     <p class="field-hint">Il totale = base + bonus razziale, limitato a 1–30. Il modificatore è tra parentesi.</p>
                 </div>
                 break;
-            case 2: <p class="wiz-placeholder">Vitalità &amp; combattimento</p> break;
+            case 2:
+                <div class="wiz-step">
+                    <div class="field">
+                        <label>Classe Armatura</label>
+                        <input type="number" class="input" min="0" max="40" @bind="Draft.ArmorClass" />
+                    </div>
+
+                    <div class="field">
+                        <label>PF Massimi</label>
+                        <div class="wiz-hp-row">
+                            <input type="number" class="input" min="1" @bind="Draft.MaxHitPoints" />
+                            @if (SuggestedHp > 0)
+                            {
+                                <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedHp">
+                                    Usa suggerito (@SuggestedHp)
+                                </button>
+                            }
+                        </div>
+                        <span class="field-hint">I PF correnti vengono impostati uguali ai massimi alla creazione.</span>
+                    </div>
+
+                    <div class="field">
+                        <label>Velocità (m)</label>
+                        <input type="number" class="input" min="0" @bind="Draft.Speed" />
+                        <span class="field-hint">9m = 30 piedi (umano standard). La velocità della razza è solo informativa.</span>
+                    </div>
+
+                    <div class="field">
+                        <label>Taglia</label>
+                        <select class="input" @bind="Draft.Size">
+                            <option value="Minuscola">Minuscola</option>
+                            <option value="Piccola">Piccola</option>
+                            <option value="Media">Media</option>
+                            <option value="Grande">Grande</option>
+                            <option value="Enorme">Enorme</option>
+                            <option value="Mastodontica">Mastodontica</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label>Dadi Vita</label>
+                        <div class="wiz-hp-row">
+                            <input type="text" class="input" maxlength="40"
+                                   placeholder="es. 3d12" @bind="Draft.HitDiceMax" />
+                            @{
+                                var prefill = CharacterWizardLogic.BuildHitDice(SelectedClass?.HitDie, Draft.Level);
+                            }
+                            @if (!string.IsNullOrEmpty(prefill) && Draft.HitDiceMax != prefill)
+                            {
+                                <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="PrefillHitDice">
+                                    Usa @prefill
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="derived-info">
+                        Iniziativa: <strong>@FormatBonus(CharacterCalculations.GetInitiative(Draft))</strong>
+                        · Competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(Draft.Level))</strong>
+                        · Percezione passiva: <strong>@CharacterCalculations.GetPassivePerception(Draft)</strong>
+                    </div>
+                </div>
+                break;
             case 3: <p class="wiz-placeholder">Competenze</p> break;
             case 4: <p class="wiz-placeholder">Incantesimi</p> break;
             case 5: <p class="wiz-placeholder">Riepilogo</p> break;
@@ -313,5 +375,21 @@
     {
         baseScores = new[] { 15, 14, 13, 12, 10, 8 };
         RecalcFinals();
+    }
+
+    // PF suggeriti dal dado vita della classe + mod COS (del totale) + livello. 0 = nessun suggerimento.
+    private int SuggestedHp =>
+        CharacterWizardLogic.SuggestMaxHp(SelectedClass?.HitDie,
+            CharacterCalculations.GetModifier(Draft.Constitution), Draft.Level);
+
+    private void UseSuggestedHp()
+    {
+        Draft.MaxHitPoints = SuggestedHp;
+        Draft.HitPoints = SuggestedHp; // in creazione i correnti = massimi
+    }
+
+    private void PrefillHitDice()
+    {
+        Draft.HitDiceMax = CharacterWizardLogic.BuildHitDice(SelectedClass?.HitDie, Draft.Level);
     }
 }
