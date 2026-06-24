@@ -45,4 +45,21 @@ public class CharacterWizardLogicTests
         var result = CharacterWizardLogic.FinalAbilityScores(new[] { 15 }, null);
         Assert.Equal(new[] { 15, 10, 10, 10, 10, 10 }, result);
     }
+
+    // ===== BuildHitDice =====
+
+    [Theory]
+    [InlineData("d12", 3, "3d12")]
+    [InlineData("D8", 1, "1d8")]
+    [InlineData("1d6", 5, "5d6")]
+    [InlineData("d10", 0, "1d10")]   // livello < 1 trattato come 1
+    public void BuildHitDice_builds_expected(string die, int level, string expected)
+        => Assert.Equal(expected, CharacterWizardLogic.BuildHitDice(die, level));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    [InlineData("custom")]   // niente 'd' → non riconosciuto
+    public void BuildHitDice_unrecognized_returns_empty(string? die)
+        => Assert.Equal("", CharacterWizardLogic.BuildHitDice(die, 3));
 }

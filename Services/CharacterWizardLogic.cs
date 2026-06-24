@@ -25,4 +25,24 @@ public static class CharacterWizardLogic
         }
         return result;
     }
+
+    /// <summary>"d12" + livello 3 → "3d12". Dado vuoto/non riconosciuto → "". livello &lt; 1 trattato 1.</summary>
+    public static string BuildHitDice(string? classHitDie, int level)
+    {
+        var die = ParseDieSize(classHitDie);
+        if (die is null) return string.Empty;
+        var lvl = level < 1 ? 1 : level;
+        return $"{lvl}d{die.Value}";
+    }
+
+    /// <summary>Dimensione del dado dopo la prima 'd'/'D' (es. "d12"/"1d6" → 12/6). null se assente o non parsabile.</summary>
+    private static int? ParseDieSize(string? hitDie)
+    {
+        if (string.IsNullOrWhiteSpace(hitDie)) return null;
+        var lower = hitDie.ToLowerInvariant();
+        var idx = lower.IndexOf('d');
+        if (idx < 0 || idx + 1 >= lower.Length) return null;
+        var digits = new string(lower.Skip(idx + 1).TakeWhile(char.IsDigit).ToArray());
+        return int.TryParse(digits, out var n) && n > 0 ? n : (int?)null;
+    }
 }
