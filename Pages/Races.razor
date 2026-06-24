@@ -1,7 +1,8 @@
 @page "/races"
 @using DndCompanion.Models
 @implements IDisposable
-@inject SupabaseService SupabaseService
+@inject IRaceRepository RaceRepository
+@inject IProfileRepository ProfileRepository
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
@@ -248,8 +249,8 @@
 
             if (string.IsNullOrEmpty(campaignId)) return;
 
-            var racesTask = SupabaseService.GetRacesForCampaignAsync(campaignId);
-            var profilesTask = SupabaseService.GetProfilesAsync();
+            var racesTask = RaceRepository.GetRacesForCampaignAsync(campaignId);
+            var profilesTask = ProfileRepository.GetProfilesAsync();
             await Task.WhenAll(racesTask, profilesTask);
 
             allRaces = racesTask.Result;
@@ -343,11 +344,11 @@
             Race? saved;
             if (string.IsNullOrEmpty(editDraft.Id))
             {
-                saved = await SupabaseService.CreateRaceAsync(editDraft);
+                saved = await RaceRepository.CreateRaceAsync(editDraft);
             }
             else
             {
-                saved = await SupabaseService.UpdateRaceAsync(editDraft);
+                saved = await RaceRepository.UpdateRaceAsync(editDraft);
             }
 
             if (saved is null)
@@ -383,7 +384,7 @@
         errorMessage = null;
         try
         {
-            await SupabaseService.DeleteRaceAsync(race.Id);
+            await RaceRepository.DeleteRaceAsync(race.Id);
             allRaces.RemoveAll(r => r.Id == race.Id);
             if (expandedId == race.Id) expandedId = null;
             Toasts.ShowSuccess("Eliminato");

@@ -1,7 +1,8 @@
 @page "/classes"
 @using DndCompanion.Models
 @implements IDisposable
-@inject SupabaseService SupabaseService
+@inject IClassRepository ClassRepository
+@inject IProfileRepository ProfileRepository
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
@@ -263,8 +264,8 @@
 
             if (string.IsNullOrEmpty(campaignId)) return;
 
-            var classesTask = SupabaseService.GetClassesForCampaignAsync(campaignId);
-            var profilesTask = SupabaseService.GetProfilesAsync();
+            var classesTask = ClassRepository.GetClassesForCampaignAsync(campaignId);
+            var profilesTask = ProfileRepository.GetProfilesAsync();
             await Task.WhenAll(classesTask, profilesTask);
 
             allClasses = classesTask.Result;
@@ -358,11 +359,11 @@
             CharacterClass? saved;
             if (string.IsNullOrEmpty(editDraft.Id))
             {
-                saved = await SupabaseService.CreateClassAsync(editDraft);
+                saved = await ClassRepository.CreateClassAsync(editDraft);
             }
             else
             {
-                saved = await SupabaseService.UpdateClassAsync(editDraft);
+                saved = await ClassRepository.UpdateClassAsync(editDraft);
             }
 
             if (saved is null)
@@ -398,7 +399,7 @@
         errorMessage = null;
         try
         {
-            await SupabaseService.DeleteClassAsync(cls.Id);
+            await ClassRepository.DeleteClassAsync(cls.Id);
             allClasses.RemoveAll(c => c.Id == cls.Id);
             if (expandedId == cls.Id) expandedId = null;
             Toasts.ShowSuccess("Eliminato");

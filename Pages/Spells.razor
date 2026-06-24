@@ -1,7 +1,8 @@
 @page "/spells"
 @using DndCompanion.Models
 @implements IDisposable
-@inject SupabaseService SupabaseService
+@inject ISpellRepository SpellRepository
+@inject IProfileRepository ProfileRepository
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
@@ -272,8 +273,8 @@
 
             if (string.IsNullOrEmpty(campaignId)) return;
 
-            var spellsTask = SupabaseService.GetSpellsForCampaignAsync(campaignId);
-            var profilesTask = SupabaseService.GetProfilesAsync();
+            var spellsTask = SpellRepository.GetSpellsForCampaignAsync(campaignId);
+            var profilesTask = ProfileRepository.GetProfilesAsync();
             await Task.WhenAll(spellsTask, profilesTask);
 
             allSpells = spellsTask.Result;
@@ -401,11 +402,11 @@
             Spell? saved;
             if (string.IsNullOrEmpty(editDraft.Id))
             {
-                saved = await SupabaseService.CreateSpellAsync(editDraft);
+                saved = await SpellRepository.CreateSpellAsync(editDraft);
             }
             else
             {
-                saved = await SupabaseService.UpdateSpellAsync(editDraft);
+                saved = await SpellRepository.UpdateSpellAsync(editDraft);
             }
 
             if (saved is null)
@@ -441,7 +442,7 @@
         errorMessage = null;
         try
         {
-            await SupabaseService.DeleteSpellAsync(spell.Id);
+            await SpellRepository.DeleteSpellAsync(spell.Id);
             allSpells.RemoveAll(s => s.Id == spell.Id);
             if (expandedId == spell.Id) expandedId = null;
             Toasts.ShowSuccess("Eliminato");

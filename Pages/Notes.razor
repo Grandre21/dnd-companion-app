@@ -1,7 +1,8 @@
 @page "/notes"
 @using DndCompanion.Models
 @implements IDisposable
-@inject SupabaseService SupabaseService
+@inject INoteRepository NoteRepository
+@inject IProfileRepository ProfileRepository
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
@@ -196,8 +197,8 @@
                 return;
             }
 
-            var notesTask = SupabaseService.GetNotesForCampaignAsync(campaignId, userId);
-            var profilesTask = SupabaseService.GetProfilesAsync();
+            var notesTask = NoteRepository.GetNotesForCampaignAsync(campaignId, userId);
+            var profilesTask = ProfileRepository.GetProfilesAsync();
             await Task.WhenAll(notesTask, profilesTask);
 
             notes = notesTask.Result;
@@ -305,11 +306,11 @@
             {
                 editDraft.OwnerId = userId ?? string.Empty;
                 editDraft.CampaignId = campaignId ?? string.Empty;
-                saved = await SupabaseService.CreateNoteAsync(editDraft);
+                saved = await NoteRepository.CreateNoteAsync(editDraft);
             }
             else
             {
-                saved = await SupabaseService.UpdateNoteAsync(editDraft);
+                saved = await NoteRepository.UpdateNoteAsync(editDraft);
             }
 
             if (saved is null)
@@ -348,7 +349,7 @@
         errorMessage = null;
         try
         {
-            await SupabaseService.DeleteNoteAsync(editDraft.Id);
+            await NoteRepository.DeleteNoteAsync(editDraft.Id);
             notes.RemoveAll(n => n.Id == editDraft.Id);
             editDraft = null;
             mode = ViewMode.List;

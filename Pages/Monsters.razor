@@ -1,7 +1,7 @@
 @page "/monsters"
 @using DndCompanion.Models
 @implements IDisposable
-@inject SupabaseService SupabaseService
+@inject IMonsterRepository MonsterRepository
 @inject AuthStateService AuthState
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
@@ -352,7 +352,7 @@
 
             if (string.IsNullOrEmpty(campaignId)) return;
 
-            allMonsters = await SupabaseService.GetMonstersForCampaignAsync(campaignId);
+            allMonsters = await MonsterRepository.GetMonstersForCampaignAsync(campaignId);
         }
         catch (Exception ex)
         {
@@ -487,11 +487,11 @@
             Monster? saved;
             if (string.IsNullOrEmpty(editDraft.Id))
             {
-                saved = await SupabaseService.CreateMonsterAsync(editDraft);
+                saved = await MonsterRepository.CreateMonsterAsync(editDraft);
             }
             else
             {
-                saved = await SupabaseService.UpdateMonsterAsync(editDraft);
+                saved = await MonsterRepository.UpdateMonsterAsync(editDraft);
             }
 
             if (saved is null)
@@ -527,7 +527,7 @@
         errorMessage = null;
         try
         {
-            await SupabaseService.DeleteMonsterAsync(monster.Id);
+            await MonsterRepository.DeleteMonsterAsync(monster.Id);
             allMonsters.RemoveAll(m => m.Id == monster.Id);
             if (expandedId == monster.Id) expandedId = null;
             Toasts.ShowSuccess("Eliminato");
