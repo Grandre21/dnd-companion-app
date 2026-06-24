@@ -62,4 +62,27 @@ public class CharacterWizardLogicTests
     [InlineData("custom")]   // niente 'd' → non riconosciuto
     public void BuildHitDice_unrecognized_returns_empty(string? die)
         => Assert.Equal("", CharacterWizardLogic.BuildHitDice(die, 3));
+
+    // ===== SuggestMaxHp =====
+
+    [Fact]
+    public void SuggestMaxHp_level1_is_full_die_plus_con()
+        => Assert.Equal(14, CharacterWizardLogic.SuggestMaxHp("d12", 2, 1)); // 12 + 2
+
+    [Fact]
+    public void SuggestMaxHp_multilevel_uses_rounded_up_average()
+        // liv1: 12+1 ; liv2,3: (7)+1 ciascuno → 13 + 8 + 8 = 29
+        => Assert.Equal(29, CharacterWizardLogic.SuggestMaxHp("d12", 1, 3));
+
+    [Fact]
+    public void SuggestMaxHp_floors_at_1()
+        => Assert.Equal(1, CharacterWizardLogic.SuggestMaxHp("d6", -5, 1)); // 6-5=1
+
+    [Fact]
+    public void SuggestMaxHp_negative_total_floored_to_1()
+        => Assert.Equal(1, CharacterWizardLogic.SuggestMaxHp("d4", -10, 1)); // 4-10 → 1
+
+    [Fact]
+    public void SuggestMaxHp_unrecognized_die_returns_0()
+        => Assert.Equal(0, CharacterWizardLogic.SuggestMaxHp("custom", 2, 3));
 }

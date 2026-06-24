@@ -35,6 +35,20 @@ public static class CharacterWizardLogic
         return $"{lvl}d{die.Value}";
     }
 
+    /// <summary>PF suggeriti (metodo medio 5e): liv1 = dado pieno + modCOS; ogni livello oltre += media
+    /// del dado (arrotondata per eccesso) + modCOS. Minimo 1. Dado non riconosciuto → 0 (sentinella).</summary>
+    public static int SuggestMaxHp(string? classHitDie, int conModifier, int level)
+    {
+        var die = ParseDieSize(classHitDie);
+        if (die is null) return 0;
+        var lvl = level < 1 ? 1 : level;
+        var avgPerLevel = (die.Value / 2) + 1; // media di un dN arrotondata per eccesso
+        var hp = die.Value + conModifier;
+        for (var i = 2; i <= lvl; i++)
+            hp += avgPerLevel + conModifier;
+        return Math.Max(1, hp);
+    }
+
     /// <summary>Dimensione del dado dopo la prima 'd'/'D' (es. "d12"/"1d6" → 12/6). null se assente o non parsabile.</summary>
     private static int? ParseDieSize(string? hitDie)
     {
