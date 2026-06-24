@@ -160,10 +160,10 @@
     cursor: pointer;
 }
 
-/* Slot incantesimo: livello | massimi | usati */
+/* Slot incantesimo: livello | massimi */
 .spell-slots-head {
     display: grid;
-    grid-template-columns: 4rem 1fr 1fr;
+    grid-template-columns: 4rem 1fr;
     gap: 0.5rem;
     font-size: 0.68rem;
     color: #8b7a52;
@@ -178,7 +178,7 @@
 
 .spell-slot-input-row {
     display: grid;
-    grid-template-columns: 4rem 1fr 1fr;
+    grid-template-columns: 4rem 1fr;
     gap: 0.5rem;
     align-items: center;
 }
