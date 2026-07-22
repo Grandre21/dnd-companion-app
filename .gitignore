@@ -15,8 +15,8 @@
 *.swp
 *.DotSettings.user
 
-# Claude Code local settings
-.claude/
+# Claude Code — ignora solo le impostazioni locali; versiona la config condivisa (.claude/agents/)
+.claude/settings.local.json
 
 # Rider
 _ReSharper*/
