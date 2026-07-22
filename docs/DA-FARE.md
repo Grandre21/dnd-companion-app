@@ -172,18 +172,21 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **122 unit test** + **suite d'integrazione RLS**
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **172 unit test** + **suite d'integrazione RLS**
   (`Tests.Integration/`, vedi voce 5). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
   `InternalsVisibleTo`): visibilità/ordinamento note (`NoteRepository.FilterAndSortVisible`, regola di sicurezza),
   ordinamento inventario (`InventoryRepository.SortForDisplay`), codice invito (`CampaignRepository.GenerateInviteCode`);
   e la **logica di dominio estratta dai `.razor`**: `CharacterNormalizer.Normalize` (trim/null/clamp del draft PG),
-  `AccessControl.CanEdit` (autorizzazione master-o-proprietario) e il JOIN incantesimi/orfani
-  (`CharacterSpellJoin.WithCatalog`). Restano da coprire:
+  `AccessControl.CanEdit` (autorizzazione master-o-proprietario), il JOIN incantesimi/orfani
+  (`CharacterSpellJoin.WithCatalog`) e gli helper di vista `CharacterView` (formattazione/a11y +
+  mapping slot incantesimo 1-9, con valori distinti per livello). Restano da coprire:
   1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
   2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
-  3. ~~Autorizzazioni (`CanEdit`/`isMaster`)~~ ✅ (`AccessControl`, usato da tutte le pagine)
+  3. ~~Autorizzazioni (`CanEdit`/`isMaster`)~~ ✅ (`AccessControl`, usato da tutte le pagine) — **irrobustito
+     (2026-07-23):** `CanEdit` esclude il match degenere `null==null` / `""==""`, così il gate client combacia
+     con la RLS (riga 51 spec RLS: seed `added_by` NULL → solo master).
   4. ~~Filtro/JOIN incantesimi del PG (gestione orfani)~~ ✅ (`CharacterSpellJoin.WithCatalog`)
   5. ~~Test d'integrazione sulle **RLS**~~ ✅ **FATTO (2026-06-24).** Progetto separato `Tests.Integration/`
      (xUnit + `Xunit.SkippableFact`) che gira contro uno **stack Supabase locale** (`supabase start`) il cui

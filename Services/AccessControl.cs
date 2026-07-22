@@ -5,6 +5,8 @@ namespace DndCompanion.Services;
 /// RLS server-side: può modificare il <b>master</b> della campagna oppure il <b>proprietario</b>
 /// della risorsa (<c>owner_id</c> / <c>added_by</c>). Funzione pura (nessuno stato/I/O), testabile.
 /// È un controllo UX: la sicurezza vera resta nelle RLS del database.
+/// Un proprietario null/vuoto non abilita la modifica ai non-master: si evita che un match degenere
+/// (<c>null == null</c> o <c>"" == ""</c>) apra i controlli a un utente non loggato/senza id.
 /// </summary>
 public static class AccessControl
 {
@@ -12,5 +14,5 @@ public static class AccessControl
     /// <param name="ownerId">Proprietario della risorsa (<c>owner_id</c> o <c>added_by</c>); può essere null/vuoto.</param>
     /// <param name="currentUserId">Id dell'utente corrente; null se non loggato.</param>
     public static bool CanEdit(bool isMaster, string? ownerId, string? currentUserId)
-        => isMaster || ownerId == currentUserId;
+        => isMaster || (!string.IsNullOrEmpty(ownerId) && ownerId == currentUserId);
 }

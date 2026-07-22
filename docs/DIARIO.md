@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-06-25**.
+> Aggiornato: **2026-07-23**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -194,3 +194,20 @@ locale a `https://localhost:7076`) affidata all'utente prima del push.
 File toccati: `Services/CharacterWizardLogic.cs`, `Tests/CharacterWizardLogicTests.cs`,
 `Shared/CharacterTabs/CharacterWizard.razor`, `Shared/CharacterTabs/CharacterWizard.razor.css`,
 `Pages/Characters.razor`.
+
+**Metodo di lavoro a due agenti + copertura test + hardening autorizzazione (2026-07-23).** Introdotta una
+**regola di revisione a due agenti** (`.claude/agents/critico` + `conformità`, orchestrata da `CLAUDE.md`,
+versionata): ogni modifica passa da un **gate a ciclo chiuso** — un agente caccia bug/regressioni, l'altro
+verifica i pattern documentati del progetto — con loop "correggi → rilancia" fino a *nessun problema* e guardia
+a 3 giri. La regola ha già ripagato al primo uso: durante il setup ha trovato una contraddizione logica nella
+propria guardia e un pattern documentato infedele al codice (`internal static` dove 5/7 helper sono
+`public static`), corretti prima del commit. Primo giro di lavoro sotto la regola: **+24 test** sugli helper
+finora scoperti — `CharacterView` (mapping degli slot incantesimo livelli 1-9 con valori distinti per livello,
+così un `case` mal-cablato che scrive/legge lo slot sbagliato fa fallire il test; più `FormatBonus`/`AriaBool`/
+`OnKey`). E **irrobustito `AccessControl.CanEdit`**: la vecchia logica `ownerId == currentUserId` restituiva
+`true` sul match degenere `null == null` / `"" == ""`, rendendo il gate client **più permissivo delle RLS** (una
+riga di catalogo con `added_by` NULL risultava "modificabile" da un utente senza id, mentre la RLS la riserva al
+solo master — spec RLS riga 51). Ora `CanEdit` esclude il caso degenere e il gate UX combacia col server; nessun
+call-site reale regredisce (i proprietari hanno UUID reali, il master resta sempre abilitato). 172 test verdi,
+build pulita. File toccati: `.claude/agents/*.md`, `CLAUDE.md`, `Tests/CharacterViewTests.cs`,
+`Tests/AccessControlTests.cs`, `Services/AccessControl.cs`.
