@@ -26,11 +26,18 @@
     {
         <div class="round-indicator">
             <div class="round-label">Round <strong>@roundNumber</strong></div>
-            @if (CurrentCombatant is not null)
+            @if (CurrentUser.IsMaster)
             {
-                <div class="current-turn">
-                    Turno di <strong>@CurrentCombatant.Name</strong>
-                </div>
+                @if (CurrentCombatant is not null)
+                {
+                    <div class="current-turn">
+                        Turno di <strong>@CurrentCombatant.Name</strong>
+                    </div>
+                }
+            }
+            else if (CombatVisibility.IsCurrentTurnOwn(combatants, currentTurnIndex, CurrentUser.UserId))
+            {
+                <div class="current-turn your-turn">È il tuo turno!</div>
             }
         </div>
     }
@@ -137,7 +144,7 @@
                 }
             </div>
         }
-        else
+        else if (CurrentUser.IsMaster)
         {
             @for (var i = 0; i < combatants.Count; i++)
             {
@@ -148,14 +155,7 @@
                 <div class="combatant-row @(isCurrent ? "current" : "") @(isDefeated ? "defeated" : "")">
                     <div class="pos">@pos</div>
 
-                    @if (CurrentUser.IsMaster)
-                    {
-                        <input type="number" class="init-input" @bind="c.Initiative" @bind:event="onchange" />
-                    }
-                    else
-                    {
-                        <div class="init-badge">@c.Initiative</div>
-                    }
+                    <input type="number" class="init-input" @bind="c.Initiative" @bind:event="onchange" />
 
                     <div class="combatant-main">
                         <div class="combatant-name">@c.Name</div>
@@ -164,23 +164,62 @@
                         </div>
                     </div>
 
-                    @if (CurrentUser.IsMaster)
-                    {
-                        <div class="hp-btns">
-                            <button type="button" class="hp-btn hp-minus" aria-label="Diminuisci PF"
-                                    @onclick="() => AdjustHp(c, -1)">
-                                −
-                            </button>
-                            <button type="button" class="hp-btn hp-plus" aria-label="Aumenta PF"
-                                    @onclick="() => AdjustHp(c, 1)">
-                                +
-                            </button>
-                        </div>
-                        <button type="button" class="remove-btn" title="Rimuovi" aria-label="Rimuovi combattente"
-                                @onclick="() => RemoveCombatant(c.Id)">
-                            ✕
+                    <div class="hp-btns">
+                        <button type="button" class="hp-btn hp-minus" aria-label="Diminuisci PF"
+                                @onclick="() => AdjustHp(c, -1)">
+                            −
                         </button>
+                        <button type="button" class="hp-btn hp-plus" aria-label="Aumenta PF"
+                                @onclick="() => AdjustHp(c, 1)">
+                            +
+                        </button>
+                    </div>
+                    <button type="button" class="remove-btn" title="Rimuovi" aria-label="Rimuovi combattente"
+                            @onclick="() => RemoveCombatant(c.Id)">
+                        ✕
+                    </button>
+                </div>
+            }
+        }
+        else
+        {
+            @* Vista player: solo la propria scheda con statistiche; degli altri solo il nome. *@
+            var mine = CombatVisibility.OwnForPlayer(combatants, CurrentUser.UserId);
+            var others = CombatVisibility.OthersForPlayer(combatants, CurrentUser.UserId);
+            var currentId = (currentTurnIndex >= 0 && currentTurnIndex < combatants.Count)
+                ? combatants[currentTurnIndex].Id
+                : null;
+
+            @if (mine.Count > 0)
+            {
+                <div class="player-section">
+                    <div class="player-section-title">La tua scheda</div>
+                    @foreach (var c in mine)
+                    {
+                        var isDefeated = c.CurrentHp <= 0;
+                        <div class="combatant-row own @(c.Id == currentId ? "current" : "") @(isDefeated ? "defeated" : "")">
+                            <div class="init-badge">@c.Initiative</div>
+                            <div class="combatant-main">
+                                <div class="combatant-name">@c.Name</div>
+                                <div class="hp-display">
+                                    PF <strong>@c.CurrentHp</strong> / @c.MaxHp
+                                </div>
+                            </div>
+                        </div>
                     }
+                </div>
+            }
+
+            @if (others.Count > 0)
+            {
+                <div class="player-section">
+                    <div class="player-section-title">Altri nella scena</div>
+                    <ul class="others-list">
+                        @foreach (var c in others)
+                        {
+                            <li class="other-name">@c.Name</li>
+                        }
+                    </ul>
                 </div>
             }
         }
@@ -361,6 +400,7 @@
                 combatants.Add(new Combatant
                 {
                     Name = ch.Name,
+                    OwnerId = ch.OwnerId,
                     Initiative = 0,
                     CurrentHp = ch.HitPoints,
                     MaxHp = ch.MaxHitPoints
