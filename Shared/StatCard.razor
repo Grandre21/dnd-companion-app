@@ -67,16 +67,8 @@
 
     private string? DotRole => IsEditMode ? "button" : null;
     private int DotTabIndex => IsEditMode ? 0 : -1;
-    private static string AriaBool(bool b) => b ? "true" : "false";
 
-    private async Task OnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, Func<Task> action)
-    {
-        if (e.Key == "Enter" || e.Key == " ") await action();
-    }
-
-    // ---- Formattazione ----
-
-    private static string FormatBonus(int v) => v >= 0 ? $"+{v}" : v.ToString();
+    // ---- Formattazione (FormatBonus/AriaBool/OnKey vengono da CharacterView, @using static globale) ----
 
     private static string DotClass(bool prof, bool exp)
         => prof && exp ? "sc-dot expertise" : prof ? "sc-dot prof" : "sc-dot";
