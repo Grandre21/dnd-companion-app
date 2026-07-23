@@ -131,6 +131,19 @@ player da quella master (invariata). È una redazione **cosmetica lato UI** (i d
 al browser via polling): scelta accettabile per un gruppo di amici, senza toccare DB/RLS. Spec/piano in
 `docs/superpowers/` (2026-07-23).
 
+**Rifiniture da revisione di progetto (2026-07-23).** Passata dei due agenti `critico`/`conformità` sull'intero
+codebase. Chiuso un gap di autorizzazione UI: il tab **Note libere** (`CharacterBioTab`) era l'unico a non
+ricevere `CanEdit` → textarea e "Salva note" erano attivi anche per un non-proprietario/non-master. Il
+salvataggio era un **falso successo silenzioso** (coerente col gotcha RLS noto): la policy filtrava la riga → 0
+update → PostgREST 200 con array vuoto → `UpdateCharacterAsync` ritorna null → nessun sync e nessun errore
+mostrato, con la nota modificata solo localmente e **mai persistita**. Ora il Bio è speculare agli altri tab e
+alle RLS (`disabled`/pulsante nascosto + guardia `if (!CanEdit) return;` anche nel genitore). Piccoli irrobustimenti in
+`Combat.razor`: l'import personaggi clampa gli HP (`MaxHp≥1`, `CurrentHp∈[0,MaxHp]`) come già fanno
+`AddCombatant`/`CombatImport`, e l'indice di turno è protetto da valori fuori range (negativo/≥Count → inizio
+round). Pulizia conformità: rimossi da `StatCard` gli helper `FormatBonus`/`AriaBool`/`OnKey` duplicati (ora
+dai condivisi in `CharacterView`, stessa direzione di `826ed1c`) e tokenizzato l'ultimo literal con token esatto
+rimasto nei `.razor.css` (`#1a0e1f` → `var(--bg)` in `MainLayout.razor.css`). Nessun cambio a DB/RLS; build 0/0, 199 test verdi.
+
 **Rimozione Realtime/System.Reactive (2026-06-24).** Il meta-pacchetto `supabase-csharp` è stato sostituito
 dagli standalone `postgrest-csharp 3.5.1` + `gotrue-csharp 4.2.7`; rimossi `realtime-csharp`,
 `supabase-storage`, `System.Reactive` e `Websocket.Client`. La riscrittura è trasparente ai consumatori:
