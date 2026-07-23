@@ -211,7 +211,7 @@
                                         <div class="stat-card">
                                             <div class="stat-label">@s.Label</div>
                                             <div class="stat-value">@s.Value</div>
-                                            <div class="stat-mod">@FormatModifier(s.Value)</div>
+                                            <div class="stat-mod">@FormatBonus(CharacterCalculations.GetModifier(s.Value))</div>
                                         </div>
                                     }
                                 </div>
@@ -568,14 +568,6 @@
         ("SAG", m.Wisdom),
         ("CAR", m.Charisma)
     };
-
-    private static int CalcModifier(int stat) => (int)Math.Floor((stat - 10) / 2.0);
-
-    private static string FormatModifier(int stat)
-    {
-        var mod = CalcModifier(stat);
-        return mod >= 0 ? $"+{mod}" : mod.ToString();
-    }
 
     public void Dispose()
     {
