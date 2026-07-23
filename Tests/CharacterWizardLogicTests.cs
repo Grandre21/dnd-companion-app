@@ -46,6 +46,15 @@ public class CharacterWizardLogicTests
         Assert.Equal(new[] { 15, 10, 10, 10, 10, 10 }, result);
     }
 
+    [Fact]
+    public void FinalAbilityScores_null_base_treats_all_as_10()
+    {
+        // baseScores null → ogni caratteristica parte da 10 (ramo difensivo), poi + bonus razza.
+        var race = new Race { StrBonus = 2 };
+        var result = CharacterWizardLogic.FinalAbilityScores(null!, race);
+        Assert.Equal(new[] { 12, 10, 10, 10, 10, 10 }, result);
+    }
+
     // ===== BuildHitDice =====
 
     [Theory]
@@ -60,6 +69,9 @@ public class CharacterWizardLogicTests
     [InlineData("")]
     [InlineData(null)]
     [InlineData("custom")]   // niente 'd' → non riconosciuto
+    [InlineData("d")]        // 'd' senza dimensione dopo
+    [InlineData("3d")]       // nessuna cifra dopo la 'd'
+    [InlineData("d0")]       // dado 0 non valido
     public void BuildHitDice_unrecognized_returns_empty(string? die)
         => Assert.Equal("", CharacterWizardLogic.BuildHitDice(die, 3));
 

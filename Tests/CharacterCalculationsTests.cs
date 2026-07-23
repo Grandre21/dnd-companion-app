@@ -109,6 +109,15 @@ public class CharacterCalculationsTests
         Assert.Equal(9, CharacterCalculations.GetSkillBonus(c, SkillType.Stealth)); // +3 +3 +3
     }
 
+    [Fact]
+    public void GetSkillBonus_expertise_without_proficiency_adds_single_pb()
+    {
+        // Ramo difensivo (anomalo): expertise senza competenza → pb sommato una sola volta.
+        var c = Char(dex: 16, level: 5);
+        c.ExpStealth = true; // ProfStealth resta false
+        Assert.Equal(6, CharacterCalculations.GetSkillBonus(c, SkillType.Stealth)); // +3 mod +3 pb
+    }
+
     // ---- GetInitiative: modificatore di Destrezza ----
     [Theory]
     [InlineData(16, 3)]
@@ -172,6 +181,25 @@ public class CharacterCalculationsTests
         var c = Char(str: 18);
         c.SpellcastingAbility = "strength"; // non valida come incantatore
         Assert.Null(CharacterCalculations.GetSpellcastingModifier(c));
+    }
+
+    [Theory]
+    [InlineData("charisma")]
+    [InlineData("Charisma")]
+    [InlineData("  CHARISMA  ")]
+    public void GetSpellcastingModifier_tolerates_case_and_whitespace(string ability)
+    {
+        var c = Char(cha: 20);
+        c.SpellcastingAbility = ability;
+        Assert.Equal(5, CharacterCalculations.GetSpellcastingModifier(c)); // mod di Carisma 20
+    }
+
+    [Fact]
+    public void GetSpellSaveDc_supports_wisdom_caster()
+    {
+        var c = Char(wis: 16, level: 5);
+        c.SpellcastingAbility = "Wisdom";
+        Assert.Equal(14, CharacterCalculations.GetSpellSaveDc(c)); // 8 + 3 pb + 3 mod
     }
 
     // ---- GetHitDiceRemaining: somma blocchi NdM meno spesi (0 se non parsabile) ----

@@ -44,6 +44,29 @@ public class FormValidationTests
         Assert.Equal("Forza: il punteggio deve essere tra 1 e 30", FormValidation.ValidateMonster(m));
     }
 
+    // Ogni caratteristica fuori range riporta il PROPRIO label (ordine Str,Des,Cos,Int,Sag,Car).
+    [Theory]
+    [InlineData(0, "Forza")]
+    [InlineData(1, "Destrezza")]
+    [InlineData(2, "Costituzione")]
+    [InlineData(3, "Intelligenza")]
+    [InlineData(4, "Saggezza")]
+    [InlineData(5, "Carisma")]
+    public void Monster_each_ability_out_of_range_reports_its_label(int index, string label)
+    {
+        var m = ValidMonster();
+        switch (index)
+        {
+            case 0: m.Strength = 0; break;
+            case 1: m.Dexterity = 0; break;
+            case 2: m.Constitution = 0; break;
+            case 3: m.Intelligence = 0; break;
+            case 4: m.Wisdom = 0; break;
+            case 5: m.Charisma = 0; break;
+        }
+        Assert.Equal($"{label}: il punteggio deve essere tra 1 e 30", FormValidation.ValidateMonster(m));
+    }
+
     [Fact]
     public void Valid_race_returns_null() => Assert.Null(FormValidation.ValidateRace(ValidRace()));
 
