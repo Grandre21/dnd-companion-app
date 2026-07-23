@@ -6,7 +6,7 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-06-24**
+> Ultimo aggiornamento: **2026-07-23**
 >
 > I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
 > in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
@@ -267,6 +267,12 @@ mega-componente (quello resta in §3).
   → `SaveCombatStateAsync`). Helper puro `Services/CombatImport.cs` testato (xUnit): `ParseLeadingHp` ricava i PF
   dal **primo intero** del testo libero (fallback 1); `FromMonster(monster, quantity)` genera la lista di
   `Combatant` con nomi numerati per le copie, iniziativa 0, `CurrentHp = MaxHp`. Nessuna modifica a DB/RLS.
+- ✅ **Visibilità limitata del player nel tracker** — FATTO (2026-07-23). Il giocatore vede **solo la propria
+  scheda** (PF/iniziativa) e degli altri **solo il nome** (niente statistiche né ordine di turno); riceve il
+  segnale "È il tuo turno!" ma l'indicatore non svela mai di chi sia il turno corrente. Aggancio "riga mia" via
+  `owner_id` marcato all'import (nuovo campo su `Combatant`, `jsonb` → nessuna migrazione); helper puro testato
+  `Services/CombatVisibility.cs`; `Combat.razor` biforca player/master. Redazione **cosmetica lato UI** (i dati
+  grezzi restano nel browser via polling), nessun cambio a DB/RLS. Spec/piano in `docs/superpowers/` (2026-07-23).
 - 🟡 **Aiuto AI alla compilazione (generazione da testo).** Da una descrizione testuale, generare bozze di
   **personaggi, classi, incantesimi, razze, mostri** (estende in modo strutturale il bisogno dei quick-win C).
   Requisiti emersi (2026-06-24):

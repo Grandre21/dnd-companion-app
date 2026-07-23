@@ -118,6 +118,19 @@ PF dal **primo intero** del testo libero del campo HitPoints (fallback 1, il Mas
 **master-only** "Importa mostri" carica i mostri via `IMonsterRepository` (lazy, al primo click), mostra uno
 stepper quantità per riga e aggiunge i combattenti via `SaveCombatStateAsync`. Nessuna modifica a DB o RLS.
 
+**Visibilità limitata del player nel tracker (2026-07-23).** Un giocatore non deve vedere le informazioni
+altrui: nel tracker ora vede **solo la propria scheda** (PF e iniziativa) e, delle altre entità, **solo il
+nome** — niente statistiche né ordine di turno. Riceve però il segnale "È il tuo turno!" quando tocca a lui,
+mentre l'indicatore **non svela mai** di chi sia il turno corrente (che rivelerebbe la sequenza). L'aggancio
+"riga mia" nasce all'import: `ImportCharactersAsync` marca ogni `Combatant` con l'`owner_id` del PG (nuovo
+campo sul POCO — `combatants` è già `jsonb`, nessuna migrazione), e il player riconosce le proprie righe da
+lì; mostri e aggiunte a mano (owner null) restano semplici nomi. La decisione su cosa mostrare vive in un
+helper puro testato `Services/CombatVisibility.cs` (`IsOwn`/`IsCurrentTurnOwn`/`OwnForPlayer`/`OthersForPlayer`,
+con gli "altri" ordinati per nome così l'ordine non svela l'iniziativa); `Combat.razor` biforca la vista
+player da quella master (invariata). È una redazione **cosmetica lato UI** (i dati grezzi arrivano comunque
+al browser via polling): scelta accettabile per un gruppo di amici, senza toccare DB/RLS. Spec/piano in
+`docs/superpowers/` (2026-07-23).
+
 **Rimozione Realtime/System.Reactive (2026-06-24).** Il meta-pacchetto `supabase-csharp` è stato sostituito
 dagli standalone `postgrest-csharp 3.5.1` + `gotrue-csharp 4.2.7`; rimossi `realtime-csharp`,
 `supabase-storage`, `System.Reactive` e `Websocket.Client`. La riscrittura è trasparente ai consumatori:
