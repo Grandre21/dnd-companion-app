@@ -258,7 +258,7 @@
     private int GetQty(string monsterId) => monsterQty.TryGetValue(monsterId, out var q) ? q : 0;
 
     private Combatant? CurrentCombatant =>
-        (combatants.Count > 0 && currentTurnIndex < combatants.Count)
+        (currentTurnIndex >= 0 && currentTurnIndex < combatants.Count)
             ? combatants[currentTurnIndex]
             : null;
 
@@ -287,7 +287,10 @@
             {
                 combatants.AddRange(state.Combatants);
                 roundNumber = state.RoundNumber;
-                currentTurnIndex = state.CurrentTurnIndex < combatants.Count ? state.CurrentTurnIndex : 0;
+                // Indice turno fuori range (negativo o >= Count, es. stato desincronizzato) → inizio round.
+                currentTurnIndex = (state.CurrentTurnIndex >= 0 && state.CurrentTurnIndex < combatants.Count)
+                    ? state.CurrentTurnIndex
+                    : 0;
             }
             else
             {
@@ -397,13 +400,14 @@
 
             foreach (var ch in characters)
             {
+                var maxHp = Math.Max(1, ch.MaxHitPoints);
                 combatants.Add(new Combatant
                 {
                     Name = ch.Name,
                     OwnerId = ch.OwnerId,
                     Initiative = 0,
-                    CurrentHp = ch.HitPoints,
-                    MaxHp = ch.MaxHitPoints
+                    CurrentHp = Math.Clamp(ch.HitPoints, 0, maxHp),
+                    MaxHp = maxHp
                 });
             }
             await SaveCombatStateAsync();
