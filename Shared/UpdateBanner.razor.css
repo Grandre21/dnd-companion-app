@@ -15,7 +15,7 @@
     color: var(--text);
     border: 1px solid var(--gold);
     border-radius: 0.6rem;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 6px 24px rgba(var(--black-rgb), 0.45);
     font-size: 0.95rem;
     /* Rispetta la safe-area su iPhone (home indicator) quando in standalone */
     margin-bottom: env(safe-area-inset-bottom, 0px);

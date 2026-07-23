@@ -85,8 +85,8 @@
 .money-field input {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
     color: #e8d9b5;
     padding: 0.45rem 0.25rem;
     font-size: 0.9rem;
@@ -179,7 +179,7 @@
     display: block;
     width: 100%;
     background: transparent;
-    border: 1px dashed rgba(212, 165, 116, 0.5);
+    border: 1px dashed rgba(var(--gold-rgb), 0.5);
     color: var(--gold);
     padding: 0.7rem 1rem;
     font-size: 0.95rem;
@@ -192,14 +192,14 @@
 }
 
 .inv-add-btn:hover {
-    background: rgba(212, 165, 116, 0.1);
+    background: rgba(var(--gold-rgb), 0.1);
     border-style: solid;
     color: var(--gold-light);
 }
 
 .inv-form {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(212, 165, 116, 0.4);
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
     border-radius: 10px;
     padding: 0.85rem;
     margin-bottom: 0.85rem;
@@ -244,16 +244,16 @@
 }
 
 .inv-item {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(212, 165, 116, 0.25);
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
     border-radius: 8px;
     padding: 0.65rem 0.75rem;
     transition: border-color 0.15s ease;
 }
 
 .inv-item.equipped {
-    border-color: rgba(212, 165, 116, 0.6);
-    background: rgba(212, 165, 116, 0.08);
+    border-color: rgba(var(--gold-rgb), 0.6);
+    background: rgba(var(--gold-rgb), 0.08);
 }
 
 .inv-row {
@@ -286,7 +286,7 @@
 
 .eq-icon {
     font-size: 1rem;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    filter: drop-shadow(0 1px 2px rgba(var(--black-rgb), 0.6));
 }
 
 .inv-name-text {
@@ -381,8 +381,8 @@
 .inv-type-badge {
     display: inline-block;
     padding: 0.1rem 0.5rem;
-    background: rgba(212, 165, 116, 0.12);
-    border: 1px solid rgba(212, 165, 116, 0.35);
+    background: rgba(var(--gold-rgb), 0.12);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
     color: var(--gold);
     border-radius: 999px;
     font-size: 0.7rem;
@@ -435,7 +435,7 @@
 }
 
 .inv-delete-btn:hover:not(:disabled) {
-    background: rgba(196, 86, 56, 0.15);
+    background: rgba(var(--danger-rgb), 0.15);
 }
 
 .inv-delete-btn:disabled {
@@ -446,7 +446,7 @@
 .inv-description {
     margin-top: 0.6rem;
     padding-top: 0.55rem;
-    border-top: 1px dashed rgba(212, 165, 116, 0.2);
+    border-top: 1px dashed rgba(var(--gold-rgb), 0.2);
     font-size: 0.88rem;
     line-height: 1.5;
     color: var(--gold-muted);
@@ -466,13 +466,13 @@
     cursor: pointer;
     font-family: inherit;
     letter-spacing: 0.3px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
     transition: all 0.15s ease;
 }
 
 .primary-btn:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(212, 165, 116, 0.3);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
 }
 
 .primary-btn:disabled {
@@ -483,7 +483,7 @@
 .secondary-btn {
     background: transparent;
     color: var(--gold-muted);
-    border: 1px solid rgba(212, 165, 116, 0.4);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
     padding: 0.9rem 1.5rem;
     font-size: 1.05rem;
     font-weight: 600;
@@ -494,7 +494,7 @@
 }
 
 .secondary-btn:hover:not(:disabled) {
-    background: rgba(212, 165, 116, 0.1);
+    background: rgba(var(--gold-rgb), 0.1);
     color: var(--gold-light);
 }
 
@@ -522,8 +522,8 @@
 }
 
 .input {
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(212, 165, 116, 0.35);
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
     color: #e8d9b5;
     padding: 0.7rem 0.85rem;
     font-size: 1rem;
@@ -536,7 +536,7 @@
 .input:focus {
     outline: none;
     border-color: var(--gold);
-    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.2);
 }
 
 .custom-input {
@@ -546,8 +546,8 @@
 .info-summary {
     margin-top: 0.5rem;
     padding: 0.55rem 0.85rem;
-    background: rgba(212, 165, 116, 0.08);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    background: rgba(var(--gold-rgb), 0.08);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
     border-radius: 6px;
     font-size: 0.85rem;
     color: var(--gold-muted);

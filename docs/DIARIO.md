@@ -211,3 +211,18 @@ solo master — spec RLS riga 51). Ora `CanEdit` esclude il caso degenere e il g
 call-site reale regredisce (i proprietari hanno UUID reali, il master resta sempre abilitato). 172 test verdi,
 build pulita. File toccati: `.claude/agents/*.md`, `CLAUDE.md`, `Tests/CharacterViewTests.cs`,
 `Tests/AccessControlTests.cs`, `Services/AccessControl.cs`.
+
+**Token per i colori con opacità — §6 (2026-07-23).** Ultimo residuo dei design token: i literali `rgba()`
+con alpha (bordi/ombre oro semitrasparenti, ecc.) non erano tokenizzati. Un token hex (`--gold: #d4a574`) non
+è usabile in `rgba(var(--gold), α)` perché `var()` dà la stringa hex, non i canali. Scelto — su brainstorm —
+l'approccio **canali RGB affiancati** (`--gold-rgb: 212, 165, 116;` → `rgba(var(--gold-rgb), α)`) invece di
+`color-mix()`/relative-color, per **supporto browser universale** e una **trasformazione meccanica e
+visivamente invariante** (cruciale su centinaia di occorrenze). Aggiunti **19 canali `--X-rgb`** in `:root`
+(app.css) e convertiti i ~363 literali `rgba(<tripla>, α)` del CSS di progetto (app.css + 20 `.razor.css`) via
+uno script perl map-driven, **1:1** (il token vale esattamente la tripla → colore identico al bit). *Gotcha
+evitato:* lo sweep aveva inizialmente toccato anche i `.css` **vendored di Bootstrap** (`wwwroot/lib/`) e le
+copie in `bin/obj` — ripristinati; il perimetro è il solo CSS sorgente del progetto. Le 3 triple solo-Bootstrap
+(blu/grigi) non sono diventate token (niente token morti). Nessun consolidamento delle sfumature quasi-duplicate
+(sarebbe un cambio di colore → follow-up). Build 0/0, 187 test verdi, 0 literali `rgba(<numeri>)` residui.
+Verifica a vista su `/_showroom` e push affidati all'utente. Spec:
+`docs/superpowers/specs/2026-07-23-css-alpha-tokens-design.md`.

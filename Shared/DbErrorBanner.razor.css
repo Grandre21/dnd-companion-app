@@ -19,8 +19,8 @@
 
 .db-error-repair {
     flex: 0 0 auto;
-    background: rgba(212, 165, 116, 0.15);
-    border: 1px solid rgba(212, 165, 116, 0.5);
+    background: rgba(var(--gold-rgb), 0.15);
+    border: 1px solid rgba(var(--gold-rgb), 0.5);
     color: var(--gold-light);
     padding: 0.4rem 0.7rem;
     border-radius: 6px;
@@ -31,7 +31,7 @@
 }
 
 .db-error-repair:hover {
-    background: rgba(212, 165, 116, 0.25);
+    background: rgba(var(--gold-rgb), 0.25);
 }
 
 .db-error-repair:disabled {
@@ -52,5 +52,5 @@
 }
 
 .db-error-dismiss:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(var(--white-rgb), 0.08);
 }

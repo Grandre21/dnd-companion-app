@@ -172,7 +172,7 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **172 unit test** + **suite d'integrazione RLS**
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **187 unit test** + **suite d'integrazione RLS**
   (`Tests.Integration/`, vedi voce 5). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
@@ -222,9 +222,12 @@ mega-componente (quello resta in §3).
 ## 6. UI / UX / Accessibilità
 
 - ✅ **Design token** — FATTO (2026-06-21): palette in `:root` (`app.css`) + **conversione dei literal in tutti
-  i `.razor.css`** (376 sostituzioni 1:1, valori identici → nessun cambiamento visivo). **Resta (minore):** le
-  `rgba()` con alpha (bordi/ombre oro semitrasparenti) e i pochi colori unici non hanno un token diretto —
-  valutare se aggiungere token con alpha. Riferimento visivo: `/_showroom`.
+  i `.razor.css`** (376 sostituzioni 1:1, valori identici → nessun cambiamento visivo). ✅ **Token alpha/rgba
+  (2026-07-23):** aggiunti **19 canali `--X-rgb`** in `:root` e convertiti i ~363 literali `rgba(<tripla>, α)`
+  del CSS di progetto in `rgba(var(--X-rgb), α)` (mapping 1:1, **invariato**; Bootstrap vendored escluso). Spec in
+  `docs/superpowers/specs/2026-07-23-css-alpha-tokens-design.md`. **Resta (idea):** consolidare le sfumature
+  quasi-duplicate (6 rossi / 4 verdi / 6 oro-bronzo) in meno token — è un cambio di colore, decisione separata.
+  Riferimento visivo: `/_showroom`.
 - 🟡 **Accessibilità** — ✅ avanzato (2026-06-21): resi accessibili da **tastiera** (`role`/`tabindex`/
   `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
   principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`

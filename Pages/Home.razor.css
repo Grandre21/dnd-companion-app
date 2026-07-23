@@ -4,7 +4,7 @@
     padding: 1.5rem 1.25rem 3rem;
     min-height: 100vh;
     background:
-        radial-gradient(ellipse at top, rgba(212, 165, 116, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
         linear-gradient(180deg, var(--text-on-gold) 0%, #0d0a08 100%);
     color: #e8d9b5;
     font-family: 'Georgia', 'Cambria', serif;
@@ -18,7 +18,7 @@
     gap: 1rem;
     margin-bottom: 2rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(212, 165, 116, 0.25);
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.25);
 }
 
 .welcome {
@@ -32,7 +32,7 @@
     font-weight: 700;
     color: var(--gold);
     letter-spacing: 0.5px;
-    text-shadow: 0 2px 8px rgba(212, 165, 116, 0.2);
+    text-shadow: 0 2px 8px rgba(var(--gold-rgb), 0.2);
 }
 
 .welcome-line {
@@ -52,8 +52,8 @@
 .role-tag {
     display: inline-block;
     padding: 0.15rem 0.55rem;
-    background: rgba(212, 165, 116, 0.15);
-    border: 1px solid rgba(212, 165, 116, 0.4);
+    background: rgba(var(--gold-rgb), 0.15);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 600;
@@ -65,7 +65,7 @@
 .logout-btn {
     flex-shrink: 0;
     background: transparent;
-    border: 1px solid rgba(212, 165, 116, 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
     color: var(--gold-muted);
     padding: 0.4rem 0.85rem;
     font-size: 0.85rem;
@@ -76,9 +76,9 @@
 }
 
 .logout-btn:hover {
-    background: rgba(212, 165, 116, 0.12);
+    background: rgba(var(--gold-rgb), 0.12);
     color: var(--gold-light);
-    border-color: rgba(212, 165, 116, 0.6);
+    border-color: rgba(var(--gold-rgb), 0.6);
 }
 
 /* ===== Barra campagna (selettore, invito, azioni, form) ===== */
@@ -96,9 +96,9 @@
     gap: 0.45rem;
     padding: 1rem 1.1rem;
     background: linear-gradient(180deg, var(--bg-card) 0%, #211810 100%);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.35);
 }
 
 .campaign-selector label {
@@ -111,8 +111,8 @@
 
 /* Input/select coerenti con le altre pagine (qui scoped, perché non sono globali) */
 .input {
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(212, 165, 116, 0.35);
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
     color: #e8d9b5;
     padding: 0.7rem 0.85rem;
     font-size: 1rem;
@@ -125,7 +125,7 @@
 .input:focus {
     outline: none;
     border-color: var(--gold);
-    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.2);
 }
 
 /* Dropdown con freccia dorata custom (rimuove lo stile nativo grezzo) */
@@ -153,8 +153,8 @@ select.input {
     align-items: center;
     gap: 0.5rem 0.75rem;
     padding: 0.85rem 1.1rem;
-    background: rgba(212, 165, 116, 0.07);
-    border: 1px dashed rgba(212, 165, 116, 0.4);
+    background: rgba(var(--gold-rgb), 0.07);
+    border: 1px dashed rgba(var(--gold-rgb), 0.4);
     border-radius: 12px;
 }
 
@@ -172,8 +172,8 @@ select.input {
     font-weight: 700;
     letter-spacing: 2px;
     color: var(--gold-light);
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
     border-radius: 6px;
     padding: 0.2rem 0.6rem;
 }
@@ -203,7 +203,7 @@ select.input {
     gap: 0.75rem;
     padding: 1rem 1.1rem;
     background: linear-gradient(180deg, var(--bg-card) 0%, #211810 100%);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
     border-radius: 12px;
 }
 
@@ -225,13 +225,13 @@ select.input {
     border-radius: 10px;
     cursor: pointer;
     font-family: inherit;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
     transition: all 0.15s ease;
 }
 
 .primary-btn:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(212, 165, 116, 0.3);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
 }
 
 .primary-btn:disabled {
@@ -245,7 +245,7 @@ select.input {
     min-height: 44px;
     background: transparent;
     color: var(--gold-muted);
-    border: 1px solid rgba(212, 165, 116, 0.45);
+    border: 1px solid rgba(var(--gold-rgb), 0.45);
     padding: 0.8rem 1.25rem;
     font-size: 1rem;
     font-weight: 600;
@@ -256,9 +256,9 @@ select.input {
 }
 
 .secondary-btn:hover:not(:disabled) {
-    background: rgba(212, 165, 116, 0.1);
+    background: rgba(var(--gold-rgb), 0.1);
     color: var(--gold-light);
-    border-color: rgba(212, 165, 116, 0.7);
+    border-color: rgba(var(--gold-rgb), 0.7);
 }
 
 .secondary-btn:disabled {
@@ -270,14 +270,14 @@ select.input {
    Modificatore applicato SOPRA .secondary-btn -> definito dopo per vincere a parità di specificità. */
 .danger-btn {
     color: #d99a86;
-    border-color: rgba(168, 70, 52, 0.55);
-    background: rgba(120, 38, 30, 0.15);
+    border-color: rgba(var(--danger-light-rgb), 0.55);
+    background: rgba(var(--danger-deep-rgb), 0.15);
 }
 
 .danger-btn:hover:not(:disabled) {
-    background: rgba(150, 50, 38, 0.28);
+    background: rgba(var(--danger-mid-rgb), 0.28);
     color: #f0b8a4;
-    border-color: rgba(196, 86, 56, 0.7);
+    border-color: rgba(var(--danger-rgb), 0.7);
 }
 
 /* Onboarding "Nessuna campagna" */
@@ -285,9 +285,9 @@ select.input {
     text-align: center;
     padding: 1.75rem 1.25rem;
     background: linear-gradient(180deg, var(--bg-card) 0%, #211810 100%);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
     border-radius: 14px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.35);
 }
 
 .empty-campaigns h2 {
@@ -314,8 +314,8 @@ select.input {
 }
 
 .error-banner {
-    background: rgba(139, 35, 35, 0.25);
-    border: 1px solid rgba(196, 86, 56, 0.5);
+    background: rgba(var(--error-rgb), 0.25);
+    border: 1px solid rgba(var(--danger-rgb), 0.5);
     color: var(--error-text);
     padding: 0.75rem 1rem;
     border-radius: 8px;
@@ -347,8 +347,8 @@ select.input {
     font-family: inherit;
     transition: all 0.18s ease;
     box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(212, 165, 116, 0.15);
+        0 4px 12px rgba(var(--black-rgb), 0.4),
+        inset 0 1px 0 rgba(var(--gold-rgb), 0.15);
 }
 
 .feature-card:hover,
@@ -356,9 +356,9 @@ select.input {
     transform: translateY(-3px);
     border-color: var(--gold);
     box-shadow:
-        0 8px 20px rgba(0, 0, 0, 0.5),
-        0 0 0 1px rgba(212, 165, 116, 0.3),
-        inset 0 1px 0 rgba(212, 165, 116, 0.25);
+        0 8px 20px rgba(var(--black-rgb), 0.5),
+        0 0 0 1px rgba(var(--gold-rgb), 0.3),
+        inset 0 1px 0 rgba(var(--gold-rgb), 0.25);
     outline: none;
 }
 
@@ -369,7 +369,7 @@ select.input {
 .card-icon {
     font-size: 2.75rem;
     line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 2px 4px rgba(var(--black-rgb), 0.5));
 }
 
 .card-title {
@@ -388,8 +388,8 @@ select.input {
 .master-section {
     margin-top: 2.5rem;
     padding: 1.25rem 1.25rem 1.5rem;
-    background: linear-gradient(180deg, rgba(139, 35, 35, 0.18) 0%, rgba(74, 19, 19, 0.12) 100%);
-    border: 1px solid rgba(196, 86, 56, 0.4);
+    background: linear-gradient(180deg, rgba(var(--error-rgb), 0.18) 0%, rgba(var(--error-dark-rgb), 0.12) 100%);
+    border: 1px solid rgba(var(--danger-rgb), 0.4);
     border-radius: 12px;
 }
 

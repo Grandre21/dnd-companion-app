@@ -24,12 +24,12 @@
     color: var(--text);
     background: var(--bg-card);
     border: 1px solid var(--gold-dim);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 6px 18px rgba(var(--black-rgb), 0.5);
     animation: toast-in 0.18s ease-out;
 }
 
 .app-toast-success {
-    border-color: rgba(120, 170, 90, 0.7);
+    border-color: rgba(var(--success-light-rgb), 0.7);
     color: #d7e8c0;
 }
 

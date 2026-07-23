@@ -14,7 +14,7 @@
     background: #ffffff;
     border-radius: 16px;
     padding: 2rem 1.5rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 40px rgba(var(--black-rgb), 0.3);
     box-sizing: border-box;
 }
 

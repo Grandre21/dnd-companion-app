@@ -29,7 +29,7 @@
 .edit-btn {
     background: transparent;
     color: var(--gold);
-    border: 1px solid rgba(212, 165, 116, 0.5);
+    border: 1px solid rgba(var(--gold-rgb), 0.5);
     padding: 0.45rem 1rem;
     font-size: 0.9rem;
     font-weight: 600;
@@ -71,8 +71,8 @@
 }
 
 .input {
-    background: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(212, 165, 116, 0.35);
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
     color: #e8d9b5;
     padding: 0.7rem 0.85rem;
     font-size: 1rem;
@@ -85,7 +85,7 @@
 .input:focus {
     outline: none;
     border-color: var(--gold);
-    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.2);
 }
 
 .custom-input {
@@ -95,8 +95,8 @@
 .info-summary {
     margin-top: 0.5rem;
     padding: 0.55rem 0.85rem;
-    background: rgba(212, 165, 116, 0.08);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    background: rgba(var(--gold-rgb), 0.08);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
     border-radius: 6px;
     font-size: 0.85rem;
     color: var(--gold-muted);
@@ -174,7 +174,7 @@ select.input option {
 }
 
 .form-section {
-    border-top: 0.5px solid rgba(212, 165, 116, 0.25);
+    border-top: 0.5px solid rgba(var(--gold-rgb), 0.25);
 }
 
 .form-section-header {
@@ -228,8 +228,8 @@ select.input option {
 
 .derived-info {
     padding: 0.55rem 0.75rem;
-    background: rgba(212, 165, 116, 0.06);
-    border: 1px solid rgba(212, 165, 116, 0.2);
+    background: rgba(var(--gold-rgb), 0.06);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
     border-radius: 6px;
     font-size: 0.78rem;
     color: #a8946a;
@@ -327,7 +327,7 @@ select.input option {
     gap: 0.4rem;
     align-items: center;
     min-height: 40px;
-    border-bottom: 0.5px solid rgba(212, 165, 116, 0.12);
+    border-bottom: 0.5px solid rgba(var(--gold-rgb), 0.12);
 }
 
 .skill-name {
@@ -407,13 +407,13 @@ select.input option {
     cursor: pointer;
     font-family: inherit;
     letter-spacing: 0.3px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
     transition: all 0.15s ease;
 }
 
 .primary-btn:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(212, 165, 116, 0.3);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
 }
 
 .primary-btn:disabled {
@@ -424,7 +424,7 @@ select.input option {
 .secondary-btn {
     background: transparent;
     color: var(--gold-muted);
-    border: 1px solid rgba(212, 165, 116, 0.4);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
     padding: 0.9rem 1.5rem;
     font-size: 1.05rem;
     font-weight: 600;
@@ -435,7 +435,7 @@ select.input option {
 }
 
 .secondary-btn:hover:not(:disabled) {
-    background: rgba(212, 165, 116, 0.1);
+    background: rgba(var(--gold-rgb), 0.1);
     color: var(--gold-light);
 }
 

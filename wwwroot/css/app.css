@@ -12,9 +12,35 @@
     --gold-dim: #b08842;      /* oro spento (alzato da #8b6f3a per contrasto WCAG su fondo scuro) */
     --text: #e8d4a0;          /* testo principale */
     --text-on-gold: #1a1410;  /* testo su fondo oro */
-    --error-bg: rgba(139, 35, 35, 0.25);
-    --error-border: rgba(196, 86, 56, 0.5);
+    --error-bg: rgba(var(--error-rgb), 0.25);
+    --error-border: rgba(var(--danger-rgb), 0.5);
     --error-text: #f5c6a0;
+
+    /* Canali RGB per i colori usati con opacità: rgba(var(--X-rgb), α). §6.
+       Valgono ESATTAMENTE le triple hardcodate che sostituiscono (sweep 1:1, invariato). */
+    /* Oro / bronzo */
+    --gold-rgb: 212, 165, 116;        /* = --gold #d4a574 */
+    --gold-light-rgb: 240, 220, 176;  /* = --gold-light #f0dcb0 */
+    --gold-muted-rgb: 154, 140, 106;
+    --bronze-rgb: 139, 110, 58;
+    --taupe-rgb: 120, 110, 90;
+    --bronze-dark-rgb: 100, 80, 40;
+    /* Neutri */
+    --black-rgb: 0, 0, 0;
+    --white-rgb: 255, 255, 255;
+    --shadow-warm-rgb: 13, 10, 8;
+    /* Rossi */
+    --danger-rgb: 196, 86, 56;
+    --error-rgb: 139, 35, 35;
+    --danger-light-rgb: 168, 70, 52;
+    --danger-mid-rgb: 150, 50, 38;
+    --danger-deep-rgb: 120, 38, 30;
+    --error-dark-rgb: 74, 19, 19;
+    /* Verdi */
+    --success-rgb: 139, 181, 75;
+    --success-dark-rgb: 107, 142, 58;
+    --success-light-rgb: 120, 170, 90;
+    --success-darker-rgb: 74, 100, 36;
 }
 
 /* Fallback dell'ErrorBoundary globale (MainLayout): sostituisce la barra grigia di default. */
@@ -93,7 +119,7 @@ a, .btn-link {
     background: #2a1f17;
     color: #e8d4a0;
     bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -1px 2px rgba(var(--black-rgb), 0.2);
     box-sizing: border-box;
     display: none;
     left: 0;
@@ -191,7 +217,7 @@ code {
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(212, 165, 116, 0.2);
+    box-shadow: 0 6px 16px rgba(var(--black-rgb), 0.5), 0 0 0 3px rgba(var(--gold-rgb), 0.2);
     transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
     z-index: 10;
     touch-action: manipulation;
@@ -199,7 +225,7 @@ code {
 
 .fab:hover {
     filter: brightness(1.06);
-    box-shadow: 0 8px 22px rgba(212, 165, 116, 0.4), 0 0 0 4px rgba(212, 165, 116, 0.28);
+    box-shadow: 0 8px 22px rgba(var(--gold-rgb), 0.4), 0 0 0 4px rgba(var(--gold-rgb), 0.28);
 }
 
 .fab:active {
