@@ -132,7 +132,7 @@
                 @* ===================== TAB BIO ===================== *@
                 @if (activeTab == "bio")
                 {
-                    <CharacterBioTab Character="@selected" OnSaveNotes="@SaveNotesAsync" />
+                    <CharacterBioTab Character="@selected" CanEdit="@CanEdit" OnSaveNotes="@SaveNotesAsync" />
                 }
 
                 @* ===================== TAB ITEMS ===================== *@
@@ -437,7 +437,7 @@
     // salvataggio vivono nel componente.
     private async Task SaveNotesAsync(string text)
     {
-        if (selected is null) return;
+        if (selected is null || !CanEdit) return;
 
         var previous = selected.Notes;
         selected.Notes = text;

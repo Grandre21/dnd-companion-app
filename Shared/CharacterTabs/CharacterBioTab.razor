@@ -56,18 +56,24 @@
 
     <div class="bio-block">
         <p class="bio-block-title">NOTE LIBERE</p>
-        <textarea class="notes-textarea" rows="5" @bind="notesDraft"
+        <textarea class="notes-textarea" rows="5" @bind="notesDraft" disabled="@(!CanEdit)"
                   placeholder="Equipaggiamento, background, obiettivi..."></textarea>
-        <button type="button" class="small-btn"
-                @onclick="SaveNotes"
-                disabled="@(isSavingNotes || notesDraft == (Character.Notes ?? string.Empty))">
-            @(isSavingNotes ? "Salvataggio..." : "Salva note")
-        </button>
+        @if (CanEdit)
+        {
+            <button type="button" class="small-btn"
+                    @onclick="SaveNotes"
+                    disabled="@(isSavingNotes || notesDraft == (Character.Notes ?? string.Empty))">
+                @(isSavingNotes ? "Salvataggio..." : "Salva note")
+            </button>
+        }
     </div>
 </div>
 
 @code {
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
+
+    /// <summary>Abilita la modifica delle note (master o proprietario del PG); speculare alle RLS.</summary>
+    [Parameter] public bool CanEdit { get; set; }
 
     /// <summary>Il genitore persiste le note (UpdateCharacter + sync della lista) e gestisce gli errori.</summary>
     [Parameter] public EventCallback<string> OnSaveNotes { get; set; }
@@ -88,6 +94,7 @@
 
     private async Task SaveNotes()
     {
+        if (!CanEdit) return;
         isSavingNotes = true;
         await OnSaveNotes.InvokeAsync(notesDraft);
         isSavingNotes = false;
