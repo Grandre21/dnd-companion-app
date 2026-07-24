@@ -172,7 +172,7 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **187 unit test** + **suite d'integrazione RLS**
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **220 unit test** + **suite d'integrazione RLS**
   (`Tests.Integration/`, vedi voce 5). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
@@ -180,8 +180,10 @@ mega-componente (quello resta in §3).
   ordinamento inventario (`InventoryRepository.SortForDisplay`), codice invito (`CampaignRepository.GenerateInviteCode`);
   e la **logica di dominio estratta dai `.razor`**: `CharacterNormalizer.Normalize` (trim/null/clamp del draft PG),
   `AccessControl.CanEdit` (autorizzazione master-o-proprietario), il JOIN incantesimi/orfani
-  (`CharacterSpellJoin.WithCatalog`) e gli helper di vista `CharacterView` (formattazione/a11y +
-  mapping slot incantesimo 1-9, con valori distinti per livello). Restano da coprire:
+  (`CharacterSpellJoin.WithCatalog`), gli helper di vista `CharacterView` (formattazione/a11y +
+  mapping slot incantesimo 1-9, con valori distinti per livello), la redazione player del tracker
+  (`CombatVisibility`) e il grado sfida del catalogo mostri (`MonsterCatalog.ParseChallengeRating`).
+  Restano da coprire:
   1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
   2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
   3. ~~Autorizzazioni (`CanEdit`/`isMaster`)~~ ✅ (`AccessControl`, usato da tutte le pagine) — **irrobustito

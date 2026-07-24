@@ -142,7 +142,16 @@ alle RLS (`disabled`/pulsante nascosto + guardia `if (!CanEdit) return;` anche n
 `AddCombatant`/`CombatImport`, e l'indice di turno è protetto da valori fuori range (negativo/≥Count → inizio
 round). Pulizia conformità: rimossi da `StatCard` gli helper `FormatBonus`/`AriaBool`/`OnKey` duplicati (ora
 dai condivisi in `CharacterView`, stessa direzione di `826ed1c`) e tokenizzato l'ultimo literal con token esatto
-rimasto nei `.razor.css` (`#1a0e1f` → `var(--bg)` in `MainLayout.razor.css`). Nessun cambio a DB/RLS; build 0/0, 199 test verdi.
+rimasto nei `.razor.css` (`#1a0e1f` → `var(--bg)` in `MainLayout.razor.css`).
+
+*Seconda passata (2026-07-24, stessa revisione):* rimosso l'evento morto `CampaignStateService.OnActiveCampaignChanged`
+(nessun sottoscrittore: si era deciso di non agganciarci un refresh live, quindi via il codice morto —
+resta l'idea del combat in Realtime in DA-FARE §8); estratta da `Monsters.razor` la logica pura del grado
+sfida in `Services/MonsterCatalog.cs` (`ParseChallengeRating`: frazioni 5e "1/8"/"1/4"/"1/2" non parsabili
+come numero, sentinella −1 per l'ignoto) ora **coperta da test**; estratto
+`CharacterWizardLogic.RaceBonuses(Race?)` come unica fonte dell'ordine FOR,DES,COS,INT,SAG,CAR, così il
+wizard non reimplementa più il mapping bonus-razza + clamp ma delega all'helper. Tutto a comportamento
+invariato. Nessun cambio a DB/RLS; build 0/0, 220 test verdi.
 
 **Rimozione Realtime/System.Reactive (2026-06-24).** Il meta-pacchetto `supabase-csharp` è stato sostituito
 dagli standalone `postgrest-csharp 3.5.1` + `gotrue-csharp 4.2.7`; rimossi `realtime-csharp`,
