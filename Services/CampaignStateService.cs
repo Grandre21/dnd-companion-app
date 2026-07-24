@@ -31,9 +31,6 @@ public class CampaignStateService
 
     public bool IsMaster => string.Equals(ActiveCampaignRole, "master", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Notifica le pagine quando cambia la campagna attiva (o il suo ruolo).</summary>
-    public event Action? OnActiveCampaignChanged;
-
     /// <summary>Carica la campagna attiva da localStorage. Idempotente.</summary>
     public async Task InitializeAsync()
     {
@@ -54,7 +51,6 @@ public class CampaignStateService
         ActiveCampaignId = campaignId;
         await _js.InvokeVoidAsync("localStorage.setItem", ActiveCampaignKey, campaignId);
         await LoadRoleAsync();
-        OnActiveCampaignChanged?.Invoke();
     }
 
     public async Task ClearActiveCampaign()
@@ -62,7 +58,6 @@ public class CampaignStateService
         ActiveCampaignId = null;
         ActiveCampaignRole = null;
         await _js.InvokeVoidAsync("localStorage.removeItem", ActiveCampaignKey);
-        OnActiveCampaignChanged?.Invoke();
     }
 
     private async Task LoadRoleAsync()
