@@ -373,7 +373,7 @@
             {
                 result = result.Where(m =>
                 {
-                    var v = ParseCr(m.ChallengeRating);
+                    var v = MonsterCatalog.ParseChallengeRating(m.ChallengeRating);
                     if (v < 0) return false;
                     return crFilters.Any(f => crFilterLabels.Contains(f.Label) && f.Match(v));
                 });
@@ -386,23 +386,9 @@
             }
 
             return result
-                .OrderBy(m => ParseCr(m.ChallengeRating))
+                .OrderBy(m => MonsterCatalog.ParseChallengeRating(m.ChallengeRating))
                 .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase);
         }
-    }
-
-    private static double ParseCr(string cr)
-    {
-        if (string.IsNullOrWhiteSpace(cr)) return -1;
-        return cr.Trim() switch
-        {
-            "0" => 0,
-            "1/8" => 0.125,
-            "1/4" => 0.25,
-            "1/2" => 0.5,
-            _ => double.TryParse(cr, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : -1
-        };
     }
 
     private async Task OnSearchInputChangedAsync()
