@@ -9,13 +9,18 @@ namespace DndCompanion.Services;
 /// </summary>
 public static class CharacterWizardLogic
 {
+    /// <summary>Bonus razziali nell'ordine canonico FOR,DES,COS,INT,SAG,CAR. race null → tutti 0.
+    /// Unica fonte dell'ordinamento: usata da <see cref="FinalAbilityScores"/> e dalla UI del wizard.</summary>
+    public static int[] RaceBonuses(Race? race)
+        => race is null
+            ? new[] { 0, 0, 0, 0, 0, 0 }
+            : new[] { race.StrBonus, race.DexBonus, race.ConBonus, race.IntBonus, race.WisBonus, race.ChaBonus };
+
     /// <summary>Finali = base + bonus razza (ordine FOR,DES,COS,INT,SAG,CAR), clamp 1..30.
     /// race null → base clampati; baseScores più corto → mancanti = 10.</summary>
     public static int[] FinalAbilityScores(int[] baseScores, Race? race)
     {
-        var bonuses = race is null
-            ? new[] { 0, 0, 0, 0, 0, 0 }
-            : new[] { race.StrBonus, race.DexBonus, race.ConBonus, race.IntBonus, race.WisBonus, race.ChaBonus };
+        var bonuses = RaceBonuses(race);
 
         var result = new int[6];
         for (var i = 0; i < 6; i++)

@@ -452,37 +452,26 @@
         RecalcFinals(); // i bonus razziali cambiano i finali
     }
 
+    // Etichetta "Bonus razziali": ordine e valori dall'unica fonte (CharacterWizardLogic.RaceBonuses).
     private static string FormatRaceBonuses(Race race)
     {
+        var bonuses = CharacterWizardLogic.RaceBonuses(race);
         var parts = new List<string>();
-        void Add(int val, string label)
+        for (var i = 0; i < bonuses.Length; i++)
         {
-            if (val != 0) parts.Add($"{(val > 0 ? "+" : "")}{val} {label}");
+            var val = bonuses[i];
+            if (val != 0) parts.Add($"{(val > 0 ? "+" : "")}{val} {AbilityShort[i]}");
         }
-        Add(race.StrBonus, "FOR");
-        Add(race.DexBonus, "DES");
-        Add(race.ConBonus, "COS");
-        Add(race.IntBonus, "INT");
-        Add(race.WisBonus, "SAG");
-        Add(race.ChaBonus, "CAR");
         return parts.Count > 0 ? string.Join(", ", parts) : "nessuno";
     }
 
     private static readonly string[] AbilityShort = { "FOR", "DES", "COS", "INT", "SAG", "CAR" };
 
-    private int BaseBonus(int idx)
-    {
-        var race = SelectedRace;
-        if (race is null) return 0;
-        return idx switch
-        {
-            0 => race.StrBonus, 1 => race.DexBonus, 2 => race.ConBonus,
-            3 => race.IntBonus, 4 => race.WisBonus, 5 => race.ChaBonus, _ => 0
-        };
-    }
+    // Bonus razziale e totale della singola caratteristica: derivati da CharacterWizardLogic (unica
+    // fonte della regola), non reimplementati qui. Ricalcolo per-chiamata: 6 int, costo trascurabile.
+    private int BaseBonus(int idx) => CharacterWizardLogic.RaceBonuses(SelectedRace)[idx];
 
-    // Totale 1–30 della singola caratteristica (coerente con FinalAbilityScores).
-    private int FinalScore(int idx) => Math.Clamp(baseScores[idx] + BaseBonus(idx), 1, 30);
+    private int FinalScore(int idx) => CharacterWizardLogic.FinalAbilityScores(baseScores, SelectedRace)[idx];
 
     private void SetBase(int idx, ChangeEventArgs e)
     {

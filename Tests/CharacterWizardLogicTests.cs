@@ -6,6 +6,26 @@ namespace DndCompanion.Tests;
 
 public class CharacterWizardLogicTests
 {
+    // ===== RaceBonuses =====
+
+    [Fact]
+    public void RaceBonuses_with_null_race_are_all_zero()
+        => Assert.Equal(new[] { 0, 0, 0, 0, 0, 0 }, CharacterWizardLogic.RaceBonuses(null));
+
+    [Fact]
+    public void RaceBonuses_follow_the_canonical_order()
+    {
+        var race = new Race { StrBonus = 1, DexBonus = 2, ConBonus = 3, IntBonus = 4, WisBonus = 5, ChaBonus = 6 };
+        Assert.Equal(new[] { 1, 2, 3, 4, 5, 6 }, CharacterWizardLogic.RaceBonuses(race));
+    }
+
+    [Fact]
+    public void RaceBonuses_keep_negative_values()
+    {
+        var race = new Race { StrBonus = -2, WisBonus = 1 };
+        Assert.Equal(new[] { -2, 0, 0, 0, 1, 0 }, CharacterWizardLogic.RaceBonuses(race));
+    }
+
     // ===== FinalAbilityScores =====
 
     [Fact]
