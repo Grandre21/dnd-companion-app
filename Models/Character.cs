@@ -69,6 +69,11 @@ public class Character : BaseModel
     [Column("background")]
     public string? Background { get; set; }
 
+    /// <summary>Ripartizione dei bonus di background scelta dal giocatore (§4.7): serve a modifica
+    /// e level-up, perché i punteggi sono salvati già sommati.</summary>
+    [Column("background_ability_choice")]
+    public string? BackgroundAbilityChoice { get; set; }
+
     [Column("subclass")]
     public string? Subclass { get; set; }
 

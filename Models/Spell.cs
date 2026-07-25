@@ -36,6 +36,9 @@ public class Spell : BaseModel
     [Column("classes")]
     public string Classes { get; set; } = string.Empty;
 
+    [Column("source_id")]
+    public string? SourceId { get; set; }
+
     [Column("added_by")]
     public string? AddedBy { get; set; }
 

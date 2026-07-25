@@ -36,6 +36,9 @@ public class CharacterClass : BaseModel
     [Column("features")]
     public string Features { get; set; } = string.Empty;
 
+    [Column("source_id")]
+    public string? SourceId { get; set; }
+
     [Column("added_by")]
     public string? AddedBy { get; set; }
 

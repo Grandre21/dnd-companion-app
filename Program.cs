@@ -30,5 +30,6 @@ builder.Services.AddSingleton<IClassRepository, ClassRepository>();
 builder.Services.AddSingleton<IInventoryRepository, InventoryRepository>();
 builder.Services.AddSingleton<ICharacterSpellRepository, CharacterSpellRepository>();
 builder.Services.AddSingleton<ICampaignRepository, CampaignRepository>();
+builder.Services.AddSingleton<IBackgroundRepository, BackgroundRepository>();
 
 await builder.Build().RunAsync();

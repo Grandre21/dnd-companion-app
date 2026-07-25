@@ -57,6 +57,9 @@ public class Monster : BaseModel
     [Column("description")]
     public string Description { get; set; } = string.Empty;
 
+    [Column("source_id")]
+    public string? SourceId { get; set; }
+
     [Column("added_by")]
     public string? AddedBy { get; set; }
 

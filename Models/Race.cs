@@ -42,6 +42,13 @@ public class Race : BaseModel
     [Column("languages")]
     public string Languages { get; set; } = string.Empty;
 
+    [Column("source_id")]
+    public string? SourceId { get; set; }
+
+    /// <summary>"ft" o "m". Default 'ft' lato database: le razze già inserite sono in piedi (§4.5).</summary>
+    [Column("speed_unit")]
+    public string SpeedUnit { get; set; } = "ft";
+
     [Column("added_by")]
     public string? AddedBy { get; set; }
 
