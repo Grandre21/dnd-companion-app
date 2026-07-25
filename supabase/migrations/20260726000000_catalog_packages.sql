@@ -28,6 +28,9 @@ ALTER TABLE "public"."monsters"
 ALTER TABLE "public"."races"
     ADD COLUMN IF NOT EXISTS "speed_unit" text NOT NULL DEFAULT 'ft';
 
+ALTER TABLE "public"."races"
+    ADD CONSTRAINT "races_speed_unit_check" CHECK ("speed_unit" = ANY (ARRAY['m'::text, 'ft'::text]));
+
 -- 3. Ripartizione dei bonus di background scelta dal giocatore (§4.7).
 ALTER TABLE "public"."characters"
     ADD COLUMN IF NOT EXISTS "background_ability_choice" text;

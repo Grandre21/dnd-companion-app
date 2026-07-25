@@ -83,7 +83,7 @@
                         {
                             <div class="info-summary">
                                 <strong>Bonus razziali:</strong> @FormatRaceBonuses(SelectedRace)
-                                · <strong>Velocità:</strong> @SelectedRace.Speed
+                                · <strong>Velocità:</strong> @SelectedRace.Speed @(FormValidation.IsMetric(SelectedRace.SpeedUnit) ? "m" : "ft")
                             </div>
                         }
                     </div>

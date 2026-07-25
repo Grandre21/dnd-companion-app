@@ -85,8 +85,12 @@ mega-componente (quello resta in §3).
   `added_by` dei cataloghi sono `SET NULL`, corretto). ✅ **Validazione di dominio lato client** (2026-06-24):
   helper puro testato `Services/FormValidation.cs` (`ValidateMonster`/`ValidateRace`/`InRange`, 11 test);
   form Mostri (caratteristiche 1–30, CA 0–40) e Razze (velocità 0–120) ora validano con messaggi chiari
-  (Incantesimi/Personaggi erano già coperti: livello 0–9 / `CharacterNormalizer`). **Resta (a livello DB):**
-  `NOT NULL`, lunghezze, `CHECK` SQL — serve accesso alle migrazioni Supabase, non ancora fatto.
+  (Incantesimi/Personaggi erano già coperti: livello 0–9 / `CharacterNormalizer`). ✅ **`CHECK` sul dominio
+  di `speed_unit`** (Task 4 del modello 2024, 2026-07-25): `races.speed_unit` ora accetta solo `'m'`/`'ft'`
+  a livello DB, non solo lato client (`supabase/migrations/20260726000000_catalog_packages.sql`).
+  **Resta (a livello DB):** `NOT NULL`, lunghezze e gli altri `CHECK` SQL sui range numerici
+  (caratteristiche, CA, velocità) — l'accesso alle migrazioni Supabase non è più un ostacolo, dimostrato
+  dalla migrazione del Task 4.
 - 🟡 **Header di sicurezza.** ✅ **CSP in `<meta>`** (2026-06-24): `default-src 'self'`, `connect-src` ai soli
   self+Supabase (blocca esfiltrazione), `object-src 'none'`, `base-uri 'self'`, `script-src` con
   `'unsafe-inline'` + `'wasm-unsafe-eval'`. Scelta pragmatica: l'approccio a hash è insostenibile perché
@@ -363,8 +367,9 @@ modelli di salvataggio opposti.
   voci" — un pacchetto SRD completo supera la soglia dichiarata) e l'**aiuto AI** (§8: precaricare riduce
   molto ciò che resterebbe da generare — vanno ordinate insieme, non trattate come filoni separati).
   - ✅ **Fase 1 (leggere un pacchetto) — FATTO (2026-07-25).** Nove task: modelli del pacchetto e parser
-    con validazione; chiave di confronto con piega accenti (**non fa nulla sotto `InvariantGlobalization`**,
-    verificato a runtime — serve solo a normalizzare l'ampiezza dei confronti, non gli accenti) e
+    con validazione; chiave di confronto (`CatalogKey`) con piega accenti scritta a mano — `String.Normalize`
+    **non fa nulla sotto `InvariantGlobalization`** (verificato a runtime), quindi la chiave non lo usa e
+    piega gli accenti con una mappa esplicita, oltre a maiuscole e spazi — e
     riconoscimento della provenienza dal prefisso `<id pacchetto>/…`; unione fra pacchetto e cataloghi di
     campagna (righe di database sempre visibili, la chiave decide solo quale oscura la voce di pacchetto);
     migrazione schema (tabella `backgrounds` + colonne `source_id`/`speed_unit`/`background_ability_choice`
@@ -372,7 +377,9 @@ modelli di salvataggio opposti.
     dell'app; esclusione del pacchetto dal precache del service worker (altrimenti un fetch fallito rompeva
     l'installazione dell'intera PWA); pagina catalogo Background in sola lettura per le voci di pacchetto;
     **unità di velocità esplicita nel form Razze** (`speed_unit`, limite 0–120 piedi o 0–36 metri, selettore
-    con `aria-label`). Tutto testato (helper puri `internal static` + xUnit), 0 warning/0 errori.
+    con `aria-label`). Tutto testato (helper puri `static` — per lo più `public static`, es. `CatalogKey`/
+    `CatalogMerge`/`CatalogPackageParser`; `FormValidation` resta `internal static` + `InternalsVisibleTo`
+    + xUnit), 0 warning/0 errori.
     Le **quattro pagine di catalogo** (Razze, Classi, Incantesimi, Mostri) non marcano ancora le voci di
     pacchetto né offrono "duplica e modifica": in Fase 1 non ci sono ancora righe con provenienza da
     marcare (nessun import, nessun pacchetto pubblicato) — la logica (`CatalogMerge`,

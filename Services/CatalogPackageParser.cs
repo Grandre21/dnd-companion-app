@@ -49,6 +49,7 @@ public static class CatalogPackageParser
             return new ParseResult(null, new[] { "Il file non contiene un pacchetto." }, warnings);
 
         NormalizeLists(package);
+        TrimIdsAndNames(package);
 
         if (package.SchemaVersion != SupportedSchemaVersion)
         {
@@ -75,6 +76,11 @@ public static class CatalogPackageParser
     // esplicitamente "null" (es. "species": null) sovrascrive il default `= new()` del modello.
     // Ripristina qui l'invariante "le sei liste non sono mai null" prima di iterarle, così un
     // pacchetto con sezioni assenti/nulle produce un pacchetto senza quelle voci, non un crash.
+    //
+    // Lo stesso vale per le liste ANNIDATE dentro le singole voci (es. "abilityScores": null su un
+    // background): senza questo secondo passaggio un pacchetto così supera il parser e poi va in
+    // crash altrove (es. string.Join su Pages/Backgrounds.razor, fuori dal try/catch del rendering).
+    // Le voci null dell'array le lascia stare: le gestisce ValidateEntries, non questo metodo.
     private static void NormalizeLists(CatalogPackage p)
     {
         p.Species ??= new();
@@ -83,7 +89,85 @@ public static class CatalogPackageParser
         p.Classes ??= new();
         p.Spells ??= new();
         p.Monsters ??= new();
+
+        foreach (var b in p.Backgrounds)
+        {
+            if (b is null) continue;
+            b.AbilityScores ??= new();
+            b.SkillProficiencies ??= new();
+        }
+
+        foreach (var c in p.Classes)
+        {
+            if (c is null) continue;
+            c.SavingThrows ??= new();
+            c.Levels ??= new();
+            if (c.SkillChoices is not null) c.SkillChoices.From ??= new();
+            foreach (var lvl in c.Levels)
+            {
+                if (lvl is null) continue;
+                lvl.Features ??= new();
+                lvl.SpellSlots ??= new();
+            }
+        }
+
+        foreach (var s in p.Spells)
+        {
+            if (s is null) continue;
+            s.Classes ??= new();
+        }
     }
+
+    // Il confine giusto per normalizzare id e nomi è la lettura, non i punti a valle: CatalogKey.For
+    // fa già il trim del sourceId letto dal database, e senza lo stesso trim qui un pacchetto con
+    // spazi accidentali (" elfo ") romperebbe l'asimmetria — CatalogMerge.HiddenPackageIds confronta
+    // id grezzi, quindi una voce con id non trimmato non verrebbe mai riconosciuta come duplicata.
+    // Il trim non cambia mai se una voce è "vuota" (IsNullOrWhiteSpace è invariante al trim), quindi
+    // non altera quali voci Check() respinge.
+    private static void TrimIdsAndNames(CatalogPackage p)
+    {
+        p.Id = Trimmed(p.Id);
+        p.Name = Trimmed(p.Name);
+
+        foreach (var x in p.Species)
+        {
+            if (x is null) continue;
+            x.Id = Trimmed(x.Id);
+            x.Name = Trimmed(x.Name);
+        }
+        foreach (var x in p.Backgrounds)
+        {
+            if (x is null) continue;
+            x.Id = Trimmed(x.Id);
+            x.Name = Trimmed(x.Name);
+        }
+        foreach (var x in p.Feats)
+        {
+            if (x is null) continue;
+            x.Id = Trimmed(x.Id);
+            x.Name = Trimmed(x.Name);
+        }
+        foreach (var x in p.Classes)
+        {
+            if (x is null) continue;
+            x.Id = Trimmed(x.Id);
+            x.Name = Trimmed(x.Name);
+        }
+        foreach (var x in p.Spells)
+        {
+            if (x is null) continue;
+            x.Id = Trimmed(x.Id);
+            x.Name = Trimmed(x.Name);
+        }
+        foreach (var x in p.Monsters)
+        {
+            if (x is null) continue;
+            x.Id = Trimmed(x.Id);
+            x.Name = Trimmed(x.Name);
+        }
+    }
+
+    private static string Trimmed(string? s) => s?.Trim() ?? string.Empty;
 
     // Ogni voce deve avere id e nome: senza id non sopravvive all'import (§4.3),
     // senza nome non è confrontabile. L'errore cita il nome, o la posizione se manca anche quello.
@@ -99,14 +183,20 @@ public static class CatalogPackageParser
         Check(p.Monsters.Select(x => x is null ? ("", "") : (x.Id, x.Name)), "mostri", errors);
     }
 
+    // Il database impone UNIQUE (campaign_id, source_id): due voci con lo stesso id nello stesso
+    // pacchetto passerebbero questa validazione e farebbero fallire l'import a metà in Fase 2, invece
+    // di essere respinte subito con l'indicazione della voce colpevole.
     private static void Check(IEnumerable<(string Id, string Name)> entries, string section, List<string> errors)
     {
         var index = 0;
+        var idsVisti = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (id, name) in entries)
         {
             var etichetta = string.IsNullOrWhiteSpace(name) ? $"posizione {index + 1}" : name;
             if (string.IsNullOrWhiteSpace(id))
                 errors.Add($"Sezione '{section}': la voce «{etichetta}» non ha un identificatore.");
+            else if (!idsVisti.Add(id))
+                errors.Add($"Sezione '{section}': l'identificatore '{id}' compare più volte (voce «{etichetta}»).");
             if (string.IsNullOrWhiteSpace(name))
                 errors.Add($"Sezione '{section}': la voce in posizione {index + 1} non ha un nome.");
             index++;

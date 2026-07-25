@@ -391,10 +391,11 @@ Spec in `docs/superpowers/specs/2026-07-25-modello-2024-import-dati-design.md`.
 
 **Modello 2024 + import dei dati — Fase 1: leggere un pacchetto (2026-07-25).** Nove task in sequenza,
 ognuno a comportamento invariato sul resto dell'app: `CatalogPackageParser` (Task 1) deserializza e valida
-il pacchetto; `CatalogCompareKey`/provenienza (Task 2) riconoscono una riga di pacchetto dal prefisso
+il pacchetto; `CatalogKey`/provenienza (Task 2) riconoscono una riga di pacchetto dal prefisso
 `<id pacchetto>/…` dell'id — *nota:* il progetto compila con `InvariantGlobalization=true` (bundle, §2),
-quindi `String.Normalize` **non piega gli accenti** e non lo segnala: la chiave normalizza solo
-maiuscole/spazi, verificato a runtime; `CatalogMerge` (Task 3) unisce pacchetto e cataloghi di campagna
+quindi `String.Normalize` **non piegherebbe gli accenti** (e non lo segnalerebbe): la chiave non usa
+`String.Normalize`, piega gli accenti con una mappa scritta a mano (`CatalogKey.NormalizeName`, helper
+`public static`), oltre a maiuscole e spazi, verificato a runtime; `CatalogMerge` (Task 3) unisce pacchetto e cataloghi di campagna
 tenendo **sempre visibili** le righe di database, con la chiave che decide solo quale oscura la voce di
 pacchetto (precedenza a chi non ha `source_id`); migrazione schema (Task 4) additiva pura — **1 tabella
 nuova + 6 colonne + 4 `UNIQUE`**, zero migrazione di dati; model/repository/RLS dei background (Task 5);
@@ -419,6 +420,24 @@ ancora righe con provenienza (nessun import, nessun pacchetto pubblicato), quind
 marcare; la logica (`CatalogMerge`, `CatalogKey.IsFromAppPackage`) è già pronta e testata. Fase 2 (import
 ed export, con `PackageImportPlan` e il gate dei permessi) e Fase 3 (contenuto 2024 e wizard) restano
 aperte — piano in `docs/superpowers/plans/2026-07-25-modello-2024-import-dati-fase-1.md`.
-279 test unitari verdi (270 + 9 di Task 9, incluso il consolidamento di `IsMetric` emerso dal gate),
+*Seconda passata (2026-07-25, revisione d'insieme):* nove correzioni circoscritte emerse guardando i nove
+task nel loro insieme, non visibili dalle revisioni per singolo task. Le più sostanziali: `NormalizeLists`
+proteggeva solo le sei sezioni di primo livello, non le liste annidate dentro le voci (una sezione tipo
+`"abilityScores": null` in un background superava il parser e poi faceva lanciare `ArgumentNullException`
+fuori dal `try/catch` del rendering); il trim di id/nomi si è spostato al confine — il parser, non
+`CatalogMerge` — perché è lì che nasce l'asimmetria con `CatalogKey.For` (che già fa il trim del `sourceId`
+letto dal database); `Check` ora rileva id duplicati nella stessa sezione del pacchetto, che il vincolo
+`UNIQUE (campaign_id, source_id)` del database avrebbe altrimenti fatto fallire a metà import; `speed_unit`
+accetta solo `'m'`/`'ft'` anche a livello DB (`CHECK`, aggiunto alla stessa migrazione del Task 4); il badge
+"Dal manuale" e il bordo della card in `Backgrounds.razor` seguivano `entry.IsPackage` invece della stessa
+condizione che sopprime i comandi di modifica/cancellazione, lasciando una riga di database non modificabile
+senza marcatura; la ricerca della stessa pagina ora usa `CatalogKey.NormalizeName` su entrambi i lati del
+confronto invece di un confronto ordinale, coerente con la normalizzazione che questa fase ha costruito;
+`CharacterWizard.razor`/`CharacterEditForm.razor` stampavano `@SelectedRace.Speed` senza unità — dal Task 9
+una razza può essere in metri, quindi ora citano `FormValidation.IsMetric(...SpeedUnit)` accanto al numero,
+come già fa `Pages/Races.razor`. Più due correzioni al testo di questa stessa voce (sopra): il nome della
+classe (`CatalogKey`, non `CatalogCompareKey`) e il comportamento reale della piega accenti (piega gli
+accenti con una mappa scritta a mano — non "solo maiuscole e spazi" come diceva prima).
+285 test unitari verdi (279 + 6 di regressione della seconda passata),
 11 di integrazione verdi contro lo stack Supabase locale,
 build Release 0 warning / 0 errori.

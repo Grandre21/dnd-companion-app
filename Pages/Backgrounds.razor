@@ -106,7 +106,7 @@
                 @foreach (var entry in FilteredEntries)
                 {
                     var isExpanded = expandedKey == entry.Key;
-                    <div class="background-card @(isExpanded ? "expanded" : "") @(entry.IsPackage ? "package-card" : "")">
+                    <div class="background-card @(isExpanded ? "expanded" : "") @(entry.FromAppPackage ? "package-card" : "")">
                         <button type="button" class="card-summary" @onclick="() => ToggleExpand(entry.Key)">
                             <div class="card-main">
                                 <div class="card-name">@entry.Name</div>
@@ -115,7 +115,7 @@
                                     {
                                         <span class="feat-badge">Talento: @entry.OriginFeat</span>
                                     }
-                                    @if (entry.IsPackage)
+                                    @if (entry.FromAppPackage)
                                     {
                                         <span class="package-badge">Dal manuale</span>
                                     }
@@ -345,6 +345,10 @@
     // Vista unificata di riga-database e voce-pacchetto: la lista mostrata è un'unione delle due
     // sorgenti (ricerca/ordinamento/rendering condivisi), ma le operazioni CRUD restano ancorate a
     // dbRows/packageRows separati.
+    // FromAppPackage è la stessa condizione che, più sotto, sopprime i comandi di modifica/cancellazione
+    // (voce di pacchetto, oppure riga di database con provenienza dal pacchetto dell'app): la marcatura
+    // visiva (badge "Dal manuale" + bordo della card) deve dipendere da questa, non da IsPackage da sola,
+    // altrimenti una riga di database non modificabile risulterebbe indistinguibile da una qualsiasi.
     private sealed record Entry(
         string Key,
         string Name,
@@ -355,16 +359,18 @@
         string ToolProficiency,
         string Equipment,
         bool IsPackage,
+        bool FromAppPackage,
         Background? Db,
         PackageBackground? Package);
 
     private static Entry ToEntry(Background b) => new(
         "db:" + b.Id, b.Name, b.Description, b.AbilityScores, b.OriginFeat,
-        b.SkillProficiencies, b.ToolProficiency, b.Equipment, false, b, null);
+        b.SkillProficiencies, b.ToolProficiency, b.Equipment, false,
+        CatalogKey.IsFromAppPackage(b.SourceId), b, null);
 
     private static Entry ToEntry(PackageBackground p) => new(
         "pkg:" + p.Id, p.Name, p.Description, string.Join(", ", p.AbilityScores), p.OriginFeat,
-        string.Join(", ", p.SkillProficiencies), p.ToolProficiency, p.Equipment, true, null, p);
+        string.Join(", ", p.SkillProficiencies), p.ToolProficiency, p.Equipment, true, true, null, p);
 
     private IEnumerable<Entry> FilteredEntries
     {
@@ -373,7 +379,10 @@
             IEnumerable<Entry> result = dbRows.Select(ToEntry).Concat(packageRows.Select(ToEntry));
             if (!string.IsNullOrEmpty(searchQuery))
             {
-                result = result.Where(e => e.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+                // CatalogKey.NormalizeName su entrambi i lati: cercare "invisibilita" deve trovare
+                // "Invisibilità", non solo la stessa combinazione esatta di maiuscole e accenti.
+                var chiaveRicerca = CatalogKey.NormalizeName(searchQuery);
+                result = result.Where(e => CatalogKey.NormalizeName(e.Name).Contains(chiaveRicerca, StringComparison.Ordinal));
             }
             return result.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
         }
