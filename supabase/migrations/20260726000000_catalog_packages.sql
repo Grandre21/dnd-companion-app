@@ -70,10 +70,13 @@ CREATE POLICY "backgrounds_insert" ON "public"."backgrounds"
         "added_by" = "auth"."uid"() AND "public"."is_campaign_member"("campaign_id")
     );
 
--- La WITH CHECK non è decorativa: la USING dice quali righe si possono aggiornare, la WITH CHECK
--- vincola i valori risultanti. Senza, un membro potrebbe aggiornare una propria riga riscrivendo
--- campaign_id verso una campagna di cui non fa parte. races_update ha entrambe: ricalcarla vuol
--- dire copiarle tutte e due.
+-- La WITH CHECK qui è scritta per simmetria con races_update e per rendere esplicita l'intenzione,
+-- non perché aggiunga una protezione oltre alla USING: le due espressioni sono testualmente
+-- identiche, e per Postgres quando la WITH CHECK è omessa viene comunque usata la USING allo stesso
+-- scopo — scriverla o ometterla produce qui lo stesso comportamento. In particolare NON impedisce
+-- all'autore di spostare una propria riga verso una campagna di cui non è membro (added_by non
+-- cambia con lo spostamento): lacuna nota, vedi docs/DA-FARE.md §1 ("Lacuna nella WITH CHECK di
+-- update dei cataloghi").
 CREATE POLICY "backgrounds_update" ON "public"."backgrounds"
     FOR UPDATE USING (
         "added_by" = "auth"."uid"() OR "public"."is_campaign_master"("campaign_id")

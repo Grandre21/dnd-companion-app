@@ -37,13 +37,14 @@ dotnet test Tests.Integration/
 - Un player **non** modifica il background creato da un altro membro (ramo `USING`).
 - Il **master** modifica il background di chiunque nella sua campagna.
 - Un master **non** può spostare fuori dalla propria autorità un background che non ha creato lui
-  (ramo `WITH CHECK`, usando una terza campagna `C3` di cui non è membro): la verifica rilegge dove
-  si trova davvero la riga dopo il tentativo, invece di fidarsi dello status HTTP della PATCH.
+  (`is_campaign_master` valutato sulla riga nuova, usando una terza campagna `C3` di cui non è
+  membro): la verifica rilegge dove si trova davvero la riga dopo il tentativo, invece di fidarsi
+  dello status HTTP della PATCH.
   **Nota**: lo scenario "un autore sposta una propria riga in un'altra campagna" — quello descritto
   nel brief del task — **non** è invece bloccato da questa policy (`added_by = auth.uid()` resta
   vero indipendentemente dalla destinazione): è una lacuna ereditata da `races_update` e dalle
-  policy analoghe, non introdotta né corretta da questa migrazione. Vedi il commento nel test per il
-  dettaglio.
+  policy analoghe, non introdotta né corretta da questa migrazione. Vedi il commento nel test e in
+  `docs/DA-FARE.md` §1 per il dettaglio.
 
 ## Aggiornare lo schema locale
 Se cambiano le policy/lo schema in produzione, rigenera la migration:
