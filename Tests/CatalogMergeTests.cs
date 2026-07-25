@@ -45,6 +45,19 @@ public class CatalogMergeTests
         Assert.Contains("pacchetto-b/elfo", Nascoste(pacchetto, db));
     }
 
+    // Il pacchetto può correggere una traduzione: l'id resta lo stesso, il nome cambia. La riga che
+    // l'utente ha già in campagna mantiene il vecchio nome ma lo stesso SourceId: solo il confronto
+    // per id la riconosce. Nessuno degli altri test lo dimostra, perché ovunque altrove id e nome
+    // normalizzato concordano o discordano insieme — qui devono divergere apposta.
+    [Fact]
+    public void HiddenPackageIds_RigaConLoStessoSourceIdENomeDiverso_OscuraLaVoceDiPacchettoPerId()
+    {
+        var db = new[] { new Row("uuid-1", "srd-2024-it/elfo", "Elfo delle Foreste") };
+        var pacchetto = new[] { new Pkg("srd-2024-it/elfo", "Elfo") };
+
+        Assert.Contains("srd-2024-it/elfo", Nascoste(pacchetto, db));
+    }
+
     // Il caso che la pagina produce davvero: "duplica e modifica" crea una riga SENZA provenienza
     // e con lo stesso nome. Senza il confronto per nome l'utente vedrebbe due "Artigiano".
     [Fact]
