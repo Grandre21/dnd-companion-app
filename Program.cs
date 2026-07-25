@@ -32,4 +32,10 @@ builder.Services.AddSingleton<ICharacterSpellRepository, CharacterSpellRepositor
 builder.Services.AddSingleton<ICampaignRepository, CampaignRepository>();
 builder.Services.AddSingleton<IBackgroundRepository, BackgroundRepository>();
 
+// Scoped, NON Singleton: dipende da HttpClient, che Program.cs registra AddScoped, e un singleton
+// che cattura uno scoped lo tiene per sempre — l'accoppiamento sbagliato, oltre a far fallire la
+// risoluzione ovunque la validazione degli scope sia attiva. In WebAssembly lo scope è uno solo
+// per tutta l'app, quindi la cache in memoria del pacchetto vale comunque per l'intera sessione.
+builder.Services.AddScoped<ICatalogService, CatalogService>();
+
 await builder.Build().RunAsync();
