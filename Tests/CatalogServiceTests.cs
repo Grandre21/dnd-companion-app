@@ -10,20 +10,31 @@ public class CatalogServiceTests
     private sealed class CountingHandler : HttpMessageHandler
     {
         public int Calls { get; private set; }
-        private readonly string _payload;
-        private readonly HttpStatusCode _status;
+        private readonly string _payload = string.Empty;
+        private readonly HttpStatusCode _status = HttpStatusCode.OK;
+        private readonly Exception? _toThrow;
+        private readonly TaskCompletionSource<bool>? _hold;
 
         public CountingHandler(string payload, HttpStatusCode status = HttpStatusCode.OK)
             => (_payload, _status) = (payload, status);
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        // Per i test che simulano un fallimento di rete vero (non un 404): l'handler lancia
+        // invece di rispondere, come fa HttpClient su un errore di connessione o su un timeout.
+        public CountingHandler(Exception toThrow) => _toThrow = toThrow;
+
+        // Per il test di concorrenza: la richiesta resta "in volo" finché il test non sblocca
+        // il gate, così due chiamate avviate senza await fra loro si sovrappongono davvero,
+        // invece di completare l'una prima che l'altra parta.
+        public CountingHandler(string payload, TaskCompletionSource<bool> hold)
+            => (_payload, _hold) = (payload, hold);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Calls++;
-            return Task.FromResult(new HttpResponseMessage(_status)
-            {
-                Content = new StringContent(_payload)
-            });
+            if (_toThrow is not null) throw _toThrow;
+            if (_hold is not null) await _hold.Task;
+            return new HttpResponseMessage(_status) { Content = new StringContent(_payload) };
         }
     }
 
@@ -69,6 +80,27 @@ public class CatalogServiceTests
         Assert.Equal(1, handler.Calls);
     }
 
+    // Unica rete automatica contro un futuro refactor che tolga il gate e rimetta un controllo
+    // nudo su _loaded: senza il SemaphoreSlim, due chiamate avviate senza await fra loro
+    // vedrebbero entrambe _loaded=false e scaricherebbero il pacchetto due volte.
+    [Fact]
+    public async Task GetPackageAsync_ChiamateConcorrenti_ScaricaUnaVoltaSola()
+    {
+        var hold = new TaskCompletionSource<bool>();
+        var handler = new CountingHandler(Package, hold);
+        var service = Service(handler);
+
+        // Avviate senza await fra loro: se il gate non ci fosse, entrambe partirebbero prima
+        // che la prima completi la propria richiesta HTTP.
+        var t1 = service.GetPackageAsync();
+        var t2 = service.GetPackageAsync();
+
+        hold.SetResult(true); // sblocca la richiesta rimasta "in volo"
+        await Task.WhenAll(t1, t2);
+
+        Assert.Equal(1, handler.Calls);
+    }
+
     [Fact]
     public async Task GetPackageAsync_PacchettoAssente_RestituisceNullSenzaLanciare()
     {
@@ -87,6 +119,39 @@ public class CatalogServiceTests
         await service.GetPackageAsync();
         await service.GetPackageAsync();
 
+        Assert.Equal(2, handler.Calls);
+    }
+
+    // Il catch di GetPackageAsync copre HttpRequestException, ma CountingHandler prima d'ora
+    // rispondeva sempre con uno status code e non lanciava mai: senza questo test, un domani
+    // qualcuno potrebbe spostare l'assegnazione di LastParse prima della chiamata di rete, o
+    // rendere CatalogPackageParser.Parse non più puro, e la suite resterebbe verde comunque.
+    [Fact]
+    public async Task GetPackageAsync_ErroreDiRete_RestituisceNullSenzaValorizzareLastParseERiprova()
+    {
+        var handler = new CountingHandler(new HttpRequestException("connessione rifiutata"));
+        var service = Service(handler);
+
+        Assert.Null(await service.GetPackageAsync());
+        Assert.Null(service.LastParse);
+
+        // La rete può tornare: la chiamata successiva riprova, non resta bloccata sul fallimento.
+        await service.GetPackageAsync();
+        Assert.Equal(2, handler.Calls);
+    }
+
+    // Stesso principio del test precedente, ma per il ramo TaskCanceledException (il timeout di
+    // HttpClient), aggiunto al catch insieme a HttpRequestException.
+    [Fact]
+    public async Task GetPackageAsync_Timeout_RestituisceNullSenzaValorizzareLastParseERiprova()
+    {
+        var handler = new CountingHandler(new TaskCanceledException("timeout"));
+        var service = Service(handler);
+
+        Assert.Null(await service.GetPackageAsync());
+        Assert.Null(service.LastParse);
+
+        await service.GetPackageAsync();
         Assert.Equal(2, handler.Calls);
     }
 
