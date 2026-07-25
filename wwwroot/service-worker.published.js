@@ -18,7 +18,12 @@ self.addEventListener('message', event => {
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
 const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, /\.webmanifest$/ ];
-const offlineAssetsExclude = [ /^service-worker\.js$/ ];
+// I pacchetti dati (data/*.json) restano FUORI dal precache: sono grandi, servono solo a chi apre
+// i cataloghi, e cache.addAll è atomico — un loro fetch fallito farebbe fallire l'installazione
+// del service worker, con l'app che perde l'offline. Vengono messi in cache alla prima richiesta
+// riuscita, dal ramo dedicato in onFetch.
+const offlineAssetsExclude = [ /^service-worker\.js$/, /^data\/.*\.json$/ ];
+const dataPackagePattern = /\/data\/[^/]+\.json$/;
 
 // Base path derivato DINAMICAMENTE dallo scope del service worker: "/" in locale,
 // "/dnd-companion-app/" in produzione (GitHub Pages). Nessun hardcoding e nessun sed
@@ -65,6 +70,16 @@ async function onFetch(event) {
         const request = shouldServeIndexHtml ? 'index.html' : event.request;
         const cache = await caches.open(cacheName);
         cachedResponse = await cache.match(request);
+
+        // Cache al primo uso per i pacchetti dati: è ciò che rende il pacchetto consultabile
+        // offline dopo averlo aperto una volta (§6 dello spec).
+        if (!cachedResponse && dataPackagePattern.test(new URL(event.request.url).pathname)) {
+            const response = await fetch(event.request);
+            if (response.ok) {
+                await cache.put(event.request, response.clone());
+            }
+            return response;
+        }
     }
 
     return cachedResponse || fetch(event.request);
