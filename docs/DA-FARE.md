@@ -346,8 +346,10 @@ digitare prima di poter giocare · **A3** il wizard chiede 70 controlli, ~50 der
 chiede risposte al novizio invece di insegnargliele · **A5** unità di velocità incoerenti e due
 modelli di salvataggio opposti.
 
-- 🟠 **Modello 2024 + import dei dati** — 📐 **design approvato (2026-07-25)**, piano da scrivere:
-  [`specs/2026-07-25-modello-2024-import-dati-design.md`](./superpowers/specs/2026-07-25-modello-2024-import-dati-design.md).
+- 🟠 **Modello 2024 + import dei dati** — 📐 design approvato (2026-07-25):
+  [`specs/2026-07-25-modello-2024-import-dati-design.md`](./superpowers/specs/2026-07-25-modello-2024-import-dati-design.md),
+  piano in tre fasi:
+  [`plans/2026-07-25-modello-2024-import-dati-fase-1.md`](./superpowers/plans/2026-07-25-modello-2024-import-dati-fase-1.md).
   Unisce due punti che l'analisi teneva separati (modello 2024 e cataloghi precaricati): il modello è il
   prerequisito, il formato di scambio è il veicolo. Decisioni prese: pacchetto **SRD 5.2 in italiano** come
   **file dell'app** in sola lettura, unito lato client ai cataloghi di campagna; **import/export di file**
@@ -360,6 +362,29 @@ modelli di salvataggio opposti.
   ⚠️ Rimette in gioco due voci già decise: la **virtualizzazione liste** (§5, scartata "sotto le ~50
   voci" — un pacchetto SRD completo supera la soglia dichiarata) e l'**aiuto AI** (§8: precaricare riduce
   molto ciò che resterebbe da generare — vanno ordinate insieme, non trattate come filoni separati).
+  - ✅ **Fase 1 (leggere un pacchetto) — FATTO (2026-07-25).** Nove task: modelli del pacchetto e parser
+    con validazione; chiave di confronto con piega accenti (**non fa nulla sotto `InvariantGlobalization`**,
+    verificato a runtime — serve solo a normalizzare l'ampiezza dei confronti, non gli accenti) e
+    riconoscimento della provenienza dal prefisso `<id pacchetto>/…`; unione fra pacchetto e cataloghi di
+    campagna (righe di database sempre visibili, la chiave decide solo quale oscura la voce di pacchetto);
+    migrazione schema (tabella `backgrounds` + colonne `source_id`/`speed_unit`/`background_ability_choice`
+    + vincoli `UNIQUE`); model/repository/RLS dei background; `CatalogService` per caricare il pacchetto
+    dell'app; esclusione del pacchetto dal precache del service worker (altrimenti un fetch fallito rompeva
+    l'installazione dell'intera PWA); pagina catalogo Background in sola lettura per le voci di pacchetto;
+    **unità di velocità esplicita nel form Razze** (`speed_unit`, limite 0–120 piedi o 0–36 metri, selettore
+    con `aria-label`). Tutto testato (helper puri `internal static` + xUnit), 0 warning/0 errori.
+    Le **quattro pagine di catalogo** (Razze, Classi, Incantesimi, Mostri) non marcano ancora le voci di
+    pacchetto né offrono "duplica e modifica": in Fase 1 non ci sono ancora righe con provenienza da
+    marcare (nessun import, nessun pacchetto pubblicato) — la logica (`CatalogMerge`,
+    `CatalogKey.IsFromAppPackage`) è già pronta, il blocco `@code` di Background è il modello da
+    replicare in Fase 2.
+  - 🟠 **Fase 2 (import ed export)** — non iniziata: `PackageImportPlan` col gate dei permessi, schermata di
+    import con anteprima, export della campagna, rimozione per provenienza, materializzazione degli
+    incantesimi su uso (`Upsert` con `on_conflict`), adeguamento del filtro per classe, marcatura/"duplica e
+    modifica" nei quattro cataloghi esistenti.
+  - 🟠 **Fase 3 (contenuto e wizard 2024)** — non iniziata: campione SRD per validare il formato sul campo,
+    traduzione del pacchetto completo, wizard che prende i bonus dal background con ripartizione, tetto di
+    20 e convivenza con le specie legacy.
 - 🟠 **Motore di derivazione condiviso** (slot, PF, competenze, taglia, velocità) usato da creazione,
   **modifica e level-up** insieme — oggi wizard e `CharacterEditForm` duplicano il markup e solo il
   wizard suggerisce qualcosa.

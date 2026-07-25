@@ -388,3 +388,37 @@ ambito sempre più ristretto (dal rovesciamento dell'architettura al testo di qu
 decisa con l'utente: i difetti residui di uno spec vengono comunque ripresi scrivendo il piano, dove il
 codice reale fa da controprova.
 Spec in `docs/superpowers/specs/2026-07-25-modello-2024-import-dati-design.md`.
+
+**Modello 2024 + import dei dati — Fase 1: leggere un pacchetto (2026-07-25).** Nove task in sequenza,
+ognuno a comportamento invariato sul resto dell'app: `CatalogPackageParser` (Task 1) deserializza e valida
+il pacchetto; `CatalogCompareKey`/provenienza (Task 2) riconoscono una riga di pacchetto dal prefisso
+`<id pacchetto>/…` dell'id — *nota:* il progetto compila con `InvariantGlobalization=true` (bundle, §2),
+quindi `String.Normalize` **non piega gli accenti** e non lo segnala: la chiave normalizza solo
+maiuscole/spazi, verificato a runtime; `CatalogMerge` (Task 3) unisce pacchetto e cataloghi di campagna
+tenendo **sempre visibili** le righe di database, con la chiave che decide solo quale oscura la voce di
+pacchetto (precedenza a chi non ha `source_id`); migrazione schema (Task 4) additiva pura — **1 tabella
+nuova + 6 colonne + 4 `UNIQUE`**, zero migrazione di dati; model/repository/RLS dei background (Task 5);
+`CatalogService` (Task 6) fa da unico punto di unione fra pacchetto (via `HttpClient`) e repository — le
+pagine non compongono da sole, così le quattro pagine di catalogo della Fase 2 aggiungono un metodo invece
+di duplicare la logica; esclusione del pacchetto dal precache del service worker (Task 7) — `cache.addAll`
+in `onInstall` è atomico, quindi un pacchetto SRD nel manifest avrebbe fatto fallire l'installazione
+dell'intera PWA a un solo fetch fallito; è ora messo in cache al primo uso da un ramo dedicato in
+`onFetch`; pagina `Backgrounds.razor` (Task 8) come primo catalogo con voci di pacchetto in sola lettura,
+modello da replicare nella Fase 2 per gli altri quattro; **unità di velocità esplicita nel form Razze**
+(Task 9) — `FormValidation.ValidateRace` sceglie il limite (0–120 piedi o 0–36 metri) in base a
+`r.SpeedUnit` e lo cita nel messaggio, il form aggiunge un `<select>` (`aria-label="Unità di velocità"`)
+legato a `editDraft.SpeedUnit` e il `max` dell'input numerico segue l'unità scelta, altrimenti il browser
+lascerebbe digitare fino a 120 in modalità metri e l'utente scoprirebbe il limite solo dal toast di errore.
+*Perché ora e in quest'ordine:* il "duplica e modifica" della Fase 2 creerà righe di razza in **metri**
+(dal pacchetto SRD), e senza il Task 9 il form le avrebbe mostrate con l'aiuto e il tetto pensati per i
+piedi — l'ambiguità che l'intero lavoro sull'unità (introdotta nel design, §8-bis) doveva chiudere,
+reintrodotta proprio dall'ultimo pezzo mancante.
+*Cosa NON fa ancora questa fase:* nessuna delle quattro pagine di catalogo esistenti (Razze, Classi,
+Incantesimi, Mostri) marca le voci di pacchetto né offre "duplica e modifica" — in Fase 1 non esistono
+ancora righe con provenienza (nessun import, nessun pacchetto pubblicato), quindi non c'è nulla da
+marcare; la logica (`CatalogMerge`, `CatalogKey.IsFromAppPackage`) è già pronta e testata. Fase 2 (import
+ed export, con `PackageImportPlan` e il gate dei permessi) e Fase 3 (contenuto 2024 e wizard) restano
+aperte — piano in `docs/superpowers/plans/2026-07-25-modello-2024-import-dati-fase-1.md`.
+279 test unitari verdi (270 + 9 di Task 9, incluso il consolidamento di `IsMetric` emerso dal gate),
+11 di integrazione verdi contro lo stack Supabase locale,
+build Release 0 warning / 0 errori.

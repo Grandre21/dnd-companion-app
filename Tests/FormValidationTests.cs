@@ -85,7 +85,49 @@ public class FormValidationTests
     public void Race_speed_out_of_range_is_rejected(int speed)
     {
         var r = ValidRace(); r.Speed = speed;
-        Assert.Equal("La velocità deve essere tra 0 e 120", FormValidation.ValidateRace(r));
+        Assert.Equal("La velocità deve essere tra 0 e 120 piedi", FormValidation.ValidateRace(r));
+    }
+
+    [Fact]
+    public void ValidateRace_VelocitaInMetriDentroIlLimite_Valida()
+    {
+        var r = new Race { Name = "Elfo", Speed = 9, SpeedUnit = "m" };
+        Assert.Null(FormValidation.ValidateRace(r));
+    }
+
+    [Fact]
+    public void ValidateRace_VelocitaInMetriOltreIlLimite_Rifiutata()
+    {
+        var r = new Race { Name = "Elfo", Speed = 40, SpeedUnit = "m" };
+        Assert.NotNull(FormValidation.ValidateRace(r));
+    }
+
+    [Fact]
+    public void ValidateRace_VelocitaInPiediDentroIlLimite_Valida()
+    {
+        var r = new Race { Name = "Elfo", Speed = 30, SpeedUnit = "ft" };
+        Assert.Null(FormValidation.ValidateRace(r));
+    }
+
+    [Fact]
+    public void ValidateRace_MessaggioCitaLUnita()
+    {
+        var r = new Race { Name = "Elfo", Speed = 999, SpeedUnit = "m" };
+        // Il `!` serve: ValidateRace ritorna string? e il progetto di test ha Nullable=enable.
+        Assert.Contains("metri", FormValidation.ValidateRace(r)!);
+    }
+
+    // IsMetric è condiviso fra ValidateRace e il markup di Pages/Races.razor (stesso assembly):
+    // qui viene testato direttamente per non lasciare scoperto il confronto case-insensitive.
+    [Theory]
+    [InlineData("m", true)]
+    [InlineData("M", true)]
+    [InlineData("ft", false)]
+    [InlineData("FT", false)]
+    [InlineData(null, false)]
+    public void IsMetric_is_case_insensitive(string? speedUnit, bool expected)
+    {
+        Assert.Equal(expected, FormValidation.IsMetric(speedUnit));
     }
 
     [Fact]

@@ -8,6 +8,12 @@ internal static class FormValidation
 {
     internal static bool InRange(int value, int min, int max) => value >= min && value <= max;
 
+    // Unica fonte per "è in metri?": condivisa fra la validazione e il markup di Pages/Races.razor
+    // (stesso assembly, nessun InternalsVisibleTo aggiuntivo necessario), così i due punti non
+    // possono divergere sul confronto case-insensitive.
+    internal static bool IsMetric(string? speedUnit) =>
+        string.Equals(speedUnit, "m", StringComparison.OrdinalIgnoreCase);
+
     internal static string? ValidateMonster(Monster m)
     {
         if (string.IsNullOrWhiteSpace(m.Name)) return "Il nome è obbligatorio";
@@ -27,7 +33,14 @@ internal static class FormValidation
     internal static string? ValidateRace(Race r)
     {
         if (string.IsNullOrWhiteSpace(r.Name)) return "Il nome è obbligatorio";
-        if (!InRange(r.Speed, 0, 120)) return "La velocità deve essere tra 0 e 120";
+
+        // Il limite dipende dall'unità: 120 piedi ≈ 36 metri (§4.5 dello spec).
+        var inMetri = IsMetric(r.SpeedUnit);
+        var max = inMetri ? 36 : 120;
+        var unita = inMetri ? "metri" : "piedi";
+        if (!InRange(r.Speed, 0, max))
+            return $"La velocità deve essere tra 0 e {max} {unita}";
+
         return null;
     }
 

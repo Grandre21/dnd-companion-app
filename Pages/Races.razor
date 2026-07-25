@@ -45,7 +45,15 @@
 
                 <div class="field">
                     <label>Velocità</label>
-                    <input type="number" class="input" min="0" max="120" @bind="editDraft.Speed" />
+                    <input type="number" class="input" min="0" max="@(FormValidation.IsMetric(editDraft.SpeedUnit) ? 36 : 120)" @bind="editDraft.Speed" />
+                </div>
+
+                <div class="field">
+                    <label>Unità</label>
+                    <select class="input" aria-label="Unità di velocità" @bind="editDraft.SpeedUnit">
+                        <option value="m">metri</option>
+                        <option value="ft">piedi</option>
+                    </select>
                 </div>
 
                 <div class="field-group field-full">
@@ -131,7 +139,7 @@
                             <div class="card-main">
                                 <div class="card-name">@race.Name</div>
                                 <div class="card-meta">
-                                    <span class="speed-badge">Velocità @race.Speed</span>
+                                    <span class="speed-badge">Velocità @race.Speed @(FormValidation.IsMetric(race.SpeedUnit) ? "m" : "ft")</span>
                                     @{ var author = GetAuthorName(race.AddedBy); }
                                     @if (!string.IsNullOrEmpty(author))
                                     {
