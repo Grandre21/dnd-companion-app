@@ -22,6 +22,10 @@
 _ReSharper*/
 *.[Rr]e[Ss]harper
 
+# Manuali D&D — materiale protetto da copyright: copia locale per il gruppo,
+# MAI versionata (il repo è pubblico su GitHub Pages) e comunque troppo pesante per la history.
+docs/*.pdf
+
 # Logs
 *.log
 

@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-07-23**.
+> Aggiornato: **2026-07-25**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -261,3 +261,130 @@ copie in `bin/obj` — ripristinati; il perimetro è il solo CSS sorgente del pr
 (sarebbe un cambio di colore → follow-up). Build 0/0, 187 test verdi, 0 literali `rgba(<numeri>)` residui.
 Verifica a vista su `/_showroom` e push affidati all'utente. Spec:
 `docs/superpowers/specs/2026-07-23-css-alpha-tokens-design.md`.
+
+**Mappa UX dei flussi — analisi degli attriti (2026-07-25).** Su richiesta dell'utente ("è ancora tutto
+un po' macchinoso, non sei molto guidato all'inserimento delle informazioni"), analisi statica di
+**tutti** i flussi — onboarding, cataloghi, creazione PG, scheda in uso, combat, note — con l'utente di
+riferimento fissato a **gruppo misto con novizi** e il bersaglio di regole confermato a **D&D 5e 2024**.
+Nessun codice toccato: il deliverable è
+`docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md`, agganciato al backlog in
+[DA-FARE.md](./DA-FARE.md) §8-bis.
+*Il finding che riordina le priorità:* il modello dati implementa le regole **2014** (bonus di
+caratteristica su `Race`) mentre il manuale disponibile e il gioco reale sono **2024**, dove quei bonus
+vengono dal **background** — che nell'app è una stringa libera senza tabella (verificato sul PHB 2024
+pag. 177). Conseguenza: **i dati 2024 non sono importabili nello schema attuale**, quindi la decisione
+di modello viene prima di qualunque lavoro su cataloghi e wizard, o si rifà due volte. Il modello è già
+un ibrido: `SpeciesTraits` e `HeroicInspiration` sono 2024, i bonus sono 2014.
+*Gli altri numeri, contati sul markup:* ~670 campi da digitare per una campagna minima (81 solo per gli
+incantesimi di un mago di livello 1); il wizard chiede 70 controlli di cui ~50 derivabili dalle regole
+(i 9 campi degli slot incantesimo dipendono solo da classe e livello e sono interamente manuali).
+*Collaterale trovato dalla revisione:* il PDF del manuale (~85 MB, materiale protetto) non era né
+tracciato né ignorato — un `git add .` lo avrebbe committato in un repo pubblico. Aggiunto
+`docs/*.pdf` a `.gitignore`.
+Il gate a due agenti ha lavorato su un diff solo-`.md` scalando a coerenza e accuratezza del testo, ed è
+andato a **tre giri** (guardia anti-loop scattata, chiusura con 4 finding minori residui riportati
+all'utente e corretti dietro sua conferma). *Primo giro:* 2 conteggi sbagliati, 1 esempio che dimostrava
+il contrario della tesi (il filtro classe degli incantesimi usa `Contains`, quindi "Bardo" *funziona*
+perché contiene "Bard"; a fallire sono Mago, Chierico e Stregone), 3 riferimenti `file:riga` sfasati,
+1 citazione troncata che invertiva la regola citata, più i due agganci mancanti al backlog.
+*Secondo giro:* i pool di scelta abilità erano sbagliati — Guerriero "2 fra 8" e Ladro "4 fra 11" sono
+i numeri **2014** (in 2024: 2 fra 9 e 4 fra 10, che perde Performance), mentre "Mago 2 fra 5" non è di
+nessuna edizione (2014: 2 fra 6; 2024: 2 fra 7) — proprio l'errore di edizione contro cui il documento
+mette in guardia;
+più una contraddizione §6↔§8-bis su `SaveCharacterAsync`, un marcatore fuori legenda e tre rimandi
+disallineati. Nel merito il secondo giro ha prodotto un cambio di stato nel backlog: la **cache dati
+semi-statici di §5 rialzata da 🟢 a 🟡**. *Terzo giro:* solo rifiniture, due delle quali introdotte
+dalle correzioni del giro precedente — motivo per cui l'ultima passata è stata rilanciata invece di
+chiudere al buio.
+File toccati: `docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md` (nuovo), `docs/DA-FARE.md`,
+`docs/DIARIO.md`, `.gitignore`.
+
+**Design: modello 2024 + import dei dati (2026-07-25).** Primo dei quattro filoni aperti dalla mappa UX,
+brainstormato con l'utente che ha posto due vincoli nuovi: **tutto in italiano** e, in vista della
+pubblicazione, **i giocatori devono poter caricare i propri dati** come stiamo facendo noi con il 2024.
+Il secondo vincolo risolve da solo il nodo del copyright che l'analisi aveva lasciato aperto: se ognuno
+importa il proprio manuale, l'app non ridistribuisce nulla di protetto. Cinque decisioni: import via
+**file di dati** (non estrazione PDF nell'app); pacchetto pubblico limitato al **SRD 5.2** (CC BY 4.0),
+col contenuto non-SRD come file privato del gruppo; PG e cataloghi esistenti **congelati**; pacchetto
+**completo a testo integrale**; dati del pacchetto come **file dell'app** in sola lettura, uniti lato
+client ai cataloghi di campagna, mentre l'import dell'utente resta nel database.
+*Perché il file invece dei cataloghi di sistema nel DB:* l'alternativa avrebbe richiesto di riaprire le
+RLS di quattro tabelle — chiuse e testate a giugno — e di rendere nullabile una colonna `NOT NULL`,
+lasciando comunque intatto il problema di §5 (il client riscarica tutto a ogni ingresso). Il file non
+modifica nessuna policy esistente; aggiunge solo quelle della tabella nuova.
+*Due verifiche sul codice hanno ridotto il preventivo:* `FinalAbilityScores` salva i punteggi **già
+sommati**, quindi spostare la fonte dei bonus dalla specie al background non può cambiare i numeri di un
+PG in gioco; `background` e `subclass` **esistono già** come colonne. Una terza verifica sembrava ridurlo
+e invece era un errore, corretto dal gate: `characters.race`/`class` sono testo, ma da lì avevo concluso
+che *nulla* fosse referenziato — vedi sotto.
+*Esito sullo schema:* zero migrazioni di **dati**; **1 tabella nuova + 6 colonne additive su 5 tabelle
+esistenti + 4 vincoli `UNIQUE` additivi**. L'unità di velocità (nell'analisi UX §4 riga 8 era data per bisognosa di una migrazione di
+dati) si chiude senza toccare una riga, ma con una colonna `speed_unit` — dedurre l'unità dalla sorgente
+non reggeva alle voci duplicate dal pacchetto né a quelle create a mano dopo il cambio.
+*Divergenza registrata:* avevo consigliato di tradurre a scaglioni, per non riversare ~350 incantesimi in
+un formato non ancora provato; l'utente ha scelto il pacchetto completo. Il rischio è neutralizzato
+nell'ordine dei lavori dello spec (§12, punto 7: **campione SRD** che valida il formato sul campo prima
+della traduzione di massa), che non riduce il risultato consegnato.
+*Il gate a due agenti ha corretto il design nel merito*, non solo nella forma. Un **bloccante**:
+`character_spells.spell_id` è una **chiave esterna reale** verso `spells(id)` — avevo generalizzato da
+`race`/`class` (che sono testo) alla conclusione che nulla fosse referenziato, e con il pacchetto fuori dal
+database nessun PG avrebbe potuto aggiungere un incantesimo alla propria lista. Risolto con la
+**materializzazione su uso** (§4.4): solo gli incantesimi che un personaggio conosce davvero diventano
+righe, non tutti e ~350. Un secondo errore verificato sul codice: il service worker precarica **ogni
+`.json`** del manifest con un `cache.addAll` atomico (`offlineAssetsInclude`), quindi "non entra nel
+bundle, si scarica su richiesta" era falso e un fetch fallito avrebbe fatto fallire l'installazione,
+facendo perdere l'offline all'intera app → il pacchetto va escluso dal precache e l'offline è "dopo il
+primo caricamento", non gratis. Altri quattro rilievi sostanziali: il piano d'import prometteva
+aggiornamenti che le **RLS bloccano in silenzio** (ora `PackageImportPlan` riceve chi importa e usa
+`AccessControl.CanEdit`); gli **id stabili** non avevano una colonna dove atterrare (aggiunta `source_id`);
+la **ripartizione dei bonus** era modellata sul background invece che sul personaggio, ed era sparito il
+**tetto di 20**; l'**unità di velocità** dedotta dalla sorgente si rompeva su "duplica e modifica" e sulle
+voci nuove (ora colonna `speed_unit`). Infine il **filtro per classe degli incantesimi**, scritto su
+stringhe inglesi, è entrato nel perimetro: con un catalogo italiano di ~350 voci non avrebbe trovato nulla,
+senza errore visibile.
+*Secondo giro — otto rilievi, quattro dei quali nati dalle correzioni del primo.* La materializzazione
+appena introdotta creava una riga con `added_by` di chi la usava: sarebbe diventata una voce posseduta da
+quel giocatore e, con il `CASCADE` della FK, cancellandola l'incantesimo sarebbe sparito dalle liste di
+**tutti** i PG → le righe con `source_id` restano prive dei comandi, e il gate non è `CanEdit` ma la
+presenza del `source_id` stesso. Il tie-break sui duplicati usava `created_at`, che **`spells` e
+`monsters` non hanno** (solo `races`, `classes`, `characters`) → si ordina per `id`, arbitrario ma
+deterministico ovunque. E la chiave di confronto prometteva accenti normalizzati: il progetto compila con
+`InvariantGlobalization=true` (scelta di bundle di §2), quindi senza ICU `String.Normalize` **non fa
+nulla e non lo dice** — verificato a runtime dall'agente — e su ~350 nomi come *Invisibilità* o *Oscurità*
+avrebbe prodotto duplicati invece di riconoscerli; serve una piega esplicita, testabile. Il difetto
+vecchio: mancava la **pagina Background**, senza la quale chi non importa un pacchetto avrebbe trovato un
+elenco vuoto proprio nel passo del wizard che ora concede i bonus — il vicolo cieco che questo lavoro
+dovrebbe chiudere.
+*Terzo giro — la guardia anti-loop scatta con tre finding seri, di nuovo tutti generati dalla correzione
+precedente e tutti sulla stessa decisione:* aver reso di sola lettura le righe con `source_id`. La regola
+era troppo grossolana. (a) `source_id` finisce su **ogni** riga importata, quindi congelava anche il
+pacchetto privato del gruppo e l'homebrew ripreso via export — cioè proprio ciò che l'import esiste per
+portare — e contraddiceva §7, che quelle righe le aggiorna a ogni import. (b) §4.3 diceva che le righe
+perdenti "restano visibili" mentre §4.4 diceva che il merge deduplica: incompatibili, e nella seconda
+lettura `CharacterSpellJoin.WithCatalog` **scarta gli orfani in silenzio**, facendo sparire l'incantesimo
+dalla scheda di chi puntava alla riga nascosta. (c) "duplica e modifica" collideva per nome con
+l'originale e il tie-break fra due uuid era un sorteggio: l'utente avrebbe modificato la copia continuando
+a vedere l'originale metà delle volte.
+Riportato all'utente come previsto dalla guardia (nessun commit), che ha autorizzato un ciclo
+supplementare. La correzione unica: il gate di sola lettura segue la **provenienza** — prefisso
+`<id del pacchetto>/…`, verificabile anche offline — non la presenza del `source_id`; nel merge le righe di
+database sono sempre tutte visibili e la chiave decide solo quale oscura la voce di pacchetto, con
+precedenza a quella **senza** `source_id`; `UNIQUE (campaign_id, source_id)` toglie i doppioni alla radice;
+e la schermata di import guadagna una **rimozione per provenienza**, senza la quale un import sbagliato
+sarebbe irreversibile.
+*Quinto ciclo — l'impianto passa, due effetti collaterali no.* Entrambi gli agenti hanno dichiarato
+corretto l'impianto (gate per provenienza, righe di database sempre visibili, unicità sulla provenienza);
+i due `SERIO` residui erano generati dalle correzioni del ciclo stesso. La **rimozione in blocco** appena
+aggiunta riapriva il buco che §4.4 aveva chiuso — e `CanEdit` non faceva da freno, perché le righe
+materializzate nascono con l'`added_by` di chi le ha usate → la provenienza del pacchetto dell'app è ora
+**esclusa** dalla rimozione, e il resto passa da anteprima, conta dei PG toccati dal `CASCADE` e resoconto
+parziale. Il **vincolo `UNIQUE`** appena introdotto trasformava il "riusa la riga esistente" in un errore
+di sistema ogni volta che il client aveva una lista stantia (`Pages/Characters.razor` carica gli
+incantesimi una volta sola: bastano due giocatori che preparano le schede la stessa sera) → l'inserimento
+diventa un `Upsert` con `on_conflict`. Più quattro rifiniture.
+*Nota di metodo:* le correzioni di quest'ultimo passaggio **non sono state verificate da un giro di gate**
+— cinque cicli, ognuno con finding reali in parte generati dal precedente, con valore marginale calante e
+ambito sempre più ristretto (dal rovesciamento dell'architettura al testo di quattro sezioni). Chiusura
+decisa con l'utente: i difetti residui di uno spec vengono comunque ripresi scrivendo il piano, dove il
+codice reale fa da controprova.
+Spec in `docs/superpowers/specs/2026-07-25-modello-2024-import-dati-design.md`.

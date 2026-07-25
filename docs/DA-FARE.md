@@ -6,7 +6,7 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-07-23**
+> Ultimo aggiornamento: **2026-07-25**
 >
 > I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
 > in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
@@ -214,7 +214,11 @@ mega-componente (quello resta in §3).
   cataloghi restano sotto le ~50 voci, dove `<Virtualize>` non dà beneficio percepibile e la memoizzazione del
   filtro su 50 elementi è microsecondi (YAGNI). Inoltre le card sono espandibili (altezza variabile), caso ostico
   per `<Virtualize>`. **Da rivalutare solo se i cataloghi crescono** (es. import massivo / generazione AI, §8).
-- 🟢 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
+  ⚠️ **Rimessa in gioco dal design del 2026-07-25** (§8-bis): un pacchetto SRD completo supera la soglia delle
+  ~50 voci su cui poggiava la decisione — è il trigger di rivalutazione che era stato dichiarato.
+- 🟡 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
+  **Rialzata da 🟢 a 🟡 il 2026-07-25** (§8-bis): senza barra di navigazione ogni spostamento passa da
+  Home e ricarica tutto, e 4 pagine su 6 rifanno anche `GetProfilesAsync()` a ogni ingresso.
 - ✅ **Stati di caricamento** — FATTO (2026-06-24). I "Caricamento..." testuali rimasti (Incantesimi, Mostri,
   Classi, Razze, Note) ora usano `<LoadingSpinner>` a tema (già usato da Combat/inventario). Skeleton non fatto
   (spinner sufficiente).
@@ -239,9 +243,12 @@ mega-componente (quello resta in §3).
   click-sul-testo — 2026-06-24. **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
   verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
 - 🟡 **Feedback azioni** — ✅ fatto (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
-  layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" su `SaveCharacterAsync` e su
+  layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" sul salvataggio del form PG
+  (`SaveFormAsync`) e su
   **tutti i CRUD** dei cataloghi (Spell/Monster/Race/Class) e delle Note. **dialog di conferma a tema**
   (`ConfirmService` + `ConfirmDialog`) al posto di **tutti** i `confirm()` nativi (10 punti in 8 pagine). ✅ fatto.
+  ⚠️ **Precisazione (2026-07-25):** i salvataggi *impliciti* dei tab della scheda (`SaveCharacterAsync`)
+  restano **silenziosi** — segnalano solo gli errori. Punto riaperto in §8-bis.
 
 ---
 
@@ -277,6 +284,8 @@ mega-componente (quello resta in §3).
   grezzi restano nel browser via polling), nessun cambio a DB/RLS. Spec/piano in `docs/superpowers/` (2026-07-23).
 - 🟡 **Aiuto AI alla compilazione (generazione da testo).** Da una descrizione testuale, generare bozze di
   **personaggi, classi, incantesimi, razze, mostri** (estende in modo strutturale il bisogno dei quick-win C).
+  ⚠️ **Da riordinare dopo il design del 2026-07-25** (§8-bis): precaricare il pacchetto SRD riduce molto ciò
+  che resterebbe da generare — i due filoni vanno pianificati insieme, non separatamente.
   Requisiti emersi (2026-06-24):
   - **Accesso riservato (entitlement).** Anche con l'app pubblica la feature resta attiva **solo per un
     allowlist** (owner + amici). È una scelta di *autorizzazione server-side* (coerente con §1): vive
@@ -306,6 +315,51 @@ mega-componente (quello resta in §3).
 
 ---
 
+## 8-bis. Attrito d'uso: mappa UX dei flussi (2026-07-25)
+
+> Analisi completa dei flussi in
+> [`docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md`](./superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md).
+> Utente di riferimento: **gruppo misto con novizi**. Bersaglio di regole confermato: **D&D 5e 2024**.
+> Il primo punto ha il suo design approvato (2026-07-25); gli altri richiedono ancora il proprio spec.
+
+Cinque attriti strutturali emersi: **A1** modello dati 2014 vs bersaglio 2024 · **A2** ~670 campi da
+digitare prima di poter giocare · **A3** il wizard chiede 70 controlli, ~50 derivabili · **A4** l'app
+chiede risposte al novizio invece di insegnargliele · **A5** unità di velocità incoerenti e due
+modelli di salvataggio opposti.
+
+- 🟠 **Modello 2024 + import dei dati** — 📐 **design approvato (2026-07-25)**, piano da scrivere:
+  [`specs/2026-07-25-modello-2024-import-dati-design.md`](./superpowers/specs/2026-07-25-modello-2024-import-dati-design.md).
+  Unisce due punti che l'analisi teneva separati (modello 2024 e cataloghi precaricati): il modello è il
+  prerequisito, il formato di scambio è il veicolo. Decisioni prese: pacchetto **SRD 5.2 in italiano** come
+  **file dell'app** in sola lettura, unito lato client ai cataloghi di campagna; **import/export di file**
+  per i contenuti dell'utente (che restano nel database); PG e cataloghi esistenti **congelati**, nessuna
+  migrazione **di dati**. Sullo schema: **1 tabella nuova + 6 colonne additive su 5 tabelle esistenti +
+  4 vincoli `UNIQUE` additivi** (`source_id` sui quattro cataloghi, `speed_unit` su `races`,
+  `background_ability_choice` su `characters`).
+  Non modifica nessuna policy esistente, ma aggiunge quelle di `backgrounds`, ricalcate su `races`: c'è
+  lavoro RLS, solo confinato al nuovo.
+  ⚠️ Rimette in gioco due voci già decise: la **virtualizzazione liste** (§5, scartata "sotto le ~50
+  voci" — un pacchetto SRD completo supera la soglia dichiarata) e l'**aiuto AI** (§8: precaricare riduce
+  molto ciò che resterebbe da generare — vanno ordinate insieme, non trattate come filoni separati).
+- 🟠 **Motore di derivazione condiviso** (slot, PF, competenze, taglia, velocità) usato da creazione,
+  **modifica e level-up** insieme — oggi wizard e `CharacterEditForm` duplicano il markup e solo il
+  wizard suggerisce qualcosa.
+- 🟠 **Level-up guidato** — oggi inesistente: salire di livello è editare a mano PF, dadi vita, 9 slot
+  e competenze. È l'attrito che si ripresenta a **ogni sessione di gioco**.
+- 🟡 **Aiuto contestuale dal manuale** — nessuna spiegazione di cosa siano tiro salvezza, competenza,
+  CD incantesimo. Indipendente dai punti sopra.
+- 🟡 **Barra di navigazione + cache dei cataloghi** — oggi ogni spostamento passa da Home e ricarica
+  tutto; 4 pagine su 6 rifanno anche `GetProfilesAsync()`. Allinea la voce cache di §5 (era 🟢).
+- 🟡 **Combat: iniziativa precompilata o tirata** — gli import mettono `Initiative = 0` per tutti,
+  benché l'app conosca già il bonus di ogni PG; e i PF si regolano ±1 per click.
+- 🟢 **Unificare l'unità di velocità** (razza in piedi, PG in metri). Il design del modello 2024 la chiude
+  **senza migrazione di dati**, ma con una colonna additiva `speed_unit` su `races` (`default 'ft'`, così le
+  righe esistenti restano come sono) e l'unità mostrata accanto al campo. Dedurla dalla sorgente non bastava:
+  si sarebbe rotta sulle voci di pacchetto duplicate in campagna e su quelle create a mano dopo il cambio.
+- 🟢 **Conferma visibile sui salvataggi impliciti** dei tab scheda (`SaveCharacterAsync` è muto).
+
+---
+
 ## 9. Idee aperte (da ragionare)
 
 > Non ancora decise: spunti da valutare, non impegni.
@@ -327,4 +381,8 @@ mega-componente (quello resta in §3).
 4. **Primi test su `CharacterCalculations`** (§4) — valore alto, costo basso, in parallelo.
 5. **Combat condiviso** (§8) — feature più sentita dall'uso reale.
 6. ~~**Rimozione Realtime** (§2)~~ ✅ e **design token / refactor `Characters.razor`** (§3, §6) — manutenibilità.
-7. Il resto (AI compilazione, wizard scheda, performance, a11y, i18n, idee) secondo priorità di prodotto.
+7. Il resto (AI compilazione, ~~wizard scheda~~ ✅, performance, a11y, i18n, idee) secondo priorità di prodotto.
+8. **Attrito d'uso / mappa UX** (§8-bis, 2026-07-25) — **modello 2024 + import** (design approvato) viene
+   prima di motore di derivazione e level-up guidato, in quest'ordine: ognuno dipende dal precedente.
+   I punti indipendenti (navigazione + cache, aiuto contestuale dal manuale, iniziativa nel combat,
+   conferme sui salvataggi impliciti) sono aggredibili **in parallelo**, senza attendere quella catena.
