@@ -441,3 +441,25 @@ accenti con una mappa scritta a mano — non "solo maiuscole e spazi" come dicev
 285 test unitari verdi (279 + 6 di regressione della seconda passata),
 11 di integrazione verdi contro lo stack Supabase locale,
 build Release 0 warning / 0 errori.
+
+**"Campaign hopping" dell'autore: portata rivista e decisione (2026-07-25).** Scrivendo le policy di
+`backgrounds` (Task 4) era emerso che la `WITH CHECK` di `*_update`, ricalcata fedelmente da `races_update`,
+non impedisce all'**autore** di una riga di riassegnarne il `campaign_id` verso una campagna di cui non è
+membro: il ramo `added_by = auth.uid()` resta vero perché quella colonna non cambia con lo spostamento. Non
+corretta lì (avrebbe significato divergere da policy multiple già in produzione, fuori mandato del task) ma
+documentata. *La stima di gravità iniziale — "bassa, vandalismo mirato" — è stata poi **smentita da una
+verifica sulle policy**, ed è il motivo per cui vale la pena registrarla.* Due cose erano sbagliate. La
+prima: mancava una tabella all'elenco — **`notes`**, che ha la stessa forma di policy (`notes_update` è
+`USING/WITH CHECK (owner_id = auth.uid())`), quindi le tabelle colpite sono **sette e non sei**. La seconda:
+l'effetto era stato valutato solo sui cataloghi, e **non è uniforme**. Lì l'autore perde la vista ma non il
+controllo (può ancora aggiornare e cancellare per id). Su `characters` — che nell'elenco c'era già — non
+perde nemmeno l'accesso, perché `characters_select` ha il ramo `owner_id`, e il PG compare nell'elenco della
+campagna bersaglio. Su `notes`, con `is_shared = true`, la nota si riversa nelle note condivise altrui:
+**iniezione persistente di contenuto**, non perdita. Cade anche la barriera dell'uuid: un ex-membro lo conserva (i suoi PG e le sue
+note restano leggibili via `owner_id`), e `find_campaign_by_invite_code` è `SECURITY DEFINER` concessa ad
+`anon`, quindi chiunque abbia visto un codice invito lo ottiene senza unirsi. *Decisione:* la voce resta 🟡
+in `DA-FARE` §1 — non 🟢, perché §1 è il gate di pubblicazione ed è l'unico varco di scrittura **fra
+campagne** noto — e la chiusura è una **migrazione autonoma** col suo giro di test RLS, da fare in
+prossimità della Fase 2 e comunque **prima di aprire l'app al pubblico**. Nella stessa occasione va valutato
+il caso gemello, che non richiede alcuno spostamento: un ex-membro conserva `owner_id` sulle righe rimaste
+in campagna, quindi può continuare a riscrivere una propria nota condivisa anche dopo essere stato rimosso.

@@ -78,8 +78,8 @@ CREATE POLICY "backgrounds_insert" ON "public"."backgrounds"
 -- identiche, e per Postgres quando la WITH CHECK è omessa viene comunque usata la USING allo stesso
 -- scopo — scriverla o ometterla produce qui lo stesso comportamento. In particolare NON impedisce
 -- all'autore di spostare una propria riga verso una campagna di cui non è membro (added_by non
--- cambia con lo spostamento): lacuna nota, vedi docs/DA-FARE.md §1 ("Lacuna nella WITH CHECK di
--- update dei cataloghi").
+-- cambia con lo spostamento): lacuna nota e condivisa con altre sei tabelle, vedi docs/DA-FARE.md §1
+-- (voce "Lacuna nella WITH CHECK di update — campaign hopping dell'autore").
 CREATE POLICY "backgrounds_update" ON "public"."backgrounds"
     FOR UPDATE USING (
         "added_by" = "auth"."uid"() OR "public"."is_campaign_master"("campaign_id")

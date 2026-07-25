@@ -68,9 +68,11 @@ mega-componente (quello resta in §3).
 > Row-Level Security erano **già implementate** (non permissive come annotato in passato); abbiamo chiuso i
 > due gap residui. L'autorità sui dati è ora lato server: chi ha la anon key non può più leggere/scrivere
 > dati altrui via REST. Dettaglio in `docs/superpowers/` (spec + piano del 2026-06-24).
-> ⚠️ **Qualifica (2026-07-25):** vale per lettura e per la generalità della scrittura; resta un varco
-> puntuale sull'`UPDATE` dei cataloghi — un autore può riassegnare `campaign_id` di una propria riga
-> verso una campagna di cui non è membro (voce sotto, "Lacuna nella `WITH CHECK`...").
+> ⚠️ **Qualifica (2026-07-25):** vale per la lettura e per la generalità della scrittura; resta un varco
+> sull'`UPDATE` di **sette tabelle** — un autore può riassegnare `campaign_id` di una propria riga verso una
+> campagna di cui non è membro. Non è puntuale come sembrava a prima vista: su `characters` e `notes`
+> l'effetto è **iniezione persistente** in una campagna altrui, non semplice perdita (voce sotto, "Lacuna
+> nella `WITH CHECK`...").
 
 - ✅ **Scrivere e testare le RLS per ogni tabella** — FATTO (2026-06-24). Policy su `characters`,
   `campaign_members`, `notes`, inventario/incantesimi, cataloghi e `campaigns`: un Player legge/modifica solo
@@ -99,7 +101,7 @@ mega-componente (quello resta in §3).
   login/CRUD ok). **Resta:** GitHub Pages non
   permette header HTTP → `frame-ancestors` (anti-clickjacking)/HSTS/`report-uri` non ottenibili via `<meta>`;
   servirebbe un hosting con controllo header.
-- 🟡 **Lacuna nella `WITH CHECK` di update dei cataloghi ("campaign hopping" dell'autore).** Scoperta in
+- 🟡 **Lacuna nella `WITH CHECK` di update ("campaign hopping" dell'autore) — cataloghi, personaggi e note.** Scoperta in
   revisione durante il Task 4 del modello 2024 (`backgrounds`, 2026-07-25): le policy `*_update` di
   `races`/`classes`/`spells`/`monsters`/`characters` (e ora `backgrounds`, che le ricalca fedelmente) hanno
   `USING`/`WITH CHECK` identiche e simmetriche (`added_by = auth.uid() OR is_campaign_master(campaign_id)`;
@@ -115,6 +117,42 @@ mega-componente (quello resta in §3).
   il ramo autore alla membership di destinazione (`(added_by = auth.uid() AND is_campaign_member(campaign_id))
   OR is_campaign_master(campaign_id)` — permetterebbe comunque lo spostamento verso campagne di cui l'autore
   è già membro) oppure un trigger `BEFORE UPDATE` che confronti `OLD.campaign_id`/`NEW.campaign_id`.
+  **Portata reale (rivista il 2026-07-25 dopo verifica sulle policy — la prima stima era troppo generosa):**
+  le tabelle colpite sono **sette, non sei**. L'unica mancante dall'elenco sopra è **`notes`**
+  (`notes_update` è `USING/WITH CHECK (owner_id = auth.uid())`, senza alcun vincolo sulla destinazione);
+  `characters` c'era già, ma se ne sottovalutava l'effetto — sopra si parla solo di spostare «una propria
+  riga di catalogo», e non è il caso peggiore.
+  **In tutti e sette i casi la riga entra nella campagna bersaglio** e diventa visibile ai suoi membri: è
+  sempre iniezione. Quello che cambia è **se la vittima può ripulire** e se l'autore mantiene la vista:
+  - **cataloghi** — la voce compare nel catalogo della campagna bersaglio; il master di quella campagna
+    **può rimuoverla** (`*_update`/`*_delete` hanno il ramo `is_campaign_master`). L'autore perde la vista
+    (`*_select` richiede `is_campaign_member`) ma non il controllo: il ramo `added_by = auth.uid()` di
+    `USING` non dipende dalla campagna, quindi continua a modificarla e cancellarla **per id**;
+  - **`characters`** — il PG compare fra i personaggi della campagna bersaglio e nell'import del tracker
+    combattimento; anche qui il master **può rimuoverlo**. In più l'autore **non perde l'accesso**, perché
+    `characters_select` ha il ramo `owner_id = auth.uid()` (dall'app il PG sparisce comunque dal suo elenco,
+    che filtra per `campaign_id`; resta raggiungibile per id via REST);
+  - **`notes`** — con `is_shared = true` la nota si riversa nelle **note condivise** della campagna
+    bersaglio, e **nessuno può rimuoverla**: `notes_update`/`notes_delete` hanno il solo ramo
+    `owner_id = auth.uid()`, senza alcun ramo master. La vittima non ha rimedio applicativo. È il caso
+    peggiore dei sette, ed è questa la ragione — non la sola visibilità.
+
+  Resta vero che non c'è né lettura di dati altrui né escalation di ruolo: è **iniezione di contenuto**, non
+  esfiltrazione. Ma "vandalismo mirato" descrive male il caso `notes`.
+  **L'uuid della campagna bersaglio non è una barriera** per l'attaccante plausibile: un ex-membro lo
+  conserva (lo rilegge dai propri PG e dalle proprie note rimasti lì, che `owner_id = auth.uid()` gli lascia
+  vedere anche dopo la rimozione), e `find_campaign_by_invite_code` è `SECURITY DEFINER` concessa ad `anon`:
+  chiunque abbia visto un codice invito ottiene l'uuid senza unirsi. Non si indovina, ma non serve.
+  **Priorità:** la voce resta 🟡 e non 🟢 nonostante l'assenza di esfiltrazione, perché §1 è il gate di
+  pubblicazione e questo è l'unico varco di scrittura **fra campagne** noto.
+  **Da valutare nella stessa migrazione, il caso gemello:** il ramo autore/proprietario di
+  `*_update`/`*_delete` non richiede la membership **corrente**, quindi un ex-membro mantiene scrittura e
+  cancellazione su tutte le proprie righe rimaste in campagna — note, personaggi, voci di catalogo — senza
+  alcuno spostamento. Il caso più acuto è di nuovo la nota condivisa, che nessun altro può rimuovere.
+  **Come chiuderla:** migrazione **autonoma**, con il suo giro di test RLS — sette tabelle, di cui sei già in
+  produzione (`backgrounds` ci arriverà col deploy della Fase 1). Da collocare **in prossimità della Fase 2**
+  (che oggi non prevede lavoro sulle policy) e **comunque prima di aprire l'app al pubblico**, coerentemente
+  con §10 punto 2.
 
 ---
 
@@ -195,8 +233,9 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **220 unit test** + **suite d'integrazione RLS**
-  (`Tests.Integration/`, vedi voce 5). Coperti: `CharacterCalculations`
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **285 unit test** (220 → 285 con la Fase 1 del
+  modello 2024) + **suite d'integrazione RLS** (`Tests.Integration/`, 11 scenari verdi su stack locale,
+  vedi voce 5). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
   `InternalsVisibleTo`): visibilità/ordinamento note (`NoteRepository.FilterAndSortVisible`, regola di sicurezza),
@@ -219,6 +258,8 @@ mega-componente (quello resta in §3).
      un player non legge la nota privata altrui ma sì la condivisa; un non-membro non vede nulla; il proprietario
      vede le proprie; un player non scrive `combat_state`; niente auto-promozione a master. **Auto-skip** se lo
      stack locale non è attivo (non rompe CI/altre macchine). Istruzioni in `Tests.Integration/README.md`.
+     **+5 scenari con `backgrounds` (2026-07-25) → 11 in tutto**, in
+     `Tests.Integration/BackgroundsRlsIntegrationTests.cs`.
 - 🟡 **Refactoring abilitanti**: ✅ interfacce sui repository (sotto-fase A) + estrazione di helper puri
   testabili dai repository e dai `.razor` (`CharacterNormalizer`, `AccessControl`). **Resta:** per testare interi
   componenti (rendering/eventi) servirebbe bUnit; per ora si estrae la logica pura man mano.

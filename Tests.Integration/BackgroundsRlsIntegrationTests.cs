@@ -93,11 +93,12 @@ public sealed class BackgroundsRlsIntegrationTests
     // riga nuova fa davvero la differenza: un master (sulla riga vecchia la condizione è vera,
     // perché è master della campagna di origine) che sposta una riga NON sua in una campagna di
     // cui non è master (sulla riga nuova la condizione è falsa: né "sei l'autore" né "sei
-    // master"). La lacuna sul caso "autore sposta una riga propria" è ereditata da
-    // races_update/classes_update/monsters_update/characters_update (stesso schema simmetrico) —
-    // non introdotta da questa migrazione, non corretta qui perché richiederebbe divergere dalla
-    // policy di races senza conferma esplicita (fuori mandato di questo task). Vedi resoconto
-    // Task 4 e docs/DA-FARE.md §1 per il dettaglio.
+    // master"). La lacuna sul caso "autore sposta una riga propria" è ereditata e condivisa con le
+    // altre sei tabelle che hanno lo stesso schema simmetrico — non introdotta da questa migrazione,
+    // non corretta qui perché richiederebbe divergere dalle policy esistenti senza conferma esplicita
+    // (fuori mandato di questo task). L'elenco delle tabelle e la portata per ciascuna stanno in
+    // docs/DA-FARE.md §1, voce "Lacuna nella WITH CHECK di update": è l'unico posto che li enumera,
+    // per non doverli riallineare in più punti. Vedi anche il resoconto del Task 4.
 
     [SkippableFact]
     public async Task MasterA_non_puo_spostare_in_C3_un_background_di_B_che_non_ha_creato_lui()
