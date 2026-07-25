@@ -37,7 +37,9 @@ Thumbs.db
 *.nupkg
 *.snupkg
 .nuget/
-packages/
+# Ancorata alla radice: senza "/" iniziale, su Windows (git core.ignorecase=true) questa regola
+# ignorava anche Models/Packages/ (case-insensitive "packages" == "Packages").
+/packages/
 
 # Build results
 [Dd]ebug/
