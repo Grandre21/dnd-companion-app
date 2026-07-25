@@ -68,6 +68,9 @@ mega-componente (quello resta in §3).
 > Row-Level Security erano **già implementate** (non permissive come annotato in passato); abbiamo chiuso i
 > due gap residui. L'autorità sui dati è ora lato server: chi ha la anon key non può più leggere/scrivere
 > dati altrui via REST. Dettaglio in `docs/superpowers/` (spec + piano del 2026-06-24).
+> ⚠️ **Qualifica (2026-07-25):** vale per lettura e per la generalità della scrittura; resta un varco
+> puntuale sull'`UPDATE` dei cataloghi — un autore può riassegnare `campaign_id` di una propria riga
+> verso una campagna di cui non è membro (voce sotto, "Lacuna nella `WITH CHECK`...").
 
 - ✅ **Scrivere e testare le RLS per ogni tabella** — FATTO (2026-06-24). Policy su `characters`,
   `campaign_members`, `notes`, inventario/incantesimi, cataloghi e `campaigns`: un Player legge/modifica solo
@@ -92,6 +95,22 @@ mega-componente (quello resta in §3).
   login/CRUD ok). **Resta:** GitHub Pages non
   permette header HTTP → `frame-ancestors` (anti-clickjacking)/HSTS/`report-uri` non ottenibili via `<meta>`;
   servirebbe un hosting con controllo header.
+- 🟡 **Lacuna nella `WITH CHECK` di update dei cataloghi ("campaign hopping" dell'autore).** Scoperta in
+  revisione durante il Task 4 del modello 2024 (`backgrounds`, 2026-07-25): le policy `*_update` di
+  `races`/`classes`/`spells`/`monsters`/`characters` (e ora `backgrounds`, che le ricalca fedelmente) hanno
+  `USING`/`WITH CHECK` identiche e simmetriche (`added_by = auth.uid() OR is_campaign_master(campaign_id)`;
+  su `characters` la stessa struttura usa `owner_id` al posto di `added_by`).
+  Siccome quella colonna non cambia con uno spostamento, per l'**autore/proprietario** di una riga la `WITH CHECK` resta
+  sempre vera indipendentemente dalla campagna di destinazione: via REST diretto (non esposto dalla UI
+  attuale, che non offre un modo di riassegnare `campaign_id`) un giocatore potrebbe spostare una propria
+  riga di catalogo verso una campagna di cui non è membro. La `WITH CHECK` protegge invece correttamente il
+  caso "un master sposta una riga altrui fuori dalla propria autorità" (verificato con un test dedicato,
+  `Tests.Integration/BackgroundsRlsIntegrationTests.cs`). **Non corretto** in Task 4: irrobustirlo
+  significherebbe divergere da `races_update` e affini su più tabelle già in produzione — decisione fuori
+  mandato di quel task, serve conferma esplicita. Piste se si deciderà di chiuderla: `WITH CHECK` che leghi
+  il ramo autore alla membership di destinazione (`(added_by = auth.uid() AND is_campaign_member(campaign_id))
+  OR is_campaign_master(campaign_id)` — permetterebbe comunque lo spostamento verso campagne di cui l'autore
+  è già membro) oppure un trigger `BEFORE UPDATE` che confronti `OLD.campaign_id`/`NEW.campaign_id`.
 
 ---
 
