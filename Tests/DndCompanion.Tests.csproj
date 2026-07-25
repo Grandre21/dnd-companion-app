@@ -5,6 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- Allinea il progetto di test alla produzione: il bundle WASM compila con
+         InvariantGlobalization=true, quindi senza questo flag i test sulla normalizzazione dei
+         nomi (CatalogKeyTests) girerebbero con ICU pieno, verificando un mondo che in produzione
+         non esiste — String.Normalize funzionerebbe qui ma fallirebbe in silenzio nel bundle. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
