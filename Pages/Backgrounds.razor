@@ -1,0 +1,516 @@
+@page "/backgrounds"
+@using DndCompanion.Models
+@using DndCompanion.Models.Packages
+@implements IDisposable
+@inject IBackgroundRepository BackgroundRepository
+@inject ICatalogService Catalog
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+@inject ConfirmService Confirm
+
+<PageTitle>Background - D&amp;D Companion</PageTitle>
+
+<div class="backgrounds-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Background</h1>
+    </header>
+
+    <DbErrorBanner Message="@systemError" OnDismiss="@(() => systemError = null)" />
+
+    @if (mode == ViewMode.Form)
+    {
+        <div class="form-view">
+            <div class="form-top">
+                <button type="button" class="back-link" @onclick="CancelForm">← Annulla</button>
+            </div>
+
+            <h2 class="form-title">
+                @(string.IsNullOrEmpty(editDraft.Id) ? "Nuovo Background" : "Modifica Background")
+            </h2>
+
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label>Nome</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.Name" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Descrizione</label>
+                    <textarea class="input" rows="4" @bind="editDraft.Description"></textarea>
+                </div>
+
+                <div class="field field-full">
+                    <label>Caratteristiche</label>
+                    <input type="text" class="input" maxlength="100" @bind="editDraft.AbilityScores"
+                           placeholder="Es. Forza, Costituzione, Carisma" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Talento d'origine</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.OriginFeat" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Competenze in abilità</label>
+                    <input type="text" class="input" maxlength="200" @bind="editDraft.SkillProficiencies"
+                           placeholder="Es. Intuizione, Persuasione" />
+                </div>
+
+                <div class="field">
+                    <label>Competenza strumenti</label>
+                    <input type="text" class="input" maxlength="80" @bind="editDraft.ToolProficiency" />
+                </div>
+
+                <div class="field field-full">
+                    <label>Equipaggiamento</label>
+                    <textarea class="input" rows="3" @bind="editDraft.Equipment"></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="primary-btn" @onclick="SaveFormAsync" disabled="@isBusy">
+                    @(isBusy ? "Salvataggio..." : "Salva")
+                </button>
+                <button type="button" class="secondary-btn" @onclick="CancelForm" disabled="@isBusy">
+                    Annulla
+                </button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="Cerca background..."
+                   @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
+
+            <div class="results-info">
+                @if (loading)
+                {
+                    <LoadingSpinner Text="Caricamento background..." />
+                }
+                else
+                {
+                    var count = FilteredEntries.Count();
+                    <span>@count @(count == 1 ? "background trovato" : "background trovati")</span>
+                }
+            </div>
+        </div>
+
+        <div class="backgrounds-list">
+            @if (!loading)
+            {
+                @foreach (var entry in FilteredEntries)
+                {
+                    var isExpanded = expandedKey == entry.Key;
+                    <div class="background-card @(isExpanded ? "expanded" : "") @(entry.IsPackage ? "package-card" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(entry.Key)">
+                            <div class="card-main">
+                                <div class="card-name">@entry.Name</div>
+                                <div class="card-meta">
+                                    @if (!string.IsNullOrWhiteSpace(entry.OriginFeat))
+                                    {
+                                        <span class="feat-badge">Talento: @entry.OriginFeat</span>
+                                    }
+                                    @if (entry.IsPackage)
+                                    {
+                                        <span class="package-badge">Dal manuale</span>
+                                    }
+                                </div>
+                            </div>
+                            <span class="expand-icon">@(isExpanded ? "▾" : "▸")</span>
+                        </button>
+
+                        <div class="card-details">
+                            <div class="details-inner">
+                                @if (!string.IsNullOrWhiteSpace(entry.Description))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Descrizione</div>
+                                        <div class="section-body">@entry.Description</div>
+                                    </div>
+                                }
+
+                                <div class="section-block">
+                                    <div class="section-title">Caratteristiche</div>
+                                    <div class="section-body">@(string.IsNullOrWhiteSpace(entry.AbilityScoresText) ? "Nessuna" : entry.AbilityScoresText)</div>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(entry.OriginFeat))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Talento d'origine</div>
+                                        <div class="section-body">@entry.OriginFeat</div>
+                                        @if (entry.IsPackage && !string.IsNullOrWhiteSpace(TestoTalento(entry.OriginFeat)))
+                                        {
+                                            <div class="feat-text">@TestoTalento(entry.OriginFeat)</div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(entry.SkillProficienciesText))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Competenze in abilità</div>
+                                        <div class="section-body">@entry.SkillProficienciesText</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(entry.ToolProficiency))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Competenza strumenti</div>
+                                        <div class="section-body">@entry.ToolProficiency</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(entry.Equipment))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Equipaggiamento</div>
+                                        <div class="section-body">@entry.Equipment</div>
+                                    </div>
+                                }
+
+                                @if (entry.IsPackage)
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Package!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (CatalogKey.IsFromAppPackage(entry.Db!.SourceId))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Db!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (PuoModificare(entry.Db!))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(entry.Db!)" @onclick:stopPropagation>
+                                            ✎ Modifica
+                                        </button>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteBackgroundAsync(entry.Db!)" @onclick:stopPropagation>
+                                            🗑 Elimina
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (!FilteredEntries.Any())
+                {
+                    <div class="empty-state">
+                        @if (dbRows.Count == 0 && packageRows.Count == 0)
+                        {
+                            <div class="empty-icon">🎭</div>
+                            <p class="empty-title">Nessun background nel database</p>
+                            <p class="empty-text">
+                                Ogni giocatore può aggiungere i background usando il bottone
+                                <strong>+</strong> in basso a destra.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="empty-text">Nessun background corrisponde alla ricerca.</p>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        @* Creazione background: ogni membro della campagna può aggiungere. *@
+        <button type="button" class="fab" @onclick="OpenCreateForm" title="Nuovo background" aria-label="Nuovo background">
+            +
+        </button>
+    }
+</div>
+
+@code {
+    private enum ViewMode { List, Form }
+
+    private ViewMode mode = ViewMode.List;
+
+    private List<Background> dbRows = new();
+    private List<PackageBackground> packageRows = new();
+    private bool loading = true;
+    private bool isBusy;
+    private string? systemError;
+
+    private string searchInput = string.Empty;
+    private string searchQuery = string.Empty;
+    private CancellationTokenSource? debounceCts;
+
+    private string? expandedKey;
+    private Background editDraft = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await CurrentUser.EnsureLoadedAsync();
+
+            // Stessa guardia di Pages/Races.razor: senza campagna non c'è nulla da caricare.
+            if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore caricamento background: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    // Ricarica SEMPRE dal servizio invece di ritoccare dbRows/packageRows in memoria: la vista non
+    // è solo righe di database, contiene anche le voci di pacchetto, e quali siano visibili dipende
+    // da cosa c'è nel database (vedi "Duplica e modifica" più sotto).
+    private async Task ReloadAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+        var vista = await Catalog.GetBackgroundsAsync(CurrentUser.CampaignId);
+        dbRows = vista.DbRows.ToList();
+        packageRows = vista.PackageEntries.ToList();
+    }
+
+    // Una riga di database è modificabile se chi guarda ne ha il diritto E non viene dal
+    // pacchetto dell'app: quelle restano voci di manuale anche se vivono nel database (§6).
+    private bool PuoModificare(Background b)
+        => !CatalogKey.IsFromAppPackage(b.SourceId)
+           && AccessControl.CanEdit(CurrentUser.IsMaster, b.AddedBy, CurrentUser.UserId);
+
+    // Copia modificabile di una voce di pacchetto: nasce SENZA SourceId, così è una voce
+    // propria dell'utente e ha la precedenza nel merge (§4.3).
+    private Background DuplicaDaPacchetto(PackageBackground p) => new()
+    {
+        Name = p.Name,
+        Description = p.Description,
+        AbilityScores = string.Join(", ", p.AbilityScores),
+        OriginFeat = p.OriginFeat,
+        SkillProficiencies = string.Join(", ", p.SkillProficiencies),
+        ToolProficiency = p.ToolProficiency,
+        Equipment = p.Equipment,
+        SourceId = null,
+        // Il ?? non è pleonastico: CampaignId è string? e il progetto ha Nullable=enable, quindi
+        // senza fallback è CS8601 — cioè un warning, contro il vincolo "0 warning" di questa fase.
+        CampaignId = CurrentUser.CampaignId ?? string.Empty,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Stessa regola di DuplicaDaPacchetto, ma per una riga di DATABASE che porta comunque la
+    // provenienza del pacchetto dell'app (import diretto, non ancora possibile in questa fase ma
+    // già previsto dal modello dati): anche qui la copia nasce SENZA SourceId.
+    // AddedBy è l'utente CORRENTE, non l'autore originale della riga (che potrebbe non essere lui):
+    // la RLS "backgrounds_insert" richiede added_by = auth.uid(), quindi copiare b.AddedBy avrebbe
+    // fatto fallire l'INSERT per chiunque diverso dall'autore originale, master incluso.
+    private Background DuplicaDaRigaImportata(Background b) => new()
+    {
+        Name = b.Name,
+        Description = b.Description,
+        AbilityScores = b.AbilityScores,
+        OriginFeat = b.OriginFeat,
+        SkillProficiencies = b.SkillProficiencies,
+        ToolProficiency = b.ToolProficiency,
+        Equipment = b.Equipment,
+        SourceId = null,
+        CampaignId = b.CampaignId,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Testo del talento d'origine, se il pacchetto lo contiene: senza, il novizio leggerebbe
+    // solo un nome (§5).
+    private string? TestoTalento(string? nomeTalento)
+        => string.IsNullOrWhiteSpace(nomeTalento)
+            ? null
+            : Catalog.Feats.FirstOrDefault(f =>
+                CatalogKey.NormalizeName(f.Name) == CatalogKey.NormalizeName(nomeTalento))?.Description;
+
+    // Vista unificata di riga-database e voce-pacchetto: la lista mostrata è un'unione delle due
+    // sorgenti (ricerca/ordinamento/rendering condivisi), ma le operazioni CRUD restano ancorate a
+    // dbRows/packageRows separati.
+    private sealed record Entry(
+        string Key,
+        string Name,
+        string Description,
+        string AbilityScoresText,
+        string OriginFeat,
+        string SkillProficienciesText,
+        string ToolProficiency,
+        string Equipment,
+        bool IsPackage,
+        Background? Db,
+        PackageBackground? Package);
+
+    private static Entry ToEntry(Background b) => new(
+        "db:" + b.Id, b.Name, b.Description, b.AbilityScores, b.OriginFeat,
+        b.SkillProficiencies, b.ToolProficiency, b.Equipment, false, b, null);
+
+    private static Entry ToEntry(PackageBackground p) => new(
+        "pkg:" + p.Id, p.Name, p.Description, string.Join(", ", p.AbilityScores), p.OriginFeat,
+        string.Join(", ", p.SkillProficiencies), p.ToolProficiency, p.Equipment, true, null, p);
+
+    private IEnumerable<Entry> FilteredEntries
+    {
+        get
+        {
+            IEnumerable<Entry> result = dbRows.Select(ToEntry).Concat(packageRows.Select(ToEntry));
+            if (!string.IsNullOrEmpty(searchQuery))
+            {
+                result = result.Where(e => e.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+            return result.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task OnSearchInputChangedAsync()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+        debounceCts = new CancellationTokenSource();
+        var token = debounceCts.Token;
+        try
+        {
+            await Task.Delay(300, token);
+            if (token.IsCancellationRequested) return;
+            searchQuery = searchInput.Trim();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void ToggleExpand(string key) => expandedKey = expandedKey == key ? null : key;
+
+    private void OpenCreateForm()
+    {
+        editDraft = new Background
+        {
+            AddedBy = CurrentUser.UserId,
+            CampaignId = CurrentUser.CampaignId ?? string.Empty
+        };
+        mode = ViewMode.Form;
+    }
+
+    private void OpenEditForm(Background background)
+    {
+        editDraft = CloneBackground(background);
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDuplicateForm(PackageBackground package)
+    {
+        editDraft = DuplicaDaPacchetto(package);
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDuplicateForm(Background background)
+    {
+        editDraft = DuplicaDaRigaImportata(background);
+        mode = ViewMode.Form;
+    }
+
+    private void CancelForm() => mode = ViewMode.List;
+
+    private async Task SaveFormAsync()
+    {
+        var validationError = FormValidation.ValidateBackground(editDraft);
+        if (validationError is not null)
+        {
+            Toasts.ShowError(validationError);
+            return;
+        }
+
+        isBusy = true;
+        systemError = null;
+        try
+        {
+            var saved = string.IsNullOrEmpty(editDraft.Id)
+                ? await BackgroundRepository.CreateBackgroundAsync(editDraft)
+                : await BackgroundRepository.UpdateBackgroundAsync(editDraft);
+
+            if (saved is null)
+            {
+                systemError = "Il server non ha restituito il background salvato.";
+                return;
+            }
+
+            // Richiama il servizio invece di ritoccare dbRows: la copia di "Duplica e modifica"
+            // deve far sparire la voce di pacchetto da cui deriva nella STESSA operazione, non al
+            // prossimo cambio pagina.
+            await ReloadAsync();
+            expandedKey = "db:" + saved.Id;
+            mode = ViewMode.List;
+            Toasts.ShowSuccess("Salvato");
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task DeleteBackgroundAsync(Background background)
+    {
+        var confirmed = await Confirm.ShowAsync($"Eliminare il background \"{background.Name}\"?");
+        if (!confirmed) return;
+
+        isBusy = true;
+        systemError = null;
+        try
+        {
+            await BackgroundRepository.DeleteBackgroundAsync(background.Id);
+            if (expandedKey == "db:" + background.Id) expandedKey = null;
+            await ReloadAsync();
+            Toasts.ShowSuccess("Eliminato");
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore eliminazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static Background CloneBackground(Background b) => new()
+    {
+        Id = b.Id,
+        Name = b.Name,
+        Description = b.Description,
+        AbilityScores = b.AbilityScores,
+        OriginFeat = b.OriginFeat,
+        SkillProficiencies = b.SkillProficiencies,
+        ToolProficiency = b.ToolProficiency,
+        Equipment = b.Equipment,
+        SourceId = b.SourceId,
+        AddedBy = b.AddedBy,
+        CampaignId = b.CampaignId,
+        CreatedAt = b.CreatedAt
+    };
+
+    public void Dispose()
+    {
+        debounceCts?.Cancel();
+        debounceCts?.Dispose();
+    }
+}

@@ -1,0 +1,478 @@
+.backgrounds-container {
+    margin: -1.1rem -1.5rem 0 -1.5rem;
+    padding: 1rem 1rem 5rem;
+    min-height: 100vh;
+    background:
+        radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
+        linear-gradient(180deg, var(--text-on-gold) 0%, rgb(var(--shadow-warm-rgb)) 100%);
+    color: var(--text);
+    font-family: 'Georgia', 'Cambria', serif;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.25);
+}
+
+.back-btn {
+    background: transparent;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--gold-muted);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.back-btn:hover {
+    background: rgba(var(--gold-rgb), 0.12);
+    color: var(--gold-light);
+    border-color: rgba(var(--gold-rgb), 0.6);
+}
+
+.page-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.5px;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 3.5rem;
+    filter: drop-shadow(0 2px 8px rgba(var(--black-rgb), 0.5));
+    margin-bottom: 0.25rem;
+}
+
+.empty-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.3px;
+}
+
+.empty-text {
+    margin: 0;
+    max-width: 420px;
+    font-size: 0.95rem;
+    color: var(--gold-muted);
+    line-height: 1.55;
+}
+
+.empty-text strong {
+    color: var(--gold-light);
+    font-weight: 700;
+}
+
+/* ===== Search ===== */
+.search-section {
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    width: 100%;
+    background: rgba(var(--black-rgb), 0.4);
+    border: 2px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--text);
+    padding: 0.9rem 1.15rem;
+    font-size: 1.1rem;
+    font-family: inherit;
+    border-radius: 12px;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-input::placeholder {
+    color: rgb(var(--taupe-rgb));
+    font-style: italic;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.15);
+}
+
+.results-info {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: rgb(var(--gold-muted-rgb));
+    font-style: italic;
+}
+
+/* ===== Background cards (accordion) ===== */
+.backgrounds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.background-card {
+    background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg-card) 100%);
+    border: 2px solid rgb(var(--bronze-rgb));
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 3px 8px rgba(var(--black-rgb), 0.4);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.background-card.expanded {
+    border-color: var(--gold);
+    box-shadow: 0 6px 16px rgba(var(--black-rgb), 0.5), 0 0 0 1px rgba(var(--gold-rgb), 0.25);
+}
+
+/* Voci che vengono dal pacchetto dell'app: sola lettura, marcate con un bordo spento invece del
+   bronzo delle righe di database. */
+.background-card.package-card {
+    border-color: var(--gold-dim);
+}
+
+.background-card.package-card.expanded {
+    border-color: var(--gold);
+}
+
+.card-summary {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+}
+
+.card-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold-light);
+    margin-bottom: 0.2rem;
+    line-height: 1.2;
+}
+
+.card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: rgb(var(--gold-muted-rgb));
+    flex-wrap: wrap;
+}
+
+.feat-badge {
+    display: inline-block;
+    background: rgba(var(--gold-rgb), 0.15);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold);
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Etichetta "dal manuale" sulle voci di pacchetto: stesso bordo spento della card, per riconoscerle
+   anche nella riga sommario prima di espandere. */
+.package-badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold-dim);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.expand-icon {
+    font-size: 1.1rem;
+    color: var(--gold);
+    flex-shrink: 0;
+    line-height: 1;
+    width: 1.2em;
+    text-align: center;
+}
+
+/* Accordion animation */
+.card-details {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s ease;
+}
+
+.background-card.expanded .card-details {
+    grid-template-rows: 1fr;
+}
+
+.details-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.background-card.expanded .details-inner {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid rgba(var(--gold-rgb), 0.2);
+    margin-top: 0.25rem;
+}
+
+/* ===== Section blocks ===== */
+.section-block {
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(var(--gold-rgb), 0.2);
+}
+
+.section-block:first-child {
+    margin-top: 0.6rem;
+    padding-top: 0.75rem;
+}
+
+.section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgb(var(--gold-muted-rgb));
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.4rem;
+}
+
+.section-body {
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--text);
+    white-space: pre-wrap;
+}
+
+/* Testo del talento d'origine, mostrato solo per le voci di pacchetto (Catalog.Feats). */
+.feat-text {
+    margin-top: 0.4rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--gold-muted);
+    font-style: italic;
+}
+
+/* ===== Card actions ===== */
+.card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(var(--gold-rgb), 0.2);
+}
+
+.action-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold-muted);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+    background: rgba(var(--gold-rgb), 0.12);
+    color: var(--gold-light);
+}
+
+.delete-action {
+    border-color: rgba(var(--danger-rgb), 0.5);
+    color: var(--error-text);
+}
+
+.delete-action:hover {
+    background: rgba(var(--error-rgb), 0.2);
+    color: var(--error-text);
+    border-color: rgb(var(--danger-rgb));
+}
+
+/* ===== Form view ===== */
+.form-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-top {
+    display: flex;
+    align-items: center;
+}
+
+.back-link {
+    background: transparent;
+    border: none;
+    color: var(--gold-muted);
+    font-size: 0.9rem;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.back-link:hover {
+    color: var(--gold-light);
+}
+
+.form-title {
+    margin: 0.25rem 0 0.5rem;
+    font-size: 1.5rem;
+    color: var(--gold);
+    text-align: center;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.field-full {
+    grid-column: 1 / -1;
+}
+
+.field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.input {
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--text);
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    resize: vertical;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.2);
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.primary-btn {
+    flex: 1;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--text-on-gold);
+    border: none;
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    flex: 1;
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== Desktop ===== */
+@media (min-width: 641px) {
+    .backgrounds-container {
+        margin-left: -2rem;
+        margin-right: -1.5rem;
+        padding: 1.5rem 2rem 5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+    }
+
+    .search-section,
+    .backgrounds-list,
+    .form-view {
+        max-width: 820px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .card-name {
+        font-size: 1.2rem;
+    }
+}

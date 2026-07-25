@@ -16,6 +16,8 @@ public class FormValidationTests
 
     private static Race ValidRace() => new() { Name = "Elfo", Speed = 30 };
 
+    private static Background ValidBackground() => new() { Name = "Soldato" };
+
     [Fact]
     public void Valid_monster_returns_null() => Assert.Null(FormValidation.ValidateMonster(ValidMonster()));
 
@@ -92,5 +94,15 @@ public class FormValidationTests
         Assert.True(FormValidation.InRange(0, 0, 40));
         Assert.True(FormValidation.InRange(40, 0, 40));
         Assert.False(FormValidation.InRange(41, 0, 40));
+    }
+
+    [Fact]
+    public void Valid_background_returns_null() => Assert.Null(FormValidation.ValidateBackground(ValidBackground()));
+
+    [Fact]
+    public void Background_blank_name_is_rejected()
+    {
+        var b = ValidBackground(); b.Name = "  ";
+        Assert.Equal("Il nome è obbligatorio", FormValidation.ValidateBackground(b));
     }
 }

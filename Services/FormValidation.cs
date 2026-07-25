@@ -30,4 +30,13 @@ internal static class FormValidation
         if (!InRange(r.Speed, 0, 120)) return "La velocità deve essere tra 0 e 120";
         return null;
     }
+
+    // Solo il nome è obbligatorio (§brief Task 8): gli altri campi del background 2024
+    // (caratteristiche, talento, competenze, equipaggiamento) sono testo libero senza un range da
+    // validare lato client.
+    internal static string? ValidateBackground(Background b)
+    {
+        if (string.IsNullOrWhiteSpace(b.Name)) return "Il nome è obbligatorio";
+        return null;
+    }
 }
