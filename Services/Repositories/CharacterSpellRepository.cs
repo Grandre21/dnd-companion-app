@@ -8,6 +8,11 @@ public interface ICharacterSpellRepository
     Task<CharacterSpell?> AddSpellToCharacterAsync(CharacterSpell entry);
     Task<bool> UpdateCharacterSpellAsync(CharacterSpell entry);
     Task RemoveCharacterSpellAsync(string id);
+
+    /// <summary>I legami che puntano a uno degli incantesimi indicati. Serve a misurare l'impatto
+    /// di una cancellazione prima di eseguirla: character_spells_spell_id_fkey è ON DELETE CASCADE,
+    /// quindi togliere un incantesimo dal catalogo lo toglie dalle schede che lo conoscono (§8).</summary>
+    Task<List<CharacterSpell>> GetBySpellIdsAsync(List<string> spellIds);
 }
 
 /// <summary>Accesso dati per gli incantesimi noti del singolo PG (tabella <c>character_spells</c>).</summary>
@@ -50,5 +55,25 @@ public class CharacterSpellRepository : ICharacterSpellRepository
     {
         var client = await _supabase.GetClientAsync();
         await client.From<CharacterSpell>().Where(cs => cs.Id == id).Delete();
+    }
+
+    public async Task<List<CharacterSpell>> GetBySpellIdsAsync(List<string> spellIds)
+    {
+        if (spellIds.Count == 0) return new List<CharacterSpell>();
+
+        var client = await _supabase.GetClientAsync();
+        var risultato = new List<CharacterSpell>();
+
+        // A blocchi come DeleteByIdsAsync, e per la stessa ragione: con un catalogo importato per
+        // intero l'elenco di id supererebbe la lunghezza utile della query string, e il 414 si
+        // presenterebbe all'utente come un generico errore nel calcolo dell'anteprima.
+        foreach (var blocco in spellIds.Chunk(100))
+        {
+            var response = await client.From<CharacterSpell>()
+                .Filter("spell_id", Postgrest.Constants.Operator.In, blocco.Cast<object>().ToList())
+                .Get();
+            risultato.AddRange(response.Models);
+        }
+        return risultato;
     }
 }

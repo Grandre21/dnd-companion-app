@@ -49,6 +49,8 @@ public class CatalogServiceTests
         public Task<Background?> CreateBackgroundAsync(Background b) => Task.FromResult<Background?>(b);
         public Task<Background?> UpdateBackgroundAsync(Background b) => Task.FromResult<Background?>(b);
         public Task DeleteBackgroundAsync(string id) => Task.CompletedTask;
+        public Task<List<Background>> CreateManyAsync(List<Background> rows) => Task.FromResult(rows);
+        public Task DeleteByIdsAsync(List<string> ids) => Task.CompletedTask;
     }
 
     private const string Package = """
