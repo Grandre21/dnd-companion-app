@@ -145,11 +145,11 @@ public static class CampaignExport
                 Equipment = b.Equipment,
             }).ToList(),
 
-            // SkillChoices non compare qui: la colonna DB è testo discorsivo già "appiattito"
-            // dall'import (PackageRowMerge.DescriviScelte, es. "2 fra: Arcano, Storia"), mentre il
-            // formato di scambio vuole {count, from} strutturato. L'inverso non è affidabile — è
-            // testo libero, modificabile a mano nel form classe — quindi non si tenta: limite noto,
-            // non un bug. Il reimport perde solo questo campo, non l'intera classe.
+            // SkillChoices: PackageRowMerge.LeggiScelte riconosce il testo che DescriviScelte genera
+            // ("2 fra: Arcano, Storia") e lo ricostruisce in struttura — copre il percorso primario,
+            // le classi nate da un import. Per il testo libero digitato a mano dopo l'import
+            // (Pages/Classes.razor) restituisce null: quel campo non ha un'inversione affidabile e
+            // viene omesso, senza rompere l'export del resto della classe.
             Classes = classi.Select((c, i) => new PackageClass
             {
                 Id = idClassi[i],
@@ -157,6 +157,7 @@ public static class CampaignExport
                 HitDie = c.HitDie,
                 PrimaryAbility = c.PrimaryAbility,
                 SavingThrows = SplitList(c.SavingThrows),
+                SkillChoices = PackageRowMerge.LeggiScelte(c.SkillChoices),
             }).ToList(),
 
             Spells = incantesimi.Select((s, i) => new PackageSpell

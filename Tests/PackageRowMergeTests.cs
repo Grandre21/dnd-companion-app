@@ -181,6 +181,46 @@ public class PackageRowMergeTests
         Assert.Null(PackageRowMerge.DescriviScelte(null));
     }
 
+    // Il caso primario dell'export (Task 9): una classe nata da un import porta sempre il testo che
+    // DescriviScelte genera, quindi l'inversione deve ricostruire esattamente la struttura originale.
+    [Fact]
+    public void LeggiScelte_InvertiCiòCheDescriviScelteProduce()
+    {
+        var originale = new PackageSkillChoices { Count = 2, From = { "Arcano", "Storia" } };
+
+        var risultato = PackageRowMerge.LeggiScelte(PackageRowMerge.DescriviScelte(originale));
+
+        Assert.NotNull(risultato);
+        Assert.Equal(originale.Count, risultato!.Count);
+        Assert.Equal(originale.From, risultato.From);
+    }
+
+    // Zero scelte è un caso legittimo (From vuoto): "0 fra: " non deve produrre un elenco con una
+    // stringa vuota dentro.
+    [Fact]
+    public void LeggiScelte_ContatoreZero_ElencoVuoto()
+    {
+        var risultato = PackageRowMerge.LeggiScelte(
+            PackageRowMerge.DescriviScelte(new PackageSkillChoices { Count = 0 }));
+
+        Assert.NotNull(risultato);
+        Assert.Equal(0, risultato!.Count);
+        Assert.Empty(risultato.From);
+    }
+
+    // Il caso che l'export deve saper riconoscere come "non invertibile": una classe scritta a mano
+    // non porta il formato di DescriviScelte, e inventare una struttura sarebbe un dato inventato,
+    // non ricostruito. null e stringa vuota sono lo stesso caso di "nessuna scelta dichiarata". Il
+    // separatore presente ma un conteggio non numerico è un ramo distinto (indice trovato, TryParse
+    // che fallisce) e va esercitato a parte: non basta il caso senza separatore.
+    [Theory]
+    [InlineData("Due a scelta fra le abilità del manuale")]
+    [InlineData("due fra: Arcano, Storia")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void LeggiScelte_TestoLiberoONonDichiarato_ProduceNull(string? testo)
+        => Assert.Null(PackageRowMerge.LeggiScelte(testo));
+
     [Fact]
     public void ApplicaBackground_ListeVuote_NonAzzeranoLeColonne()
     {

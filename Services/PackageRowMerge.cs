@@ -1,3 +1,4 @@
+using System.Globalization;
 using DndCompanion.Models;
 using DndCompanion.Models.Packages;
 
@@ -175,10 +176,40 @@ public static class PackageRowMerge
 
     /// <summary>Unica formulazione della descrizione delle scelte di abilità: la usano creazione,
     /// aggiornamento e "duplica e modifica" (Task 6), e tenerle separate le farebbe divergere il
-    /// giorno in cui il formato cambia. Per questo è <b>public</b>.
+    /// giorno in cui il formato cambia. Per questo è <b>public</b>. L'inverso è <see cref="LeggiScelte"/>,
+    /// usato dall'export (Task 9) per ricostruire la struttura quando il testo lo permette.
     ///
     /// Restituisce <c>null</c> quando il file non dichiara le scelte: è ciò che permette a
     /// <c>ApplicaClasse</c> di non svuotare una colonna già compilata.</summary>
     public static string? DescriviScelte(PackageSkillChoices? choices)
         => choices is null ? null : $"{choices.Count} fra: {Unisci(choices.From)}";
+
+    /// <summary>Inverte <see cref="DescriviScelte"/>: riconosce ESATTAMENTE il formato che produce
+    /// (<c>"{conteggio} fra: {elenco separato da virgole}"</c>) e restituisce <c>null</c> per
+    /// qualunque altro testo. Non è un parser tollerante di proposito: una classe nata da un
+    /// pacchetto porta sempre il testo che <c>DescriviScelte</c> genera, ma il campo resta testo
+    /// libero modificabile a mano dopo l'import (Pages/Classes.razor) — e per il testo libero non
+    /// esiste un'inversione affidabile, quindi l'export (Task 9) deve poterlo riconoscere come "non
+    /// invertibile" e omettere il campo, non inventare una struttura.</summary>
+    public static PackageSkillChoices? LeggiScelte(string? testo)
+    {
+        if (string.IsNullOrWhiteSpace(testo)) return null;
+
+        const string separatore = " fra: ";
+        var indice = testo.IndexOf(separatore, StringComparison.Ordinal);
+        if (indice < 0) return null;
+
+        if (!int.TryParse(testo[..indice], NumberStyles.Integer, CultureInfo.InvariantCulture, out var conteggio))
+            return null;
+
+        var elenco = testo[(indice + separatore.Length)..];
+        var voci = elenco.Length == 0
+            ? new List<string>()
+            : elenco.Split(", ", StringSplitOptions.None)
+                    .Select(v => v.Trim())
+                    .Where(v => v.Length > 0)
+                    .ToList();
+
+        return new PackageSkillChoices { Count = conteggio, From = voci };
+    }
 }

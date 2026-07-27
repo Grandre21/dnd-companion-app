@@ -8,6 +8,11 @@ public class CampaignExportTests
     private static CampaignCatalogs Cataloghi() => new()
     {
         Races = { new Race { Id = "uuid-1", Name = "Elfo Silvano", Speed = 9, SpeedUnit = "m", CampaignId = "c1" } },
+        Classes = {
+            new CharacterClass { Id = "uuid-4", Name = "Mago", HitDie = "d6", PrimaryAbility = "Intelligenza",
+                                  SavingThrows = "Intelligenza, Saggezza",
+                                  SkillChoices = "2 fra: Arcano, Storia", CampaignId = "c1" },
+        },
         Spells = {
             new Spell { Id = "uuid-2", Name = "Palla di Fuoco", Level = 3,
                         Classes = "Mago, Stregone", CampaignId = "c1" },
@@ -148,6 +153,61 @@ public class CampaignExportTests
         Assert.Equal(new[] { "Mago", "Stregone" }, palla.Classes);
     }
 
+    // La sezione Classi non era mai esercitata dagli altri test: HitDie e SavingThrows arrivano
+    // come da mappatura diretta, e SkillChoices — testo nato da un import (DescriviScelte) — deve
+    // tornare struttura via PackageRowMerge.LeggiScelte, non sparire.
+    [Fact]
+    public void Build_Classe_PortaHitDieSavingThrowsEScelteRicostruite()
+    {
+        var pacchetto = CampaignExport.Build(Cataloghi(), "La Città Perduta");
+
+        var mago = Assert.Single(pacchetto.Classes);
+        Assert.Equal("d6", mago.HitDie);
+        Assert.Equal("Intelligenza", mago.PrimaryAbility);
+        Assert.Equal(new[] { "Intelligenza", "Saggezza" }, mago.SavingThrows);
+        Assert.NotNull(mago.SkillChoices);
+        Assert.Equal(2, mago.SkillChoices!.Count);
+        Assert.Equal(new[] { "Arcano", "Storia" }, mago.SkillChoices.From);
+    }
+
+    // Il testo libero digitato a mano dopo l'import non ha un'inversione affidabile: il campo va
+    // omesso, non sostituito da una struttura inventata, e il resto della classe resta esportato.
+    [Fact]
+    public void Build_ClasseConScelteTestoLibero_OmetteLeScelteMaEsportaIlResto()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes = { new CharacterClass
+            {
+                Id = "u1", Name = "Guerriero", HitDie = "d10",
+                SkillChoices = "Due a scelta fra le abilità del manuale", CampaignId = "c1",
+            } },
+        };
+
+        var guerriero = Assert.Single(CampaignExport.Build(cataloghi, "Tavolo").Classes);
+
+        Assert.Equal("d10", guerriero.HitDie);
+        Assert.Null(guerriero.SkillChoices);
+    }
+
+    // Il caso più comune: una classe su cui nessuno ha mai scritto le scelte di abilità.
+    // CharacterClass.SkillChoices è "string" non nullable con default string.Empty (mai null) — è
+    // questo il valore che Build riceve davvero dal database, non un CharacterClass.SkillChoices
+    // esplicitamente null.
+    [Fact]
+    public void Build_ClasseSenzaScelte_SkillChoicesRestaNull()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes = { new CharacterClass { Id = "u1", Name = "Chierico", CampaignId = "c1" } },
+        };
+
+        var chierico = Assert.Single(CampaignExport.Build(cataloghi, "Tavolo").Classes);
+
+        Assert.Equal(string.Empty, new CharacterClass().SkillChoices); // documenta il default reale
+        Assert.Null(chierico.SkillChoices);
+    }
+
     // §5: l'export non produce mai talenti, perché nel database non ce ne sono.
     [Fact]
     public void Build_NonProduceMaiTalenti()
@@ -160,6 +220,8 @@ public class CampaignExportTests
 
     // Il giro completo: ciò che l'export produce, il parser deve saperlo rileggere. Senza questo
     // test un export malformato si scoprirebbe solo al reimport, su un file già distribuito.
+    // Include una classe con scelte ricostruite: la struttura annidata (PackageSkillChoices) deve
+    // sopravvivere alla scrittura e alla rilettura tanto quanto i campi semplici.
     [Fact]
     public void ToJson_IlRisultatoERileggibileDalParser()
     {
@@ -171,5 +233,10 @@ public class CampaignExportTests
         Assert.NotNull(riletto.Package);
         Assert.Single(riletto.Package!.Species);
         Assert.Equal(2, riletto.Package.Spells.Count);
+
+        var mago = Assert.Single(riletto.Package.Classes);
+        Assert.NotNull(mago.SkillChoices);
+        Assert.Equal(2, mago.SkillChoices!.Count);
+        Assert.Equal(new[] { "Arcano", "Storia" }, mago.SkillChoices.From);
     }
 }
