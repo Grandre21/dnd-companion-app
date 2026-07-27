@@ -1,6 +1,9 @@
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
 @using DndCompanion.Services
 @inject ICharacterSpellRepository CharacterSpellRepository
+@inject ISpellRepository SpellRepository
+@inject CurrentUserService CurrentUser
 
 <div class="spell-stats">
     <div class="spell-stat-block">
@@ -56,6 +59,7 @@
     @if (CanEdit)
     {
         <SpellPicker AllSpells="@AllSpells"
+                     PackageSpells="@PackageSpells"
                      AlreadyAddedIds="@selectedCharacterSpells.Select(cs => cs.SpellId).ToHashSet()"
                      OnSpellSelected="@AddSpellToCharacter" />
     }
@@ -79,7 +83,7 @@
     {
         <p class="empty-note spell-list-empty">
             Nessun incantesimo imparato. @(CanEdit ? "Usa il campo sopra per cercare e aggiungere." : "")
-            @if (CanEdit && AllSpells.Count == 0)
+            @if (CanEdit && AllSpells.Count == 0 && PackageSpells.Count == 0)
             {
                 <span class="spell-list-hint">Suggerimento: il catalogo globale è vuoto. Aggiungete incantesimi dalla sezione Incantesimi della home.</span>
             }
@@ -92,6 +96,7 @@
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public EventCallback OnChanged { get; set; }
     [Parameter] public List<Spell> AllSpells { get; set; } = new();
+    [Parameter] public List<PackageSpell> PackageSpells { get; set; } = new();
     [Parameter] public EventCallback<string?> OnError { get; set; }
 
     private List<CharacterSpell> selectedCharacterSpells = new();
@@ -155,17 +160,59 @@
         await OnChanged.InvokeAsync();
     }
 
-    private async Task AddSpellToCharacter(Spell spell)
+    // La decisione "riusa una riga o creane una da voce di pacchetto" è di SpellMaterialization;
+    // qui si eseguono le due scritture, nell'ordine: prima la riga di catalogo (serve il suo uuid),
+    // poi il legame con il personaggio.
+    private async Task AddSpellToCharacter(SpellPicker.Choice choice)
     {
         if (!CanEdit) return;
-        var entry = new CharacterSpell
-        {
-            CharacterId = Character.Id,
-            SpellId = spell.Id,
-            IsPrepared = spell.Level == 0 // i trucchetti sono auto-preparati
-        };
+
         try
         {
+            var spell = choice.Row;
+
+            if (spell is null && choice.Package is not null)
+            {
+                var esito = SpellMaterialization.Resolve(
+                    choice.Package, AllSpells, Character.CampaignId, CurrentUser.UserId);
+
+                spell = esito.Existing;
+                if (spell is null && esito.ToInsert is not null)
+                    spell = await MaterializzaAsync(esito.ToInsert);
+
+                if (spell is not null)
+                {
+                    // La riga entra nel catalogo in memoria e la voce di pacchetto esce dal picker:
+                    // senza la prima, il prossimo incantesimo scelto dallo stesso pacchetto
+                    // proverebbe a inserirla di nuovo; senza la seconda, "Palla di Fuoco"
+                    // comparirebbe due volte nell'elenco, come riga e come voce.
+                    if (AllSpells.All(s => s.Id != spell.Id)) AllSpells.Add(spell);
+                    PackageSpells.RemoveAll(p => p.Id == choice.Package.Id);
+                }
+            }
+
+            if (spell is null)
+            {
+                await OnError.InvokeAsync("Impossibile aggiungere l'incantesimo al catalogo della campagna.");
+                return;
+            }
+
+            // Il PG ce l'ha già: può succedere se la voce di pacchetto scelta corrisponde a una
+            // riga che il personaggio conosce sotto un altro nome. Meglio non chiamare il server
+            // per farsi rifiutare da character_spells_character_id_spell_id_key.
+            if (selectedCharacterSpells.Any(cs => cs.SpellId == spell.Id))
+            {
+                RebuildSpellDisplay();
+                return;
+            }
+
+            var entry = new CharacterSpell
+            {
+                CharacterId = Character.Id,
+                SpellId = spell.Id,
+                IsPrepared = spell.Level == 0 // i trucchetti sono auto-preparati
+            };
+
             var saved = await CharacterSpellRepository.AddSpellToCharacterAsync(entry);
             if (saved is not null)
             {
@@ -180,6 +227,34 @@
         catch (Exception ex)
         {
             await OnError.InvokeAsync($"Errore aggiunta incantesimo: {ex.Message}");
+        }
+    }
+
+    // Leggi-poi-inserisci, con rilettura sul conflitto. Il vincolo UNIQUE (campaign_id, source_id)
+    // è l'arbitro: se fra il controllo e l'inserimento un altro giocatore ha materializzato la
+    // stessa voce — il caso di §4.4, due schede preparate la stessa sera — l'INSERT fallisce e si
+    // riusa la riga sua, senza mai sovrascriverla.
+    private async Task<Spell?> MaterializzaAsync(Spell daInserire)
+    {
+        var giaPresente = await SpellRepository.GetOneBySourceAsync(
+            daInserire.CampaignId, daInserire.SourceId!);
+        if (giaPresente is not null) return giaPresente;
+
+        try
+        {
+            return await SpellRepository.CreateSpellAsync(daInserire);
+        }
+        catch (Postgrest.Exceptions.PostgrestException)
+        {
+            // Conflitto sul vincolo di unicità: la riga esiste ora, creata da qualcun altro.
+            var vincitrice = await SpellRepository.GetOneBySourceAsync(
+                daInserire.CampaignId, daInserire.SourceId!);
+
+            // Se la rilettura non trova nulla, l'eccezione non era il conflitto atteso (es. un
+            // errore transitorio del server): si ripropaga quella originale, così il messaggio in
+            // OnError racconta cosa è successo davvero invece del generico "impossibile aggiungere".
+            if (vincitrice is null) throw;
+            return vincitrice;
         }
     }
 

@@ -1,4 +1,5 @@
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
 
 <div class="spell-picker">
     <input type="text"
@@ -12,14 +13,14 @@
     @if (isOpen && FilteredSpells.Any())
     {
         <div class="spell-picker-dropdown">
-            @foreach (var spell in FilteredSpells)
+            @foreach (var choice in FilteredSpells)
             {
-                <button type="button" class="spell-picker-item"
-                        @onmousedown="() => HandleSelect(spell)"
+                <button type="button" class="spell-picker-item" @key="choice.Key"
+                        @onmousedown="() => HandleSelect(choice)"
                         @onmousedown:preventDefault="true">
-                    <span class="spell-picker-level @(spell.Level == 0 ? "cantrip" : "")">@(spell.Level == 0 ? "TR" : $"L{spell.Level}")</span>
-                    <span class="spell-picker-name">@spell.Name</span>
-                    <span class="spell-picker-school">@spell.School</span>
+                    <span class="spell-picker-level @(choice.Level == 0 ? "cantrip" : "")">@(choice.Level == 0 ? "TR" : $"L{choice.Level}")</span>
+                    <span class="spell-picker-name">@choice.Name</span>
+                    <span class="spell-picker-school">@choice.School</span>
                 </button>
             }
         </div>
@@ -33,34 +34,49 @@
 </div>
 
 @code {
+    /// <summary>Una voce selezionabile: o una riga di catalogo (ha già un id), o una voce di
+    /// pacchetto (da materializzare al momento della scelta, §4.4).</summary>
+    public sealed record Choice(string Key, string Name, int Level, string School,
+                                Spell? Row, PackageSpell? Package);
+
     [Parameter] public List<Spell> AllSpells { get; set; } = new();
+    [Parameter] public List<PackageSpell> PackageSpells { get; set; } = new();
     [Parameter] public HashSet<string> AlreadyAddedIds { get; set; } = new();
-    [Parameter] public EventCallback<Spell> OnSpellSelected { get; set; }
+    [Parameter] public EventCallback<Choice> OnSpellSelected { get; set; }
 
     private string searchTerm = "";
     private bool isOpen = false;
     private const int MaxResults = 8;
 
-    private List<Spell> FilteredSpells
+    private List<Choice> FilteredSpells
     {
         get
         {
             if (string.IsNullOrWhiteSpace(searchTerm)) return new();
-            var term = searchTerm.Trim().ToLowerInvariant();
-            return AllSpells
+            var term = CatalogKey.NormalizeName(searchTerm);
+
+            var righe = AllSpells
                 .Where(s => !AlreadyAddedIds.Contains(s.Id))
-                .Where(s => s.Name.ToLowerInvariant().Contains(term))
-                .OrderBy(s => s.Name.ToLowerInvariant().StartsWith(term) ? 0 : 1)
-                .ThenBy(s => s.Level)
-                .ThenBy(s => s.Name)
+                .Select(s => new Choice("db:" + s.Id, s.Name, s.Level, s.School, s, null));
+
+            // Le voci già coperte da una riga sono state tolte a monte da CatalogService, e quella
+            // materializzata durante la sessione la toglie CharacterMagicTab: qui non si deduplica.
+            var voci = PackageSpells
+                .Select(p => new Choice("pkg:" + p.Id, p.Name, p.Level ?? 0, p.School, null, p));
+
+            return righe.Concat(voci)
+                .Where(c => CatalogKey.NormalizeName(c.Name).Contains(term, StringComparison.Ordinal))
+                .OrderBy(c => CatalogKey.NormalizeName(c.Name).StartsWith(term, StringComparison.Ordinal) ? 0 : 1)
+                .ThenBy(c => c.Level)
+                .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
                 .Take(MaxResults)
                 .ToList();
         }
     }
 
-    private async Task HandleSelect(Spell spell)
+    private async Task HandleSelect(Choice choice)
     {
-        await OnSpellSelected.InvokeAsync(spell);
+        await OnSpellSelected.InvokeAsync(choice);
         searchTerm = "";
         isOpen = false;
     }

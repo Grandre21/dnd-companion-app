@@ -1,9 +1,10 @@
 @page "/characters"
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
 @inject ICharacterRepository CharacterRepository
 @inject IRaceRepository RaceRepository
 @inject IClassRepository ClassRepository
-@inject ISpellRepository SpellRepository
+@inject ICatalogService Catalog
 @inject IInventoryRepository InventoryRepository
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
@@ -147,7 +148,7 @@
                 @if (activeTab == "magic" && !string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
                 {
                     <CharacterMagicTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
-                                       AllSpells="@allSpells" OnError="@SetError" />
+                                       AllSpells="@allSpells" PackageSpells="@packageSpells" OnError="@SetError" />
                 }
 
                 </div>
@@ -190,6 +191,7 @@
     // Catalogo globale incantesimi (caricato una sola volta, in cache); passato a CharacterMagicTab.
     // Gli incantesimi del singolo PG li gestisce CharacterMagicTab.
     private List<Spell> allSpells = new();
+    private List<PackageSpell> packageSpells = new();
     private bool spellsLoaded;
 
     // ===== Navigazione a tab della vista detail =====
@@ -272,7 +274,9 @@
         if (spellsLoaded) return;
         try
         {
-            allSpells = await SpellRepository.GetSpellsForCampaignAsync(CurrentUser.CampaignId ?? string.Empty);
+            var vistaIncantesimi = await Catalog.GetSpellsAsync(CurrentUser.CampaignId ?? string.Empty);
+            allSpells = vistaIncantesimi.DbRows.ToList();
+            packageSpells = vistaIncantesimi.PackageEntries.ToList();
             spellsLoaded = true;
         }
         catch (Exception ex)
