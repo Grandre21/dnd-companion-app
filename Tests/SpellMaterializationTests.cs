@@ -105,4 +105,14 @@ public class SpellMaterializationTests
         Assert.Null(esito.Existing);
         Assert.NotNull(esito.ToInsert);
     }
+
+    [Fact]
+    public void Resolve_LevelNull_UsaZeroComeDefault()
+    {
+        var voce = new PackageSpell { Id = "test/spell", Name = "Test", Level = null, Classes = { "Mago" } };
+
+        var esito = SpellMaterialization.Resolve(voce, Array.Empty<Spell>(), "c1", "user");
+
+        Assert.Equal(0, esito.ToInsert!.Level);
+    }
 }

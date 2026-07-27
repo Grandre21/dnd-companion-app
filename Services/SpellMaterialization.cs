@@ -19,6 +19,8 @@ public static class SpellMaterialization
         string campaignId,
         string? userId)
     {
+        ArgumentNullException.ThrowIfNull(campaignSpells);
+
         // Il filtro sulla campagna non è ridondante: la lista arriva da una pagina che potrebbe
         // averla caricata per un'altra campagna, e riusare l'uuid di una riga che sta altrove
         // creerebbe un legame che la chiave esterna di QUESTA campagna non regge.
