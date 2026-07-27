@@ -112,9 +112,9 @@
                 @foreach (var cls in classes)
                 {
                     <button type="button"
-                            class="chip @(classFilter == cls.Match ? "chip-active" : "")"
-                            @onclick="() => ToggleClass(cls.Match)">
-                        @cls.Label
+                            class="chip @(classFilter == cls.Italian ? "chip-active" : "")"
+                            @onclick="() => ToggleClass(cls.Italian)">
+                        @cls.Italian
                     </button>
                 }
             </div>
@@ -240,19 +240,9 @@
     private readonly int[] levels = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     private readonly HashSet<int> levelFilters = new();
 
-    private record SpellClass(string Label, string Match);
-
-    private readonly SpellClass[] classes =
-    {
-        new("Bardo",    "Bard"),
-        new("Chierico", "Cleric"),
-        new("Druido",   "Druid"),
-        new("Paladino", "Paladin"),
-        new("Ranger",   "Ranger"),
-        new("Stregone", "Sorcerer"),
-        new("Warlock",  "Warlock"),
-        new("Mago",     "Wizard")
-    };
+    // I nomi delle classi vivono in SpellClassNames: la pagina non deve conoscere la mappatura
+    // italiano/inglese, che serve anche altrove ed è testata a parte (§4.6).
+    private IReadOnlyList<(string Italian, string English)> classes => SpellClassNames.Pairs;
     private string? classFilter;
 
     private string? expandedId;
@@ -311,8 +301,9 @@
 
             if (!string.IsNullOrEmpty(classFilter))
             {
-                result = result.Where(s =>
-                    s.Classes.Contains(classFilter, StringComparison.OrdinalIgnoreCase));
+                // Il campo può essere in inglese (voci digitate finora) o in italiano (pacchetto):
+                // SpellClassNames riconosce entrambi.
+                result = result.Where(s => SpellClassNames.Matches(s.Classes, classFilter));
             }
 
             return result
