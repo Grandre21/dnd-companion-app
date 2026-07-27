@@ -96,7 +96,7 @@ public sealed class PackageSpell
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
-    [JsonPropertyName("level")] public int Level { get; set; }
+    [JsonPropertyName("level")] public int? Level { get; set; }
     [JsonPropertyName("school")] public string School { get; set; } = string.Empty;
     [JsonPropertyName("castingTime")] public string CastingTime { get; set; } = string.Empty;
     [JsonPropertyName("range")] public string Range { get; set; } = string.Empty;
@@ -111,7 +111,7 @@ public sealed class PackageMonster
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
     [JsonPropertyName("challengeRating")] public string ChallengeRating { get; set; } = string.Empty;
-    [JsonPropertyName("armorClass")] public int ArmorClass { get; set; }
+    [JsonPropertyName("armorClass")] public int? ArmorClass { get; set; }
     [JsonPropertyName("hitPoints")] public string HitPoints { get; set; } = string.Empty;
     [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
 }
