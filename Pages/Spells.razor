@@ -1,8 +1,11 @@
 @page "/spells"
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
 @implements IDisposable
 @inject ISpellRepository SpellRepository
 @inject IProfileRepository ProfileRepository
+@inject ICatalogService Catalog
+@inject ICharacterSpellRepository CharacterSpellRepository
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -126,7 +129,7 @@
                 }
                 else
                 {
-                    var count = FilteredSpells.Count();
+                    var count = FilteredEntries.Count();
                     <span>@count @(count == 1 ? "incantesimo trovato" : "incantesimi trovati")</span>
                 }
             </div>
@@ -135,20 +138,24 @@
         <div class="spells-list">
             @if (!isLoading)
             {
-                @foreach (var spell in FilteredSpells)
+                @foreach (var entry in FilteredEntries)
                 {
-                    var isExpanded = expandedId == spell.Id;
-                    <div class="spell-card @(isExpanded ? "expanded" : "")">
-                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(spell.Id)">
+                    var isExpanded = expandedKey == entry.Key;
+                    <div class="spell-card @(isExpanded ? "expanded" : "") @(entry.FromAppPackage ? "package-card" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(entry.Key)">
                             <div class="card-main">
-                                <div class="card-name">@spell.Name</div>
+                                <div class="card-name">@entry.Name</div>
                                 <div class="card-meta">
-                                    <span class="level-badge">@(spell.Level == 0 ? "Trucchetto" : $"Liv {spell.Level}")</span>
-                                    <span class="school">@spell.School</span>
-                                    @{ var author = GetAuthorName(spell.AddedBy); }
+                                    <span class="level-badge">@(entry.Level == 0 ? "Trucchetto" : $"Liv {entry.Level}")</span>
+                                    <span class="school">@entry.School</span>
+                                    @{ var author = GetAuthorName(entry.AddedBy); }
                                     @if (!string.IsNullOrEmpty(author))
                                     {
                                         <span class="author-badge" title="Aggiunto da @author">✎ @author</span>
+                                    }
+                                    @if (entry.FromAppPackage)
+                                    {
+                                        <span class="package-badge">Dal manuale</span>
                                     }
                                 </div>
                             </div>
@@ -159,33 +166,53 @@
                             <div class="details-inner">
                                 <div class="detail-row">
                                     <div class="detail-label">Tempo di Lancio</div>
-                                    <div class="detail-value">@spell.CastingTime</div>
+                                    <div class="detail-value">@entry.CastingTime</div>
                                 </div>
                                 <div class="detail-row">
                                     <div class="detail-label">Gittata</div>
-                                    <div class="detail-value">@spell.Range</div>
+                                    <div class="detail-value">@entry.Range</div>
                                 </div>
                                 <div class="detail-row">
                                     <div class="detail-label">Componenti</div>
-                                    <div class="detail-value">@spell.Components</div>
+                                    <div class="detail-value">@entry.Components</div>
                                 </div>
                                 <div class="detail-row">
                                     <div class="detail-label">Durata</div>
-                                    <div class="detail-value">@spell.Duration</div>
+                                    <div class="detail-value">@entry.Duration</div>
                                 </div>
                                 <div class="detail-row">
                                     <div class="detail-label">Classi</div>
-                                    <div class="detail-value">@spell.Classes</div>
+                                    <div class="detail-value">@entry.Classes</div>
                                 </div>
-                                <div class="description">@spell.Description</div>
+                                <div class="description">@entry.Description</div>
 
-                                @if (CanEdit(spell))
+                                @if (entry.IsPackage)
                                 {
                                     <div class="card-actions">
-                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(spell)" @onclick:stopPropagation>
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Package!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (CatalogKey.IsFromAppPackage(entry.Db!.SourceId))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Db!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (PuoModificare(entry.Db!))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(entry.Db!)" @onclick:stopPropagation>
                                             ✎ Modifica
                                         </button>
-                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteSpellAsync(spell)" @onclick:stopPropagation>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteSpellAsync(entry.Db!)" @onclick:stopPropagation>
                                             🗑 Elimina
                                         </button>
                                     </div>
@@ -195,10 +222,10 @@
                     </div>
                 }
 
-                @if (!FilteredSpells.Any())
+                @if (!FilteredEntries.Any())
                 {
                     <div class="empty-state">
-                        @if (allSpells.Count == 0)
+                        @if (dbRows.Count == 0 && packageRows.Count == 0)
                         {
                             <div class="empty-icon">📜</div>
                             <p class="empty-title">Nessun incantesimo nel database</p>
@@ -227,7 +254,9 @@
     private enum ViewMode { List, Form }
 
     private ViewMode mode = ViewMode.List;
-    private List<Spell> allSpells = new();
+
+    private List<Spell> dbRows = new();
+    private List<PackageSpell> packageRows = new();
     private Dictionary<string, string> playerNicknames = new();
     private bool isLoading = true;
     private bool isBusy;
@@ -245,7 +274,7 @@
     private IReadOnlyList<(string Italian, string English)> classes => SpellClassNames.Pairs;
     private string? classFilter;
 
-    private string? expandedId;
+    private string? expandedKey;
     private Spell editDraft = new();
 
     protected override async Task OnInitializedAsync()
@@ -256,11 +285,10 @@
 
             if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
 
-            var spellsTask = SpellRepository.GetSpellsForCampaignAsync(CurrentUser.CampaignId);
             var profilesTask = ProfileRepository.GetProfilesAsync();
-            await Task.WhenAll(spellsTask, profilesTask);
+            var reloadTask = ReloadAsync();
+            await Task.WhenAll(profilesTask, reloadTask);
 
-            allSpells = spellsTask.Result;
             playerNicknames = profilesTask.Result.ToDictionary(p => p.Id, p => p.DisplayName ?? "Utente");
         }
         catch (Exception ex)
@@ -273,8 +301,17 @@
         }
     }
 
-    // Crea: ogni membro. Modifica/elimina: solo l'autore (added_by) o il master — allineato alle RLS.
-    private bool CanEdit(Spell spell) => AccessControl.CanEdit(CurrentUser.IsMaster, spell.AddedBy, CurrentUser.UserId);
+    // Ricarica SEMPRE dal servizio invece di ritoccare dbRows/packageRows in memoria: la vista non
+    // è solo righe di database, contiene anche le voci di pacchetto, e quali siano visibili dipende
+    // da cosa c'è nel database (vedi "Duplica e modifica" più sotto).
+    private async Task ReloadAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+        var vista = await Catalog.GetSpellsAsync(CurrentUser.CampaignId);
+        dbRows = vista.DbRows.ToList();
+        packageRows = vista.PackageEntries.ToList();
+    }
 
     private string? GetAuthorName(string? authorId)
     {
@@ -282,33 +319,111 @@
         return playerNicknames.TryGetValue(authorId, out var nick) ? nick : null;
     }
 
-    private IEnumerable<Spell> FilteredSpells
+    // Una riga di database è modificabile se chi guarda ne ha il diritto E non viene dal
+    // pacchetto dell'app: quelle restano voci di manuale anche se vivono nel database (§6).
+    private bool PuoModificare(Spell s)
+        => !CatalogKey.IsFromAppPackage(s.SourceId)
+           && AccessControl.CanEdit(CurrentUser.IsMaster, s.AddedBy, CurrentUser.UserId);
+
+    // Copia modificabile di una voce di pacchetto: nasce SENZA SourceId, così è una voce
+    // propria dell'utente e ha la precedenza nel merge (§4.3).
+    private Spell DuplicaDaPacchetto(PackageSpell p) => new()
+    {
+        Name = p.Name,
+        Level = p.Level ?? 0,
+        School = p.School,
+        CastingTime = p.CastingTime,
+        Range = p.Range,
+        Components = p.Components,
+        Duration = p.Duration,
+        Description = p.Description,
+        Classes = string.Join(", ", p.Classes),
+        SourceId = null,
+        CampaignId = CurrentUser.CampaignId ?? string.Empty,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Stessa regola di DuplicaDaPacchetto, ma per una riga di DATABASE che porta comunque la
+    // provenienza del pacchetto dell'app (import diretto, non ancora possibile in questa fase ma
+    // già previsto dal modello dati): anche qui la copia nasce SENZA SourceId.
+    // AddedBy è l'utente CORRENTE, non l'autore originale della riga (che potrebbe non essere lui):
+    // la RLS "spells_insert" richiede added_by = auth.uid(), quindi copiare s.AddedBy avrebbe
+    // fatto fallire l'INSERT per chiunque diverso dall'autore originale, master incluso.
+    private Spell DuplicaDaRigaImportata(Spell s) => new()
+    {
+        Name = s.Name,
+        Level = s.Level,
+        School = s.School,
+        CastingTime = s.CastingTime,
+        Range = s.Range,
+        Components = s.Components,
+        Duration = s.Duration,
+        Description = s.Description,
+        Classes = s.Classes,
+        SourceId = null,
+        CampaignId = s.CampaignId,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Vista unificata di riga-database e voce-pacchetto: la lista mostrata è un'unione delle due
+    // sorgenti (ricerca/filtri/ordinamento/rendering condivisi), ma le operazioni CRUD restano
+    // ancorate a dbRows/packageRows separati.
+    // FromAppPackage è la stessa condizione che, più sotto, sopprime i comandi di modifica/cancellazione
+    // (voce di pacchetto, oppure riga di database con provenienza dal pacchetto dell'app): la marcatura
+    // visiva (badge "Dal manuale" + bordo della card) deve dipendere da questa, non da IsPackage da sola,
+    // altrimenti una riga di database non modificabile risulterebbe indistinguibile da una qualsiasi.
+    private sealed record Entry(
+        string Key,
+        string Name,
+        int Level,
+        string School,
+        string CastingTime,
+        string Range,
+        string Components,
+        string Duration,
+        string Description,
+        string Classes,
+        string? AddedBy,
+        bool IsPackage,
+        bool FromAppPackage,
+        Spell? Db,
+        PackageSpell? Package);
+
+    private static Entry ToEntry(Spell s) => new(
+        "db:" + s.Id, s.Name, s.Level, s.School, s.CastingTime, s.Range, s.Components,
+        s.Duration, s.Description, s.Classes, s.AddedBy, false,
+        CatalogKey.IsFromAppPackage(s.SourceId), s, null);
+
+    // Nessun autore: una voce di pacchetto non l'ha aggiunta nessuno, e mostrare un badge "✎ …"
+    // vuoto sarebbe peggio che non mostrarlo.
+    // `?? 0` sul livello: la proprietà del pacchetto è int? (Task 2), quella del record è int.
+    private static Entry ToEntry(PackageSpell p) => new(
+        "pkg:" + p.Id, p.Name, p.Level ?? 0, p.School, p.CastingTime, p.Range, p.Components,
+        p.Duration, p.Description, string.Join(", ", p.Classes), null, true, true, null, p);
+
+    private IEnumerable<Entry> FilteredEntries
     {
         get
         {
-            IEnumerable<Spell> result = allSpells;
+            IEnumerable<Entry> result = dbRows.Select(ToEntry).Concat(packageRows.Select(ToEntry));
 
             if (!string.IsNullOrEmpty(searchQuery))
             {
-                result = result.Where(s =>
-                    s.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+                // Normalizzato su entrambi i lati: cercare "invisibilita" deve trovare "Invisibilità".
+                var chiave = CatalogKey.NormalizeName(searchQuery);
+                result = result.Where(e =>
+                    CatalogKey.NormalizeName(e.Name).Contains(chiave, StringComparison.Ordinal));
             }
 
             if (levelFilters.Count > 0)
-            {
-                result = result.Where(s => levelFilters.Contains(s.Level));
-            }
+                result = result.Where(e => levelFilters.Contains(e.Level));
 
             if (!string.IsNullOrEmpty(classFilter))
-            {
-                // Il campo può essere in inglese (voci digitate finora) o in italiano (pacchetto):
-                // SpellClassNames riconosce entrambi.
-                result = result.Where(s => SpellClassNames.Matches(s.Classes, classFilter));
-            }
+                result = result.Where(e => SpellClassNames.Matches(e.Classes, classFilter));
 
             return result
-                .OrderBy(s => s.Level)
-                .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+                .OrderBy(e => e.Level)
+                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
         }
     }
 
@@ -335,19 +450,16 @@
     {
         if (!levelFilters.Add(level))
             levelFilters.Remove(level);
-        expandedId = null;
+        expandedKey = null;
     }
 
     private void ToggleClass(string cls)
     {
         classFilter = classFilter == cls ? null : cls;
-        expandedId = null;
+        expandedKey = null;
     }
 
-    private void ToggleExpand(string id)
-    {
-        expandedId = expandedId == id ? null : id;
-    }
+    private void ToggleExpand(string key) => expandedKey = expandedKey == key ? null : key;
 
     private void OpenCreateForm()
     {
@@ -358,6 +470,18 @@
     private void OpenEditForm(Spell spell)
     {
         editDraft = CloneSpell(spell);
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDuplicateForm(PackageSpell package)
+    {
+        editDraft = DuplicaDaPacchetto(package);
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDuplicateForm(Spell spell)
+    {
+        editDraft = DuplicaDaRigaImportata(spell);
         mode = ViewMode.Form;
     }
 
@@ -399,11 +523,11 @@
                 return;
             }
 
-            var idx = allSpells.FindIndex(s => s.Id == saved.Id);
-            if (idx >= 0) allSpells[idx] = saved;
-            else allSpells.Add(saved);
-
-            expandedId = saved.Id;
+            // Richiama il servizio invece di ritoccare dbRows: la copia di "Duplica e modifica"
+            // deve far sparire la voce di pacchetto da cui deriva nella STESSA operazione, non al
+            // prossimo cambio pagina.
+            await ReloadAsync();
+            expandedKey = "db:" + saved.Id;
             mode = ViewMode.List;
             Toasts.ShowSuccess("Salvato");
         }
@@ -419,16 +543,43 @@
 
     private async Task DeleteSpellAsync(Spell spell)
     {
-        var confirmed = await Confirm.ShowAsync($"Eliminare l'incantesimo \"{spell.Name}\"?");
-        if (!confirmed) return;
+        // Quanti PG lo conoscono: la FK è ON DELETE CASCADE, quindi cancellarlo dal catalogo lo
+        // toglie dalle loro schede — senza preavviso, se il dialogo non lo dice (§4.4).
+        //
+        // Il try/catch non è pleonastico: questa è l'unica chiamata di rete FUORI dal try/catch che
+        // avvolge la cancellazione, e un errore qui uscirebbe dall'event handler mostrando l'error
+        // UI di Blazor — l'app da ricaricare — invece del DbErrorBanner. Se il conteggio non
+        // riesce, si avverte comunque e si lascia procedere: negare la cancellazione per un
+        // conteggio mancato sarebbe peggio del conteggio mancato.
+        var pgColpiti = 0;
+        try
+        {
+            var legami = await CharacterSpellRepository.GetBySpellIdsAsync(new List<string> { spell.Id });
+            pgColpiti = legami.Select(l => l.CharacterId).Distinct().Count();
+        }
+        catch (Exception)
+        {
+            pgColpiti = -1; // sconosciuto
+        }
+
+        var messaggio = $"Eliminare l'incantesimo \"{spell.Name}\"?";
+        messaggio += pgColpiti switch
+        {
+            < 0 => " Sparirà anche dalle schede dei personaggi che lo conoscono.",
+            0 => string.Empty,
+            1 => " Sparirà anche dalla scheda di 1 personaggio che lo conosce.",
+            _ => $" Sparirà anche dalle schede di {pgColpiti} personaggi che lo conoscono.",
+        };
+
+        if (!await Confirm.ShowAsync(messaggio)) return;
 
         isBusy = true;
         errorMessage = null;
         try
         {
             await SpellRepository.DeleteSpellAsync(spell.Id);
-            allSpells.RemoveAll(s => s.Id == spell.Id);
-            if (expandedId == spell.Id) expandedId = null;
+            if (expandedKey == "db:" + spell.Id) expandedKey = null;
+            await ReloadAsync();
             Toasts.ShowSuccess("Eliminato");
         }
         catch (Exception ex)

@@ -1,7 +1,10 @@
 @page "/monsters"
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
 @implements IDisposable
 @inject IMonsterRepository MonsterRepository
+@inject IProfileRepository ProfileRepository
+@inject ICatalogService Catalog
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -160,7 +163,7 @@
                 }
                 else
                 {
-                    var count = FilteredMonsters.Count();
+                    var count = FilteredEntries.Count();
                     <span>@count @(count == 1 ? "mostro trovato" : "mostri trovati")</span>
                 }
             </div>
@@ -169,16 +172,28 @@
         <div class="monsters-list">
             @if (!isLoading)
             {
-                @foreach (var monster in FilteredMonsters)
+                @foreach (var entry in FilteredEntries)
                 {
-                    var isExpanded = expandedId == monster.Id;
-                    <div class="monster-card @(isExpanded ? "expanded" : "")">
-                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(monster.Id)">
+                    var isExpanded = expandedKey == entry.Key;
+                    <div class="monster-card @(isExpanded ? "expanded" : "") @(entry.FromAppPackage ? "package-card" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(entry.Key)">
                             <div class="card-main">
-                                <div class="card-name">@monster.Name</div>
+                                <div class="card-name">@entry.Name</div>
                                 <div class="card-meta">
-                                    <span class="cr-badge">CR @(string.IsNullOrEmpty(monster.ChallengeRating) ? "—" : monster.ChallengeRating)</span>
-                                    <span class="type">@monster.Type</span>
+                                    <span class="cr-badge">CR @(string.IsNullOrEmpty(entry.ChallengeRating) ? "—" : entry.ChallengeRating)</span>
+                                    @if (entry.Db is not null)
+                                    {
+                                        <span class="type">@entry.Db.Type</span>
+                                    }
+                                    @{ var author = GetAuthorName(entry.AddedBy); }
+                                    @if (!string.IsNullOrEmpty(author))
+                                    {
+                                        <span class="author-badge" title="Aggiunto da @author">✎ @author</span>
+                                    }
+                                    @if (entry.FromAppPackage)
+                                    {
+                                        <span class="package-badge">Dal manuale</span>
+                                    }
                                 </div>
                             </div>
                             <span class="expand-icon">@(isExpanded ? "▾" : "▸")</span>
@@ -186,59 +201,89 @@
 
                         <div class="card-details">
                             <div class="details-inner">
-                                <div class="header-line">
-                                    @monster.Size @monster.Type, @monster.Alignment
-                                </div>
+                                @if (entry.Db is not null)
+                                {
+                                    <div class="header-line">
+                                        @entry.Db.Size @entry.Db.Type, @entry.Db.Alignment
+                                    </div>
+                                }
 
                                 <div class="key-stats-row">
                                     <div class="key-stat">
                                         <div class="key-label">CA</div>
-                                        <div class="key-value">@monster.ArmorClass</div>
+                                        <div class="key-value">@entry.ArmorClass</div>
                                     </div>
                                     <div class="key-stat">
                                         <div class="key-label">PF</div>
-                                        <div class="key-value">@monster.HitPoints</div>
+                                        <div class="key-value">@entry.HitPoints</div>
                                     </div>
-                                    <div class="key-stat key-stat-wide">
-                                        <div class="key-label">Velocità</div>
-                                        <div class="key-value">@monster.Speed</div>
-                                    </div>
-                                </div>
-
-                                <div class="stats-grid">
-                                    @foreach (var s in GetStats(monster))
+                                    @* La velocità esiste solo sulla riga di database: PackageMonster non la porta (Task 2). *@
+                                    @if (entry.Db is not null)
                                     {
-                                        <div class="stat-card">
-                                            <div class="stat-label">@s.Label</div>
-                                            <div class="stat-value">@s.Value</div>
-                                            <div class="stat-mod">@FormatBonus(CharacterCalculations.GetModifier(s.Value))</div>
+                                        <div class="key-stat key-stat-wide">
+                                            <div class="key-label">Velocità</div>
+                                            <div class="key-value">@entry.Db.Speed</div>
                                         </div>
                                     }
                                 </div>
 
-                                @if (!string.IsNullOrWhiteSpace(monster.Abilities))
+                                @if (entry.Db is not null)
+                                {
+                                    <div class="stats-grid">
+                                        @foreach (var s in GetStats(entry.Db))
+                                        {
+                                            <div class="stat-card">
+                                                <div class="stat-label">@s.Label</div>
+                                                <div class="stat-value">@s.Value</div>
+                                                <div class="stat-mod">@FormatBonus(CharacterCalculations.GetModifier(s.Value))</div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (entry.Db is not null && !string.IsNullOrWhiteSpace(entry.Db.Abilities))
                                 {
                                     <div class="section-block">
                                         <div class="section-title">Abilità speciali</div>
-                                        <div class="section-body">@monster.Abilities</div>
+                                        <div class="section-body">@entry.Db.Abilities</div>
                                     </div>
                                 }
 
-                                @if (!string.IsNullOrWhiteSpace(monster.Description))
+                                @if (!string.IsNullOrWhiteSpace(entry.Description))
                                 {
                                     <div class="section-block">
                                         <div class="section-title">Descrizione</div>
-                                        <div class="section-body">@monster.Description</div>
+                                        <div class="section-body">@entry.Description</div>
                                     </div>
                                 }
 
-                                @if (AccessControl.CanEdit(CurrentUser.IsMaster, monster.AddedBy, CurrentUser.UserId))
+                                @if (entry.IsPackage)
                                 {
                                     <div class="master-actions">
-                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(monster)" @onclick:stopPropagation>
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Package!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (CatalogKey.IsFromAppPackage(entry.Db!.SourceId))
+                                {
+                                    <div class="master-actions">
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Db!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (PuoModificare(entry.Db!))
+                                {
+                                    <div class="master-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(entry.Db!)" @onclick:stopPropagation>
                                             ✎ Modifica
                                         </button>
-                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteMonsterAsync(monster)" @onclick:stopPropagation>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteMonsterAsync(entry.Db!)" @onclick:stopPropagation>
                                             🗑 Elimina
                                         </button>
                                     </div>
@@ -248,10 +293,10 @@
                     </div>
                 }
 
-                @if (!FilteredMonsters.Any())
+                @if (!FilteredEntries.Any())
                 {
                     <div class="empty-state">
-                        @if (allMonsters.Count == 0)
+                        @if (dbRows.Count == 0 && packageRows.Count == 0)
                         {
                             <div class="empty-icon">🐉</div>
                             <p class="empty-title">Nessun mostro nel database</p>
@@ -280,7 +325,10 @@
     private enum ViewMode { List, Form }
 
     private ViewMode mode = ViewMode.List;
-    private List<Monster> allMonsters = new();
+
+    private List<Monster> dbRows = new();
+    private List<PackageMonster> packageRows = new();
+    private Dictionary<string, string> playerNicknames = new();
     private bool isLoading = true;
     private bool isBusy;
     private string? errorMessage;
@@ -334,7 +382,7 @@
     };
     private string? typeFilter;
 
-    private string? expandedId;
+    private string? expandedKey;
     private Monster editDraft = new();
 
     protected override async Task OnInitializedAsync()
@@ -345,7 +393,11 @@
 
             if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
 
-            allMonsters = await MonsterRepository.GetMonstersForCampaignAsync(CurrentUser.CampaignId);
+            var profilesTask = ProfileRepository.GetProfilesAsync();
+            var reloadTask = ReloadAsync();
+            await Task.WhenAll(profilesTask, reloadTask);
+
+            playerNicknames = profilesTask.Result.ToDictionary(p => p.Id, p => p.DisplayName ?? "Utente");
         }
         catch (Exception ex)
         {
@@ -357,23 +409,125 @@
         }
     }
 
-    private IEnumerable<Monster> FilteredMonsters
+    // Ricarica SEMPRE dal servizio invece di ritoccare dbRows/packageRows in memoria: la vista non
+    // è solo righe di database, contiene anche le voci di pacchetto, e quali siano visibili dipende
+    // da cosa c'è nel database (vedi "Duplica e modifica" più sotto).
+    private async Task ReloadAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+        var vista = await Catalog.GetMonstersAsync(CurrentUser.CampaignId);
+        dbRows = vista.DbRows.ToList();
+        packageRows = vista.PackageEntries.ToList();
+    }
+
+    private string? GetAuthorName(string? authorId)
+    {
+        if (string.IsNullOrEmpty(authorId)) return null;
+        return playerNicknames.TryGetValue(authorId, out var nick) ? nick : null;
+    }
+
+    // Una riga di database è modificabile se chi guarda ne ha il diritto E non viene dal
+    // pacchetto dell'app: quelle restano voci di manuale anche se vivono nel database (§6).
+    private bool PuoModificare(Monster m)
+        => !CatalogKey.IsFromAppPackage(m.SourceId)
+           && AccessControl.CanEdit(CurrentUser.IsMaster, m.AddedBy, CurrentUser.UserId);
+
+    // Copia modificabile di una voce di pacchetto: nasce SENZA SourceId, così è una voce
+    // propria dell'utente e ha la precedenza nel merge (§4.3). Le sei caratteristiche restano ai
+    // default del Model (10): PackageMonster non le porta.
+    private Monster DuplicaDaPacchetto(PackageMonster p) => new()
+    {
+        Name = p.Name,
+        ChallengeRating = p.ChallengeRating,
+        // `?? 10`: la proprietà del pacchetto è int? (Task 2), quella del Model è int, e 10 è il
+        // default del Model per un mostro di cui non si conosce l'armatura.
+        ArmorClass = p.ArmorClass ?? 10,
+        HitPoints = p.HitPoints,
+        Description = p.Description,
+        SourceId = null,
+        CampaignId = CurrentUser.CampaignId ?? string.Empty,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Stessa regola di DuplicaDaPacchetto, ma per una riga di DATABASE che porta comunque la
+    // provenienza del pacchetto dell'app (import diretto, non ancora possibile in questa fase ma
+    // già previsto dal modello dati): anche qui la copia nasce SENZA SourceId.
+    // AddedBy è l'utente CORRENTE, non l'autore originale della riga (che potrebbe non essere lui):
+    // la RLS "monsters_insert" richiede added_by = auth.uid(), quindi copiare m.AddedBy avrebbe
+    // fatto fallire l'INSERT per chiunque diverso dall'autore originale, master incluso.
+    private Monster DuplicaDaRigaImportata(Monster m) => new()
+    {
+        Name = m.Name,
+        Size = m.Size,
+        Type = m.Type,
+        Alignment = m.Alignment,
+        ArmorClass = m.ArmorClass,
+        HitPoints = m.HitPoints,
+        Speed = m.Speed,
+        Strength = m.Strength,
+        Dexterity = m.Dexterity,
+        Constitution = m.Constitution,
+        Intelligence = m.Intelligence,
+        Wisdom = m.Wisdom,
+        Charisma = m.Charisma,
+        ChallengeRating = m.ChallengeRating,
+        Abilities = m.Abilities,
+        Description = m.Description,
+        SourceId = null,
+        CampaignId = m.CampaignId,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Vista unificata di riga-database e voce-pacchetto: la lista mostrata è un'unione delle due
+    // sorgenti (ricerca/filtri/ordinamento/rendering condivisi), ma le operazioni CRUD restano
+    // ancorate a dbRows/packageRows separati.
+    // Solo i campi che ESISTONO su entrambe le fonti entrano nel record: taglia, tipo, allineamento,
+    // velocità, caratteristiche e abilità speciali vivono solo sul Model (PackageMonster non li porta,
+    // Task 2) e nel markup si leggono direttamente da entry.Db, sotto `@if (entry.Db is not null)`.
+    private sealed record Entry(
+        string Key,
+        string Name,
+        string ChallengeRating,
+        int ArmorClass,
+        string HitPoints,
+        string Description,
+        string? AddedBy,
+        bool IsPackage,
+        bool FromAppPackage,
+        Monster? Db,
+        PackageMonster? Package);
+
+    private static Entry ToEntry(Monster m) => new(
+        "db:" + m.Id, m.Name, m.ChallengeRating, m.ArmorClass, m.HitPoints, m.Description,
+        m.AddedBy, false, CatalogKey.IsFromAppPackage(m.SourceId), m, null);
+
+    // Nessun autore: una voce di pacchetto non l'ha aggiunta nessuno.
+    // `?? 10` sulla CA: la proprietà del pacchetto è int? (Task 2), quella del record è int, e 10
+    // è il default del Model per un mostro di cui non si conosce l'armatura.
+    private static Entry ToEntry(PackageMonster p) => new(
+        "pkg:" + p.Id, p.Name, p.ChallengeRating, p.ArmorClass ?? 10, p.HitPoints, p.Description,
+        null, true, true, null, p);
+
+    private IEnumerable<Entry> FilteredEntries
     {
         get
         {
-            IEnumerable<Monster> result = allMonsters;
+            IEnumerable<Entry> result = dbRows.Select(ToEntry).Concat(packageRows.Select(ToEntry));
 
             if (!string.IsNullOrEmpty(searchQuery))
             {
-                result = result.Where(m =>
-                    m.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+                // Normalizzato su entrambi i lati: cercare "drago" deve trovare "Drago".
+                var chiave = CatalogKey.NormalizeName(searchQuery);
+                result = result.Where(e =>
+                    CatalogKey.NormalizeName(e.Name).Contains(chiave, StringComparison.Ordinal));
             }
 
             if (crFilterLabels.Count > 0)
             {
-                result = result.Where(m =>
+                result = result.Where(e =>
                 {
-                    var v = MonsterCatalog.ParseChallengeRating(m.ChallengeRating);
+                    var v = MonsterCatalog.ParseChallengeRating(e.ChallengeRating);
                     if (v < 0) return false;
                     return crFilters.Any(f => crFilterLabels.Contains(f.Label) && f.Match(v));
                 });
@@ -381,13 +535,16 @@
 
             if (!string.IsNullOrEmpty(typeFilter))
             {
-                result = result.Where(m =>
-                    m.Type.Contains(typeFilter, StringComparison.OrdinalIgnoreCase));
+                // Il tipo (Aberrazione, Bestia, ...) esiste solo sulla riga di database: PackageMonster
+                // non lo porta (Task 2). Una voce di pacchetto non può quindi corrispondere a un tipo
+                // scelto e va esclusa, non mostrata "per difetto" come se combaciasse.
+                result = result.Where(e =>
+                    e.Db is not null && e.Db.Type.Contains(typeFilter, StringComparison.OrdinalIgnoreCase));
             }
 
             return result
-                .OrderBy(m => MonsterCatalog.ParseChallengeRating(m.ChallengeRating))
-                .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase);
+                .OrderBy(e => MonsterCatalog.ParseChallengeRating(e.ChallengeRating))
+                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
         }
     }
 
@@ -411,19 +568,16 @@
     {
         if (!crFilterLabels.Add(label))
             crFilterLabels.Remove(label);
-        expandedId = null;
+        expandedKey = null;
     }
 
     private void ToggleType(string type)
     {
         typeFilter = typeFilter == type ? null : type;
-        expandedId = null;
+        expandedKey = null;
     }
 
-    private void ToggleExpand(string id)
-    {
-        expandedId = expandedId == id ? null : id;
-    }
+    private void ToggleExpand(string key) => expandedKey = expandedKey == key ? null : key;
 
     private void OpenCreateForm()
     {
@@ -446,6 +600,18 @@
     private void OpenEditForm(Monster monster)
     {
         editDraft = CloneMonster(monster);
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDuplicateForm(PackageMonster package)
+    {
+        editDraft = DuplicaDaPacchetto(package);
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDuplicateForm(Monster monster)
+    {
+        editDraft = DuplicaDaRigaImportata(monster);
         mode = ViewMode.Form;
     }
 
@@ -480,11 +646,11 @@
                 return;
             }
 
-            var idx = allMonsters.FindIndex(m => m.Id == saved.Id);
-            if (idx >= 0) allMonsters[idx] = saved;
-            else allMonsters.Add(saved);
-
-            expandedId = saved.Id;
+            // Richiama il servizio invece di ritoccare dbRows: la copia di "Duplica e modifica"
+            // deve far sparire la voce di pacchetto da cui deriva nella STESSA operazione, non al
+            // prossimo cambio pagina.
+            await ReloadAsync();
+            expandedKey = "db:" + saved.Id;
             mode = ViewMode.List;
             Toasts.ShowSuccess("Salvato");
         }
@@ -508,8 +674,8 @@
         try
         {
             await MonsterRepository.DeleteMonsterAsync(monster.Id);
-            allMonsters.RemoveAll(m => m.Id == monster.Id);
-            if (expandedId == monster.Id) expandedId = null;
+            if (expandedKey == "db:" + monster.Id) expandedKey = null;
+            await ReloadAsync();
             Toasts.ShowSuccess("Eliminato");
         }
         catch (Exception ex)

@@ -203,6 +203,16 @@
     box-shadow: 0 6px 16px rgba(var(--black-rgb), 0.5), 0 0 0 1px rgba(var(--gold-rgb), 0.25);
 }
 
+/* Voci che vengono dal pacchetto dell'app: sola lettura, marcate con un bordo spento invece del
+   bronzo delle righe di database. */
+.spell-card.package-card {
+    border-color: var(--gold-dim);
+}
+
+.spell-card.package-card.expanded {
+    border-color: var(--gold);
+}
+
 .card-summary {
     width: 100%;
     display: flex;
@@ -263,6 +273,21 @@
     background: rgba(var(--gold-muted-rgb), 0.15);
     border: 1px solid rgba(var(--gold-muted-rgb), 0.4);
     color: #b89a80;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* Etichetta "dal manuale" sulle voci di pacchetto: stesso bordo spento della card, per riconoscerle
+   anche nella riga sommario prima di espandere. */
+.package-badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold-dim);
     border-radius: 999px;
     font-size: 0.7rem;
     font-weight: 600;
