@@ -6,7 +6,10 @@ namespace DndCompanion.Services;
 
 /// <summary>Contesto di serializzazione generato a compile-time: il progetto pubblica con
 /// TrimMode=full, dove gli overload a reflection di System.Text.Json producono warning.</summary>
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(
+    PropertyNameCaseInsensitive = true,
+    WriteIndented = true,
+    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(CatalogPackage))]
 internal partial class CatalogPackageJsonContext : JsonSerializerContext { }
 

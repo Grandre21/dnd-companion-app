@@ -190,6 +190,22 @@
             }
         };
     </script>
+    <script>
+        // Download di un file di testo generato dall'app (export dei cataloghi). Blob + anchor
+        // invece di un data: URI perché i pacchetti possono superare di molto il limite pratico
+        // degli URI, e l'URL viene revocato subito dopo per non trattenere memoria.
+        window.downloadTextFile = function (fileName, content) {
+            const blob = new Blob([content], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+    </script>
 </body>
 
 </html>
