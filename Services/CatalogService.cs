@@ -28,6 +28,22 @@ public interface ICatalogService
 
     /// <summary>Background della campagna uniti alle voci di pacchetto non già coperte (§6).</summary>
     Task<CatalogView<Background, PackageBackground>> GetBackgroundsAsync(string campaignId);
+
+    /// <summary>Specie della campagna unite alle voci di pacchetto non già coperte (§6).</summary>
+    Task<CatalogView<Race, PackageSpecies>> GetRacesAsync(string campaignId);
+
+    /// <summary>Classi della campagna unite alle voci di pacchetto non già coperte (§6).</summary>
+    Task<CatalogView<CharacterClass, PackageClass>> GetClassesAsync(string campaignId);
+
+    /// <summary>Incantesimi della campagna uniti alle voci di pacchetto non già coperte (§6).</summary>
+    Task<CatalogView<Spell, PackageSpell>> GetSpellsAsync(string campaignId);
+
+    /// <summary>Mostri della campagna uniti alle voci di pacchetto non già coperte (§6).</summary>
+    Task<CatalogView<Monster, PackageMonster>> GetMonstersAsync(string campaignId);
+
+    /// <summary>Le cinque liste come stanno nel database, senza unione né oscuramenti: import ed
+    /// export ragionano su ciò che esiste davvero, non su ciò che la UI mostra.</summary>
+    Task<CampaignCatalogs> GetCampaignCatalogsAsync(string campaignId);
 }
 
 /// <summary>Unione fra il pacchetto dell'app e i cataloghi di campagna (§6 dello spec).
@@ -45,6 +61,10 @@ public class CatalogService : ICatalogService
 
     private readonly HttpClient _http;
     private readonly IBackgroundRepository _backgrounds;
+    private readonly IRaceRepository _races;
+    private readonly IClassRepository _classes;
+    private readonly ISpellRepository _spells;
+    private readonly IMonsterRepository _monsters;
 
     // Protegge il caricamento da chiamate concorrenti: in Fase 2 più cataloghi potranno chiamare
     // GetPackageAsync in parallelo (es. un Task.WhenAll di più GetXxxAsync su una stessa pagina).
@@ -55,8 +75,21 @@ public class CatalogService : ICatalogService
     private CatalogPackage? _package;
     private bool _loaded;
 
-    public CatalogService(HttpClient http, IBackgroundRepository backgrounds)
-        => (_http, _backgrounds) = (http, backgrounds);
+    public CatalogService(
+        HttpClient http,
+        IBackgroundRepository backgrounds,
+        IRaceRepository races,
+        IClassRepository classes,
+        ISpellRepository spells,
+        IMonsterRepository monsters)
+    {
+        _http = http;
+        _backgrounds = backgrounds;
+        _races = races;
+        _classes = classes;
+        _spells = spells;
+        _monsters = monsters;
+    }
 
     public IReadOnlyList<PackageFeat> Feats
         => _package?.Feats ?? (IReadOnlyList<PackageFeat>)Array.Empty<PackageFeat>();
@@ -106,18 +139,75 @@ public class CatalogService : ICatalogService
     }
 
     public async Task<CatalogView<Background, PackageBackground>> GetBackgroundsAsync(string campaignId)
+        => await MergeAsync(
+            await _backgrounds.GetBackgroundsForCampaignAsync(campaignId),
+            p => p.Backgrounds, p => p.Id, p => p.Name,
+            r => r.SourceId, r => r.Name);
+
+    public async Task<CatalogView<Race, PackageSpecies>> GetRacesAsync(string campaignId)
+        => await MergeAsync(
+            await _races.GetRacesForCampaignAsync(campaignId),
+            p => p.Species, p => p.Id, p => p.Name,
+            r => r.SourceId, r => r.Name);
+
+    public async Task<CatalogView<CharacterClass, PackageClass>> GetClassesAsync(string campaignId)
+        => await MergeAsync(
+            await _classes.GetClassesForCampaignAsync(campaignId),
+            p => p.Classes, p => p.Id, p => p.Name,
+            r => r.SourceId, r => r.Name);
+
+    public async Task<CatalogView<Spell, PackageSpell>> GetSpellsAsync(string campaignId)
+        => await MergeAsync(
+            await _spells.GetSpellsForCampaignAsync(campaignId),
+            p => p.Spells, p => p.Id, p => p.Name,
+            r => r.SourceId, r => r.Name);
+
+    public async Task<CatalogView<Monster, PackageMonster>> GetMonstersAsync(string campaignId)
+        => await MergeAsync(
+            await _monsters.GetMonstersForCampaignAsync(campaignId),
+            p => p.Monsters, p => p.Id, p => p.Name,
+            r => r.SourceId, r => r.Name);
+
+    public async Task<CampaignCatalogs> GetCampaignCatalogsAsync(string campaignId)
     {
-        var dbRows = await _backgrounds.GetBackgroundsForCampaignAsync(campaignId);
+        // In parallelo: sono cinque letture indipendenti, e la schermata di import le attende tutte.
+        var razze = _races.GetRacesForCampaignAsync(campaignId);
+        var classi = _classes.GetClassesForCampaignAsync(campaignId);
+        var incantesimi = _spells.GetSpellsForCampaignAsync(campaignId);
+        var mostri = _monsters.GetMonstersForCampaignAsync(campaignId);
+        var background = _backgrounds.GetBackgroundsForCampaignAsync(campaignId);
+
+        await Task.WhenAll(razze, classi, incantesimi, mostri, background);
+
+        return new CampaignCatalogs
+        {
+            Races = razze.Result,
+            Classes = classi.Result,
+            Spells = incantesimi.Result,
+            Monsters = mostri.Result,
+            Backgrounds = background.Result,
+        };
+    }
+
+    // L'unione è la stessa per tutti e cinque i cataloghi: le righe di database si mostrano sempre
+    // tutte, le voci di pacchetto solo se nessuna riga già le copre (§4.3).
+    private async Task<CatalogView<TRow, TPkg>> MergeAsync<TRow, TPkg>(
+        List<TRow> dbRows,
+        Func<CatalogPackage, List<TPkg>> sectionOf,
+        Func<TPkg, string> packageIdOf,
+        Func<TPkg, string> packageNameOf,
+        Func<TRow, string?> sourceIdOf,
+        Func<TRow, string> nameOf)
+    {
         var package = await GetPackageAsync();
-
         if (package is null)
-            return new CatalogView<Background, PackageBackground>(dbRows, Array.Empty<PackageBackground>());
+            return new CatalogView<TRow, TPkg>(dbRows, Array.Empty<TPkg>());
 
+        var voci = sectionOf(package);
         var nascoste = CatalogMerge.HiddenPackageIds(
-            package.Backgrounds, p => p.Id, p => p.Name,
-            dbRows, r => r.SourceId, r => r.Name);
+            voci, packageIdOf, packageNameOf, dbRows, sourceIdOf, nameOf);
 
-        var visibili = package.Backgrounds.Where(b => !nascoste.Contains(b.Id)).ToList();
-        return new CatalogView<Background, PackageBackground>(dbRows, visibili);
+        var visibili = voci.Where(v => !nascoste.Contains(packageIdOf(v))).ToList();
+        return new CatalogView<TRow, TPkg>(dbRows, visibili);
     }
 }

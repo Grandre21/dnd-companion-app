@@ -53,6 +53,57 @@ public class CatalogServiceTests
         public Task DeleteByIdsAsync(List<string> ids) => Task.CompletedTask;
     }
 
+    private sealed class FakeRaceRepository : IRaceRepository
+    {
+        private readonly List<Race> _rows;
+        public FakeRaceRepository(params Race[] rows) => _rows = rows.ToList();
+
+        public Task<List<Race>> GetRacesForCampaignAsync(string campaignId) => Task.FromResult(_rows);
+        public Task<Race?> CreateRaceAsync(Race r) => Task.FromResult<Race?>(r);
+        public Task<Race?> UpdateRaceAsync(Race r) => Task.FromResult<Race?>(r);
+        public Task DeleteRaceAsync(string id) => Task.CompletedTask;
+        public Task<List<Race>> CreateManyAsync(List<Race> rows) => Task.FromResult(rows);
+        public Task DeleteByIdsAsync(List<string> ids) => Task.CompletedTask;
+    }
+
+    private sealed class FakeClassRepository : IClassRepository
+    {
+        public Task<List<CharacterClass>> GetClassesForCampaignAsync(string campaignId)
+            => Task.FromResult(new List<CharacterClass>());
+        public Task<CharacterClass?> CreateClassAsync(CharacterClass c) => Task.FromResult<CharacterClass?>(c);
+        public Task<CharacterClass?> UpdateClassAsync(CharacterClass c) => Task.FromResult<CharacterClass?>(c);
+        public Task DeleteClassAsync(string id) => Task.CompletedTask;
+        public Task<List<CharacterClass>> CreateManyAsync(List<CharacterClass> rows) => Task.FromResult(rows);
+        public Task DeleteByIdsAsync(List<string> ids) => Task.CompletedTask;
+    }
+
+    private sealed class FakeSpellRepository : ISpellRepository
+    {
+        private readonly List<Spell> _rows;
+        public FakeSpellRepository(params Spell[] rows) => _rows = rows.ToList();
+
+        public Task<List<Spell>> GetSpellsForCampaignAsync(string campaignId) => Task.FromResult(_rows);
+        public Task<List<Spell>> SearchSpellsAsync(string c, string q) => Task.FromResult(_rows);
+        public Task<Spell?> CreateSpellAsync(Spell s) => Task.FromResult<Spell?>(s);
+        public Task<Spell?> UpdateSpellAsync(Spell s) => Task.FromResult<Spell?>(s);
+        public Task DeleteSpellAsync(string id) => Task.CompletedTask;
+        public Task<List<Spell>> CreateManyAsync(List<Spell> rows) => Task.FromResult(rows);
+        public Task<Spell?> GetOneBySourceAsync(string c, string sourceId)
+            => Task.FromResult(_rows.FirstOrDefault(s => s.SourceId == sourceId));
+        public Task DeleteByIdsAsync(List<string> ids) => Task.CompletedTask;
+    }
+
+    private sealed class FakeMonsterRepository : IMonsterRepository
+    {
+        public Task<List<Monster>> GetMonstersForCampaignAsync(string campaignId)
+            => Task.FromResult(new List<Monster>());
+        public Task<Monster?> CreateMonsterAsync(Monster m) => Task.FromResult<Monster?>(m);
+        public Task<Monster?> UpdateMonsterAsync(Monster m) => Task.FromResult<Monster?>(m);
+        public Task DeleteMonsterAsync(string id) => Task.CompletedTask;
+        public Task<List<Monster>> CreateManyAsync(List<Monster> rows) => Task.FromResult(rows);
+        public Task DeleteByIdsAsync(List<string> ids) => Task.CompletedTask;
+    }
+
     private const string Package = """
     {
       "schemaVersion": 1, "id": "srd-2024-it", "name": "SRD", "edition": "2024",
@@ -61,14 +112,25 @@ public class CatalogServiceTests
       "backgrounds": [
         { "id": "srd-2024-it/artigiano", "name": "Artigiano" },
         { "id": "srd-2024-it/soldato", "name": "Soldato" }
+      ],
+      "species": [
+        { "id": "srd-2024-it/elfo", "name": "Elfo", "size": "Media",
+          "speed": { "value": 9, "unit": "m" }, "traits": "Scurovisione" },
+        { "id": "srd-2024-it/nano", "name": "Nano", "size": "Media",
+          "speed": { "value": 7, "unit": "m" }, "traits": "Scurovisione" }
       ]
     }
     """;
 
-    private static CatalogService Service(
-        CountingHandler handler, params Background[] dbRows)
+    private static CatalogService Service(CountingHandler handler, params Background[] dbRows)
         => new(new HttpClient(handler) { BaseAddress = new Uri("https://esempio.test/") },
-               new FakeBackgroundRepository(dbRows));
+               new FakeBackgroundRepository(dbRows), new FakeRaceRepository(),
+               new FakeClassRepository(), new FakeSpellRepository(), new FakeMonsterRepository());
+
+    private static CatalogService ServiceConRazze(CountingHandler handler, params Race[] righe)
+        => new(new HttpClient(handler) { BaseAddress = new Uri("https://esempio.test/") },
+               new FakeBackgroundRepository(), new FakeRaceRepository(righe),
+               new FakeClassRepository(), new FakeSpellRepository(), new FakeMonsterRepository());
 
     [Fact]
     public async Task GetPackageAsync_ScaricaUnaVoltaSola()
@@ -228,5 +290,41 @@ public class CatalogServiceTests
 
         Assert.Single(vista.DbRows);
         Assert.Empty(vista.PackageEntries);
+    }
+
+    [Fact]
+    public async Task GetRacesAsync_SenzaRigheDiDatabase_MostraTutteLeVociDiPacchetto()
+    {
+        var vista = await ServiceConRazze(new CountingHandler(Package)).GetRacesAsync("campagna-1");
+
+        Assert.Empty(vista.DbRows);
+        Assert.Equal(2, vista.PackageEntries.Count);
+    }
+
+    [Fact]
+    public async Task GetRacesAsync_RigaOmonima_OscuraLaVoceDiPacchetto()
+    {
+        var riga = new Race { Id = "uuid-1", Name = "Elfo", CampaignId = "campagna-1" };
+
+        var vista = await ServiceConRazze(new CountingHandler(Package), riga).GetRacesAsync("campagna-1");
+
+        Assert.Single(vista.DbRows);
+        Assert.Single(vista.PackageEntries);
+        Assert.Equal("srd-2024-it/nano", vista.PackageEntries[0].Id);
+    }
+
+    [Fact]
+    public async Task GetCampaignCatalogsAsync_RestituisceLeCinqueListeDelDatabase()
+    {
+        var riga = new Race { Id = "uuid-1", Name = "Elfo", CampaignId = "campagna-1" };
+
+        var cataloghi = await ServiceConRazze(new CountingHandler(Package), riga)
+            .GetCampaignCatalogsAsync("campagna-1");
+
+        // Solo righe di DATABASE: import ed export ragionano su ciò che esiste davvero,
+        // non sull'unione mostrata dalla UI.
+        Assert.Single(cataloghi.Races);
+        Assert.Empty(cataloghi.Backgrounds);
+        Assert.Empty(cataloghi.Spells);
     }
 }
