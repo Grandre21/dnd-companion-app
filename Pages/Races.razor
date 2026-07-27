@@ -1,8 +1,10 @@
 @page "/races"
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
 @implements IDisposable
 @inject IRaceRepository RaceRepository
 @inject IProfileRepository ProfileRepository
+@inject ICatalogService Catalog
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -122,7 +124,7 @@
                 }
                 else
                 {
-                    var count = FilteredRaces.Count();
+                    var count = FilteredEntries.Count();
                     <span>@count @(count == 1 ? "razza trovata" : "razze trovate")</span>
                 }
             </div>
@@ -131,19 +133,23 @@
         <div class="races-list">
             @if (!isLoading)
             {
-                @foreach (var race in FilteredRaces)
+                @foreach (var entry in FilteredEntries)
                 {
-                    var isExpanded = expandedId == race.Id;
-                    <div class="race-card @(isExpanded ? "expanded" : "")">
-                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(race.Id)">
+                    var isExpanded = expandedKey == entry.Key;
+                    <div class="race-card @(isExpanded ? "expanded" : "") @(entry.FromAppPackage ? "package-card" : "")">
+                        <button type="button" class="card-summary" @onclick="() => ToggleExpand(entry.Key)">
                             <div class="card-main">
-                                <div class="card-name">@race.Name</div>
+                                <div class="card-name">@entry.Name</div>
                                 <div class="card-meta">
-                                    <span class="speed-badge">Velocità @race.Speed @(FormValidation.IsMetric(race.SpeedUnit) ? "m" : "ft")</span>
-                                    @{ var author = GetAuthorName(race.AddedBy); }
+                                    <span class="speed-badge">Velocità @entry.Speed @(FormValidation.IsMetric(entry.SpeedUnit) ? "m" : "ft")</span>
+                                    @{ var author = GetAuthorName(entry.Db?.AddedBy); }
                                     @if (!string.IsNullOrEmpty(author))
                                     {
                                         <span class="author-badge" title="Aggiunta da @author">✎ @author</span>
+                                    }
+                                    @if (entry.FromAppPackage)
+                                    {
+                                        <span class="package-badge">Dal manuale</span>
                                     }
                                 </div>
                             </div>
@@ -152,42 +158,65 @@
 
                         <div class="card-details">
                             <div class="details-inner">
-                                @if (!string.IsNullOrWhiteSpace(race.Description))
+                                @if (!string.IsNullOrWhiteSpace(entry.Description))
                                 {
                                     <div class="section-block">
                                         <div class="section-title">Descrizione</div>
-                                        <div class="section-body">@race.Description</div>
+                                        <div class="section-body">@entry.Description</div>
                                     </div>
                                 }
 
-                                <div class="section-block">
-                                    <div class="section-title">Bonus caratteristiche</div>
-                                    <div class="section-body">@FormatRaceBonuses(race)</div>
-                                </div>
+                                @if (entry.Db is not null)
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Bonus caratteristiche</div>
+                                        <div class="section-body">@FormatRaceBonuses(entry.Db)</div>
+                                    </div>
+                                }
 
-                                @if (!string.IsNullOrWhiteSpace(race.Traits))
+                                @if (!string.IsNullOrWhiteSpace(entry.Traits))
                                 {
                                     <div class="section-block">
                                         <div class="section-title">Tratti</div>
-                                        <div class="section-body">@race.Traits</div>
+                                        <div class="section-body">@entry.Traits</div>
                                     </div>
                                 }
 
-                                @if (!string.IsNullOrWhiteSpace(race.Languages))
+                                @if (!string.IsNullOrWhiteSpace(entry.Languages))
                                 {
                                     <div class="section-block">
                                         <div class="section-title">Lingue</div>
-                                        <div class="section-body">@race.Languages</div>
+                                        <div class="section-body">@entry.Languages</div>
                                     </div>
                                 }
 
-                                @if (CanEdit(race))
+                                @if (entry.IsPackage)
                                 {
                                     <div class="card-actions">
-                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(race)" @onclick:stopPropagation>
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Package!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (CatalogKey.IsFromAppPackage(entry.Db!.SourceId))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn duplicate-action"
+                                                @onclick="() => OpenDuplicateForm(entry.Db!)" @onclick:stopPropagation
+                                                aria-label="Duplica e modifica @entry.Name">
+                                            ⧉ Duplica e modifica
+                                        </button>
+                                    </div>
+                                }
+                                else if (PuoModificare(entry.Db!))
+                                {
+                                    <div class="card-actions">
+                                        <button type="button" class="action-btn edit-action" @onclick="() => OpenEditForm(entry.Db!)" @onclick:stopPropagation>
                                             ✎ Modifica
                                         </button>
-                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteRaceAsync(race)" @onclick:stopPropagation>
+                                        <button type="button" class="action-btn delete-action" @onclick="() => DeleteRaceAsync(entry.Db!)" @onclick:stopPropagation>
                                             🗑 Elimina
                                         </button>
                                     </div>
@@ -197,10 +226,10 @@
                     </div>
                 }
 
-                @if (!FilteredRaces.Any())
+                @if (!FilteredEntries.Any())
                 {
                     <div class="empty-state">
-                        @if (allRaces.Count == 0)
+                        @if (dbRows.Count == 0 && packageRows.Count == 0)
                         {
                             <div class="empty-icon">🧝</div>
                             <p class="empty-title">Nessuna razza nel database</p>
@@ -229,7 +258,9 @@
     private enum ViewMode { List, Form }
 
     private ViewMode mode = ViewMode.List;
-    private List<Race> allRaces = new();
+
+    private List<Race> dbRows = new();
+    private List<PackageSpecies> packageRows = new();
     private Dictionary<string, string> playerNicknames = new();
     private bool isLoading = true;
     private bool isBusy;
@@ -239,7 +270,7 @@
     private string searchQuery = string.Empty;
     private CancellationTokenSource? debounceCts;
 
-    private string? expandedId;
+    private string? expandedKey;
     private Race editDraft = new();
 
     protected override async Task OnInitializedAsync()
@@ -250,11 +281,10 @@
 
             if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
 
-            var racesTask = RaceRepository.GetRacesForCampaignAsync(CurrentUser.CampaignId);
             var profilesTask = ProfileRepository.GetProfilesAsync();
-            await Task.WhenAll(racesTask, profilesTask);
+            var reloadTask = ReloadAsync();
+            await Task.WhenAll(profilesTask, reloadTask);
 
-            allRaces = racesTask.Result;
             playerNicknames = profilesTask.Result.ToDictionary(p => p.Id, p => p.DisplayName ?? "Utente");
         }
         catch (Exception ex)
@@ -267,8 +297,17 @@
         }
     }
 
-    // Crea: ogni membro. Modifica/elimina: solo l'autore (added_by) o il master — allineato alle RLS.
-    private bool CanEdit(Race race) => AccessControl.CanEdit(CurrentUser.IsMaster, race.AddedBy, CurrentUser.UserId);
+    // Ricarica SEMPRE dal servizio invece di ritoccare dbRows/packageRows in memoria: la vista non
+    // è solo righe di database, contiene anche le voci di pacchetto, e quali siano visibili dipende
+    // da cosa c'è nel database (vedi "Duplica e modifica" più sotto).
+    private async Task ReloadAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+        var vista = await Catalog.GetRacesAsync(CurrentUser.CampaignId);
+        dbRows = vista.DbRows.ToList();
+        packageRows = vista.PackageEntries.ToList();
+    }
 
     private string? GetAuthorName(string? authorId)
     {
@@ -276,17 +315,101 @@
         return playerNicknames.TryGetValue(authorId, out var nick) ? nick : null;
     }
 
-    private IEnumerable<Race> FilteredRaces
+    // Una riga di database è modificabile se chi guarda ne ha il diritto E non viene dal
+    // pacchetto dell'app: quelle restano voci di manuale anche se vivono nel database (§6).
+    private bool PuoModificare(Race r)
+        => !CatalogKey.IsFromAppPackage(r.SourceId)
+           && AccessControl.CanEdit(CurrentUser.IsMaster, r.AddedBy, CurrentUser.UserId);
+
+    // Copia modificabile di una voce di pacchetto: nasce SENZA SourceId, così è una voce
+    // propria dell'utente e ha la precedenza nel merge (§4.3).
+    private Race DuplicaDaPacchetto(PackageSpecies p) => new()
+    {
+        Name = p.Name,
+        Description = p.Description,
+        Speed = p.Speed?.Value ?? 9,
+        // Senza questa riga la copia nasce con il default 'ft' del Model e il numero resta 9:
+        // una specie che correva 9 metri si ritrova a 9 piedi (§4.5). E l'unità passa dall'helper,
+        // non da un `?? "m"` scritto qui: il valore finisce dritto in una colonna con CHECK, e una
+        // copia con "metri" o "FT" farebbe fallire il salvataggio con un 400 opaco.
+        SpeedUnit = PackageRowMerge.UnitaValida(p.Speed?.Unit),
+        Traits = p.Traits,
+        SourceId = null,
+        CampaignId = CurrentUser.CampaignId ?? string.Empty,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Stessa regola di DuplicaDaPacchetto, ma per una riga di DATABASE che porta comunque la
+    // provenienza del pacchetto dell'app (import diretto, non ancora possibile in questa fase ma
+    // già previsto dal modello dati): anche qui la copia nasce SENZA SourceId.
+    // AddedBy è l'utente CORRENTE, non l'autore originale della riga (che potrebbe non essere lui):
+    // la RLS "races_insert" richiede added_by = auth.uid(), quindi copiare r.AddedBy avrebbe
+    // fatto fallire l'INSERT per chiunque diverso dall'autore originale, master incluso.
+    private Race DuplicaDaRigaImportata(Race r) => new()
+    {
+        Name = r.Name,
+        Description = r.Description,
+        Speed = r.Speed,
+        SpeedUnit = r.SpeedUnit,
+        StrBonus = r.StrBonus,
+        DexBonus = r.DexBonus,
+        ConBonus = r.ConBonus,
+        IntBonus = r.IntBonus,
+        WisBonus = r.WisBonus,
+        ChaBonus = r.ChaBonus,
+        Traits = r.Traits,
+        Languages = r.Languages,
+        SourceId = null,
+        CampaignId = r.CampaignId,
+        AddedBy = CurrentUser.UserId,
+    };
+
+    // Vista unificata di riga-database e voce-pacchetto: la lista mostrata è un'unione delle due
+    // sorgenti (ricerca/ordinamento/rendering condivisi), ma le operazioni CRUD restano ancorate a
+    // dbRows/packageRows separati.
+    // FromAppPackage è la stessa condizione che, più sotto, sopprime i comandi di modifica/cancellazione
+    // (voce di pacchetto, oppure riga di database con provenienza dal pacchetto dell'app): la marcatura
+    // visiva (badge "Dal manuale" + bordo della card) deve dipendere da questa, non da IsPackage da sola,
+    // altrimenti una riga di database non modificabile risulterebbe indistinguibile da una qualsiasi.
+    private sealed record Entry(
+        string Key,
+        string Name,
+        string Description,
+        int Speed,
+        string SpeedUnit,
+        string Traits,
+        string Languages,
+        bool IsPackage,
+        bool FromAppPackage,
+        Race? Db,
+        PackageSpecies? Package);
+
+    private static Entry ToEntry(Race r) => new(
+        "db:" + r.Id, r.Name, r.Description, r.Speed, r.SpeedUnit, r.Traits, r.Languages,
+        false, CatalogKey.IsFromAppPackage(r.SourceId), r, null);
+
+    // La velocità del pacchetto porta con sé la propria unità: è il motivo per cui speed_unit
+    // esiste come colonna e non si deduce dalla sorgente (§4.5). L'unità passa SEMPRE da
+    // PackageRowMerge.UnitaValida: races_speed_unit_check accetta solo 'm' e 'ft', e un file
+    // scritto a mano può contenere "metri" o "feet".
+    private static Entry ToEntry(PackageSpecies p) => new(
+        "pkg:" + p.Id, p.Name, p.Description, p.Speed?.Value ?? 0,
+        PackageRowMerge.UnitaValida(p.Speed?.Unit),
+        p.Traits, string.Empty, true, true, null, p);
+
+    private IEnumerable<Entry> FilteredEntries
     {
         get
         {
-            IEnumerable<Race> result = allRaces;
+            IEnumerable<Entry> result = dbRows.Select(ToEntry).Concat(packageRows.Select(ToEntry));
             if (!string.IsNullOrEmpty(searchQuery))
             {
-                result = result.Where(r =>
-                    r.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+                // CatalogKey.NormalizeName su entrambi i lati: cercare "elfo" deve trovare "Elfo",
+                // non solo la stessa combinazione esatta di maiuscole e accenti.
+                var chiaveRicerca = CatalogKey.NormalizeName(searchQuery);
+                result = result.Where(e => CatalogKey.NormalizeName(e.Name).Contains(chiaveRicerca, StringComparison.Ordinal));
             }
-            return result.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase);
+            return result.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
         }
     }
 
@@ -306,10 +429,7 @@
         catch (TaskCanceledException) { }
     }
 
-    private void ToggleExpand(string id)
-    {
-        expandedId = expandedId == id ? null : id;
-    }
+    private void ToggleExpand(string key) => expandedKey = expandedKey == key ? null : key;
 
     private void OpenCreateForm()
     {
@@ -328,6 +448,18 @@
         mode = ViewMode.Form;
     }
 
+    private void OpenDuplicateForm(PackageSpecies package)
+    {
+        editDraft = DuplicaDaPacchetto(package);
+        mode = ViewMode.Form;
+    }
+
+    private void OpenDuplicateForm(Race race)
+    {
+        editDraft = DuplicaDaRigaImportata(race);
+        mode = ViewMode.Form;
+    }
+
     private void CancelForm() => mode = ViewMode.List;
 
     private async Task SaveFormAsync()
@@ -343,15 +475,9 @@
         errorMessage = null;
         try
         {
-            Race? saved;
-            if (string.IsNullOrEmpty(editDraft.Id))
-            {
-                saved = await RaceRepository.CreateRaceAsync(editDraft);
-            }
-            else
-            {
-                saved = await RaceRepository.UpdateRaceAsync(editDraft);
-            }
+            var saved = string.IsNullOrEmpty(editDraft.Id)
+                ? await RaceRepository.CreateRaceAsync(editDraft)
+                : await RaceRepository.UpdateRaceAsync(editDraft);
 
             if (saved is null)
             {
@@ -359,11 +485,11 @@
                 return;
             }
 
-            var idx = allRaces.FindIndex(r => r.Id == saved.Id);
-            if (idx >= 0) allRaces[idx] = saved;
-            else allRaces.Add(saved);
-
-            expandedId = saved.Id;
+            // Richiama il servizio invece di ritoccare dbRows: la copia di "Duplica e modifica"
+            // deve far sparire la voce di pacchetto da cui deriva nella STESSA operazione, non al
+            // prossimo cambio pagina.
+            await ReloadAsync();
+            expandedKey = "db:" + saved.Id;
             mode = ViewMode.List;
             Toasts.ShowSuccess("Salvato");
         }
@@ -387,8 +513,8 @@
         try
         {
             await RaceRepository.DeleteRaceAsync(race.Id);
-            allRaces.RemoveAll(r => r.Id == race.Id);
-            if (expandedId == race.Id) expandedId = null;
+            if (expandedKey == "db:" + race.Id) expandedKey = null;
+            await ReloadAsync();
             Toasts.ShowSuccess("Eliminato");
         }
         catch (Exception ex)
