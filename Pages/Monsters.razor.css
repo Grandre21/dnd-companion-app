@@ -272,7 +272,7 @@
     padding: 0.1rem 0.5rem;
     background: rgba(var(--gold-muted-rgb), 0.15);
     border: 1px solid rgba(var(--gold-muted-rgb), 0.4);
-    color: #b89a80;
+    color: var(--author-badge-text);
     border-radius: 999px;
     font-size: 0.7rem;
     font-weight: 600;

@@ -297,7 +297,12 @@ mega-componente (quello resta in §3).
   del CSS di progetto in `rgba(var(--X-rgb), α)` (mapping 1:1, **invariato**; Bootstrap vendored escluso). Spec in
   `docs/superpowers/specs/2026-07-23-css-alpha-tokens-design.md`. **Resta (idea):** consolidare le sfumature
   quasi-duplicate (6 rossi / 4 verdi / 6 oro-bronzo) in meno token — è un cambio di colore, decisione separata.
-  Riferimento visivo: `/_showroom`.
+  Riferimento visivo: `/_showroom`. **Resta (2026-07-27, Fase 2 Task 7):** aggiunto `--author-badge-text`
+  (`#b89a80`, stesso valore del literal preesistente) per `.author-badge` in `Pages/Monsters.razor.css`.
+  `Pages/Spells.razor.css`, `Pages/Races.razor.css` e `Pages/Classes.razor.css` hanno lo stesso badge
+  con lo stesso colore ancora hardcodato (`Pages/Notes.razor.css` usa invece già `var(--gold)`, colore
+  diverso: non è nel novero): da convertire al token in un passaggio
+  dedicato (nessun cambio visivo, stesso valore esatto).
 - 🟡 **Accessibilità** — ✅ avanzato (2026-06-21): resi accessibili da **tastiera** (`role`/`tabindex`/
   `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
   principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
