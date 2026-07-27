@@ -1,0 +1,462 @@
+@page "/dati"
+@using DndCompanion.Models
+@using DndCompanion.Models.Packages
+@inject ICatalogService Catalog
+@inject IRaceRepository RaceRepository
+@inject IClassRepository ClassRepository
+@inject ISpellRepository SpellRepository
+@inject IMonsterRepository MonsterRepository
+@inject IBackgroundRepository BackgroundRepository
+@inject ICampaignRepository CampaignRepository
+@inject CurrentUserService CurrentUser
+@inject ToastService Toasts
+@inject ConfirmService Confirm
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Dati - D&amp;D Companion</PageTitle>
+
+<div class="dati-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Dati</h1>
+    </header>
+
+    <DbErrorBanner Message="@systemError" OnDismiss="@(() => systemError = null)" />
+
+    @if (loading)
+    {
+        <LoadingSpinner Text="Caricamento..." />
+    }
+    else if (string.IsNullOrEmpty(CurrentUser.CampaignId))
+    {
+        @* Guardia sulla campagna attiva: senza, un file scelto qui finirebbe su
+           GetCampaignCatalogsAsync(null!) e su query "campaign_id=eq." malformate. *@
+        <div class="empty-state">
+            <p class="empty-text">Seleziona una campagna per importare o esportare i dati.</p>
+        </div>
+    }
+    else
+    {
+        <p class="campaign-name">Campagna attiva: <strong>@campaignName</strong></p>
+
+        <section class="data-section">
+            <h2 class="section-heading">Importa</h2>
+            <p class="section-hint">
+                Scegli un file di pacchetto (.json). L'anteprima mostrerà esattamente cosa verrà
+                creato, aggiornato o saltato — è ciò che accadrà davvero, non una stima.
+            </p>
+
+            <div class="field">
+                <label for="package-file">File di pacchetto</label>
+                <InputFile id="package-file" class="input" accept=".json" OnChange="OnFileSelectedAsync"
+                           disabled="@isBusy" aria-label="Scegli un file di pacchetto" />
+            </div>
+
+            @if (isBusy)
+            {
+                <LoadingSpinner Text="Elaborazione in corso..." />
+            }
+
+            @if (warnings.Count > 0)
+            {
+                @* Avvisi del parser (es. pacchetto non in italiano, §5): non bloccano l'import,
+                   quindi restano in un blocco distinto dagli errori di validazione (toast). *@
+                <div class="plan-section plan-warnings">
+                    <h3 class="plan-section-title">⚠ Avvisi</h3>
+                    <ul>
+                        @foreach (var avviso in warnings)
+                        {
+                            <li>@avviso</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (plan is not null)
+            {
+                <div class="plan-summary">
+                    <p>
+                        <strong>@plan.TotalWrites</strong> @(plan.TotalWrites == 1 ? "voce" : "voci") da scrivere,
+                        <strong>@plan.TotalSkipped</strong> @(plan.TotalSkipped == 1 ? "saltata" : "saltate").
+                    </p>
+                </div>
+
+                @foreach (var sezione in plan.Sections)
+                {
+                    <div class="plan-section">
+                        <h3 class="plan-section-title">@sezione.Title</h3>
+
+                        <table class="plan-counts">
+                            <tbody>
+                                <tr><td>Da creare</td><td>@sezione.CreateCount</td></tr>
+                                <tr><td>Da aggiornare</td><td>@sezione.UpdateCount</td></tr>
+                                <tr><td>Saltate</td><td>@sezione.SkippedCount</td></tr>
+                            </tbody>
+                        </table>
+
+                        @if (!string.IsNullOrEmpty(sezione.Note))
+                        {
+                            <p class="plan-note">@sezione.Note</p>
+                        }
+
+                        @{
+                            // Solo le voci che contribuiscono a SkippedCount: i talenti NotImportable
+                            // hanno già la loro spiegazione nella Note della sezione (§9), elencarli
+                            // uno per uno qui sarebbe ridondante e potenzialmente lunghissimo.
+                            var saltate = sezione.Items
+                                .Where(i => i.Outcome is ImportOutcome.SkippedNoPermission or ImportOutcome.SkippedLocalWins)
+                                .ToList();
+                        }
+                        @if (saltate.Count > 0)
+                        {
+                            <ul class="plan-skipped">
+                                @foreach (var voce in saltate)
+                                {
+                                    <li>@voce.Name — @MotivoScarto(voce.Outcome)</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+
+                <div class="plan-actions">
+                    @if (plan.IsEmpty)
+                    {
+                        <p class="empty-text">
+                            Nessuna voce da importare: sono già tutte presenti o non modificabili.
+                        </p>
+                    }
+                    else
+                    {
+                        <button type="button" class="primary-btn" @onclick="ConfirmImportAsync" disabled="@isBusy"
+                                aria-label="Conferma l'import del pacchetto">
+                            Conferma import
+                        </button>
+                    }
+                    <button type="button" class="secondary-btn" @onclick="ClearSelection" disabled="@isBusy"
+                            aria-label="Annulla la selezione del file">
+                        Annulla
+                    </button>
+                </div>
+            }
+
+            @if (importReport is not null)
+            {
+                @* Resoconto di cosa è passato e cosa no (§9): non c'è atomicità fra le richieste
+                   distinte di import, quindi un fallimento a metà lascia un risultato parziale che
+                   va reso esplicito invece di essere taciuto. *@
+                <div class="plan-section plan-report">
+                    <h3 class="plan-section-title">Resoconto import</h3>
+                    <p>@importReport</p>
+                </div>
+            }
+        </section>
+
+        <section class="data-section">
+            <h2 class="section-heading">Esporta</h2>
+            <p class="section-hint">
+                Scarica un file con tutti i cataloghi di questa campagna: razze, classi, background,
+                incantesimi e mostri. Utile per un backup o per portare i dati a un altro tavolo.
+            </p>
+            <button type="button" class="primary-btn" @onclick="EsportaAsync" disabled="@isBusy"
+                    aria-label="Esporta i cataloghi della campagna">
+                ⬇ Esporta la campagna
+            </button>
+        </section>
+    }
+</div>
+
+@code {
+    private bool loading = true;
+    private bool isBusy;
+    private string? systemError;
+
+    private string campaignName = string.Empty;
+
+    // Il file scelto, letto e validato: pacchetto, anteprima e avvisi restano insieme finché
+    // l'utente non conferma o cambia file.
+    private CatalogPackage? loadedPackage;
+    private ImportPlanResult? plan;
+    private IReadOnlyList<string> warnings = Array.Empty<string>();
+    private string? importReport;
+
+    // Le righe della campagna come stanno nel database: servono all'anteprima e poi, riga per riga,
+    // all'esecuzione degli aggiornamenti, che partono dall'esistente invece di sostituirlo.
+    private CampaignCatalogs existing = new();
+
+    /// <summary>Limite di dimensione del file. Il pacchetto SRD completo starà ben sotto; oltre,
+    /// è quasi certamente il file sbagliato, e leggerlo in memoria in WebAssembly costa.</summary>
+    private const long MaxFileSize = 8 * 1024 * 1024;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await CurrentUser.EnsureLoadedAsync();
+            if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+            var campagne = await CampaignRepository.GetUserCampaignsAsync(CurrentUser.UserId ?? string.Empty);
+            campaignName = campagne.FirstOrDefault(c => c.Id == CurrentUser.CampaignId)?.Name ?? "Campagna";
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore caricamento: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task OnFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        loadedPackage = null;
+        plan = null;
+        warnings = Array.Empty<string>();
+        importReport = null;
+        // Un errore di sistema del tentativo precedente (lettura file o import interrotto) non deve
+        // restare a schermo sopra un'anteprima nuova e valida: gli altri due punti d'ingresso
+        // (ConfirmImportAsync, EsportaAsync) lo azzerano già all'avvio, per simmetria lo fa anche questo.
+        systemError = null;
+
+        var file = e.File;
+        if (file.Size > MaxFileSize)
+        {
+            Toasts.ShowError($"Il file supera {MaxFileSize / (1024 * 1024)} MB: controlla di aver scelto un pacchetto di dati.");
+            return;
+        }
+
+        isBusy = true;
+        try
+        {
+            using var stream = file.OpenReadStream(MaxFileSize);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+
+            var esito = CatalogPackageParser.Parse(json);
+            warnings = esito.Warnings;
+
+            if (esito.Package is null)
+            {
+                // Errori di validazione: toast, non banner. Il banner è per gli errori di sistema.
+                foreach (var errore in esito.Errors.Take(3))
+                    Toasts.ShowError(errore);
+                if (esito.Errors.Count > 3)
+                    Toasts.ShowError($"…e altri {esito.Errors.Count - 3} problemi nel file.");
+                return;
+            }
+
+            loadedPackage = esito.Package;
+
+            // L'anteprima si calcola sullo stato REALE del database, non sull'unione mostrata
+            // dalle pagine: è ciò che l'import andrà a toccare.
+            existing = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId!);
+            plan = PackageImportPlan.Build(
+                loadedPackage, existing, CurrentUser.IsMaster, CurrentUser.UserId);
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore lettura del file: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task ConfirmImportAsync()
+    {
+        if (loadedPackage is null || plan is null || string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+        var conferma = await Confirm.ShowAsync(
+            $"Importare {plan.TotalWrites} voci nella campagna \"{campaignName}\"? " +
+            $"{plan.TotalSkipped} verranno saltate.");
+        if (!conferma) return;
+
+        isBusy = true;
+        systemError = null;
+        var resoconto = new List<string>();
+        try
+        {
+            // Una sezione per tipo, e dentro ciascuna due percorsi distinti: le creazioni in un
+            // blocco solo (una richiesta, quindi una transazione), gli aggiornamenti riga per riga
+            // partendo dalla riga esistente. PostgREST è transazionale sulla singola richiesta ma
+            // non offre atomicità FRA richieste distinte (§9): se qualcosa si ferma a metà, i
+            // passaggi già compiuti restano e il resoconto lo dice.
+            var campagna = CurrentUser.CampaignId;
+            var autore = CurrentUser.UserId;
+
+            await EseguiSezioneAsync(
+                "Specie", resoconto, loadedPackage.Species, existing.Races,
+                p => p.Id, r => r.Id,
+                p => PackageRowMerge.NuovaSpecie(p, campagna, autore), PackageRowMerge.ApplicaSpecie,
+                RaceRepository.CreateManyAsync, RaceRepository.UpdateRaceAsync);
+
+            await EseguiSezioneAsync(
+                "Classi", resoconto, loadedPackage.Classes, existing.Classes,
+                p => p.Id, c => c.Id,
+                p => PackageRowMerge.NuovaClasse(p, campagna, autore), PackageRowMerge.ApplicaClasse,
+                ClassRepository.CreateManyAsync, ClassRepository.UpdateClassAsync);
+
+            await EseguiSezioneAsync(
+                "Background", resoconto, loadedPackage.Backgrounds, existing.Backgrounds,
+                p => p.Id, b => b.Id,
+                p => PackageRowMerge.NuovoBackground(p, campagna, autore), PackageRowMerge.ApplicaBackground,
+                BackgroundRepository.CreateManyAsync, BackgroundRepository.UpdateBackgroundAsync);
+
+            await EseguiSezioneAsync(
+                "Incantesimi", resoconto, loadedPackage.Spells, existing.Spells,
+                p => p.Id, s => s.Id,
+                p => PackageRowMerge.NuovoIncantesimo(p, campagna, autore), PackageRowMerge.ApplicaIncantesimo,
+                SpellRepository.CreateManyAsync, SpellRepository.UpdateSpellAsync);
+
+            await EseguiSezioneAsync(
+                "Mostri", resoconto, loadedPackage.Monsters, existing.Monsters,
+                p => p.Id, m => m.Id,
+                p => PackageRowMerge.NuovoMostro(p, campagna, autore), PackageRowMerge.ApplicaMostro,
+                MonsterRepository.CreateManyAsync, MonsterRepository.UpdateMonsterAsync);
+
+            importReport = string.Join(" · ", resoconto);
+            Toasts.ShowSuccess("Import completato");
+
+            // L'anteprima ora è vecchia: rifarla su dati freschi evita che un secondo clic
+            // riproponga di creare ciò che è appena stato creato.
+            existing = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId);
+            plan = PackageImportPlan.Build(loadedPackage, existing, CurrentUser.IsMaster, CurrentUser.UserId);
+        }
+        catch (Exception ex)
+        {
+            importReport = string.Join(" · ", resoconto);
+            systemError = $"Import interrotto: {ex.Message}";
+
+            // Il piano usato finora è ormai disallineato con quanto è già stato scritto prima
+            // dell'interruzione: senza ricalcolarlo, un secondo clic su "Conferma import"
+            // rilancerebbe la CREAZIONE delle righe delle sezioni già passate — che ora hanno un
+            // source_id già presente in campagna — violando UNIQUE(campaign_id, source_id) invece
+            // di riprendere da dove l'esecuzione si è fermata. Nested try/catch: se anche questa
+            // lettura fallisce (stessa interruzione di rete), non deve mascherare l'errore originale.
+            try
+            {
+                existing = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId);
+                plan = PackageImportPlan.Build(loadedPackage, existing, CurrentUser.IsMaster, CurrentUser.UserId);
+            }
+            catch
+            {
+                // Il piano resta quello vecchio: peggio di niente, ma non oscura systemError.
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    // Esegue una sezione del piano e ne registra l'esito.
+    //
+    // Generico su (voce di pacchetto, riga di database) perché i cinque cataloghi non condividono
+    // un'interfaccia comune: sono Model Postgrest indipendenti, e introdurne una per questo solo
+    // scopo significherebbe toccarli tutti.
+    //
+    // L'esito si conta sulle righe RESTITUITE dal server, non si assume: le RLS bloccano gli UPDATE
+    // senza sollevare eccezioni — la richiesta riesce e tocca zero righe, e i repository lo
+    // rivelano restituendo null (§7).
+    private async Task EseguiSezioneAsync<TPkg, TRow>(
+        string titoloSezione,
+        List<string> resoconto,
+        List<TPkg> vociDelPacchetto,
+        List<TRow> righeEsistenti,
+        Func<TPkg, string> idVoce,
+        Func<TRow, string> idRiga,
+        Func<TPkg, TRow> nuovaRigaDa,
+        Action<TPkg, TRow> applicaSu,
+        Func<List<TRow>, Task<List<TRow>>> creaInBlocco,
+        Func<TRow, Task<TRow?>> aggiornaUna)
+        where TRow : class
+    {
+        var sezione = plan!.Sections.FirstOrDefault(s => s.Title == titoloSezione);
+        if (sezione is null) return;
+
+        var perId = vociDelPacchetto.ToDictionary(idVoce, StringComparer.Ordinal);
+        var scritte = 0;
+        var attese = 0;
+
+        // 1. Creazioni: un blocco solo.
+        var daCreare = sezione.Items
+            .Where(i => i.Outcome == ImportOutcome.Create && perId.ContainsKey(i.SourceId))
+            .Select(i => nuovaRigaDa(perId[i.SourceId]))
+            .ToList();
+
+        attese += daCreare.Count;
+        if (daCreare.Count > 0)
+            scritte += (await creaInBlocco(daCreare)).Count;
+
+        // 2. Aggiornamenti: uno per riga, PARTENDO dalla riga esistente. Il formato non copre tutte
+        // le colonne — un file senza `languages`, senza i bonus di specie, senza le caratteristiche
+        // di un mostro le azzererebbe — e non deve toccare né `added_by` né `created_at`, altrimenti
+        // un reimport del master si approprierebbe delle voci caricate dai giocatori.
+        foreach (var item in sezione.Items.Where(i => i.Outcome == ImportOutcome.Update))
+        {
+            if (!perId.TryGetValue(item.SourceId, out var voce)) continue;
+
+            var esistente = righeEsistenti.FirstOrDefault(r => idRiga(r) == item.ExistingRowId);
+            if (esistente is null) continue;
+
+            attese++;
+            applicaSu(voce, esistente);
+            if (await aggiornaUna(esistente) is not null) scritte++;
+        }
+
+        if (attese == 0) return;
+
+        resoconto.Add(scritte == attese
+            ? $"{titoloSezione}: {scritte}"
+            : $"{titoloSezione}: {scritte} di {attese} (il server ne ha rifiutate {attese - scritte})");
+    }
+
+    private async Task EsportaAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+        isBusy = true;
+        systemError = null;
+        try
+        {
+            var cataloghi = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId);
+            var pacchetto = CampaignExport.Build(cataloghi, campaignName);
+            var json = CampaignExport.ToJson(pacchetto);
+
+            await JS.InvokeVoidAsync("downloadTextFile", pacchetto.Id + ".json", json);
+            Toasts.ShowSuccess("Esportato");
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore esportazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    // Testo mostrato accanto a ogni voce saltata: le uniche due ragioni che finiscono nella lista
+    // (i talenti NotImportable hanno la loro spiegazione nella Note della sezione, non qui).
+    private static string MotivoScarto(ImportOutcome outcome) => outcome switch
+    {
+        ImportOutcome.SkippedNoPermission => "non modificabile",
+        ImportOutcome.SkippedLocalWins => "esiste già una voce locale con lo stesso nome",
+        _ => "saltata",
+    };
+
+    // Annulla la scelta corrente senza toccare il database: l'utente può ripartire da un altro
+    // file senza dover ricaricare la pagina.
+    private void ClearSelection()
+    {
+        loadedPackage = null;
+        plan = null;
+        warnings = Array.Empty<string>();
+        importReport = null;
+    }
+}

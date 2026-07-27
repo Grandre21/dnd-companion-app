@@ -1,0 +1,320 @@
+/* Copiate da Pages/Backgrounds.razor.css (contenitore, header, empty-state, field/input,
+   primary/secondary-btn) e da Pages/Home.razor.css (danger-btn): il CSS isolato di Blazor lega le
+   regole allo scope della singola pagina, quindi non c'è nulla da "riusare" da app.css. */
+
+.dati-container {
+    margin: -1.1rem -1.5rem 0 -1.5rem;
+    padding: 1rem 1rem 5rem;
+    min-height: 100vh;
+    background:
+        radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
+        linear-gradient(180deg, var(--text-on-gold) 0%, rgb(var(--shadow-warm-rgb)) 100%);
+    color: var(--text);
+    font-family: 'Georgia', 'Cambria', serif;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.25);
+}
+
+.back-btn {
+    background: transparent;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--gold-muted);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.back-btn:hover {
+    background: rgba(var(--gold-rgb), 0.12);
+    color: var(--gold-light);
+    border-color: rgba(var(--gold-rgb), 0.6);
+}
+
+.page-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.5px;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.empty-text {
+    margin: 0;
+    max-width: 420px;
+    font-size: 0.95rem;
+    color: var(--gold-muted);
+    line-height: 1.55;
+}
+
+/* ===== Campagna attiva ===== */
+.campaign-name {
+    margin: 0 0 1.25rem;
+    font-size: 0.9rem;
+    color: var(--gold-muted);
+}
+
+.campaign-name strong {
+    color: var(--gold-light);
+}
+
+/* ===== Sezioni Importa / Esporta ===== */
+.data-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1.1rem 1.15rem 1.35rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg-card) 100%);
+    border: 2px solid rgb(var(--bronze-rgb));
+    border-radius: 12px;
+    box-shadow: 0 3px 8px rgba(var(--black-rgb), 0.4);
+}
+
+.section-heading {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.3px;
+}
+
+.section-hint {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--gold-muted);
+    line-height: 1.5;
+}
+
+/* ===== Campo file / form ===== */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.input {
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--text);
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 8px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.2);
+}
+
+/* ===== Anteprima del piano (output di PackageImportPlan) ===== */
+.plan-summary {
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.plan-summary strong {
+    color: var(--gold-light);
+}
+
+.plan-section {
+    padding: 0.75rem 0.9rem;
+    background: rgba(var(--black-rgb), 0.25);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 10px;
+}
+
+.plan-section + .plan-section {
+    margin-top: 0.6rem;
+}
+
+.plan-section-title {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--gold-light);
+}
+
+.plan-counts {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.plan-counts td {
+    padding: 0.25rem 0.4rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
+    color: var(--gold-muted);
+}
+
+.plan-counts td:last-child {
+    text-align: right;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.plan-counts tr:last-child td {
+    border-bottom: none;
+}
+
+.plan-note {
+    margin: 0.6rem 0 0;
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--gold-muted);
+}
+
+.plan-skipped {
+    margin: 0.6rem 0 0;
+    padding-left: 1.2rem;
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+    line-height: 1.5;
+}
+
+/* Avvisi del parser (§5): stesso contenitore delle sezioni ma bordo più acceso, per distinguerli
+   a colpo d'occhio dal resto senza ricorrere ai colori "errore". */
+.plan-warnings {
+    border-color: rgba(var(--gold-rgb), 0.5);
+}
+
+.plan-warnings ul {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.88rem;
+    color: var(--gold-light);
+    line-height: 1.5;
+}
+
+.plan-report p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.plan-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* ===== Pulsanti ===== */
+.primary-btn {
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--text-on-gold);
+    border: none;
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Variante distruttiva (rimozione per provenienza, Task 11): non ancora usata da questa pagina,
+   copiata ora perché nessuna classe .razor.css è condivisa fra pagine (v. nota in cima al file). */
+.danger-btn {
+    color: var(--error-text);
+    border-color: rgba(var(--danger-light-rgb), 0.55);
+    background: rgba(var(--danger-deep-rgb), 0.15);
+}
+
+.danger-btn:hover:not(:disabled) {
+    background: rgba(var(--danger-mid-rgb), 0.28);
+    color: var(--error-text);
+    border-color: rgba(var(--danger-rgb), 0.7);
+}
+
+/* ===== Desktop ===== */
+@media (min-width: 641px) {
+    .dati-container {
+        margin-left: -2rem;
+        margin-right: -1.5rem;
+        padding: 1.5rem 2rem 5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+    }
+
+    .data-section {
+        max-width: 820px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .campaign-name {
+        max-width: 820px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
