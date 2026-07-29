@@ -7,6 +7,7 @@
 @inject ISpellRepository SpellRepository
 @inject IMonsterRepository MonsterRepository
 @inject IBackgroundRepository BackgroundRepository
+@inject ICharacterSpellRepository CharacterSpellRepository
 @inject ICampaignRepository CampaignRepository
 @inject CurrentUserService CurrentUser
 @inject ToastService Toasts
@@ -51,12 +52,18 @@
 
             <div class="field">
                 <label for="package-file">File di pacchetto</label>
-                <InputFile id="package-file" class="input" accept=".json" OnChange="OnFileSelectedAsync"
+                @* @key legato a un contatore: "Annulla" lo incrementa e Blazor ricrea l'elemento,
+                   così l'input torna vuoto. Senza, il DOM continuerebbe a mostrare il file scelto e
+                   riselezionare LO STESSO file non farebbe scattare l'evento change — chi annulla
+                   resterebbe senza modo di ricalcolare l'anteprima. *@
+                <InputFile @key="fileInputKey" id="package-file" class="input" accept=".json"
+                           OnChange="OnFileSelectedAsync"
                            disabled="@isBusy" aria-label="Scegli un file di pacchetto" />
             </div>
 
-            @if (isBusy)
+            @if (isBusy && !removalBusy)
             {
+                @* Non durante una rimozione: quella ha il suo spinner, nella sua sezione. *@
                 <LoadingSpinner Text="Elaborazione in corso..." />
             }
 
@@ -143,6 +150,25 @@
                 </div>
             }
 
+            @if (importNotice is not null)
+            {
+                @* Perché l'anteprima non c'è più: distinto dal resoconto, che dice cosa è stato
+                   scritto davvero e non va sovrascritto. *@
+                <div class="plan-section">
+                    <p class="plan-note">@importNotice</p>
+                </div>
+
+                @* Il pulsante "Annulla" sta dentro il blocco dell'anteprima, che qui non c'è più:
+                   senza questo, chi vuole ripartire deve scegliere un file DIVERSO — riscegliere lo
+                   stesso non rilancia l'evento change dell'input. *@
+                <div class="plan-actions">
+                    <button type="button" class="secondary-btn" @onclick="ClearSelection" disabled="@isBusy"
+                            aria-label="Annulla la selezione del file">
+                        Annulla
+                    </button>
+                </div>
+            }
+
             @if (importReport is not null)
             {
                 @* Resoconto di cosa è passato e cosa no (§9): non c'è atomicità fra le richieste
@@ -166,6 +192,111 @@
                 ⬇ Esporta la campagna
             </button>
         </section>
+
+        <section class="data-section">
+            <h2 class="section-heading">Rimuovi un import</h2>
+            <p class="section-hint" id="removal-hint">
+                Toglie dalla campagna le voci arrivate da un pacchetto. La provenienza è
+                l'identificatore scritto in cima al file, lo stesso che apre gli identificatori delle
+                sue voci: da «mio-pacchetto/soldato» la provenienza è «mio-pacchetto». Le voci del
+                manuale distribuito con l'app non si rimuovono.
+            </p>
+
+            <div class="field">
+                <label for="removal-prefix">Provenienza</label>
+                <input id="removal-prefix" class="input" type="text" value="@removalPrefix"
+                       @oninput="OnRemovalPrefixInput" disabled="@isBusy"
+                       placeholder="mio-pacchetto"
+                       aria-label="Provenienza da rimuovere" aria-describedby="removal-hint" />
+            </div>
+
+            <div class="plan-actions">
+                <button type="button" class="secondary-btn" @onclick="CalcolaAnteprimaRimozioneAsync"
+                        disabled="@isBusy" aria-label="Calcola l'impatto della rimozione">
+                    Calcola l'impatto
+                </button>
+            </div>
+
+            @if (removalBusy)
+            {
+                @* Spinner proprio: quello della sezione Importa è in cima alla pagina e da qui non
+                   si vedrebbe. *@
+                <LoadingSpinner Text="Elaborazione in corso..." />
+            }
+
+            @if (removalPreview is not null)
+            {
+                <div class="plan-section">
+                    <h3 class="plan-section-title">
+                        Provenienza «@removalPreview.Prefix»
+                    </h3>
+
+                    <table class="plan-counts">
+                        <tbody>
+                            <tr><td>Specie</td><td>@removalPreview.RaceIds.Count</td></tr>
+                            <tr><td>Classi</td><td>@removalPreview.ClassIds.Count</td></tr>
+                            <tr><td>Background</td><td>@removalPreview.BackgroundIds.Count</td></tr>
+                            <tr><td>Incantesimi</td><td>@removalPreview.SpellIds.Count</td></tr>
+                            <tr><td>Mostri</td><td>@removalPreview.MonsterIds.Count</td></tr>
+                        </tbody>
+                    </table>
+
+                    @if (removalAffectedCharacters > 0)
+                    {
+                        @* Evidenziato perché è la conseguenza che l'utente non si aspetta: il
+                           CASCADE toglie l'incantesimo anche dalle schede, non solo dal catalogo. *@
+                        <p class="removal-impact">
+                            ⚠ @removalAffectedCharacters
+                            @(removalAffectedCharacters == 1
+                                ? "personaggio perderà un incantesimo dalla propria scheda."
+                                : "personaggi perderanno un incantesimo dalla propria scheda.")
+                        </p>
+                    }
+
+                    @if (removalPreview.BlockedByPermission > 0)
+                    {
+                        <p class="plan-note">
+                            @removalPreview.BlockedByPermission
+                            @(removalPreview.BlockedByPermission == 1
+                                ? "voce non è tua e resterà."
+                                : "voci non sono tue e resteranno.")
+                        </p>
+                    }
+
+                    @if (removalPreview.Total == 0)
+                    {
+                        <p class="plan-note">Nessuna voce da rimuovere per questa provenienza.</p>
+                    }
+                </div>
+
+                @if (removalPreview.Total > 0)
+                {
+                    <div class="plan-actions">
+                        <button type="button" class="secondary-btn danger-btn" @onclick="RimuoviAsync"
+                                disabled="@isBusy" aria-label="Rimuovi le voci di questa provenienza">
+                            🗑 Rimuovi
+                        </button>
+                    </div>
+                }
+            }
+
+            @if (removalNotice is not null)
+            {
+                @* Perché l'anteprima non c'è più: distinto dal resoconto, che dice quali voci sono
+                   state tolte davvero e non va sovrascritto. *@
+                <div class="plan-section">
+                    <p class="plan-note">@removalNotice</p>
+                </div>
+            }
+
+            @if (removalReport is not null)
+            {
+                <div class="plan-section plan-report">
+                    <h3 class="plan-section-title">Resoconto rimozione</h3>
+                    <p>@removalReport</p>
+                </div>
+            }
+        </section>
     }
 </div>
 
@@ -183,9 +314,32 @@
     private IReadOnlyList<string> warnings = Array.Empty<string>();
     private string? importReport;
 
+    // Avviso sullo stato dell'anteprima, distinto dal resoconto di ciò che è stato scritto:
+    // scriverlo dentro importReport cancellerebbe l'unica traccia di un import parziale (§9).
+    private string? importNotice;
+
     // Le righe della campagna come stanno nel database: servono all'anteprima e poi, riga per riga,
     // all'esecuzione degli aggiornamenti, che partono dall'esistente invece di sostituirlo.
     private CampaignCatalogs existing = new();
+
+    private string removalPrefix = string.Empty;
+    private CatalogRemoval? removalPreview;
+    private int removalAffectedCharacters;
+    private string? removalReport;
+
+    // Speculare a importNotice, e per la stessa ragione: il resoconto di una rimozione parziale è
+    // l'unica traccia delle voci che il server non ha tolto, e un avviso sullo stato dell'anteprima
+    // non deve cancellarla.
+    private string? removalNotice;
+
+    // Distinto da isBusy — che disabilita i comandi di tutta la pagina, e va bene così: due
+    // operazioni sui cataloghi in parallelo non devono partire. Serve solo a decidere DOVE si
+    // accende lo spinner: quello della rimozione, acceso durante un import, farebbe credere che sia
+    // partita l'operazione distruttiva.
+    private bool removalBusy;
+
+    // Identità dell'<InputFile> nel render tree: cambiarla lo fa ricreare vuoto (vedi il markup).
+    private int fileInputKey;
 
     /// <summary>Limite di dimensione del file. Il pacchetto SRD completo starà ben sotto; oltre,
     /// è quasi certamente il file sbagliato, e leggerlo in memoria in WebAssembly costa.</summary>
@@ -217,6 +371,7 @@
         plan = null;
         warnings = Array.Empty<string>();
         importReport = null;
+        importNotice = null;
         // Un errore di sistema del tentativo precedente (lettura file o import interrotto) non deve
         // restare a schermo sopra un'anteprima nuova e valida: gli altri due punti d'ingresso
         // (ConfirmImportAsync, EsportaAsync) lo azzerano già all'avvio, per simmetria lo fa anche questo.
@@ -323,9 +478,10 @@
             Toasts.ShowSuccess("Import completato");
 
             // L'anteprima ora è vecchia: rifarla su dati freschi evita che un secondo clic
-            // riproponga di creare ciò che è appena stato creato.
-            existing = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId);
-            plan = PackageImportPlan.Build(loadedPackage, existing, CurrentUser.IsMaster, CurrentUser.UserId);
+            // riproponga di creare ciò che è appena stato creato. Vale anche per l'altra sezione,
+            // i cui id congelati non coprono le righe appena scritte.
+            RiallineaImport(await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId));
+            InvalidaAnteprimaRimozione();
         }
         catch (Exception ex)
         {
@@ -340,13 +496,16 @@
             // lettura fallisce (stessa interruzione di rete), non deve mascherare l'errore originale.
             try
             {
-                existing = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId);
-                plan = PackageImportPlan.Build(loadedPackage, existing, CurrentUser.IsMaster, CurrentUser.UserId);
+                RiallineaImport(await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId));
             }
             catch
             {
                 // Il piano resta quello vecchio: peggio di niente, ma non oscura systemError.
             }
+
+            // Parte delle scritture può essere passata prima dell'interruzione: l'anteprima di
+            // rimozione, se c'è, è comunque da rifare.
+            InvalidaAnteprimaRimozione();
         }
         finally
         {
@@ -441,6 +600,242 @@
         }
     }
 
+    // Cambiare provenienza invalida sia l'anteprima sia il resoconto: entrambi parlano di un'altra
+    // provenienza, e lasciarli a schermo accanto a un campo che ora dice altro li farebbe leggere
+    // come riferiti a quella nuova.
+    private void OnRemovalPrefixInput(ChangeEventArgs e)
+    {
+        removalPrefix = e.Value?.ToString() ?? string.Empty;
+        removalPreview = null;
+        removalAffectedCharacters = 0;
+        removalReport = null;
+        removalNotice = null;
+    }
+
+    private async Task CalcolaAnteprimaRimozioneAsync()
+    {
+        removalPreview = null;
+        removalAffectedCharacters = 0;
+        removalReport = null;
+        removalNotice = null;
+
+        var prefisso = CatalogRemovalPlan.NormalizePrefix(removalPrefix);
+        if (prefisso.Length == 0)
+        {
+            Toasts.ShowError("Indica la provenienza da rimuovere (es. mio-pacchetto).");
+            return;
+        }
+
+        // §8: la provenienza del pacchetto dell'app NON è rimovibile. Sarebbe il danno della
+        // materializzazione moltiplicato per N righe in un colpo solo, e AccessControl.CanEdit non
+        // farebbe da freno — quelle righe nascono con l'added_by del giocatore che le ha usate.
+        if (!CatalogRemovalPlan.IsRemovablePrefix(prefisso))
+        {
+            Toasts.ShowError("Le voci del manuale distribuito con l'app non si rimuovono in blocco.");
+            return;
+        }
+
+        isBusy = true;
+        removalBusy = true;
+        systemError = null;
+        try
+        {
+            (removalPreview, removalAffectedCharacters, _) = await LeggiImpattoAsync(prefisso);
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore nel calcolo dell'anteprima: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+            removalBusy = false;
+        }
+    }
+
+    // Il calcolo vero, senza toccare isBusy né systemError: lo richiama anche RimuoviAsync per
+    // ricontare dopo l'operazione, e un finally annidato che spegne isBusy riabiliterebbe i
+    // pulsanti a metà di un'operazione ancora in corso.
+    //
+    // Restituisce anche i cataloghi appena letti: dopo una rimozione servono a riallineare la
+    // sezione Importa senza un secondo giro di rete.
+    private async Task<(CatalogRemoval Piano, int PgColpiti, CampaignCatalogs Cataloghi)> LeggiImpattoAsync(
+        string prefisso)
+    {
+        var cataloghi = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId!);
+        var piano = CatalogRemovalPlan.Build(
+            cataloghi, prefisso, CurrentUser.IsMaster, CurrentUser.UserId);
+
+        // Quanti PG perderanno un incantesimo: character_spells_spell_id_fkey è ON DELETE CASCADE,
+        // quindi togliere la riga dal catalogo la toglie dalle schede (§8).
+        var legami = await CharacterSpellRepository.GetBySpellIdsAsync(piano.SpellIds);
+        var pgColpiti = legami.Select(l => l.CharacterId).Distinct().Count();
+
+        return (piano, pgColpiti, cataloghi);
+    }
+
+    private async Task RimuoviAsync()
+    {
+        if (removalPreview is null || string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
+
+        // L'insieme su cui si opera si congela QUI: il campo di testo e l'anteprima a schermo
+        // possono cambiare, ciò che viene cancellato no.
+        var daRimuovere = removalPreview;
+
+        // Il testo del ConfirmDialog riporta i numeri invece di limitarsi a "sei sicuro?" (§8), e
+        // nomina la provenienza congelata, non quella scritta nel campo adesso: chi ricalcola,
+        // cambia idea e poi conferma, deve leggere ciò che verrà davvero cancellato.
+        var messaggio = daRimuovere.Total == 1
+            ? $"Rimuovere 1 voce di provenienza \"{daRimuovere.Prefix}\"?"
+            : $"Rimuovere {daRimuovere.Total} voci di provenienza \"{daRimuovere.Prefix}\"?";
+        if (removalAffectedCharacters > 0)
+            messaggio += removalAffectedCharacters == 1
+                ? " 1 personaggio perderà un incantesimo dalla propria scheda."
+                : $" {removalAffectedCharacters} personaggi perderanno un incantesimo dalla propria scheda.";
+        if (daRimuovere.BlockedByPermission > 0)
+            messaggio += daRimuovere.BlockedByPermission == 1
+                ? " 1 voce non è tua e resterà."
+                : $" {daRimuovere.BlockedByPermission} voci non sono tue e resteranno.";
+
+        if (!await Confirm.ShowAsync(messaggio)) return;
+
+        isBusy = true;
+        removalBusy = true;
+        systemError = null;
+        removalReport = null;
+        removalNotice = null;
+        try
+        {
+            // Si cancellano gli id esatti che l'anteprima ha mostrato — non un criterio rivalutato
+            // adesso, che potrebbe raccogliere righe diverse da quelle contate.
+            await RaceRepository.DeleteByIdsAsync(daRimuovere.RaceIds);
+            await ClassRepository.DeleteByIdsAsync(daRimuovere.ClassIds);
+            await BackgroundRepository.DeleteByIdsAsync(daRimuovere.BackgroundIds);
+            await SpellRepository.DeleteByIdsAsync(daRimuovere.SpellIds);
+            await MonsterRepository.DeleteByIdsAsync(daRimuovere.MonsterIds);
+
+            // Il Delete di questa libreria non dice quante righe ha tolto, e un Delete bloccato
+            // dalla RLS "riesce" a vuoto (§3 di DA-FARE): l'unico resoconto onesto è ricontare.
+            // Per questo il toast arriva DOPO il riconteggio: un "completata" verde emesso qui
+            // sarebbe il segnale più visibile della pagina, e proprio quello che il riconteggio
+            // potrebbe smentire.
+            // Try/catch annidato perché a questo punto la cancellazione è già avvenuta: se cade la
+            // rilettura, presentarla come "errore durante la rimozione" con i conteggi vecchi
+            // ancora a schermo farebbe concludere che non è stato cancellato nulla.
+            try
+            {
+                var (piano, pgColpiti, cataloghi) = await LeggiImpattoAsync(daRimuovere.Prefix);
+                removalPreview = piano;
+                removalAffectedCharacters = pgColpiti;
+
+                // Si contano gli id CONGELATI ancora presenti, non le righe che il criterio
+                // raccoglie adesso: fra l'anteprima e il riconteggio possono esserne comparse di
+                // nuove — un import rifatto, un altro giocatore che scrive — e scambiarle per
+                // sopravvissute darebbe un resoconto falso, fino al conteggio negativo.
+                var rimaste = CatalogRemovalPlan.StillPresent(daRimuovere, piano);
+                var tolte = daRimuovere.Total - rimaste;
+                var quante = tolte == 1 ? "Rimossa 1 voce" : $"Rimosse {tolte} voci";
+
+                if (rimaste == 0)
+                {
+                    removalReport = $"{quante}.";
+                    Toasts.ShowSuccess("Rimozione completata");
+                }
+                else
+                {
+                    // Non "non tue": chi opera come giocatore congela solo righe proprie, quindi una
+                    // sopravvissuta significa che il server l'ha rifiutata, non che appartenga ad altri.
+                    removalReport = $"{quante} su {daRimuovere.Total}; " +
+                                    (rimaste == 1
+                                        ? "1 non è stata rimossa dal server."
+                                        : $"{rimaste} non sono state rimosse dal server.");
+                    Toasts.ShowError("Rimozione parziale: il server non ha rimosso tutte le voci.");
+                }
+
+                RiallineaImport(cataloghi);
+            }
+            catch (Exception ex)
+            {
+                removalPreview = null;
+                removalAffectedCharacters = 0;
+                removalReport = "Le voci sono state cancellate, ma la verifica dell'esito non è " +
+                                "riuscita. Ricalcola l'impatto per vedere cosa resta.";
+                // È un errore di sistema (rete/DB) come gli altri due della pagina: va nel banner
+                // persistente, che porta con sé "Ripara e ricarica". Il toast e il resoconto
+                // dicono cosa fare, il banner dice cosa è andato storto.
+                systemError = $"Errore nella verifica dopo la rimozione: {ex.Message}";
+                Toasts.ShowError("Voci cancellate, ma l'esito non è stato verificato.");
+                InvalidaAnteprimaImport();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Le cinque cancellazioni sono richieste distinte e PostgREST non offre atomicità fra
+            // richieste: se una si ferma, quelle già passate restano. L'anteprima mostrata finora
+            // non descrive più il database, e lasciarla a schermo la farebbe leggere come "non è
+            // stato cancellato nulla" — sull'operazione più distruttiva dell'app.
+            removalPreview = null;
+            removalAffectedCharacters = 0;
+            removalReport = "La rimozione si è interrotta: una parte delle voci può essere già " +
+                            "stata cancellata. Ricalcola l'impatto per vedere cosa resta.";
+            systemError = $"Errore durante la rimozione: {ex.Message}";
+            InvalidaAnteprimaImport();
+        }
+        finally
+        {
+            isBusy = false;
+            removalBusy = false;
+        }
+    }
+
+    // La rimozione ha scritto sulle stesse cinque tabelle da cui la sezione Importa aveva letto:
+    // senza riallineare, un "Conferma import" successivo ripercorrerebbe il ramo Update su righe
+    // ormai cancellate — PostgREST accetta l'UPDATE toccando zero righe e il resoconto ne darebbe
+    // la colpa al server. Vanno aggiornati insieme: aggiornare `existing` senza rifare `plan`
+    // farebbe saltare in silenzio gli item il cui ExistingRowId non esiste più.
+    private void RiallineaImport(CampaignCatalogs cataloghi)
+    {
+        existing = cataloghi;
+        plan = loadedPackage is null
+            ? null
+            : PackageImportPlan.Build(loadedPackage, existing, CurrentUser.IsMaster, CurrentUser.UserId);
+
+        // Il piano ora è di nuovo valido: l'avviso di un'invalidazione precedente resterebbe a
+        // schermo a dire di riscegliere il file proprio mentre l'anteprima è tornata.
+        importNotice = null;
+    }
+
+    // Stesso problema, ma senza dati freschi con cui ricostruire il piano: l'unica mossa sicura è
+    // toglierlo. Sparire in silenzio non basta — chi aveva un'anteprima a schermo deve sapere
+    // perché non c'è più.
+    private void InvalidaAnteprimaImport()
+    {
+        if (plan is null) return;
+
+        plan = null;
+        // Al condizionale: si arriva qui anche quando la prima cancellazione è fallita e nulla è
+        // stato scritto. Il piano va comunque rifatto — non si sa quali richieste siano passate —
+        // ma dichiarare una modifica che può non esserci sarebbe un'informazione falsa.
+        importNotice = "Anteprima annullata: la rimozione può aver cambiato i cataloghi, e il piano " +
+                       "calcolato prima potrebbe non descrivere più il database. Riscegli il file per rifarla.";
+    }
+
+    // Il verso opposto: l'import ha scritto sulle stesse cinque tabelle, quindi gli id congelati
+    // nell'anteprima di rimozione non coprono più le righe appena create — un "Rimuovi" eseguito
+    // ora dichiarerebbe di aver tolto tutta la provenienza lasciandone in campagna una parte.
+    // Si azzera invece di ricalcolare: sarebbe un giro di rete in più in coda a un'operazione già
+    // lunga, e l'anteprima si rifà con un clic.
+    private void InvalidaAnteprimaRimozione()
+    {
+        if (removalPreview is null) return;
+
+        removalPreview = null;
+        removalAffectedCharacters = 0;
+        // Al condizionale per la stessa ragione di InvalidaAnteprimaImport: il ramo interrotto passa
+        // di qui anche quando la prima scrittura è fallita e nulla è cambiato.
+        removalNotice = "Anteprima annullata: l'import può aver cambiato i cataloghi. Ricalcola l'impatto.";
+    }
+
     // Testo mostrato accanto a ogni voce saltata: le uniche due ragioni che finiscono nella lista
     // (i talenti NotImportable hanno la loro spiegazione nella Note della sezione, non qui).
     private static string MotivoScarto(ImportOutcome outcome) => outcome switch
@@ -451,12 +846,14 @@
     };
 
     // Annulla la scelta corrente senza toccare il database: l'utente può ripartire da un altro
-    // file senza dover ricaricare la pagina.
+    // file — o dallo stesso, grazie al @key che svuota l'input — senza ricaricare la pagina.
     private void ClearSelection()
     {
+        fileInputKey++;
         loadedPackage = null;
         plan = null;
         warnings = Array.Empty<string>();
         importReport = null;
+        importNotice = null;
     }
 }

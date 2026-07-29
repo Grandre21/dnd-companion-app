@@ -78,7 +78,7 @@
     color: var(--gold-light);
 }
 
-/* ===== Sezioni Importa / Esporta ===== */
+/* ===== Sezioni Importa / Esporta / Rimuovi un import ===== */
 .data-section {
     display: flex;
     flex-direction: column;
@@ -139,7 +139,7 @@
     box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.2);
 }
 
-/* ===== Anteprima del piano (output di PackageImportPlan) ===== */
+/* ===== Anteprime e resoconti (output di PackageImportPlan e di CatalogRemovalPlan) ===== */
 .plan-summary {
     font-size: 0.95rem;
     color: var(--text);
@@ -232,6 +232,20 @@
     margin-top: 0.25rem;
 }
 
+/* Conseguenza del CASCADE sulle schede dei personaggi: è l'unica riga dell'anteprima che parla di
+   dati fuori dai cataloghi, e deve staccarsi dai conteggi invece di confondersi con .plan-note. */
+.removal-impact {
+    margin: 0.6rem 0 0;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--error-text);
+    background: rgba(var(--danger-deep-rgb), 0.18);
+    border: 1px solid rgba(var(--danger-light-rgb), 0.45);
+    border-radius: 8px;
+}
+
 /* ===== Pulsanti ===== */
 .primary-btn {
     background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
@@ -280,8 +294,8 @@
     cursor: not-allowed;
 }
 
-/* Variante distruttiva (rimozione per provenienza, Task 11): non ancora usata da questa pagina,
-   copiata ora perché nessuna classe .razor.css è condivisa fra pagine (v. nota in cima al file). */
+/* Variante distruttiva (pulsante "Rimuovi" della rimozione per provenienza): copiata da
+   Home.razor.css perché nessuna classe .razor.css è condivisa fra pagine (v. nota in cima al file). */
 .danger-btn {
     color: var(--error-text);
     border-color: rgba(var(--danger-light-rgb), 0.55);
