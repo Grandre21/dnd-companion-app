@@ -1,7 +1,7 @@
 .combat-container {
     margin: -1.1rem -1.5rem 0 -1.5rem;
     padding: 1rem 1rem 6rem;
-    min-height: 100vh;
+    min-height: 100dvh;
     background:
         radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
         linear-gradient(180deg, var(--text-on-gold) 0%, #0d0a08 100%);
@@ -268,7 +268,16 @@
 .combatant-row {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    /* 0.4rem invece di 0.55: con i pulsanti portati a 44px la parte fissa della riga
+       (posizione, iniziativa, ± PF, rimuovi) è cresciuta di ~35px, tutti sottratti al nome.
+       Stringere i quattro spazi ne restituisce una decina, e i 4px tolti a .init-input il
+       resto. Misurato a 390px: il nome passa dai 118px di prima del lavoro a 98 (sarebbero stati
+       84 senza questi due recuperi). Provato e scartato il wrap dei controlli su una seconda riga:
+       il nome tornava intero, ma ogni riga passava da 70 a 120px — in una lista d'iniziativa, dove
+       contano i combattenti visibili tutti insieme, è un prezzo più alto di un nome troncato.
+       Limite noto: a 320px il nome scende da 48 a 28px, cioè poche lettere; su quella larghezza
+       converrebbe semmai togliere spazio a .pos e .remove-btn, non al nome. */
+    gap: 0.4rem;
     background: linear-gradient(180deg, var(--bg-alt) 0%, #1f1710 100%);
     border: 2px solid #8b6f47;
     border-radius: 10px;
@@ -323,10 +332,12 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* 44px anche in altezza: è un campo che si tocca per correggere l'iniziativa a mano. I 4px
+   di larghezza in meno rispetto a prima vanno al nome del combattente. */
 .init-input {
     flex-shrink: 0;
-    width: 48px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     padding: 0.35rem 0.2rem;
     background: rgba(var(--black-rgb), 0.45);
     border: 2px solid var(--gold);
@@ -387,9 +398,11 @@
     flex-shrink: 0;
 }
 
+/* 44px: è il controllo più toccato dell'app (i ± dei PF, a ogni colpo incassato) e la
+   soglia sotto cui il dito sbaglia. Era 34px. */
 .hp-btn {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1.5px solid #8b6f47;
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
@@ -424,8 +437,8 @@
 
 .remove-btn {
     flex-shrink: 0;
-    width: 30px;
-    height: 30px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1px solid rgba(var(--danger-rgb), 0.5);
     background: transparent;
@@ -448,7 +461,9 @@
 /* ===== Sticky turn controls ===== */
 .turn-controls {
     position: sticky;
-    bottom: 0;
+    /* Si ferma sopra la barra di navigazione invece che a filo viewport, dove sarebbe
+       coperto da essa (e, in PWA su iPhone, dalla home indicator). */
+    bottom: var(--bottom-nav-space);
     left: 0;
     right: 0;
     display: flex;
@@ -513,8 +528,6 @@
 /* ===== Desktop ===== */
 @media (min-width: 641px) {
     .combat-container {
-        margin-left: -2rem;
-        margin-right: -1.5rem;
         padding: 1.5rem 2rem 6rem;
     }
 
@@ -544,9 +557,9 @@
         font-size: 1.1rem;
     }
 
+    /* Su schermo largo resta la misura del dito, cambia solo il segno dentro al cerchio:
+       la dimensione base (44px) è già quella giusta e non va rimpicciolita. */
     .hp-btn {
-        width: 40px;
-        height: 40px;
         font-size: 1.4rem;
     }
 

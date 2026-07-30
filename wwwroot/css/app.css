@@ -11,8 +11,10 @@
     --gold-muted: #c9b88a;    /* oro tenue / testo secondario */
     --gold-dim: #b08842;      /* oro spento (alzato da #8b6f3a per contrasto WCAG su fondo scuro) */
     --author-badge-text: #b89a80; /* testo badge "autore" (oro-bronzo tenue). Introdotto per
-       Pages/Monsters.razor.css (Fase 2, Task 7): Spells/Races/Classes.razor.css hanno lo stesso
-       badge ancora col literal — v. DA-FARE §6 per il consolidamento. */
+       Pages/Monsters.razor.css (Fase 2, Task 7) e adottato il 2026-07-30 anche da
+       Spells/Races/Classes.razor.css, che avevano lo stesso badge col literal: i quattro
+       cataloghi ora condividono il token. Lo stesso valore compare in .master-placeholder
+       (Home) e .inv-weight (inventario), che badge non sono: lì il literal resta. */
     --text: #e8d4a0;          /* testo principale */
     --text-on-gold: #1a1410;  /* testo su fondo oro */
     --error-bg: rgba(var(--error-rgb), 0.25);
@@ -44,6 +46,300 @@
     --success-dark-rgb: 107, 142, 58;
     --success-light-rgb: 120, 170, 90;
     --success-darker-rgb: 74, 100, 36;
+
+    /* Barra di navigazione inferiore (Shared/BottomNav). Token e non valori sparsi perché
+       la stessa misura serve al FAB, al padding di fondo del layout, ai controlli sticky del
+       Combat e agli overlay (toast, banner PWA): tutti devono restare sopra la barra.
+       --bottom-nav-space è ciò che va sommato ai `bottom`; senza barra si riduce alla sola
+       safe-area (v. la regola su body:has più sotto). */
+    --bottom-nav-height: 3.5rem;
+    /* Senza barra resta la sola safe-area: gli overlay (FAB, toast, banner PWA) devono stare
+       fuori dalla home indicator comunque, e con viewport-fit=cover la pagina ci si estende
+       sotto. Dove non c'è tacca env() vale 0 e il token è 0. */
+    --bottom-nav-space: env(safe-area-inset-bottom, 0px);
+
+    /* Fondo della barra di navigazione: due gradazioni più scure di --bg-card, per staccarla
+       dal contenuto senza introdurre un colore acceso in fondo allo schermo. */
+    --bottom-nav-bg-top: #241a12;
+    --bottom-nav-bg-bottom: #1b130d;
+}
+
+/* La barra compare solo con una campagna attiva (v. Shared/BottomNav.razor): la sua altezza si
+   somma allo spazio SOLO quando c'è davvero, altrimenti FAB, toast, banner PWA e controlli
+   sticky resterebbero sollevati sul nulla — caso raggiungibile dagli shortcut del manifest, che
+   aprono direttamente una sezione. Il token si eredita, quindi ridefinirlo qui vale per tutto
+   il sottoalbero. */
+body:has(.bottom-nav) {
+    --bottom-nav-space: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+}
+
+/* =====================================================================
+   RESET LOCALE — sostituisce bootstrap-reboot (v. DIARIO 2026-07-30)
+   =====================================================================
+   Bootstrap è stato rimosso: l'app ne usava DUE classi (`btn` in Login,
+   `px-4` in MainLayout, quest'ultima già inerte per via del !important
+   sul padding di article), ma il service worker precacheva per estensione
+   TUTTI i 22 file css/js di wwwroot/lib — 2,4 MB scaricati sulla rete del
+   telefono per nulla.
+   Ciò che l'app usava davvero di Bootstrap è il solo reboot, replicato qui
+   sotto **alla lettera** (valori --bs-* già risolti, regole su elementi mai
+   usati omesse): box-sizing universale, line-height 1.5, la scala fluida
+   dei titoli e `font: inherit` sui controlli. Nessun cambiamento di resa.
+   Le regole d'app che seguono restano dopo il reset, come prima lo erano
+   rispetto al foglio di Bootstrap: l'ordine di cascata è invariato. */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+hr {
+    margin: 1rem 0;
+    color: inherit;
+    border: 0;
+    border-top: 1px solid;
+    opacity: 0.25;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    line-height: 1.2;
+    color: inherit;
+}
+
+/* Scala fluida dei titoli, identica a Bootstrap: sotto i 1200px la dimensione
+   dipende dal viewport, sopra si fissa (blocco in fondo al reset). */
+h1 { font-size: calc(1.375rem + 1.5vw); }
+h2 { font-size: calc(1.325rem + 0.9vw); }
+h3 { font-size: calc(1.3rem + 0.6vw); }
+h4 { font-size: calc(1.275rem + 0.3vw); }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1rem; }
+
+p {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+ol, ul, dl {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+ol, ul {
+    padding-left: 2rem;
+}
+
+ol ol, ul ul, ol ul, ul ol {
+    margin-bottom: 0;
+}
+
+b, strong {
+    font-weight: bolder;
+}
+
+small {
+    font-size: 0.875em;
+}
+
+sub, sup {
+    position: relative;
+    font-size: 0.75em;
+    line-height: 0;
+    vertical-align: baseline;
+}
+
+sub { bottom: -0.25em; }
+sup { top: -0.5em; }
+
+a {
+    text-decoration: underline;
+}
+
+a:not([href]):not([class]),
+a:not([href]):not([class]):hover {
+    color: inherit;
+    text-decoration: none;
+}
+
+pre, code, kbd, samp {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 1em;
+}
+
+pre {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    overflow: auto;
+    font-size: 0.875em;
+}
+
+code {
+    font-size: 0.875em;
+    word-wrap: break-word;
+}
+
+img, svg {
+    vertical-align: middle;
+}
+
+table {
+    caption-side: bottom;
+    border-collapse: collapse;
+}
+
+th {
+    text-align: inherit;
+}
+
+thead, tbody, tfoot, tr, td, th {
+    border-color: inherit;
+    border-style: solid;
+    border-width: 0;
+}
+
+label {
+    display: inline-block;
+}
+
+button {
+    border-radius: 0;
+}
+
+button:focus:not(:focus-visible) {
+    outline: 0;
+}
+
+input, button, select, optgroup, textarea {
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+button, select {
+    text-transform: none;
+}
+
+select {
+    word-wrap: normal;
+}
+
+[role="button"] {
+    cursor: pointer;
+}
+
+button, [type="button"], [type="reset"], [type="submit"] {
+    -webkit-appearance: button;
+}
+
+button:not(:disabled),
+[type="button"]:not(:disabled),
+[type="reset"]:not(:disabled),
+[type="submit"]:not(:disabled) {
+    cursor: pointer;
+}
+
+::-moz-focus-inner {
+    padding: 0;
+    border-style: none;
+}
+
+/* Il pulsante "Scegli file" dell'<InputFile> (schermata Dati): senza questa regola torna al
+   font di sistema in mezzo a un form che usa quello dell'app. */
+::-webkit-file-upload-button,
+::file-selector-button {
+    font: inherit;
+    -webkit-appearance: button;
+}
+
+/* Frecce degli <input type="number">, che nell'app sono 53. */
+::-webkit-inner-spin-button {
+    height: auto;
+}
+
+textarea {
+    resize: vertical;
+}
+
+fieldset {
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+}
+
+summary {
+    display: list-item;
+    cursor: pointer;
+}
+
+progress {
+    vertical-align: baseline;
+}
+
+iframe {
+    border: 0;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+@media (min-width: 1200px) {
+    h1 { font-size: 2.5rem; }
+    h2 { font-size: 2rem; }
+    h3 { font-size: 1.75rem; }
+    h4 { font-size: 1.5rem; }
+}
+
+/* =====================================================================
+   FONDAMENTA MOBILE (2026-07-30)
+   =====================================================================
+   Regole globali che valgono per l'uso da telefono. Stanno qui e non nei
+   .razor.css perché lo scope isolato di un genitore non raggiunge i figli
+   (v. CLAUDE.md) e questi comportamenti devono valere ovunque. */
+
+/* Il tocco non deve mai aspettare il doppio-tap (ritardo ~300 ms su alcuni
+   browser mobili) né innescare lo zoom su un controllo. Vale per tutti i
+   controlli, non solo per i cinque che lo dichiaravano singolarmente. */
+button,
+a,
+[role="button"],
+input[type="checkbox"],
+input[type="radio"],
+select,
+summary,
+label {
+    touch-action: manipulation;
+}
+
+/* Niente pull-to-refresh: in una PWA offline-first uno scroll oltre il bordo
+   ricaricherebbe l'app nel mezzo di una sessione di gioco. Lo scroll interno
+   dei contenitori resta intatto (`contain`, non `none`). */
+html {
+    overscroll-behavior-y: contain;
+}
+
+/* Un tocco prolungato su un pulsante non deve selezionarne l'etichetta (né far
+   comparire la lente di iOS). Il testo dei contenuti resta selezionabile: la
+   regola tocca i soli controlli. */
+button,
+[role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* Fallback dell'ErrorBoundary globale (MainLayout): sostituisce la barra grigia di default. */
@@ -77,7 +373,7 @@
 html, body {
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    min-height: 100dvh;
     background-color: var(--bg); /* coerente col theme_color del manifest */
     color: var(--text);
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -187,14 +483,9 @@ code {
     color: #c02d76;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
-    text-align: end;
-}
-
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-    text-align: start;
-}
+/* (Qui stavano due regole su .form-floating/.form-control ereditate dal template Blazor:
+   rimosse col resto di Bootstrap il 2026-07-30. Nessuna delle due classi compare nei .razor,
+   e una di esse puntava a --bs-secondary-color, variabile che non esiste più.) */
 
 /* ===== FAB (Floating Action Button "+") di creazione =====
    Stile globale condiviso da tutte le pagine con creazione (Characters, Spells, Monsters,
@@ -202,9 +493,11 @@ code {
    .razor.css. z-index sotto il banner di aggiornamento PWA (1050) e sotto eventuali modali. */
 .fab {
     position: fixed;
-    /* In basso a destra, con margine dai bordi + safe-area iPhone (notch / home indicator). */
+    /* In basso a destra, sopra la barra di navigazione (--bottom-nav-space include già la
+       safe-area della home indicator). Fino al 2026-07-30 le env() qui erano inerti: senza
+       viewport-fit=cover nel <meta viewport> iOS le risolve tutte a 0. */
     right: calc(1.25rem + env(safe-area-inset-right, 0px));
-    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    bottom: calc(1.25rem + var(--bottom-nav-space));
     width: 56px;
     height: 56px;
     padding: 0;

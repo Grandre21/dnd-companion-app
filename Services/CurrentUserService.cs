@@ -30,6 +30,18 @@ public class CurrentUserService
     public bool IsMaster => _campaign.IsMaster;
 
     /// <summary>
+    /// Scatta al cambio (o azzeramento) della campagna attiva. Inoltra l'omonimo evento dello
+    /// stato condiviso perché la facade resti l'unico punto d'ingresso per chi legge
+    /// <see cref="CampaignId"/>: senza, un componente dovrebbe iniettare due servizi per avere
+    /// il valore e la notifica.
+    /// </summary>
+    public event Action? ActiveCampaignChanged
+    {
+        add => _campaign.ActiveCampaignChanged += value;
+        remove => _campaign.ActiveCampaignChanged -= value;
+    }
+
+    /// <summary>
     /// Bootstrap idempotente: inizializza lo stato di campagna e carica l'identità una sola volta.
     /// Da chiamare in <c>OnInitializedAsync</c> prima di leggere le proprietà.
     /// </summary>

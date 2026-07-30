@@ -1,7 +1,9 @@
 .pwa-update-banner {
     position: fixed;
     left: 50%;
-    bottom: 1rem;
+    /* Sopra la barra di navigazione e fuori dalla safe-area iOS (--bottom-nav-space le
+       comprende entrambe): prima era `1rem` secco e in PWA finiva sotto la home indicator. */
+    bottom: calc(1rem + var(--bottom-nav-space));
     transform: translateX(-50%);
     z-index: 1050;
     display: flex;

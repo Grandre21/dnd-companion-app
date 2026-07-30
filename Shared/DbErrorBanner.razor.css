@@ -19,6 +19,7 @@
 
 .db-error-repair {
     flex: 0 0 auto;
+    min-height: 44px;
     background: rgba(var(--gold-rgb), 0.15);
     border: 1px solid rgba(var(--gold-rgb), 0.5);
     color: var(--gold-light);
@@ -39,8 +40,15 @@
     cursor: default;
 }
 
+/* Misurava 27x22: sotto il minimo di 24x24 richiesto da WCAG 2.2 AA, l'unico controllo
+   dell'app a esserlo. 44x44 lo porta anche alla soglia comoda del dito. */
 .db-error-dismiss {
     flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
     color: var(--error-text);

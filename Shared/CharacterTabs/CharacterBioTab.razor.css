@@ -53,7 +53,9 @@
     border: 1px solid rgba(var(--gold-rgb), 0.3);
     color: #e8d9b5;
     padding: 0.75rem;
-    font-size: 0.95rem;
+    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus del campo e non la
+       rimpicciolisce più all'uscita. */
+    font-size: 1rem;
     font-family: inherit;
     border-radius: 8px;
     resize: vertical;

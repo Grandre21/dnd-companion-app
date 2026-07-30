@@ -106,8 +106,8 @@
 }
 
 .checkbox-row input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     accent-color: var(--gold);
     flex: 0 0 auto;
     cursor: pointer;
@@ -153,8 +153,8 @@
 }
 
 .skill-check {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     accent-color: var(--gold);
     justify-self: center;
     cursor: pointer;
@@ -270,14 +270,17 @@
 
 .wizard-steps {
     display: flex;
+    /* wrap: sei pastiglie da 40px con 8px di spazio occupano 280px, che su uno schermo da
+       320px sta al pelo. Se non ci stanno vanno a capo invece di uscire dallo schermo. */
+    flex-wrap: wrap;
     justify-content: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
 }
 
 .wiz-step-dot {
-    width: 2rem;
-    height: 2rem;
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 50%;
     border: 1px solid var(--gold-dim);
     background: var(--bg-card);
@@ -313,29 +316,71 @@
 /* ===== Step Caratteristiche ===== */
 .wiz-array-btn { align-self: flex-start; }
 
+/* Colonne stringate per il telefono: le quattro fisse + i gap si prendono 137px invece di 184,
+   e la differenza va alla traccia dello stepper — l'unica che deve contenere tre elementi da
+   44px. Con le misure larghe, a 360px (la larghezza Android più diffusa) il campo del punteggio
+   scendeva a 16px, cioè illeggibile, e sotto i 344px i pulsanti sconfinavano sulla colonna del
+   bonus. Le misure comode tornano sopra i 641px, dove lo spazio c'è. */
 .wiz-ability-head,
 .wiz-ability-row {
     display: grid;
-    grid-template-columns: 3rem 1fr 2.5rem 4.5rem;
+    grid-template-columns: 2.25rem 1fr 2rem 3.25rem;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
+}
+
+@media (min-width: 641px) {
+    .wiz-ability-head,
+    .wiz-ability-row {
+        grid-template-columns: 3rem 1fr 2.5rem 4.5rem;
+        gap: 0.5rem;
+    }
 }
 .wiz-ability-head {
     color: var(--gold-muted);
-    font-size: 0.8rem;
+    /* 0.65rem sul telefono: con le colonne strette (2rem per "Razza", 3.25rem per "Totale")
+       le etichette a 0.8rem sconfinavano l'una sull'altra. `overflow-wrap` le fa spezzare
+       invece di uscire, se una lingua o un carattere più largo le allungasse ancora. */
+    font-size: 0.65rem;
+    overflow-wrap: anywhere;
     text-transform: uppercase;
     margin-bottom: 0.25rem;
 }
+
+@media (min-width: 641px) {
+    .wiz-ability-head {
+        font-size: 0.8rem;
+    }
+}
 .wiz-ability-name { color: var(--gold); font-weight: 600; }
-.wiz-stepper { display: flex; align-items: center; gap: 0.25rem; }
-.wiz-base-input { width: 3.5rem; text-align: center; }
+/* min-width: 0 — senza, il minimo della traccia 1fr è il min-content dello stepper (140px): la
+   riga pretendeva 277px di contenuto e sotto i ~341px di viewport sfondava la griglia,
+   portandosi dietro lo scroll orizzontale. */
+.wiz-stepper { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+/* 2.75rem come i pulsanti accanto, così i tre elementi dello stepper hanno la stessa misura
+   del dito. Con 3.5rem erano i pulsanti a cedere, scendendo a ~41px. La larghezza che vincola
+   davvero è 320px: lì la griglia lascia allo stepper 119px contro i 140 che vorrebbe, ed è il
+   campo a stringersi (v. sotto). A 390px la traccia è ~189px e ne avanzano una cinquantina. */
+/* Padding stretto: la classe .input porta 0.85rem per lato, che dentro 44px lascerebbe 14,8px
+   utili — meno di due cifre a 16px, quindi ogni punteggio da 10 in su verrebbe tagliato.
+   `flex: 0 1` + `min-width: 0` rendono il campo l'unico elemento comprimibile dello stepper:
+   quando la traccia della griglia non basta per 44+4+44+4+44 il blocco si stringe invece di
+   sconfinare sulla colonna del bonus (un input più stretto di 44px resta usabile, un pulsante
+   no). Il grow resta a **0**: con `1 1` il campo si sarebbe preso tutto lo spazio libero della
+   traccia, arrivando a ~330px su desktop con i due pulsanti alle estremità opposte.
+   Misurato: da 360px in su il campo sta a 44px pieni (36 utili, due cifre entrano) e i pulsanti
+   restano 44; a 320px il campo si stringe a 23px — il valore si legge a fatica, ma la riga non
+   sfonda e i pulsanti restano toccabili, che a quella larghezza è il compromesso migliore. */
+.wiz-base-input { flex: 0 1 2.75rem; min-width: 0; width: 2.75rem; padding-left: 0.2rem; padding-right: 0.2rem; text-align: center; }
 .wiz-ability-bonus { color: var(--gold-muted); text-align: center; }
 .wiz-ability-total { color: var(--gold-light); font-weight: 600; }
 .wiz-ability-total small { color: var(--gold-muted); font-weight: 400; }
 
 .qty-btn {
-    width: 1.8rem;
-    height: 1.8rem;
+    /* Non si comprime: se lo spazio manca, a cedere è il campo, non il tap target. */
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: 4px;
     border: 1px solid var(--gold-dim);
     background: var(--bg-card);

@@ -126,7 +126,13 @@
 
 .ds-dots {
     display: flex;
-    gap: 0.5rem;
+    /* 1.5rem invece di 0.5rem: con 8px di spazio i centri distavano 22px mentre il tap target
+       (::after) ne misura 36 — i sei pallini dei tiri salvezza morte si rubavano il tocco a
+       vicenda. A 24px di spazio i centri stanno a 38px: target adiacenti, mai sovrapposti.
+       I pallini sono due gruppi da tre (Successi / Fallimenti) distribuiti da .death-saves-row:
+       ~90px per gruppo, e fra l'ultimo successo e il primo fallimento la distanza resta sopra i
+       36px del tap target finché il viewport sta sopra i ~284px. */
+    gap: 1.5rem;
 }
 
 .ds-dot {
@@ -310,8 +316,8 @@
 }
 
 .hd-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1.5px solid #8b6f47;
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);

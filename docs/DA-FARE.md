@@ -6,7 +6,7 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-07-29**
+> Ultimo aggiornamento: **2026-07-30**
 >
 > I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
 > in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
@@ -182,6 +182,17 @@ mega-componente (quello resta in §3).
   warning (IL2104, reflection). **Non eliminabile in sicurezza** finché Newtonsoft è il serializzatore dei Model
   Postgrest (vedi sotto): si libererà da solo quando Supabase mollerà Newtonsoft. (Collaterale: anche
   `System.Data.Common` ~463 KB nel bundle, target separato.)
+- ✅ **Rimuovere Bootstrap** — FATTO (2026-07-30, lavoro mobile-first). L'app ne usava **due classi**
+  (`btn` in Login, già ridefinita per intero in `Login.razor.css`; `px-4` in `MainLayout`, già inerte
+  per via del `!important` sul padding di `article`), ma il service worker precacheva **per estensione**
+  (`/\.css$/`, `/\.js$/`) tutti i **22 file css/js** di `wwwroot/lib`: grid, utilities, reboot, varianti
+  RTL, bundle JS — **2,4 MB** sulla rete del telefono (l'intero `_framework` compresso ne pesa 3,45).
+  Al suo posto un **reset locale** in testa a `wwwroot/css/app.css` che replica *bootstrap-reboot* alla
+  lettera con i valori `--bs-*` risolti. Due regole erano invisibili ma indispensabili
+  (`-webkit-tap-highlight-color: transparent`, `-webkit-text-size-adjust: 100%`): senza replicarle il
+  flash grigio al tocco sarebbe comparso **a causa** della rimozione. Resa verificata a runtime su
+  `/_showroom` e `/login`. ⚠️ La gotcha «Bootstrap nasconde `.toast`» (§3) **non ha più una causa**,
+  ma la classe resta `.app-toast` per non farla rinascere.
 - ℹ️ `Newtonsoft.Json` **non è rimuovibile** finché si usa Supabase 0.16.x (serializzatore runtime dei Model).
 
 ---
@@ -237,7 +248,7 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **387 unit test** (220 → 285 con la Fase 1 del
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **400 unit test** (220 → 285 con la Fase 1 del
   modello 2024, 285 → 387 con la Fase 2) + **suite d'integrazione RLS** (`Tests.Integration/`, 11 scenari verdi
   su stack locale, vedi voce 5 — restano 11: la Fase 2 non tocca le policy). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
@@ -254,7 +265,9 @@ mega-componente (quello resta in §3).
   l'invariante che un aggiornamento non tocchi identità, proprietà e colonne fuori formato),
   `SpellMaterialization`, `CampaignExport` (id del pacchetto, degrado delle provenienze, suffissi anti-collisione),
   `CatalogRemovalPlan` (selezione per provenienza senza `LIKE`, partizione per permessi, riconteggio) e
-  `SpellClassNames`.
+  `SpellClassNames`. Col **mobile-first** (2026-07-30) si aggiunge `BottomNavRoutes.IsActive` (13 test:
+  query string, frammento, slash, rotta vuota della Home, sotto-rotte), estratto dalla barra di
+  navigazione perché la logica con rami non stia nel `.razor`.
   Restano da coprire:
   1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
   2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
@@ -296,8 +309,11 @@ mega-componente (quello resta in §3).
   questo che la voce torna 🟡: il «da rivalutare **a pacchetto pieno**, non prima» del piano di Fase 2 è
   superato — il pacchetto pieno non serve, basta un file dell'utente.
 - 🟡 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
-  **Rialzata da 🟢 a 🟡 il 2026-07-25** (§8-bis): senza barra di navigazione ogni spostamento passa da
-  Home e ricarica tutto, e 4 pagine su 6 rifanno anche `GetProfilesAsync()` a ogni ingresso.
+  **Rialzata da 🟢 a 🟡 il 2026-07-25** (§8-bis). ⚠️ **Motivazione da riscrivere (2026-07-30):** l'argomento
+  originale era «senza barra di navigazione ogni spostamento passa da Home e ricarica tutto». La barra
+  **ora c'è**, ma il punto **resta aperto e alla stessa priorità**: ogni pagina ricarica comunque i propri
+  dati a ogni ingresso, e 4 pagine su 6 rifanno `GetProfilesAsync()`. Anzi, con la navigazione diretta gli
+  ingressi diventano **più frequenti**, non meno.
 - ✅ **Stati di caricamento** — FATTO (2026-06-24). I "Caricamento..." testuali rimasti (Incantesimi, Mostri,
   Classi, Razze, Note) ora usano `<LoadingSpinner>` a tema (già usato da Combat/inventario). Skeleton non fatto
   (spinner sufficiente).
@@ -312,12 +328,38 @@ mega-componente (quello resta in §3).
   del CSS di progetto in `rgba(var(--X-rgb), α)` (mapping 1:1, **invariato**; Bootstrap vendored escluso). Spec in
   `docs/superpowers/specs/2026-07-23-css-alpha-tokens-design.md`. **Resta (idea):** consolidare le sfumature
   quasi-duplicate (6 rossi / 4 verdi / 6 oro-bronzo) in meno token — è un cambio di colore, decisione separata.
-  Riferimento visivo: `/_showroom`. **Resta (2026-07-27, Fase 2 Task 7):** aggiunto `--author-badge-text`
-  (`#b89a80`, stesso valore del literal preesistente) per `.author-badge` in `Pages/Monsters.razor.css`.
-  `Pages/Spells.razor.css`, `Pages/Races.razor.css` e `Pages/Classes.razor.css` hanno lo stesso badge
-  con lo stesso colore ancora hardcodato (`Pages/Notes.razor.css` usa invece già `var(--gold)`, colore
-  diverso: non è nel novero): da convertire al token in un passaggio
-  dedicato (nessun cambio visivo, stesso valore esatto).
+  Riferimento visivo: `/_showroom`. ✅ **`--author-badge-text` (chiuso il 2026-07-30):** il token
+  (`#b89a80`), introdotto per `Pages/Monsters.razor.css` nella Fase 2, è ora usato anche da
+  `Spells`/`Races`/`Classes.razor.css`, che avevano lo stesso badge col literal — stesso valore esatto,
+  nessun cambio visivo. (`Pages/Notes.razor.css` usa `var(--gold)`, colore diverso: non era nel novero.
+  Lo stesso `#b89a80` resta in `.master-placeholder` di Home e `.inv-weight` dell'inventario, che badge
+  non sono.)
+- 🟡 **Tap target (2026-07-30, lavoro mobile-first).** ✅ Portati a **44px** tutti i pulsanti
+  (`hp-btn` — i ± dei PF, il controllo più toccato dell'app — `qty-btn`, `remove-btn`, `hd-btn`,
+  `header-btn`, `db-error-dismiss`/`db-error-repair`, `inv-eq-toggle`); i pallini
+  tengono il pattern `::after` del progetto. ✅ Corretto un difetto emerso **solo dalla misura a
+  runtime**: i tap target dei pallini **si sovrapponevano** (7 coppie su `sc-dot`; per costruzione
+  anche `ds-dot` e `spell-slot-dot`) — un'area allargata che sconfina sul vicino sposta il bersaglio
+  invece di allargarlo. Regola adottata: l'area non supera mai il passo fra i centri; dove serve è il
+  `gap` ad aumentare. **Resta:** le **72 `.skill-check`** e le `checkbox-row` sono a **24px** (minimo
+  WCAG 2.2 AA) e non a 44 — un `<input>` è un elemento rimpiazzato, `::after` non viene reso e a 44px
+  il quadratino nativo si deforma. Per arrivare a 44 bisogna **avvolgere ogni casella in una `<label>`
+  che occupi la cella** (72 punti di markup in `CharacterEditForm` e `CharacterWizard`): da fare quando
+  si rimette mano a quel form. Idem `.wiz-step-dot`, fermo a 40px per stare in sei su 320px, e i due
+  pallini isolati `prep-toggle` (38px) e `inspiration-toggle` (36px): sopra il minimo WCAG 2.2 AA,
+  senza sovrapposizioni con nulla, ritocco rimandato. **Sotto** il minimo resta un solo controllo,
+  e solo a 320px: il campo del punteggio nel wizard (`.wiz-base-input`), che a quella larghezza si
+  stringe a 23px perché a cedere sia lui e non i due pulsanti da 44px che ha accanto. Per chiuderlo
+  servirebbe portare lo stepper su una riga propria della griglia sotto una certa larghezza.
+- 🟢 **Il `← Home` di pagina è ridondante** dopo la barra di navigazione (2026-07-30): toglierlo
+  libererebbe una riga di header su ogni pagina, ma cambia il flusso di ritorno (la barra porta a Home,
+  non "indietro") — decisione di prodotto, non ritocco.
+- 🟢 **Token semanticamente sbagliato nei gradienti di sfondo** (emerso il 2026-07-30): **9 container
+  di pagina su 10** aprono il gradiente con `var(--text-on-gold)` (#1a1410) — un token che significa
+  "testo su fondo oro" usato come **sfondo**. Il valore è quello giusto (conversione 1:1 del
+  2026-06-21, nessun cambio visivo), è il nome a mentire. `Characters.razor.css` usa invece `var(--bg)`
+  (#1a0e1f): o è l'unico corretto, o è l'unico diverso dagli altri. Serve un token dedicato
+  (es. `--bg-page-top`) e una decisione su quale delle due tinte sia quella voluta.
 - 🟡 **Accessibilità** — ✅ avanzato (2026-06-21): resi accessibili da **tastiera** (`role`/`tabindex`/
   `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
   principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
@@ -495,8 +537,12 @@ modelli di salvataggio opposti.
   e competenze. È l'attrito che si ripresenta a **ogni sessione di gioco**.
 - 🟡 **Aiuto contestuale dal manuale** — nessuna spiegazione di cosa siano tiro salvezza, competenza,
   CD incantesimo. Indipendente dai punti sopra.
-- 🟡 **Barra di navigazione + cache dei cataloghi** — oggi ogni spostamento passa da Home e ricarica
-  tutto; 4 pagine su 6 rifanno anche `GetProfilesAsync()`. Allinea la voce cache di §5 (era 🟢).
+- ✅/🟡 **Barra di navigazione + cache dei cataloghi** — la **barra è FATTA** (2026-07-30,
+  `Shared/BottomNav.razor`, spec [`2026-07-30-mobile-first-design.md`](./superpowers/specs/2026-07-30-mobile-first-design.md)):
+  cinque voci (Home, Personaggi, Iniziativa, Incantesimi, Appunti), visibile solo con una campagna
+  attiva; le altre cinque sezioni (Mostri, Classi, Razze, Background, Dati) restano dalla Home.
+  **Resta la cache** dei cataloghi (v. §5): le pagine ricaricano i propri dati a ogni ingresso e 4 su 6
+  rifanno `GetProfilesAsync()`.
 - 🟡 **Combat: iniziativa precompilata o tirata** — gli import mettono `Initiative = 0` per tutti,
   benché l'app conosca già il bonus di ogni PG; e i PF si regolano ±1 per click.
 - 🟢 **Unificare l'unità di velocità** (razza in piedi, PG in metri). Il design del modello 2024 la chiude
@@ -529,7 +575,11 @@ modelli di salvataggio opposti.
 5. **Combat condiviso** (§8) — feature più sentita dall'uso reale.
 6. ~~**Rimozione Realtime** (§2)~~ ✅ e **design token / refactor `Characters.razor`** (§3, §6) — manutenibilità.
 7. Il resto (AI compilazione, ~~wizard scheda~~ ✅, performance, a11y, i18n, idee) secondo priorità di prodotto.
-8. **Attrito d'uso / mappa UX** (§8-bis, 2026-07-25) — **modello 2024 + import** (design approvato) viene
+8. **Mobile-first** (2026-07-30) — ✅ fatto il grosso: barra di navigazione, rimozione di Bootstrap,
+   safe-area/`100dvh`, tap target, manifest. Restano i residui elencati in §6 (caselle competenza a
+   24px, `← Home` ridondante, token dei gradienti) e la **verifica a vista da telefono, loggati**.
+9. **Attrito d'uso / mappa UX** (§8-bis, 2026-07-25) — **modello 2024 + import** (design approvato) viene
    prima di motore di derivazione e level-up guidato, in quest'ordine: ognuno dipende dal precedente.
-   I punti indipendenti (navigazione + cache, aiuto contestuale dal manuale, iniziativa nel combat,
-   conferme sui salvataggi impliciti) sono aggredibili **in parallelo**, senza attendere quella catena.
+   I punti indipendenti (~~navigazione~~ ✅ + cache dei cataloghi, aiuto contestuale dal manuale,
+   iniziativa nel combat, conferme sui salvataggi impliciti) sono aggredibili **in parallelo**, senza
+   attendere quella catena.

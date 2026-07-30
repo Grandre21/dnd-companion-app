@@ -5,7 +5,7 @@
 .dati-container {
     margin: -1.1rem -1.5rem 0 -1.5rem;
     padding: 1rem 1rem 5rem;
-    min-height: 100vh;
+    min-height: 100dvh;
     background:
         radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
         linear-gradient(180deg, var(--text-on-gold) 0%, rgb(var(--shadow-warm-rgb)) 100%);
@@ -311,8 +311,6 @@
 /* ===== Desktop ===== */
 @media (min-width: 641px) {
     .dati-container {
-        margin-left: -2rem;
-        margin-right: -1.5rem;
         padding: 1.5rem 2rem 5rem;
     }
 

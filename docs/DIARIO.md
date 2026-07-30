@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-07-29**.
+> Aggiornato: **2026-07-30**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -546,3 +546,108 @@ import non riallineata) sono emersi solo al secondo. Il piano prescriveva la log
 logica di dominio in helper puri e lì vivono gli invarianti di sicurezza dell'operazione più distruttiva
 dell'app. Non eseguita la **verifica manuale end-to-end** dello Step 4 (pacchetto di prova + secondo account
 non-master), che resta da fare prima del deploy.
+
+
+## Mobile-first totale (2026-07-30)
+
+L'app nasce «mobile-first» e il CSS lo era davvero — base per il telefono, un solo blocco
+`@media (min-width: 641px)` per pagina, nessuna `max-width` usata come breakpoint. L'ipotesi di
+partenza («è desktop-first, va convertito») è caduta alla prima misura. Il lavoro è stato quindi
+un altro: **chiudere i punti in cui il mobile-first era dichiarato ma non realizzato**. Analisi e
+misure in `docs/superpowers/specs/2026-07-30-mobile-first-design.md`.
+
+**Il codice per il telefono c'era ma non girava.** Il FAB usava `env(safe-area-inset-bottom)` con
+tanto di commento sul notch, ma il `<meta viewport>` non aveva `viewport-fit=cover`: senza, iOS
+risolve **tutte** le `env()` a zero. Una parola aggiunta, e insieme a essa il resto del lavoro sulle
+tacche (barra di navigazione, controlli sticky del Combat, banner PWA). Nello stesso registro:
+`lang="en"` su un'app interamente in italiano, e 14 `100vh` — 13 regole CSS più quella
+dello `<style>` critico di `index.html`, e sul telefono `vh` conta anche la barra URL che si
+ritrae — diventati `100dvh`.
+
+**Il layout era sbilanciato solo sul telefono.** `article` aveva `padding-left: 2rem` e
+`padding-right: 1.5rem`, mentre tutti e dieci i container di pagina lo annullano con lo stesso
+`margin: … -1.5rem`: restavano 8px di scarto a sinistra e zero a destra. Sopra i 641px il blocco di
+enhancement correggeva, sotto no — l'esatto contrario del mobile-first. Ora il padding è simmetrico
+e le due righe di `margin` dentro i dieci blocchi `≥641px` sono sparite perché ridondanti.
+
+**Bootstrap rimosso.** L'app ne usava **due classi**: `btn` in Login (dove `.btn` è comunque
+ridefinita per intero nel CSS della pagina) e `px-4` in MainLayout, già inerte per via di un
+`!important`. In cambio, il service worker precacheva **per estensione** tutti i 22 file css/js di
+`wwwroot/lib` — grid, utilities, reboot, le varianti RTL, i bundle JS: **2,4 MB** scaricati sulla
+rete del telefono, per confronto con i 3,45 MB dell'intero `_framework` compresso. Quello che l'app
+usava davvero era il solo *reboot*, ora replicato **alla lettera** in testa a `css/app.css` con i
+valori `--bs-*` risolti: `box-sizing` universale, `line-height: 1.5`, la scala fluida dei titoli,
+`font: inherit` sui controlli. Due regole erano invisibili ma indispensabili —
+`-webkit-tap-highlight-color: transparent` e `-webkit-text-size-adjust: 100%`: senza replicarle, il
+flash grigio di sistema al tocco sarebbe comparso **a causa** della rimozione. Verificato a runtime
+che body, titoli, paragrafi e controlli rendano identici a prima.
+
+**Una barra di navigazione, finalmente** (chiude la voce §8-bis del backlog). Prima ogni
+spostamento passava dalla Home: due tap e un ricaricamento dati per cambiare sezione. Cinque voci e
+non nove — nove darebbero celle da 43px, sotto la misura del dito — con le quattro sezioni di uso
+continuo al tavolo (Personaggi, Iniziativa, Incantesimi, Appunti) più la Home, che resta l'accesso a
+tutto il resto e al cambio campagna. Compare solo con una campagna attiva, e poiché il cambio
+campagna avviene in una **pagina** mentre la barra vive nel **layout**, `CampaignStateService`
+espone ora un evento `ActiveCampaignChanged`, inoltrato da `CurrentUserService` perché la facade
+resti l'unico punto d'ingresso. Le misure della barra sono token (`--bottom-nav-height`,
+`--bottom-nav-space`) usati da FAB, toast, banner PWA, padding di fondo del layout e controlli
+sticky del Combat. `--bottom-nav-space` si riduce alla **sola safe-area quando la barra non c'è**
+— gli overlay devono restare fuori dalla home indicator comunque, e con `viewport-fit=cover` la
+pagina ci si estende sotto — e vi somma l'altezza della barra solo quando c'è davvero, altrimenti
+quegli elementi resterebbero sollevati sul nulla: caso raggiungibile dagli shortcut del manifest,
+che aprono una sezione direttamente.
+
+*La lezione del giro di revisione:* la barra sta nel layout, **fuori** dall'`<ErrorBoundary>` che
+protegge le pagine, e il suo caricamento tocca la rete (identità e ruolo nella campagna). All'avvio
+offline — scenario di prima classe per una PWA con precache completo — l'eccezione sarebbe arrivata
+alla barra d'errore di Blazor e la navigazione sarebbe rimasta assente **per tutta la sessione**.
+Ora c'è un try/catch che degrada in silenzio, e le sottoscrizioni agli eventi si registrano *prima*
+dell'await: l'evento vive su un Singleton, quindi un componente disposto durante l'attesa avrebbe
+lasciato l'iscrizione appesa per sempre.
+
+*Stessa radice, secondo effetto — e questo vale per tutta l'app, non per la sola barra:*
+`CampaignStateService.InitializeAsync` alzava un flag booleano **prima** degli await. Un errore di
+rete durante il caricamento del ruolo lasciava quindi `ActiveCampaignRole` nullo **per l'intera
+sessione**, e ogni chiamata successiva era un no-op: il master vedeva l'interfaccia da giocatore,
+in silenzio e senza rimedio se non ricaricare. Fino a ieri il caso era improbabile perché il primo
+chiamante era la Home, che ci arriva dopo quattro await; con la barra nel layout il primo chiamante
+è lei, e arriva subito. Ora il servizio si tiene il `Task` invece del flag: se fallisce lo scarta e
+il chiamante successivo riprova. Di conseguenza `Combat.razor` — l'unica delle nove pagine che chiamano
+`EnsureLoadedAsync` a non avere un `try/catch` attorno — ne ha ricevuto uno: un'eccezione lì avrebbe
+sostituito il tracker con il fallback dell'ErrorBoundary, che offre "Ripara e ricarica", cioè
+svuotare le cache proprio mentre si è senza rete.
+
+**Le dita.** `.db-error-dismiss` misurava 27×22 — sotto il minimo WCAG 2.2 AA di 24×24, l'unico
+controllo dell'app a esserlo. Gli altri erano conformi ma scomodi: i ± dei PF in combattimento, il
+controllo più toccato dell'app, stavano a 34px. Pulsanti portati a 44px; i pallini tengono il
+pattern del progetto (`::after` trasparente che allarga l'area senza toccare il layout); i
+`<input type="checkbox">` non accettano nessuna delle due strade — sono elementi rimpiazzati, e a
+44px il quadratino nativo si deforma — e restano a 24px.
+
+*Il difetto che solo la misura ha rivelato:* i tap target dei pallini **si accavallavano**. Sette
+coppie su `sc-dot` (area 36px contro centri distanti 26px), e per costruzione anche i tiri salvezza
+morte (36 contro 22) e gli slot incantesimo (32 contro 18): toccare il bordo di un pallino attivava
+il vicino. Un'area allargata che sconfina su quella accanto non allarga il bersaglio, **lo sposta**.
+La regola adottata: l'area non supera mai il passo fra i centri, e dove serve è il passo ad
+aumentare. Su `sc-dot` l'area è asimmetrica — 44×28, larga quanto il dito dove c'è spazio, alta
+quanto la riga dove non ce n'è.
+
+**iOS non deve più ingrandire la pagina.** Cinque campi stavano sotto i 16px (`spell-picker-input`,
+`notes-textarea`, i campi delle monete, `attunement-input`, `sr-input`): sotto quella soglia Safari
+ingrandisce al focus e **non torna indietro all'uscita**. Tutti a 1rem.
+
+**PWA installabile come si deve.** Il manifest aveva solo nome e icone: ora ha `scope`, `lang`,
+`description`, `categories`, tre `shortcuts` (Scheda, Combat, Appunti) e soprattutto un'icona
+`purpose: "maskable"` generata apposta — il d20 dentro il cerchio di sicurezza dell'80%, su fondo
+del tema — perché senza, Android incastra l'icona in un cerchietto bianco.
+
+400 test unitari verdi (13 nuovi su `BottomNavRoutes.IsActive`, la logica della voce attiva estratta
+dal componente secondo la regola degli helper puri), build Release 0 warning / 0 errori. Verificato a
+runtime su viewport 390×844 e 320×568: nessuno scroll orizzontale, nessun campo sotto i 16px di
+carattere, zero sovrapposizioni fra i tap target e nessun controllo sotto i 24×24 di WCAG 2.2 AA —
+con una sola eccezione dichiarata, il campo del punteggio nel wizard, che a 320px si stringe a 23px
+per non far sconfinare i due pulsanti da 44 che ha accanto. **Resta all'utente** la verifica a
+vista da telefono e loggato: l'accesso è OAuth Google e va completato da una persona, quindi in
+questa sessione le pagine raggiungibili sono state `/_showroom` e `/login` — per gli altri
+componenti (barra di navigazione, riga del tracker) è stato iniettato il markup reale con le loro
+classi di scope, così da misurare le regole vere e non una loro imitazione.

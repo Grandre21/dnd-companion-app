@@ -89,7 +89,9 @@
     border: 1px solid rgba(var(--gold-rgb), 0.3);
     color: #e8d9b5;
     padding: 0.45rem 0.25rem;
-    font-size: 0.9rem;
+    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus del campo e non la
+       rimpicciolisce più all'uscita. */
+    font-size: 1rem;
     font-family: inherit;
     border-radius: 6px;
     text-align: center;
@@ -146,7 +148,9 @@
     padding: 8px 10px;
     border-radius: 6px;
     color: var(--text);
-    font-size: 13px;
+    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus del campo e non la
+       rimpicciolisce più all'uscita. */
+    font-size: 1rem;
     font-family: inherit;
 }
 
@@ -310,9 +314,10 @@
     flex-shrink: 0;
 }
 
+/* 44px: gli stepper di quantità si toccano in sequenza, e a 34px il dito sbagliava. */
 .qty-btn {
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1.5px solid #8b6f47;
     background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
@@ -401,9 +406,12 @@
     opacity: 0.6;
 }
 
+/* La label È il tap target del checkbox che contiene: portarla a 44px di altezza vale
+   più che ingrandire il quadratino (15px), che resta della sua misura. */
 .inv-eq-toggle {
     display: inline-flex;
     align-items: center;
+    min-height: 44px;
     gap: 0.35rem;
     cursor: pointer;
     color: #9a8c6a;

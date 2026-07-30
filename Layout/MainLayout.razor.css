@@ -1,5 +1,5 @@
 main {
-    min-height: 100vh;
+    min-height: 100dvh;
     background-color: var(--bg);
     display: flex;
     flex-direction: column;
@@ -7,11 +7,22 @@ main {
 
 article.content {
     flex: 1;
+    /* Spazio per la barra di navigazione, che è `position: fixed` e coprirebbe il fondo
+       della pagina. Sta qui e non nei container perché vale per ogni pagina del layout,
+       comprese quelle che non hanno un container proprio. */
+    padding-bottom: var(--bottom-nav-space);
 }
 
-/* Mantengo il padding orizzontale: i container delle pagine
-   (margin: -1.1rem -1.5rem 0 -1.5rem) sono tarati su questi valori. */
+/* Padding orizzontale SIMMETRICO (2026-07-30). Prima era 2rem a sinistra e 1.5rem a
+   destra, ma tutti e 10 i container di pagina lo annullano con lo stesso
+   `margin: -1.1rem -1.5rem 0 -1.5rem`: sotto i 641px restavano 8px di scarto a sinistra e
+   zero a destra, cioè il layout era sbilanciato **solo sul telefono** (il blocco ≥641px di
+   ogni pagina correggeva con -2rem/-1.5rem). Con 1.5rem su entrambi i lati il margin base
+   annulla esattamente il padding a ogni larghezza, e i due `margin-left/right` dentro i
+   blocchi ≥641px sono stati rimossi perché diventati ridondanti.
+   Niente più !important: serviva a battere l'utility `px-4` di Bootstrap sullo stesso
+   elemento, e sia l'una sia l'altro sono stati rimossi nello stesso giro. */
 article {
-    padding-left: 2rem !important;
-    padding-right: 1.5rem !important;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
 }

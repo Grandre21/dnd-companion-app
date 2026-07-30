@@ -1,22 +1,52 @@
 {
   "name": "D&D Companion",
   "short_name": "D&D Companion",
+  "description": "Schede personaggio, cataloghi, tracker del combattimento e appunti per le tue campagne di D&D 5e.",
   "id": "./",
   "start_url": "./",
+  "scope": "./",
+  "lang": "it",
+  "dir": "ltr",
   "display": "standalone",
   "background_color": "#1a0e1f",
   "theme_color": "#1a0e1f",
+  "categories": ["games", "entertainment", "utilities"],
   "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
     },
     {
       "src": "icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scheda personaggio",
+      "short_name": "Scheda",
+      "url": "./characters"
+    },
+    {
+      "name": "Tracker combattimento",
+      "short_name": "Combat",
+      "url": "./combat"
+    },
+    {
+      "name": "Appunti di campagna",
+      "short_name": "Appunti",
+      "url": "./notes"
     }
   ]
 }

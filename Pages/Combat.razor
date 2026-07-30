@@ -264,7 +264,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await CurrentUser.EnsureLoadedAsync();
+        try
+        {
+            await CurrentUser.EnsureLoadedAsync();
+        }
+        catch (Exception ex)
+        {
+            // Come nelle altre pagine dati: l'errore va nel banner, non nell'ErrorBoundary del
+            // layout — che sostituirebbe il tracker con "Qualcosa è andato storto" e offrirebbe
+            // "Ripara e ricarica", cioè svuotare le cache proprio mentre si è senza rete.
+            errorMessage = $"Errore caricamento: {ex.Message}";
+        }
 
         await LoadCombatStateAsync();
 

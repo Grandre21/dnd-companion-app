@@ -1,8 +1,8 @@
 .home-container {
-    /* Break out of article.content px-4 / padding-top on mobile */
+    /* Annulla il padding di article.content (1.5rem per lato) e il suo padding-top */
     margin: -1.1rem -1.5rem 0 -1.5rem;
     padding: 1.5rem 1.25rem 3rem;
-    min-height: 100vh;
+    min-height: 100dvh;
     background:
         radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
         linear-gradient(180deg, var(--text-on-gold) 0%, #0d0a08 100%);
@@ -413,8 +413,6 @@ select.input {
 
 @media (min-width: 641px) {
     .home-container {
-        margin-left: -2rem;
-        margin-right: -1.5rem;
         padding: 2rem 2rem 4rem;
     }
 

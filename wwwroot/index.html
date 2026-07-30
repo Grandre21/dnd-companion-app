@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 
 <head>
     <meta charset="utf-8" />
@@ -16,7 +16,11 @@
       in .github/workflows/deploy.yml), così la CSP di prod resta pulita.
     -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://tbgjwtfmijrcmeracfzh.supabase.co ws://localhost:* wss://localhost:* http://localhost:*; object-src 'none'; base-uri 'self'; manifest-src 'self'; worker-src 'self'" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: SENZA di esso iOS risolve tutte le env(safe-area-inset-*) a 0, e il
+         codice che le usa (FAB in app.css, barra di navigazione, controlli sticky del Combat)
+         non ha alcun effetto. Con cover la pagina si estende sotto notch e home indicator e le
+         env() portano i valori reali, che il CSS usa per stare alla larga da entrambi. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#1a0e1f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -42,9 +46,11 @@
     <style>
         /* Critical: evita il flash bianco prima del caricamento di app.css/Blazor */
         html, body { background-color: #1a0e1f; margin: 0; }
-        #app { min-height: 100vh; }
+        #app { min-height: 100dvh; }
     </style>
-    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Bootstrap rimosso il 2026-07-30: l'app ne usava due classi e il service worker
+         precacheva per estensione tutti i 22 file css/js di wwwroot/lib (2,4 MB). Il reboot,
+         unica parte davvero in uso, è replicato in testa a css/app.css. -->
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="DndCompanion.styles.css" rel="stylesheet" />

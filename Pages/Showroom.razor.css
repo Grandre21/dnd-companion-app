@@ -128,7 +128,9 @@
     color: var(--text);
     padding: 0.55rem 0.7rem;
     font-family: inherit;
-    font-size: 0.95rem;
+    /* Come i campi veri dell'app (.input): 16px, sotto i quali iOS ingrandisce la pagina
+       al focus. La vetrina deve mostrare la stessa misura che si vede nelle pagine. */
+    font-size: 1rem;
 }
 
 /* ---- card ---- */

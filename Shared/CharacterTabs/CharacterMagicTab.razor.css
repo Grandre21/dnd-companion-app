@@ -40,7 +40,10 @@
     flex: 1;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    /* 1.25rem invece di 0.4rem: i centri passano da 18 a 32px, tanti quanti ne misura il tap
+       target (::after), che quindi smette di sovrapporsi a quello dello slot accanto. Marcare
+       uno slot speso è un gesto che si fa a metà combattimento: deve colpire quello giusto. */
+    gap: 1.25rem;
 }
 
 .spell-slot-dot {

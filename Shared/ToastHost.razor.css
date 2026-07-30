@@ -2,7 +2,8 @@
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    /* Sopra la barra di navigazione: --bottom-nav-space comprende già la safe-area iOS. */
+    bottom: calc(1.25rem + var(--bottom-nav-space));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -13,8 +14,10 @@
     max-width: 90vw;
 }
 
-/* NB: classe 'app-toast' (NON 'toast'): Bootstrap definisce '.toast:not(.show){display:none}' che
-   nasconderebbe i nostri toast (non usiamo la classe .show). Vedi commit del fix. */
+/* NB: classe 'app-toast' (NON 'toast'). All'origine per una collisione: Bootstrap definiva
+   '.toast:not(.show){display:none}' e nascondeva i nostri toast, che non usano .show.
+   Bootstrap è stato rimosso il 2026-07-30, ma la classe resta 'app-toast' — così il nome non
+   torna a collidere se un giorno rientrasse un framework CSS. */
 .app-toast {
     pointer-events: auto;
     padding: 0.6rem 1rem;

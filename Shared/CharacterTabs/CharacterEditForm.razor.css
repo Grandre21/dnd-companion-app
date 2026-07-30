@@ -289,8 +289,8 @@ select.input option {
 }
 
 .checkbox-row input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     accent-color: var(--gold);
     flex: 0 0 auto;
     cursor: pointer;
@@ -335,9 +335,13 @@ select.input option {
     color: var(--gold-muted);
 }
 
+/* 24px = minimo WCAG 2.2 AA, non i 44 del dito: un <input> non accetta il pseudo-elemento
+   che allarga gli altri controlli (e ingrandirlo a 44 deformerebbe il quadratino nativo).
+   Per arrivare a 44 servirebbe avvolgere ognuna delle 72 caselle in una <label> che occupi
+   la cella: cambio di markup annotato in DA-FARE, non improvvisato qui. */
 .skill-check {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     accent-color: var(--gold);
     justify-self: center;
     cursor: pointer;

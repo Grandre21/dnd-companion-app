@@ -1,7 +1,7 @@
 .races-container {
     margin: -1.1rem -1.5rem 0 -1.5rem;
     padding: 1rem 1rem 5rem;
-    min-height: 100vh;
+    min-height: 100dvh;
     background:
         radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
         linear-gradient(180deg, var(--text-on-gold) 0%, #0d0a08 100%);
@@ -215,7 +215,7 @@
     padding: 0.1rem 0.5rem;
     background: rgba(var(--gold-muted-rgb), 0.15);
     border: 1px solid rgba(var(--gold-muted-rgb), 0.4);
-    color: #b89a80;
+    color: var(--author-badge-text);
     border-radius: 999px;
     font-size: 0.7rem;
     font-weight: 600;
@@ -502,8 +502,6 @@
 /* ===== Desktop ===== */
 @media (min-width: 641px) {
     .races-container {
-        margin-left: -2rem;
-        margin-right: -1.5rem;
         padding: 1.5rem 2rem 5rem;
     }
 

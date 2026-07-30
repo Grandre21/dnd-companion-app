@@ -1,0 +1,98 @@
+/* Barra di navigazione inferiore. Le misure vivono nei token --bottom-nav-* di app.css
+   perché le usano anche il FAB, il padding di fondo del layout e i controlli sticky del
+   Combat: se cambia l'altezza qui, tutto il resto deve seguirla senza ritocchi manuali. */
+.bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100; /* sopra il FAB (10), sotto banner PWA (1050), toast (1100) e dialog (1200) */
+
+    display: flex;
+    align-items: stretch;
+
+    /* L'area sotto la home indicator dell'iPhone viene riempita dallo sfondo della barra
+       (padding), non lasciata vuota: le voci restano sopra la tacca. */
+    height: var(--bottom-nav-height);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: content-box;
+
+    background: linear-gradient(180deg, var(--bottom-nav-bg-top) 0%, var(--bottom-nav-bg-bottom) 100%);
+    border-top: 1px solid rgba(var(--gold-rgb), 0.28);
+    box-shadow: 0 -4px 14px rgba(var(--black-rgb), 0.45);
+}
+
+.bnav-item {
+    flex: 1 1 0;
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+
+    color: var(--gold-dim);
+    text-decoration: none;
+    font-family: 'Georgia', 'Cambria', serif;
+
+    /* Il bordo trasparente riserva lo spazio dell'indicatore di voce attiva: senza,
+       le etichette salterebbero di 2px al cambio pagina. */
+    border-top: 2px solid transparent;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.bnav-item:hover {
+    color: var(--gold-muted);
+}
+
+.bnav-item:active {
+    background: rgba(var(--gold-rgb), 0.1);
+}
+
+.bnav-item:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: -3px;
+}
+
+.bnav-item.active {
+    color: var(--gold);
+    border-top-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.08);
+}
+
+.bnav-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.bnav-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+
+    /* Niente maiuscolo: le etichette portano i nomi per esteso usati dal resto dell'app
+       ("Personaggi", "Incantesimi") e in maiuscolo non entrerebbero in una cella da 64px
+       sullo schermo più stretto. Se comunque non entrano, troncano: la barra resta a una
+       riga e la sua altezza non cambia mai. */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Sopra i 641px la barra resta (l'app è mobile-first e la navigazione è la stessa), ma le
+   voci non si allargano a dismisura su schermi larghi. */
+@media (min-width: 641px) {
+    .bottom-nav {
+        justify-content: center;
+    }
+
+    .bnav-item {
+        flex: 0 1 8rem;
+    }
+
+    .bnav-label {
+        font-size: 0.7rem;
+    }
+}

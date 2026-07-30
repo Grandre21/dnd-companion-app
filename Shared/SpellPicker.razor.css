@@ -10,7 +10,9 @@
     border: 1px solid #5a3f20;
     border-radius: 8px;
     padding: 10px 14px;
-    font-size: 14px;
+    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus del campo e non la
+       rimpicciolisce più all'uscita. */
+    font-size: 1rem;
     font-family: inherit;
     color: var(--text);
 }
@@ -32,7 +34,9 @@
     background: var(--bg-card);
     border: 1px solid #5a3f20;
     border-radius: 8px;
-    max-height: 320px;
+    /* min(): su schermi bassi la lista si accorcia invece di finire sotto la barra di
+       navigazione, che sta più in alto nel contesto di impilamento. */
+    max-height: min(320px, 40vh);
     overflow-y: auto;
     z-index: 20;
     box-shadow: 0 6px 18px rgba(var(--black-rgb), 0.5);

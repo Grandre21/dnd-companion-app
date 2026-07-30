@@ -1,7 +1,7 @@
 .characters-container {
     margin: -1.1rem -1.5rem 0 -1.5rem;
     padding: 1rem 1rem 3rem;
-    min-height: 100vh;
+    min-height: 100dvh;
     background:
         radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
         linear-gradient(180deg, var(--bg) 0%, #0d0a08 100%);
@@ -196,8 +196,8 @@
 }
 
 .character-header .header-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -317,8 +317,6 @@
 /* ===== Desktop ===== */
 @media (min-width: 641px) {
     .characters-container {
-        margin-left: -2rem;
-        margin-right: -1.5rem;
         padding: 1.5rem 2rem 4rem;
     }
 
