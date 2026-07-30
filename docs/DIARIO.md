@@ -165,7 +165,11 @@ non cambia il comportamento. Verifica manuale (login, CRUD, RLS) affidata all'ut
 (`Supabase.Realtime`/`Functions`/`Storage`/meta, `System.Reactive`, `Websocket.Client`, lo stack WebSockets,
 `System.Threading.Channels`), **−124 KB Brotli** (3.57 → 3.45 MB) / −272 KB RAW. Delta contenuto perché
 `TrimMode=full` già sfrondava `System.Reactive`; il valore vero è rimuovere file interi. Smoke test del trim
-ok (gli assembly radicati Gotrue/Postgrest sopravvivono). Dettagli e caveat `wasm-tools` in [DA-FARE.md](./DA-FARE.md) §2.
+ok (gli assembly radicati Gotrue/Postgrest sopravvivono) — ⚠️ criterio **smentito il 2026-07-30**: la presenza di
+quei due assembly non prova il rooting (li istanzia direttamente `SupabaseService`, quindi ci sarebbero comunque,
+solo più piccoli), e gli avvisi di trim li spegne il Blazor SDK. Il risultato di allora resta plausibile, la prova
+no: v. `DA-FARE` §2 e la regola sul ramo unico in `CLAUDE.md`. Dettagli e caveat `wasm-tools` in
+[DA-FARE.md](./DA-FARE.md) §2.
 
 **Rifinitura UX/a11y + CSP + validazione (2026-06-24).** Tre interventi a basso rischio in un solo /loop.
 (1) **UX/a11y**: i "Caricamento..." testuali rimasti (Incantesimi/Mostri/Classi/Razze/Note) ora usano il
@@ -651,3 +655,20 @@ vista da telefono e loggato: l'accesso è OAuth Google e va completato da una pe
 questa sessione le pagine raggiungibili sono state `/_showroom` e `/login` — per gli altri
 componenti (barra di navigazione, riga del tracker) è stato iniettato il markup reale con le loro
 classi di scope, così da misurare le regole vere e non una loro imitazione.
+
+
+## Metodo: ramo unico `main` (2026-07-30)
+
+Deciso di lavorare su **un solo ramo**, senza feature branch né pull request. La ragione per cui la
+scelta va scritta e non solo applicata è la sua conseguenza: `deploy.yml` parte a ogni push su
+`main` e non ha approvazioni, quindi **spingere è rilasciare**. Non esiste uno stadio intermedio in
+cui guardare il risultato prima degli utenti.
+
+La regola in `CLAUDE.md` mette perciò nero su bianco ciò che il ramo unico rende critico, e che la
+revisione a due agenti ha fatto emergere punto per punto: il push resta sempre su richiesta
+esplicita (il commit no, quello segue il gate); il verde della CI non dice che l'app funziona,
+perché il workflow non esegue i test e `dotnet build` non attiva il trimming che rompe i costruttori
+usati via reflection; il deploy rilascia **solo il client**, mentre le migrazioni Supabase si
+applicano a mano e devono restare compatibili col client già live; l'aggiornamento PWA è on-demand,
+quindi dopo il push gli utenti restano sulla versione in cache — e i loro dati passano dallo stesso
+database; il rollback è `git revert` più push, mai un force-push sul ramo di rilascio.

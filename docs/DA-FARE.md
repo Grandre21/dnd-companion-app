@@ -163,15 +163,22 @@ mega-componente (quello resta in §3).
   `realtime-csharp`, `supabase-storage`, `System.Reactive` e `Websocket.Client`. Auth e dati vivono dietro
   la facade `Services/SupabaseClient.cs` (`From<T>`/`Rpc<T>`/`Auth`), a superficie invariata per tutti i
   repository e le pagine. Token per-request via `GetHeaders`. Build 0/0, 111 test verdi. Il combat resta a
-  polling (§8) — il punto di tensione non esiste più. Verifica runtime manuale (login/CRUD/RLS) in sospeso
-  prima del push.
+  polling (§8) — il punto di tensione non esiste più. Verifica runtime manuale (login/CRUD/RLS) mai
+  formalizzata; il codice è però live su `main` dal 2026-06-24 e l'app in produzione funziona.
 - ✅ **Misurare il bundle pubblicato** — FATTO (2026-06-24). Confronto publish Release `before` (commit
   `f84e133`, meta `supabase-csharp 0.16.2`) vs `after` (`main`, split standalone) su `wwwroot/_framework`:
   **−9 assembly** (77 → 68), **−272 KB** RAW (10.62 → 10.35 MB), **−124 KB Brotli** (3.57 → 3.45 MB),
   −160 KB Gzip. Eliminati: `Supabase`(meta)/`Supabase.Realtime`/`Supabase.Functions`/`Supabase.Storage`,
   `System.Reactive`, `Websocket.Client`, `System.Net.WebSockets`(+`.Client`), `System.Threading.Channels`.
   **Smoke test trim `full`:** publish exit 0, 0 avvisi, gli assembly radicati `Supabase.Gotrue`/`Supabase.Postgrest`
-  presenti → nessun ctor strippato. Il delta è modesto perché `TrimMode=full` già sfrondava `System.Reactive`
+  presenti → nessun ctor strippato. ⚠️ **Criterio smentito il 2026-07-30:** quei due controlli **non provano
+  nulla**. Gli avvisi di trim li spegne il Blazor SDK (`SuppressTrimAnalysisWarnings` vale `true` se non la si
+  forza → ILLink riceve `--notrimwarn`), e i due assembly compaiono in `_framework` anche se il rooting salta,
+  perché li istanzia direttamente `SupabaseService`: sarebbero solo più piccoli, coi costruttori via reflection
+  già strippati. I segnali validi sono la **taglia** dell'assembly contro il `.dll` NuGet e il **caricamento
+  dell'app pubblicata con accesso fatto** (l'errore è a runtime nel browser). Regola operativa in `CLAUDE.md`,
+  sezione sul ramo unico. Il *risultato* di allora resta plausibile — l'app in produzione funziona — ma non era
+  dimostrato da quella verifica. Il delta è modesto perché `TrimMode=full` già sfrondava `System.Reactive`
   (70.8 KB trimmato nel `before`); il guadagno vero è rimuovere **9 file interi** (meno richieste/decompressione
   al cold-load). ⚠️ Numeri assoluti misurati **senza** workload `wasm-tools` (non installato in locale): in
   produzione la CI fa `dotnet workload restore` → relinking nativo del `dotnet.native.wasm` (2.9 MB) → bundle
@@ -434,7 +441,8 @@ mega-componente (quello resta in §3).
   tap. Helper puri testabili in `Services/CharacterWizardLogic.cs` (`FinalAbilityScores`, `BuildHitDice`,
   `SuggestMaxHp`, `ParseSaveProficiencies`). L'accordion `CharacterEditForm` resta **invariato** per la
   modifica di PG esistenti. Zero impatto su DB/RLS (nessuna tabella nuova, `SaveFormAsync` riusato). 147 test
-  verdi, build Release 0/0. Verifica manuale end-to-end (scenario spec §9 in locale) in sospeso prima del push.
+  verdi, build Release 0/0. Verifica manuale end-to-end (scenario spec §9) mai eseguita; il codice è live su
+  `main` dal 2026-06-25.
 - 💡 **Combat in Realtime.** Evoluzione futura del combat condiviso con push istantaneo invece del polling —
   richiederebbe la reintroduzione di `realtime-csharp` (rimosso in §2); valutare solo se il costo bundle è
   accettabile.
