@@ -1,6 +1,9 @@
 # Modello D&D 5e 2024 + import dei dati — design
 
-> Data: **2026-07-25** · Stato: **design approvato**, piano da scrivere
+> Data: **2026-07-25** · Stato: **design approvato** · **Fasi 1 e 2 implementate** (2026-07-25 / 2026-07-29),
+> Fase 3 aperta — piani:
+> [fase 1](../plans/2026-07-25-modello-2024-import-dati-fase-1.md) ·
+> [fase 2](../plans/2026-07-27-modello-2024-import-dati-fase-2.md)
 > Origine: [mappa UX dei flussi](./2026-07-25-ux-mappa-flussi-analisi.md) §4 (attriti **A1** e **A2**)
 > Backlog: [`DA-FARE.md`](../../DA-FARE.md) §8-bis
 
@@ -165,12 +168,24 @@ evita — ma **materializzare solo quelli che servono**:
 > in `spells` per la campagna, con `source_id` valorizzato, e crea `character_spells` puntando al nuovo
 > `uuid`. Se una riga con quel `source_id` esiste già nella campagna, la riusa.
 
-L'inserimento è un **`Upsert` con `on_conflict` su `(campaign_id, source_id)`** che rilegge la riga
-vincente, non un leggi-poi-inserisci. La differenza conta: `SpellMaterialization` decide sulla lista che il
+L'inserimento **deve reggere il conflitto sul vincolo `(campaign_id, source_id)`**: non basta cercare la riga
+prima di inserirla. La differenza conta: `SpellMaterialization` decide sulla lista che il
 client ha in memoria, e quella lista è un'istantanea — `Pages/Characters.razor` carica gli incantesimi una
 volta sola e non li ricarica finché la pagina resta aperta. Due giocatori che preparano le schede la stessa
 sera basterebbero a far fallire il secondo inserimento contro il vincolo di unicità (§4.3), trasformando in
 errore di sistema un'operazione che doveva semplicemente riusare una riga già presente.
+
+> ⚠️ **Corretto in Fase 2 (2026-07-29): non con un `Upsert`.** Questo paragrafo prescriveva un `Upsert` con
+> `on_conflict`; la misura sul campo dice che quella strada non esiste con la libreria in uso.
+> `postgrest-csharp 3.5.1` serializza la chiave primaria **anche** con `[PrimaryKey("id", false)]`, quindi
+> manda `"id":""` e con `id uuid NOT NULL` prende `invalid input syntax for type uuid` — HTTP 400 su *ogni*
+> scrittura. (`CombatStateRepository` non lo incontra perché la sua chiave, `campaign_id`, è sempre
+> valorizzata.) Valorizzare l'`id` a mano è peggio: su conflitto il `DO UPDATE` riscriverebbe la chiave
+> primaria della riga esistente, e `character_spells_spell_id_fkey` non è `ON UPDATE CASCADE`.
+> L'implementazione è quindi **leggi-poi-inserisci con rilettura sul conflitto**: si cerca la riga per
+> `source_id` (`ISpellRepository.GetOneBySourceAsync`), si inserisce se manca, e se l'`INSERT` urta il
+> vincolo si rilegge la riga vincente invece di sovrascriverla — stesso esito che ci si aspettava
+> dall'`Upsert`, senza mai toccare dati di un altro giocatore.
 
 Il costo è proporzionale all'uso reale, non al catalogo: un gruppo paga le righe degli incantesimi che i
 suoi personaggi conoscono. `CatalogMerge` deduplica per `source_id`, quindi la voce materializzata non
@@ -434,7 +449,7 @@ legge è ciò che accadrà.
 | Voce non modificabile per permessi | segnalata **nel piano** prima della conferma, non come errore dopo |
 | Sezione `feats` del pacchetto dell'app | elencata nel piano come "solo consultazione" — si legge nella pagina Background |
 | Sezione `feats` di un file dell'utente | elencata come "non importabile — resta nel tuo file", mai scartata in silenzio |
-| Provenienza già presente in campagna (materializzazione) | si riusa la riga esistente: nessun errore, l'`Upsert` di §4.4 lo rende un caso normale |
+| Provenienza già presente in campagna (materializzazione) | si riusa la riga esistente: nessun errore, la rilettura sul conflitto di §4.4 lo rende un caso normale |
 | Errore di scrittura sul database | `DbErrorBanner` con "Ripara e ricarica" |
 | Import interrotto a metà | resoconto di cosa è passato e cosa no |
 

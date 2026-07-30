@@ -6,7 +6,7 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-07-25**
+> Ultimo aggiornamento: **2026-07-29**
 >
 > I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
 > in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
@@ -150,9 +150,9 @@ mega-componente (quello resta in §3).
   cancellazione su tutte le proprie righe rimaste in campagna — note, personaggi, voci di catalogo — senza
   alcuno spostamento. Il caso più acuto è di nuovo la nota condivisa, che nessun altro può rimuovere.
   **Come chiuderla:** migrazione **autonoma**, con il suo giro di test RLS — sette tabelle, di cui sei già in
-  produzione (`backgrounds` ci arriverà col deploy della Fase 1). Da collocare **in prossimità della Fase 2**
-  (che oggi non prevede lavoro sulle policy) e **comunque prima di aprire l'app al pubblico**, coerentemente
-  con §10 punto 2.
+  produzione (`backgrounds` ci arriverà col deploy della Fase 1). **Aggiornamento (2026-07-29):** la Fase 2 si
+  è chiusa senza toccare le policy, come previsto — la finestra indicata («in prossimità della Fase 2») **è
+  ora**, fra Fase 2 e Fase 3, e **comunque prima di aprire l'app al pubblico**, coerentemente con §10 punto 2.
 
 ---
 
@@ -217,6 +217,10 @@ mega-componente (quello resta in §3).
   rappresentazione) o con un check di esistenza post-delete (round-trip extra).
   **Decisione (2026-06-24): accettato** lo stato attuale del delete-outcome (il gate `CanEdit` copre il caso
   pratico); si rivaluta solo su upgrade della libreria.
+  ✅ **Precedente (2026-07-29, Fase 2):** sulle cancellazioni **in blocco** il check post-delete è stato
+  applicato davvero — la rimozione per provenienza riconta gli id congelati (`CatalogRemovalPlan.StillPresent`)
+  invece di assumere l'esito, e il resoconto dice quante voci il server non ha tolto. Lì il round-trip extra
+  vale il prezzo; sulle singole cancellazioni della UI resta valida la decisione del 2026-06-24.
   ✅ **Toast sugli errori di validazione** (2026-06-24): i messaggi di validazione input (8 pagine) ora sono
   toast (`Toasts.ShowError`) invece del banner; gli errori di sistema/operazione restano nel banner persistente
   (con "Ripara e ricarica"). **Bug risolto nello stesso giro:** tutti i toast erano invisibili per una collisione
@@ -233,9 +237,9 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **285 unit test** (220 → 285 con la Fase 1 del
-  modello 2024) + **suite d'integrazione RLS** (`Tests.Integration/`, 11 scenari verdi su stack locale,
-  vedi voce 5). Coperti: `CharacterCalculations`
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **387 unit test** (220 → 285 con la Fase 1 del
+  modello 2024, 285 → 387 con la Fase 2) + **suite d'integrazione RLS** (`Tests.Integration/`, 11 scenari verdi
+  su stack locale, vedi voce 5 — restano 11: la Fase 2 non tocca le policy). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
   `InternalsVisibleTo`): visibilità/ordinamento note (`NoteRepository.FilterAndSortVisible`, regola di sicurezza),
@@ -245,6 +249,12 @@ mega-componente (quello resta in §3).
   (`CharacterSpellJoin.WithCatalog`), gli helper di vista `CharacterView` (formattazione/a11y +
   mapping slot incantesimo 1-9, con valori distinti per livello), la redazione player del tracker
   (`CombatVisibility`) e il grado sfida del catalogo mostri (`MonsterCatalog.ParseChallengeRating`).
+  Con la **Fase 2** (2026-07-29) si aggiungono gli helper puri dell'import/export: `PackageImportPlan`
+  (esiti dell'anteprima e gate dei permessi), `PackageRowMerge` (creazione e fusione delle righe —
+  l'invariante che un aggiornamento non tocchi identità, proprietà e colonne fuori formato),
+  `SpellMaterialization`, `CampaignExport` (id del pacchetto, degrado delle provenienze, suffissi anti-collisione),
+  `CatalogRemovalPlan` (selezione per provenienza senza `LIKE`, partizione per permessi, riconteggio) e
+  `SpellClassNames`.
   Restano da coprire:
   1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
   2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
@@ -274,12 +284,17 @@ mega-componente (quello resta in §3).
   NullReferenceException** sul predicato con OR annidato → ripristinata la query per-campagna + filtro client.
   Non è una perdita: **l'RLS filtra già le note per visibilità lato server**, quindi non si scaricano note
   private altrui. Resta aperta solo la view nickname-only. (Si lega alla sicurezza, §1.)
-- ✅/⛔ **Virtualizzazione liste — SCARTATA a questi volumi (2026-06-24).** Decisione confermata dall'utente: i
+- 🟡 **Virtualizzazione liste — riaperta il 2026-07-29 (Fase 2).** ⛔ **Era stata scartata a questi volumi
+  (2026-06-24)**, decisione confermata dall'utente: i
   cataloghi restano sotto le ~50 voci, dove `<Virtualize>` non dà beneficio percepibile e la memoizzazione del
   filtro su 50 elementi è microsecondi (YAGNI). Inoltre le card sono espandibili (altezza variabile), caso ostico
   per `<Virtualize>`. **Da rivalutare solo se i cataloghi crescono** (es. import massivo / generazione AI, §8).
   ⚠️ **Rimessa in gioco dal design del 2026-07-25** (§8-bis): un pacchetto SRD completo supera la soglia delle
   ~50 voci su cui poggiava la decisione — è il trigger di rivalutazione che era stato dichiarato.
+  **Dalla Fase 2 (2026-07-29) non è più un'ipotesi:** l'import di un file esiste in codice, quindi la soglia
+  si supera già oggi con un pacchetto dell'utente, senza attendere il contenuto SRD della Fase 3. È per
+  questo che la voce torna 🟡: il «da rivalutare **a pacchetto pieno**, non prima» del piano di Fase 2 è
+  superato — il pacchetto pieno non serve, basta un file dell'utente.
 - 🟡 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
   **Rialzata da 🟢 a 🟡 il 2026-07-25** (§8-bis): senza barra di navigazione ogni spostamento passa da
   Home e ricarica tutto, e 4 pagine su 6 rifanno anche `GetProfilesAsync()` a ogni ingresso.
@@ -396,10 +411,11 @@ digitare prima di poter giocare · **A3** il wizard chiede 70 controlli, ~50 der
 chiede risposte al novizio invece di insegnargliele · **A5** unità di velocità incoerenti e due
 modelli di salvataggio opposti.
 
-- 🟠 **Modello 2024 + import dei dati** — 📐 design approvato (2026-07-25):
-  [`specs/2026-07-25-modello-2024-import-dati-design.md`](./superpowers/specs/2026-07-25-modello-2024-import-dati-design.md),
-  piano in tre fasi:
-  [`plans/2026-07-25-modello-2024-import-dati-fase-1.md`](./superpowers/plans/2026-07-25-modello-2024-import-dati-fase-1.md).
+- 🟠 **Modello 2024 + import dei dati** — 📐 design approvato (2026-07-25),
+  [`specs/2026-07-25-modello-2024-import-dati-design.md`](./superpowers/specs/2026-07-25-modello-2024-import-dati-design.md);
+  piano in tre fasi, **Fasi 1 e 2 fatte, resta la Fase 3**:
+  [`fase 1`](./superpowers/plans/2026-07-25-modello-2024-import-dati-fase-1.md) ·
+  [`fase 2`](./superpowers/plans/2026-07-27-modello-2024-import-dati-fase-2.md).
   Unisce due punti che l'analisi teneva separati (modello 2024 e cataloghi precaricati): il modello è il
   prerequisito, il formato di scambio è il veicolo. Decisioni prese: pacchetto **SRD 5.2 in italiano** come
   **file dell'app** in sola lettura, unito lato client ai cataloghi di campagna; **import/export di file**
@@ -431,13 +447,47 @@ modelli di salvataggio opposti.
     marcare (nessun import, nessun pacchetto pubblicato) — la logica (`CatalogMerge`,
     `CatalogKey.IsFromAppPackage`) è già pronta, il blocco `@code` di Background è il modello da
     replicare in Fase 2.
-  - 🟠 **Fase 2 (import ed export)** — non iniziata: `PackageImportPlan` col gate dei permessi, schermata di
-    import con anteprima, export della campagna, rimozione per provenienza, materializzazione degli
-    incantesimi su uso (`Upsert` con `on_conflict`), adeguamento del filtro per classe, marcatura/"duplica e
-    modifica" nei quattro cataloghi esistenti.
+  - ✅ **Fase 2 (import ed export) — FATTO (2026-07-29).** Undici task, **zero migrazioni** (né schema né
+    policy): `PackageImportPlan` col gate dei permessi + `PackageRowMerge`; schermata `/dati` con anteprima,
+    resoconto ed export della campagna; rimozione per provenienza con anteprima dell'impatto; materializzazione
+    degli incantesimi su uso; filtro per classe che riconosce nomi italiani e inglesi (`SpellClassNames`);
+    marcatura e "duplica e modifica" nei quattro cataloghi esistenti. 387 test unitari, build 0/0.
+    Quattro decisioni degne di nota (dettaglio e motivazioni in `DIARIO.md`):
+    **(a) niente `Upsert`** — `postgrest-csharp 3.5.1` serializza la chiave primaria anche con
+    `[PrimaryKey("id", false)]`, quindi manda `"id":""` e prende HTTP 400 su ogni scrittura (misurato
+    intercettando le richieste): creazioni con `Insert` in blocco, aggiornamenti riga per riga,
+    materializzazione con rilettura sul conflitto. Le occorrenze di `Upsert` nello spec §4.4 e §9 sono state
+    corrette di conseguenza. **(b) gli aggiornamenti fondono** invece di sostituire, altrimenti un reimport
+    azzererebbe le colonne che il formato non trasporta senza cambiare il conteggio delle righe.
+    **(c) `SkippedLocalWins`**: a parità di solo nome vince la riga dell'utente, e marcarla `Create` avrebbe
+    creato un doppione (un `source_id` nullo non collide con `UNIQUE`). **(d) nessun `LIKE` con testo
+    digitato** nella rimozione: `_` e `%` sarebbero wildcard e cancellerebbero il manuale — filtro in memoria
+    (`CatalogRemovalPlan`) e `DELETE` per elenco di id.
+    **Conseguenze note:** i mostri di pacchetto non compaiono nel pannello "Importa mostri" del tracker
+    finché non sono duplicati in campagna; un file esportato perde la provenienza delle righe materializzate
+    dal manuale (diventano contenuti di campagna — voluto: l'alternativa era iniettare righe intoccabili in
+    campagne che non hanno mai importato nulla di ufficiale).
+    **Resta da fare:** la verifica manuale end-to-end (import di un pacchetto di prova + rimozione con un
+    secondo account non-master), mai eseguita.
   - 🟠 **Fase 3 (contenuto e wizard 2024)** — non iniziata: campione SRD per validare il formato sul campo,
     traduzione del pacchetto completo, wizard che prende i bonus dal background con ripartizione, tetto di
     20 e convivenza con le specie legacy.
+    ⚠️ **Da decidere PRIMA di tradurre, limite del formato emerso in Fase 2:** `PackageSpeed.Value` è un
+    `int`, e un decimale nel JSON fa fallire la deserializzazione dell'**intero** pacchetto, non della singola
+    voce. **Il caso si presenta già nel contenuto ufficiale:** la gran parte delle specie 2024 sta a 30 piedi
+    (9 m), ma il **Golia** è a 35 piedi — **10,5 m** — e alla stirpe **Elfo dei boschi** la velocità sale
+    a 35 piedi (verificato sul PHB 2024 in `docs/`). Il caso si estende poi a pacchetti di terzi e a
+    conversioni di contenuto 2014, dove 25/15/5 piedi diventano 7,5/4,5/1,5 m.
+    ⚠️ **Del piano di Fase 2 sono superate entrambe le affermazioni su questo punto:** l'esempio (il Nano a
+    7,5 m è regola 2014 — nel 2024 è a 30 piedi) e la stima di costo, che dava le tre opzioni tutte a costo
+    zero. **Non costano uguale:** arrotondare in traduzione non tocca codice ma **falsifica un dato del
+    manuale** (10,5 → 10 o 11) e risolve **solo il pacchetto dell'app** — un `"value": 7.5` in un file di
+    terzi continuerebbe a far fallire la lettura dell'intero pacchetto; passare a `decimal` significa toccare `PackageSpeed.Value`, `Race.Speed`
+    (`int`), `PackageRowMerge`, `CampaignExport`, i punti d'uso a valle (`FormValidation.ValidateRace`/
+    `InRange`, il record `Entry` di `Pages/Races.razor`) **e** migrare la colonna `races.speed` (`integer`);
+    esprimere in centimetri richiede di estendere `PackageRowMerge.UnitaValida` e il `CHECK`
+    `races_speed_unit_check` (che ammette solo `'m'`/`'ft'`), altrimenti un `"unit":"cm"` finisce nel fallback
+    e 750 cm vengono salvati e mostrati come **750 m**, in silenzio.
 - 🟠 **Motore di derivazione condiviso** (slot, PF, competenze, taglia, velocità) usato da creazione,
   **modifica e level-up** insieme — oggi wizard e `CharacterEditForm` duplicano il markup e solo il
   wizard suggerisce qualcosa.

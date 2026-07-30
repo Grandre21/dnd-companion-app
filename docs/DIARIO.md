@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-07-25**.
+> Aggiornato: **2026-07-29**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -381,7 +381,8 @@ materializzate nascono con l'`added_by` di chi le ha usate → la provenienza de
 parziale. Il **vincolo `UNIQUE`** appena introdotto trasformava il "riusa la riga esistente" in un errore
 di sistema ogni volta che il client aveva una lista stantia (`Pages/Characters.razor` carica gli
 incantesimi una volta sola: bastano due giocatori che preparano le schede la stessa sera) → l'inserimento
-diventa un `Upsert` con `on_conflict`. Più quattro rifiniture.
+diventa un `Upsert` con `on_conflict` *(corretto in Fase 2: quell'`Upsert` non è realizzabile con
+`postgrest-csharp 3.5.1` — v. la voce del 2026-07-29)*. Più quattro rifiniture.
 *Nota di metodo:* le correzioni di quest'ultimo passaggio **non sono state verificate da un giro di gate**
 — cinque cicli, ognuno con finding reali in parte generati dal precedente, con valore marginale calante e
 ambito sempre più ristretto (dal rovesciamento dell'architettura al testo di quattro sezioni). Chiusura
@@ -463,3 +464,85 @@ campagne** noto — e la chiusura è una **migrazione autonoma** col suo giro di
 prossimità della Fase 2 e comunque **prima di aprire l'app al pubblico**. Nella stessa occasione va valutato
 il caso gemello, che non richiede alcuno spostamento: un ex-membro conserva `owner_id` sulle righe rimaste
 in campagna, quindi può continuare a riscrivere una propria nota condivisa anche dopo essere stato rimosso.
+
+**Modello 2024 + import dei dati — Fase 2: import ed export (2026-07-27 → 2026-07-29).** Undici task, zero
+migrazioni: questa fase non tocca schema né policy, usa quelle che la Fase 1 aveva già messo in piedi.
+L'app ora **legge un file di pacchetto dentro una campagna** con anteprima e resoconto, **riesporta** i
+propri dati, **rimuove un import per provenienza**, e materializza nel database i soli incantesimi di
+pacchetto che un personaggio usa davvero. I quattro cataloghi che erano rimasti indietro (Razze, Classi,
+Incantesimi, Mostri) marcano le voci di pacchetto e offrono "duplica e modifica", replicando il modello
+di `Backgrounds.razor`.
+
+*Quattro decisioni che divergono dallo spec o lo precisano, e il perché:*
+
+**Niente `Upsert`, contro §4.4 dello spec — misurato, non congetturato.** Intercettando le richieste reali
+di `postgrest-csharp 3.5.1`: `Insert` rispetta `[PrimaryKey("id", false)]` ed esclude la chiave, **`Upsert`
+la serializza sempre**, e con `id uuid NOT NULL` un `""` è `invalid input syntax for type uuid` — HTTP 400
+su *ogni* scrittura. (L'unico `Upsert` in produzione, `CombatStateRepository`, non lo incontra perché il suo
+Model ha `[PrimaryKey("campaign_id", true)]`, sempre valorizzata.) Valorizzare l'`id` a mano non è un
+rimedio: su conflitto il `DO UPDATE` riscriverebbe la **chiave primaria** della riga, e
+`character_spells_spell_id_fkey` non è `ON UPDATE CASCADE`. Quindi due percorsi distinti — creazioni in
+blocco con `Insert`, aggiornamenti riga per riga — e per la materializzazione un leggi-poi-inserisci con
+**rilettura sul conflitto**, che ottiene lo stesso risultato che §4.4 voleva dall'`Upsert`. Le tre
+occorrenze nello spec e in `DA-FARE` sono state corrette: uno spec che descrive un'implementazione
+impossibile è peggio di uno spec incompleto.
+
+**Gli aggiornamenti fondono, non sovrascrivono.** Un `Update` invia tutte le colonne del Model e il formato
+di scambio non le copre tutte: un file senza `languages`, senza i sei bonus di specie, senza le sei
+caratteristiche di un mostro le azzererebbe **tutte al primo reimport, senza che il conteggio delle righe
+cambi di una unità**. L'esecuzione parte quindi dalla riga esistente e vi applica sopra i soli campi che il
+pacchetto trasporta; **tutto il resto resta com'era** — `added_by` compreso, che altrimenti un reimport del
+master trasferirebbe a sé stesso, togliendo in silenzio al giocatore la modifica delle voci che aveva caricato. Nello stesso spirito
+`PackageSpell.Level` e `PackageMonster.ArmorClass` sono diventati `int?`: con `int` un campo assente arriva
+come `0`, e `0` è un valore **valido** sia per il livello (i trucchetti) sia per la classe armatura — un
+incantesimo di livello 3 sarebbe diventato un trucchetto in silenzio.
+
+**`SkippedLocalWins`.** Lo spec §7 elencava «saltato» come un esito solo; sono due, con cause e rimedi
+diversi. Se la corrispondenza è **solo per nome** (riga senza `source_id`) la riga è dell'utente — magari
+nata da "duplica e modifica" — e §6 dice che vince lei. Senza questo esito quella voce sarebbe stata
+marcata `Create` e l'inserimento in blocco avrebbe creato un **doppione** accanto alla riga personalizzata:
+`UNIQUE (campaign_id, source_id)` non lo impedisce, perché un `source_id` nullo non collide con nulla.
+
+**Nessun `LIKE` costruito con testo dell'utente.** La rimozione per provenienza riceve un prefisso digitato:
+in SQL `LIKE`, `_` vale "un carattere qualsiasi". Con `source_id LIKE 'srd-2024-i_/%'` la guardia «il
+pacchetto dell'app non è rimovibile» — un confronto di prefisso esatto — direbbe di sì mentre la `DELETE`
+colpirebbe proprio le voci del manuale, incluse quelle materializzate (che nascono con l'`added_by` del
+giocatore che le ha usate, quindi `CanEdit` non frena), portandosi via per `CASCADE` gli incantesimi dalle
+schede. Il filtro per provenienza si fa quindi **in memoria** (`CatalogRemovalPlan`, helper puro con
+`StartsWith(Ordinal)`) e la cancellazione per **elenco di id**: l'insieme cancellato è esattamente quello
+che l'anteprima ha mostrato, e l'anteprima dice anche quanti personaggi perderanno un incantesimo.
+
+*Un'asimmetria che ha richiesto due giri di revisione per emergere:* import e rimozione scrivono sulle
+**stesse cinque tabelle**, quindi ognuna invalida l'anteprima dell'altra. Senza riallineamento, un
+"Conferma import" dopo una rimozione ripercorreva il ramo `Update` su righe cancellate — PostgREST accetta
+l'`UPDATE` toccando zero righe e il resoconto ne dava la colpa al server. Nella stessa famiglia: il `Delete`
+di questa libreria non riporta le righe toccate e un `Delete` bloccato dalla RLS "riesce" a vuoto
+(`DA-FARE` §3), quindi il resoconto della rimozione **riconta gli id congelati ancora presenti** invece di
+assumere l'esito, e il toast arriva dopo quel conteggio, non prima.
+
+*Export:* l'id del file prodotto è `campagna-<nome normalizzato>`, **mai** `srd-2024-it` — dare al proprio
+file l'id del pacchetto dell'app renderebbe le proprie voci di sola lettura al reimport. Le righe che hanno
+già un `source_id` lo conservano — è ciò che permette a un reimport di aggiornarle invece di duplicarle —
+con un'eccezione: le provenienze `srd-2024-it/…` (righe materializzate) **degradano** a
+`<id campagna>/<slug>`, perché conservarle propagherebbe la sola-lettura del manuale dentro campagne che non
+hanno mai importato nulla di ufficiale. Tutte le righe che non conservano una provenienza prendono uno slug
+dal nome, e gli slug che collidono ricevono un **suffisso progressivo**: nessuna tabella vieta due omonimi,
+«Palla di Fuoco» e «palla di fuoco» normalizzano allo stesso slug, e il parser di Fase 1 rifiuta l'**intero**
+pacchetto — non la singola voce — se trova un identificatore ripetuto.
+
+*Conseguenze note, da tenere presenti:* i **mostri di pacchetto non compaiono** nel pannello "Importa
+mostri" del tracker finché non vengono duplicati in campagna; un file **esportato perde la provenienza delle
+righe materializzate** dal manuale, che altrove saranno normali contenuti di campagna; e la
+**virtualizzazione delle liste** (`DA-FARE` §5, scartata "sotto le ~50 voci") va rivalutata **già ora**: non
+serve attendere il pacchetto SRD della Fase 3, perché l'import esiste in codice e un file dell'utente supera
+la soglia da subito — è il trigger che quella decisione aveva dichiarato.
+
+387 test unitari verdi, build 0 warning / 0 errori. Piano in
+`docs/superpowers/plans/2026-07-27-modello-2024-import-dati-fase-2.md`; resta la **Fase 3** (contenuto SRD
+tradotto e wizard 2024). *Nota di metodo sull'ultimo task:* la rimozione per provenienza ha richiesto
+quattro giri di gate — i due `SERIO` (resoconto che dava per fallita una rimozione riuscita; anteprima di
+import non riallineata) sono emersi solo al secondo. Il piano prescriveva la logica inline nel blocco
+`@code`: è stata estratta in `Services/CatalogRemovalPlan.cs` con 26 test, perché `CLAUDE.md` vuole la
+logica di dominio in helper puri e lì vivono gli invarianti di sicurezza dell'operazione più distruttiva
+dell'app. Non eseguita la **verifica manuale end-to-end** dello Step 4 (pacchetto di prova + secondo account
+non-master), che resta da fare prima del deploy.
