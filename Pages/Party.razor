@@ -1,0 +1,173 @@
+@page "/party"
+@using DndCompanion.Models
+@inject IPartyRepository PartyRepository
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Navigation
+
+<PageTitle>Party - D&amp;D Companion</PageTitle>
+
+<div class="party-container">
+    <header class="page-header">
+        <button type="button" class="back-btn" @onclick='() => Navigation.NavigateTo("")'>
+            ← Home
+        </button>
+        <h1 class="page-title">Party</h1>
+    </header>
+
+    <DbErrorBanner Message="@errorMessage" OnDismiss="@(() => errorMessage = null)" />
+
+    @if (isLoading)
+    {
+        <LoadingSpinner Text="Caricamento del gruppo..." />
+    }
+    else if (string.IsNullOrEmpty(CurrentUser.CampaignId))
+    {
+        <div class="state-message">Seleziona o crea una campagna per vedere il gruppo.</div>
+    }
+    else if (mine.Count == 0 && others.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-icon">🛡️</div>
+            <p class="empty-text">
+                Il gruppo non ha ancora personaggi. Crea il tuo: ti guidiamo passo per passo.
+            </p>
+            @* Porta al wizard, non alla lista: da qui l'utente non ha ancora un PG, e la lista
+               gli chiederebbe un tap in più per arrivare allo stesso punto. Percorso relativo,
+               senza '/' iniziale: in produzione il <base href> è /dnd-companion-app/. *@
+            <button type="button" class="primary-btn" @onclick='() => Navigation.NavigateTo("characters/nuovo")'>
+                Crea il tuo personaggio
+            </button>
+        </div>
+    }
+    else
+    {
+        @if (mine.Count > 0)
+        {
+            <div class="party-section">
+                <div class="party-section-title">Il tuo personaggio</div>
+                <div class="party-list">
+                    @foreach (var m in mine)
+                    {
+                        <div class="party-card party-card-mine">
+                            <div class="party-card-header">
+                                <div class="party-name">@m.Name</div>
+                                <span class="mine-badge">Tuo PG</span>
+                            </div>
+                            <div class="party-sub">
+                                Liv @m.Level · @Fallback(m.Class) · @Fallback(m.Race)
+                            </div>
+
+                            <div class="hp-row">
+                                <div class="hp-track">
+                                    <div class="hp-fill @PartyOverviewCalculations.HpFillClass(m.HitPoints, m.MaxHitPoints)" style="width:@(PartyOverviewCalculations.HpPercent(m.HitPoints, m.MaxHitPoints))%"></div>
+                                </div>
+                                <div class="hp-label">PF @PartyOverviewCalculations.FormatHp(m.HitPoints, m.MaxHitPoints)</div>
+                            </div>
+
+                            <div class="key-stats-row">
+                                <div class="key-stat">
+                                    <div class="key-label">CA</div>
+                                    <div class="key-value">@m.ArmorClass</div>
+                                </div>
+                                <div class="key-stat">
+                                    <div class="key-label">Percezione</div>
+                                    <div class="key-value">@m.PassivePerception</div>
+                                </div>
+                                <div class="key-stat">
+                                    <div class="key-label">Velocità</div>
+                                    <div class="key-value">@m.Speed<span class="key-unit">m</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (others.Count > 0)
+        {
+            <div class="party-section">
+                <div class="party-section-title">Il gruppo</div>
+                <div class="party-list">
+                    @foreach (var m in others)
+                    {
+                        <div class="party-card">
+                            <div class="party-card-header">
+                                <div class="party-name">@m.Name</div>
+                                <span class="owner-badge">@m.OwnerNickname</span>
+                            </div>
+                            <div class="party-sub">
+                                Liv @m.Level · @Fallback(m.Class) · @Fallback(m.Race)
+                            </div>
+
+                            <div class="hp-row">
+                                <div class="hp-track">
+                                    <div class="hp-fill @PartyOverviewCalculations.HpFillClass(m.HitPoints, m.MaxHitPoints)" style="width:@(PartyOverviewCalculations.HpPercent(m.HitPoints, m.MaxHitPoints))%"></div>
+                                </div>
+                                <div class="hp-label">PF @PartyOverviewCalculations.FormatHp(m.HitPoints, m.MaxHitPoints)</div>
+                            </div>
+
+                            <div class="key-stats-row">
+                                <div class="key-stat">
+                                    <div class="key-label">CA</div>
+                                    <div class="key-value">@m.ArmorClass</div>
+                                </div>
+                                <div class="key-stat">
+                                    <div class="key-label">Percezione</div>
+                                    <div class="key-value">@m.PassivePerception</div>
+                                </div>
+                                <div class="key-stat">
+                                    <div class="key-label">Velocità</div>
+                                    <div class="key-value">@m.Speed<span class="key-unit">m</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private List<PartyMember> members = new();
+    private List<PartyMember> mine = new();
+    private List<PartyMember> others = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await CurrentUser.EnsureLoadedAsync();
+
+            if (string.IsNullOrEmpty(CurrentUser.CampaignId))
+            {
+                // Nessuna campagna attiva: niente da caricare, la vista mostra l'empty state dedicato.
+                return;
+            }
+
+            members = await PartyRepository.GetPartyOverviewAsync(CurrentUser.CampaignId);
+            Regroup();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore caricamento del gruppo: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void Regroup()
+    {
+        mine = PartyOverviewCalculations.Mine(members, CurrentUser.UserId);
+        others = PartyOverviewCalculations.Others(members, CurrentUser.UserId);
+    }
+
+    // Specie/classe non valorizzate (personaggio appena creato dal wizard): trattino invece di
+    // una stringa vuota che romperebbe la lettura "Liv 1 ·  · ".
+    private static string Fallback(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+}

@@ -13,8 +13,9 @@
     --author-badge-text: #b89a80; /* testo badge "autore" (oro-bronzo tenue). Introdotto per
        Pages/Monsters.razor.css (Fase 2, Task 7) e adottato il 2026-07-30 anche da
        Spells/Races/Classes.razor.css, che avevano lo stesso badge col literal: i quattro
-       cataloghi ora condividono il token. Lo stesso valore compare in .master-placeholder
-       (Home) e .inv-weight (inventario), che badge non sono: lì il literal resta. */
+       cataloghi ora condividono il token. Lo stesso valore compare in .inv-weight (inventario),
+       che badge non è: lì il literal resta. (.master-placeholder è stata rimossa dalla Home il
+       2026-07-31 con il redesign del primo avvio.) */
     --text: #e8d4a0;          /* testo principale */
     --text-on-gold: #1a1410;  /* testo su fondo oro */
     --error-bg: rgba(var(--error-rgb), 0.25);
@@ -53,6 +54,13 @@
        --bottom-nav-space è ciò che va sommato ai `bottom`; senza barra si riduce alla sola
        safe-area (v. la regola su body:has più sotto). */
     --bottom-nav-height: 3.5rem;
+    /* .bottom-nav ha `box-sizing: content-box` (serve per tenere l'altezza fissa e sommarci
+       sopra la safe-area, v. il file del componente), quindi il suo `border-top` si aggiunge
+       all'altezza resa invece di rosicchiarla: senza questo token, --bottom-nav-space restava
+       1px più corto della barra vera, e FAB/toast/banner PWA/controlli sticky del Combat
+       finivano 1px sopra il bordo reale invece che a filo. Il valore deve combaciare col
+       `border-top` di Shared/BottomNav.razor.css (stesso token lì). */
+    --bottom-nav-border-width: 1px;
     /* Senza barra resta la sola safe-area: gli overlay (FAB, toast, banner PWA) devono stare
        fuori dalla home indicator comunque, e con viewport-fit=cover la pagina ci si estende
        sotto. Dove non c'è tacca env() vale 0 e il token è 0. */
@@ -70,7 +78,7 @@
    aprono direttamente una sezione. Il token si eredita, quindi ridefinirlo qui vale per tutto
    il sottoalbero. */
 body:has(.bottom-nav) {
-    --bottom-nav-space: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    --bottom-nav-space: calc(var(--bottom-nav-height) + var(--bottom-nav-border-width) + env(safe-area-inset-bottom, 0px));
 }
 
 /* =====================================================================

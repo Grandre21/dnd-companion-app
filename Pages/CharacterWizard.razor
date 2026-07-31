@@ -1,0 +1,1102 @@
+@page "/characters/nuovo"
+@using DndCompanion.Models
+@using DndCompanion.Models.Packages
+@inject ICatalogService Catalog
+@inject ICharacterRepository CharacterRepository
+@inject CurrentUserService CurrentUser
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+@inject ConfirmService Confirm
+
+<PageTitle>Nuovo personaggio - D&amp;D Companion</PageTitle>
+
+<div class="wizard-page">
+    <div class="wizard-top">
+        <button type="button" class="wiz-cancel" @onclick="ExitAsync">← Esci</button>
+    </div>
+
+    @if (loading)
+    {
+        <LoadingSpinner Text="Caricamento cataloghi..." />
+    }
+    else if (noCampaign)
+    {
+        <div class="empty-state">
+            <div class="empty-icon">🗡️</div>
+            <p class="empty-text">Serve una campagna attiva per creare un personaggio.</p>
+            <button type="button" class="primary-btn" @onclick='() => Navigation.NavigateTo("")'>Torna alla Home</button>
+        </div>
+    }
+    else
+    {
+        <DbErrorBanner Message="@systemError" OnDismiss="@(() => systemError = null)" />
+
+        <h1 class="wizard-title">Nuovo personaggio</h1>
+        <p class="wizard-subtitle">Ti guidiamo passo per passo: specie, classe, background, caratteristiche, dettagli — e alla fine il personaggio è pronto.</p>
+
+        <div class="wizard-steps">
+            @for (var i = 0; i < TotalSteps; i++)
+            {
+                var idx = i;
+                var reachable = idx <= maxStepReached;
+                <button type="button"
+                        class="wiz-step-dot @(idx == currentStep ? "active" : "") @(idx < currentStep ? "done" : "") @(!reachable ? "locked" : "")"
+                        disabled="@(!reachable)"
+                        @onclick="() => GoToStep(idx)"
+                        aria-label="@($"Vai al passo {idx + 1}: {StepTitles[idx]}")">
+                    @(idx + 1)
+                </button>
+            }
+        </div>
+        <p class="wiz-step-caption">Passo @(currentStep + 1) di @TotalSteps — @StepTitles[currentStep]</p>
+
+        <div class="wizard-body">
+            @switch (currentStep)
+            {
+                case 0:
+                    @* ===================== 1. SPECIE ===================== *@
+                    <div class="wiz-step">
+                        <div class="help-box">
+                            La <strong>specie</strong> (elfo, umano, nano...) determina la taglia, la velocità di
+                            movimento e alcuni tratti innati (es. la scurovisione). Nelle regole 2024 la specie non dà
+                            più bonus alle caratteristiche: quelli arrivano dal background, al passo 3.
+                        </div>
+
+                        @if (AllRaceNames.Count == 0)
+                        {
+                            <div class="empty-catalog-notice">
+                                Non ci sono ancora specie nel catalogo di questa campagna, e il manuale precaricato non
+                                è (ancora) disponibile. Nessun problema: scrivi il nome a mano, potrai aggiungerla al
+                                catalogo più avanti dalla pagina Specie.
+                            </div>
+                            <div class="field">
+                                <label>Nome specie <span class="req">*</span></label>
+                                <input type="text" class="input" maxlength="60" placeholder="Es. Elfo, Umano..."
+                                       @bind="draft.Race" @bind:event="oninput" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="field">
+                                <label>Specie <span class="req">*</span></label>
+                                <select class="input" value="@CurrentRaceSelection" @onchange="OnRaceSelectionChanged">
+                                    <option value="">-- Seleziona --</option>
+                                    @foreach (var name in AllRaceNames)
+                                    {
+                                        <option value="@name">@name</option>
+                                    }
+                                    <option value="@CustomOptionValue">Altro (scrivi a mano)</option>
+                                </select>
+                                @if (isRaceCustom)
+                                {
+                                    <input type="text" class="input custom-input" maxlength="60"
+                                           placeholder="Scrivi la specie" @bind="draft.Race" @bind:event="oninput" />
+                                }
+                            </div>
+
+                            @if (SelectedRaceDb is not null)
+                            {
+                                <div class="info-summary">
+                                    @if (!string.IsNullOrWhiteSpace(SelectedRaceDb.Description))
+                                    {
+                                        <p>@SelectedRaceDb.Description</p>
+                                    }
+                                    <p><strong>Velocità:</strong> @SelectedRaceDb.Speed @(FormValidation.IsMetric(SelectedRaceDb.SpeedUnit) ? "m" : "ft")</p>
+                                    @if (!string.IsNullOrWhiteSpace(SelectedRaceDb.Traits))
+                                    {
+                                        <p><strong>Tratti:</strong> @SelectedRaceDb.Traits</p>
+                                    }
+                                    @if (CharacterWizardLogic.RaceGrantsAbilityBonuses(SelectedRaceDb))
+                                    {
+                                        <p class="wiz-legacy-note">
+                                            Questa voce porta bonus di caratteristica propri (versione 2014): al passo 3
+                                            il background non ne aggiungerà altri, per non sommare due edizioni.
+                                        </p>
+                                    }
+                                </div>
+                            }
+                            else if (SelectedRacePackage is not null)
+                            {
+                                <div class="info-summary">
+                                    <p><strong>Taglia:</strong> @SelectedRacePackage.Size</p>
+                                    @if (SelectedRacePackage.Speed is not null)
+                                    {
+                                        <p><strong>Velocità:</strong> @SelectedRacePackage.Speed.Value @SelectedRacePackage.Speed.Unit</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedRacePackage.Description))
+                                    {
+                                        <p>@SelectedRacePackage.Description</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedRacePackage.Traits))
+                                    {
+                                        <p><strong>Tratti:</strong> @SelectedRacePackage.Traits</p>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                    break;
+
+                case 1:
+                    @* ===================== 2. CLASSE ===================== *@
+                    <div class="wiz-step">
+                        <div class="help-box">
+                            La <strong>classe</strong> (guerriero, mago, ladro...) è il mestiere del personaggio: decide
+                            il <strong>dado vita</strong> (quanti PF guadagna per livello), la caratteristica principale
+                            e i <strong>tiri salvezza</strong> in cui è più bravo a resistere (veleno, incantesimi,
+                            esplosioni...).
+                        </div>
+
+                        @if (AllClassNames.Count == 0)
+                        {
+                            <div class="empty-catalog-notice">
+                                Non ci sono ancora classi nel catalogo di questa campagna, e il manuale precaricato non
+                                è (ancora) disponibile. Scrivi il nome a mano: potrai aggiungerla al catalogo dalla
+                                pagina Classi.
+                            </div>
+                            <div class="field">
+                                <label>Nome classe <span class="req">*</span></label>
+                                <input type="text" class="input" maxlength="60" placeholder="Es. Guerriero, Mago..."
+                                       @bind="draft.Class" @bind:event="oninput" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="field">
+                                <label>Classe <span class="req">*</span></label>
+                                <select class="input" value="@CurrentClassSelection" @onchange="OnClassSelectionChanged">
+                                    <option value="">-- Seleziona --</option>
+                                    @foreach (var name in AllClassNames)
+                                    {
+                                        <option value="@name">@name</option>
+                                    }
+                                    <option value="@CustomOptionValue">Altro (scrivi a mano)</option>
+                                </select>
+                                @if (isClassCustom)
+                                {
+                                    <input type="text" class="input custom-input" maxlength="60"
+                                           placeholder="Scrivi la classe" @bind="draft.Class" @bind:event="oninput" />
+                                }
+                            </div>
+
+                            <div class="field">
+                                <label>Sottoclasse <span class="wiz-optional">(facoltativa)</span></label>
+                                <input type="text" class="input" maxlength="60"
+                                       placeholder="es. Berserker, Campione..." @bind="draft.Subclass" />
+                            </div>
+
+                            @if (SelectedClassDb is not null)
+                            {
+                                <div class="info-summary">
+                                    <p><strong>Dado vita:</strong> @(string.IsNullOrEmpty(SelectedClassDb.HitDie) ? "—" : SelectedClassDb.HitDie)</p>
+                                    @if (!string.IsNullOrWhiteSpace(SelectedClassDb.PrimaryAbility))
+                                    {
+                                        <p><strong>Caratteristica principale:</strong> @SelectedClassDb.PrimaryAbility</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedClassDb.SavingThrows))
+                                    {
+                                        <p><strong>Tiri salvezza competenti:</strong> @SelectedClassDb.SavingThrows</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedClassDb.ArmorProficiencies))
+                                    {
+                                        <p><strong>Armature:</strong> @SelectedClassDb.ArmorProficiencies</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedClassDb.WeaponProficiencies))
+                                    {
+                                        <p><strong>Armi:</strong> @SelectedClassDb.WeaponProficiencies</p>
+                                    }
+                                </div>
+                            }
+                            else if (SelectedClassPackage is not null)
+                            {
+                                <div class="info-summary">
+                                    <p><strong>Dado vita:</strong> @(string.IsNullOrEmpty(SelectedClassPackage.HitDie) ? "—" : SelectedClassPackage.HitDie)</p>
+                                    @if (!string.IsNullOrWhiteSpace(SelectedClassPackage.PrimaryAbility))
+                                    {
+                                        <p><strong>Caratteristica principale:</strong> @SelectedClassPackage.PrimaryAbility</p>
+                                    }
+                                    @if (SelectedClassPackage.SavingThrows.Count > 0)
+                                    {
+                                        <p><strong>Tiri salvezza competenti:</strong> @string.Join(", ", SelectedClassPackage.SavingThrows)</p>
+                                    }
+                                    @if (SelectedClassPackage.SkillChoices is not null)
+                                    {
+                                        <p><strong>Abilità a scelta:</strong> @SelectedClassPackage.SkillChoices.Count tra @string.Join(", ", SelectedClassPackage.SkillChoices.From)</p>
+                                    }
+                                </div>
+                            }
+                            <p class="field-hint">I tiri salvezza competenti verranno impostati automaticamente in base alla classe: non serve sceglierli qui.</p>
+                        }
+                    </div>
+                    break;
+
+                case 2:
+                    @* ===================== 3. BACKGROUND ===================== *@
+                    <div class="wiz-step">
+                        <div class="help-box">
+                            Il <strong>background</strong> racconta cosa faceva il personaggio prima di diventare
+                            avventuriero (soldato, criminale, sapiente...). Concede bonus a due o tre caratteristiche,
+                            competenze in alcune abilità e, a volte, uno strumento. È facoltativo: puoi anche
+                            proseguire senza sceglierne uno.
+                        </div>
+
+                        @if (AllBackgroundNames.Count == 0)
+                        {
+                            <div class="empty-catalog-notice">
+                                Non ci sono ancora background nel catalogo di questa campagna, e il manuale precaricato
+                                non è (ancora) disponibile. Scrivi il nome a mano (niente bonus automatici) oppure
+                                lascia il campo vuoto e prosegui.
+                            </div>
+                            <div class="field">
+                                <label>Nome background <span class="wiz-optional">(facoltativo)</span></label>
+                                <input type="text" class="input" maxlength="60" placeholder="Es. Soldato, Criminale..."
+                                       @bind="draft.Background" @bind:event="oninput" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="field">
+                                <label>Background <span class="wiz-optional">(facoltativo)</span></label>
+                                <select class="input" value="@CurrentBackgroundSelection" @onchange="OnBackgroundSelectionChanged">
+                                    <option value="">-- Nessuno --</option>
+                                    @foreach (var name in AllBackgroundNames)
+                                    {
+                                        <option value="@name">@name</option>
+                                    }
+                                    <option value="@CustomOptionValue">Altro (scrivi a mano)</option>
+                                </select>
+                                @if (isBackgroundCustom)
+                                {
+                                    <input type="text" class="input custom-input" maxlength="60"
+                                           placeholder="Scrivi il background" @bind="draft.Background" @bind:event="oninput" />
+                                    <p class="field-hint">Un background scritto a mano non concede bonus automatici alle caratteristiche.</p>
+                                }
+                            </div>
+
+                            @if (SelectedBackgroundDb is not null)
+                            {
+                                <div class="info-summary">
+                                    @if (!string.IsNullOrWhiteSpace(SelectedBackgroundDb.Description))
+                                    {
+                                        <p>@SelectedBackgroundDb.Description</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedBackgroundDb.AbilityScores))
+                                    {
+                                        <p><strong>Caratteristiche:</strong> @SelectedBackgroundDb.AbilityScores</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedBackgroundDb.SkillProficiencies))
+                                    {
+                                        <p><strong>Competenze abilità:</strong> @SelectedBackgroundDb.SkillProficiencies</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedBackgroundDb.ToolProficiency))
+                                    {
+                                        <p><strong>Strumento:</strong> @SelectedBackgroundDb.ToolProficiency</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedBackgroundDb.OriginFeat))
+                                    {
+                                        <p><strong>Talento d'origine:</strong> @SelectedBackgroundDb.OriginFeat</p>
+                                    }
+                                </div>
+                            }
+                            else if (SelectedBackgroundPackage is not null)
+                            {
+                                <div class="info-summary">
+                                    @if (!string.IsNullOrWhiteSpace(SelectedBackgroundPackage.Description))
+                                    {
+                                        <p>@SelectedBackgroundPackage.Description</p>
+                                    }
+                                    @if (SelectedBackgroundPackage.AbilityScores.Count > 0)
+                                    {
+                                        <p><strong>Caratteristiche:</strong> @string.Join(", ", SelectedBackgroundPackage.AbilityScores)</p>
+                                    }
+                                    @if (SelectedBackgroundPackage.SkillProficiencies.Count > 0)
+                                    {
+                                        <p><strong>Competenze abilità:</strong> @string.Join(", ", SelectedBackgroundPackage.SkillProficiencies)</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(SelectedBackgroundPackage.ToolProficiency))
+                                    {
+                                        <p><strong>Strumento:</strong> @SelectedBackgroundPackage.ToolProficiency</p>
+                                    }
+                                </div>
+                            }
+                            <p class="field-hint">La ripartizione dei bonus alle caratteristiche si sceglie al passo successivo.</p>
+                        }
+                    </div>
+                    break;
+
+                case 3:
+                    @* ===================== 4. CARATTERISTICHE ===================== *@
+                    <div class="wiz-step">
+                        <div class="help-box">
+                            Le <strong>sei caratteristiche</strong> misurano le capacità innate del personaggio. Ciò
+                            che conta davvero nei tiri di dado è il <strong>modificatore</strong> (tra parentesi): più
+                            alto il punteggio, più alto il modificatore. La Costituzione, in particolare, incide sui
+                            punti ferita.
+                        </div>
+
+                        <div class="method-tabs">
+                            <button type="button" class="method-tab @(abilityMethod == CharacterWizardLogic.AbilityScoreMethod.StandardArray ? "active" : "")"
+                                    @onclick="() => SetMethod(CharacterWizardLogic.AbilityScoreMethod.StandardArray)">
+                                Array standard
+                            </button>
+                            <button type="button" class="method-tab @(abilityMethod == CharacterWizardLogic.AbilityScoreMethod.PointBuy ? "active" : "")"
+                                    @onclick="() => SetMethod(CharacterWizardLogic.AbilityScoreMethod.PointBuy)">
+                                Acquisto punti
+                            </button>
+                            <button type="button" class="method-tab @(abilityMethod == CharacterWizardLogic.AbilityScoreMethod.Roll ? "active" : "")"
+                                    @onclick="() => SetMethod(CharacterWizardLogic.AbilityScoreMethod.Roll)">
+                                Tiro dei dadi
+                            </button>
+                        </div>
+
+                        @if (abilityMethod == CharacterWizardLogic.AbilityScoreMethod.StandardArray)
+                        {
+                            <p class="field-hint">
+                                Assegna questi sei valori (@string.Join(", ", CharacterWizardLogic.StandardArrayScores)),
+                                uno per caratteristica: scegli tu quale numero va dove.
+                            </p>
+                            <button type="button" class="secondary-btn wiz-array-btn" @onclick="ResetStandardArray">
+                                Assegna nell'ordine consigliato
+                            </button>
+                            @for (var i = 0; i < 6; i++)
+                            {
+                                var idx = i;
+                                <div class="wiz-simple-row">
+                                    <span class="wiz-ability-name">@AbilityShort[idx]</span>
+                                    <select class="input wiz-simple-select" value="@baseScores[idx]" @onchange="e => SetBaseFromSelect(idx, e)">
+                                        @foreach (var v in CharacterWizardLogic.StandardArrayScores.OrderByDescending(x => x))
+                                        {
+                                            <option value="@v">@v</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                        }
+                        else if (abilityMethod == CharacterWizardLogic.AbilityScoreMethod.PointBuy)
+                        {
+                            <p class="field-hint">Hai @CharacterWizardLogic.PointBuyBudget punti da spendere. Punteggi da 8 a 15: quelli bassi costano poco, quelli alti costano molto di più.</p>
+                            <p class="wiz-budget @(RemainingPoints < 0 ? "over" : "")">
+                                Punti rimasti: <strong>@RemainingPoints</strong> di @CharacterWizardLogic.PointBuyBudget
+                            </p>
+                            @for (var i = 0; i < 6; i++)
+                            {
+                                var idx = i;
+                                <div class="wiz-simple-row">
+                                    <span class="wiz-ability-name">@AbilityShort[idx]</span>
+                                    <div class="wiz-stepper">
+                                        <button type="button" class="qty-btn" @onclick="() => DecPointBuy(idx)" aria-label="Diminuisci">−</button>
+                                        <span class="wiz-simple-value">@baseScores[idx]</span>
+                                        <button type="button" class="qty-btn" @onclick="() => IncPointBuy(idx)" aria-label="Aumenta">+</button>
+                                    </div>
+                                    <span class="wiz-cost-hint">(costo @CharacterWizardLogic.PointBuyCost(baseScores[idx]))</span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="field-hint">Se hai tirato i dadi al tavolo (di solito 4d6, tieni i tre migliori), scrivi qui i risultati.</p>
+                            @for (var i = 0; i < 6; i++)
+                            {
+                                var idx = i;
+                                <div class="wiz-simple-row">
+                                    <span class="wiz-ability-name">@AbilityShort[idx]</span>
+                                    @* @key legato al valore: quando il clamp riporta l'input a un
+                                       numero che il campo mostrava GIÀ (digito 50 su un 30 clampato),
+                                       il valore reso non cambia, Blazor non riscrive l'attributo e a
+                                       schermo resterebbe 50 mentre il PG viene salvato con 30. La
+                                       chiave forza la ricreazione dell'elemento. *@
+                                    @* La chiave dipende SOLO dal contatore, non dal valore: se
+                                       cambiasse a ogni modifica, l'input verrebbe ricreato anche
+                                       premendo le frecce dello spinner e perderebbe il fuoco dopo
+                                       il primo scatto. Il contatore avanza solo quando il valore
+                                       accettato differisce da quanto digitato — è lì che il DOM
+                                       resterebbe indietro. *@
+                                    <input type="number" class="input wiz-simple-input" min="1" max="30"
+                                           @key="@($"roll-{idx}-{rollRenderTick}")"
+                                           value="@baseScores[idx]" @onchange="e => SetRollScore(idx, e)" />
+                                </div>
+                            }
+                        }
+
+                        <div class="wiz-ability-head"><span>Car.</span><span>Base</span><span>Bonus</span><span>Totale</span></div>
+                        @for (var i = 0; i < 6; i++)
+                        {
+                            var idx = i;
+                            <div class="wiz-ability-row">
+                                <span class="wiz-ability-name">@AbilityShort[idx]</span>
+                                <span>@baseScores[idx]</span>
+                                <span class="wiz-ability-bonus">@FormatBonus(BonusForIndex(idx))</span>
+                                <span class="wiz-ability-total">@FinalScores[idx] <small>(@FormatBonus(CharacterCalculations.GetModifier(FinalScores[idx])))</small></span>
+                            </div>
+                        }
+
+                        <div class="sub-block">
+                            <p class="sub-block-title">BONUS DAL BACKGROUND</p>
+                            @if (!HasSelectedBackground)
+                            {
+                                <p class="field-hint">Non hai scelto un background: nessun bonus aggiuntivo alle caratteristiche.</p>
+                            }
+                            else if (BgKeys.Count == 0)
+                            {
+                                <p class="field-hint">Il background scritto a mano non concede bonus alle caratteristiche.</p>
+                            }
+                            else if (!BgBonusesApply)
+                            {
+                                <p class="field-hint">La specie scelta porta già bonus propri (versione 2014): il background non ne aggiunge altri.</p>
+                            }
+                            else
+                            {
+                                <div class="split-tabs">
+                                    <button type="button" class="method-tab @(EffectiveSplit == CharacterWizardLogic.BackgroundAbilitySplit.TwoAndOne ? "active" : "")"
+                                            @onclick="() => bgSplit = CharacterWizardLogic.BackgroundAbilitySplit.TwoAndOne">
+                                        Due caratteristiche: +2 e +1
+                                    </button>
+                                    <button type="button" class="method-tab @(EffectiveSplit == CharacterWizardLogic.BackgroundAbilitySplit.OneEachOfThree ? "active" : "")"
+                                            @onclick="() => bgSplit = CharacterWizardLogic.BackgroundAbilitySplit.OneEachOfThree">
+                                        Tutte e tre: +1 ciascuna
+                                    </button>
+                                </div>
+
+                                @if (EffectiveSplit == CharacterWizardLogic.BackgroundAbilitySplit.TwoAndOne)
+                                {
+                                    <div class="field">
+                                        <label>Riceve +2</label>
+                                        <select class="input" value="@EffectiveTwoBonusAbility" @onchange="e => twoBonusAbility = e.Value?.ToString()">
+                                            @foreach (var k in BgKeys)
+                                            {
+                                                <option value="@k">@AbilityItalian[k]</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label>Riceve +1</label>
+                                        <select class="input" value="@EffectiveOneBonusAbility" @onchange="e => oneBonusAbility = e.Value?.ToString()">
+                                            @foreach (var k in BgKeys.Where(k => k != EffectiveTwoBonusAbility))
+                                            {
+                                                <option value="@k">@AbilityItalian[k]</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="field-hint">+1 a @string.Join(", ", BgKeys.Select(k => AbilityItalian[k]))</p>
+                                }
+                            }
+                        </div>
+                        <p class="field-hint">Il tetto dei bonus di background è 20; il limite assoluto di ogni caratteristica resta 30.</p>
+                    </div>
+                    break;
+
+                case 4:
+                    @* ===================== 5. DETTAGLI ===================== *@
+                    <div class="wiz-step">
+                        <div class="help-box">
+                            Solo il <strong>nome</strong> è davvero obbligatorio: il resto puoi sempre cambiarlo dopo,
+                            dalla scheda del personaggio. Qui trovi già dei valori suggeriti in base a classe e
+                            caratteristiche.
+                        </div>
+
+                        <div class="field">
+                            <label>Nome <span class="req">*</span></label>
+                            <input type="text" class="input" maxlength="64" @bind="draft.Name" @bind:event="oninput" />
+                        </div>
+
+                        <div class="field">
+                            <label>Livello</label>
+                            <input type="number" class="input" min="1" max="20" @bind="draft.Level" />
+                            <span class="field-hint">Quasi sempre si inizia dal livello 1.</span>
+                        </div>
+
+                        <div class="field">
+                            <label>Allineamento <span class="wiz-optional">(facoltativo)</span></label>
+                            <select class="input" @bind="draft.Alignment">
+                                <option value="">-- Nessuno --</option>
+                                <option value="Legale Buono">Legale Buono</option>
+                                <option value="Neutrale Buono">Neutrale Buono</option>
+                                <option value="Caotico Buono">Caotico Buono</option>
+                                <option value="Legale Neutrale">Legale Neutrale</option>
+                                <option value="Neutrale Puro">Neutrale Puro</option>
+                                <option value="Caotico Neutrale">Caotico Neutrale</option>
+                                <option value="Legale Malvagio">Legale Malvagio</option>
+                                <option value="Neutrale Malvagio">Neutrale Malvagio</option>
+                                <option value="Caotico Malvagio">Caotico Malvagio</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label>Classe Armatura</label>
+                            <div class="wiz-hp-row">
+                                <input type="number" class="input" min="0" max="40" @bind="draft.ArmorClass" />
+                                <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedAc">
+                                    Usa suggerita (@SuggestedAc)
+                                </button>
+                            </div>
+                            <span class="field-hint">Suggerita = 10 + modificatore Destrezza (nessuna armatura indossata).</span>
+                        </div>
+
+                        <div class="field">
+                            <label>PF Massimi</label>
+                            <div class="wiz-hp-row">
+                                <input type="number" class="input" min="1" @bind="draft.MaxHitPoints" />
+                                @if (SuggestedHp > 0)
+                                {
+                                    <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedHp">
+                                        Usa suggeriti (@SuggestedHp)
+                                    </button>
+                                }
+                            </div>
+                            <span class="field-hint">I PF correnti partiranno uguali ai massimi.</span>
+                        </div>
+
+                        <div class="field">
+                            <label>Dadi Vita</label>
+                            <div class="wiz-hp-row">
+                                <input type="text" class="input" maxlength="40" placeholder="es. 1d10" @bind="draft.HitDiceMax" />
+                                @if (!string.IsNullOrEmpty(SuggestedHitDice) && draft.HitDiceMax != SuggestedHitDice)
+                                {
+                                    <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedHitDice">
+                                        Usa @SuggestedHitDice
+                                    </button>
+                                }
+                            </div>
+                            <span class="field-hint">Si consumano per recuperare PF durante un riposo breve.</span>
+                        </div>
+
+                        <div class="field">
+                            <label>Velocità (m)</label>
+                            <input type="number" class="input" min="0" @bind="draft.Speed" />
+                            @if (RaceSpeedValue is int rs)
+                            {
+                                <span class="field-hint">
+                                    La specie scelta indica @rs @RaceSpeedUnit.
+                                    @* Stessa fonte unica usata da SpeedInMeters: deciderlo qui a
+                                       mano farebbe annunciare una conversione che il pulsante non
+                                       esegue (o viceversa) su un'unità fuori dalle due canoniche. *@
+                                    @if (PackageRowMerge.UnitaValida(RaceSpeedUnit) == "ft")
+                                    {
+                                        <text> Qui si contano i metri: il pulsante converte (@rs piedi ≈ @CharacterWizardLogic.SpeedInMeters(rs, RaceSpeedUnit) metri).</text>
+                                    }
+                                </span>
+                                <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="CopyRaceSpeed">Usa questa velocità</button>
+                            }
+                        </div>
+
+                        <div class="field">
+                            <label>Taglia</label>
+                            <select class="input" @bind="draft.Size">
+                                <option value="Minuscola">Minuscola</option>
+                                <option value="Piccola">Piccola</option>
+                                <option value="Media">Media</option>
+                                <option value="Grande">Grande</option>
+                                <option value="Enorme">Enorme</option>
+                                <option value="Mastodontica">Mastodontica</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label>Lingue <span class="wiz-optional">(facoltativo)</span></label>
+                            <input type="text" class="input" maxlength="120" placeholder="es. Comune, Elfico..." @bind="draft.Languages" />
+                        </div>
+
+                        <div class="derived-info">
+                            Iniziativa: <strong>@FormatBonus(CharacterCalculations.GetModifier(FinalScores[1]))</strong>
+                            · Bonus competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(draft.Level))</strong>
+                        </div>
+                    </div>
+                    break;
+
+                case 5:
+                    @* ===================== 6. RIEPILOGO ===================== *@
+                    <div class="wiz-step">
+                        <div class="help-box">
+                            Ultimo sguardo prima di creare il personaggio: sarà già collegato alla specie, alla classe
+                            e al background scelti. Potrai rifinire tutto il resto (aspetto, storia, denari, abilità,
+                            inventario, incantesimi) dalla scheda.
+                        </div>
+
+                        <div class="wiz-summary-card">
+                            <h3 class="wiz-summary-name">@(string.IsNullOrWhiteSpace(draft.Name) ? "(senza nome)" : draft.Name)</h3>
+                            <p class="wiz-summary-line">
+                                Liv @draft.Level
+                                · @(string.IsNullOrWhiteSpace(draft.Class) ? "Classe —" : draft.Class)@(string.IsNullOrWhiteSpace(draft.Subclass) ? "" : $" ({draft.Subclass})")
+                                · @(string.IsNullOrWhiteSpace(draft.Race) ? "Specie —" : draft.Race)
+                            </p>
+                            <p class="wiz-summary-line">
+                                Background: <strong>@(string.IsNullOrWhiteSpace(draft.Background) ? "nessuno" : draft.Background)</strong>
+                            </p>
+
+                            <div class="wiz-summary-grid">
+                                @for (var i = 0; i < 6; i++)
+                                {
+                                    var idx = i;
+                                    <div class="wiz-summary-stat">
+                                        <span class="wiz-summary-stat-label">@AbilityShort[idx]</span>
+                                        <span class="wiz-summary-stat-val">@FinalScores[idx]</span>
+                                        <span class="wiz-summary-stat-mod">@FormatBonus(CharacterCalculations.GetModifier(FinalScores[idx]))</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <p class="wiz-summary-line">
+                                CA <strong>@draft.ArmorClass</strong>
+                                · PF <strong>@draft.MaxHitPoints</strong>
+                                · Velocità <strong>@draft.Speed m</strong>
+                                @if (!string.IsNullOrWhiteSpace(draft.HitDiceMax))
+                                {
+                                    <span> · Dadi vita <strong>@draft.HitDiceMax</strong></span>
+                                }
+                            </p>
+
+                            @if (HasSelectedBackground)
+                            {
+                                @if (BgBonusesApply)
+                                {
+                                    <p class="wiz-summary-line">Bonus di background applicati alle caratteristiche qui sopra.</p>
+                                }
+                                else if (BgKeys.Count > 0)
+                                {
+                                    <p class="wiz-summary-line">Bonus di background NON applicati: la specie ha già bonus propri.</p>
+                                }
+                            }
+                        </div>
+
+                        <p class="field-hint">Premi "Crea personaggio" per salvare. Potrai modificare qualsiasi cosa in seguito.</p>
+                    </div>
+                    break;
+            }
+        </div>
+
+        <div class="wizard-nav">
+            @if (currentStep > 0)
+            {
+                <button type="button" class="secondary-btn" @onclick="Prev" disabled="@isBusy">← Indietro</button>
+            }
+            @if (currentStep < TotalSteps - 1)
+            {
+                <button type="button" class="primary-btn" @onclick="Next">Avanti →</button>
+            }
+            else
+            {
+                <button type="button" class="primary-btn" @onclick="SaveAsync" disabled="@isBusy">
+                    @(isBusy ? "Creazione..." : "Crea personaggio")
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private const int TotalSteps = 6;
+    private const string CustomOptionValue = "__custom__";
+
+    private static readonly string[] StepTitles =
+        { "Specie", "Classe", "Background", "Caratteristiche", "Dettagli", "Riepilogo" };
+
+    private static readonly string[] AbilityShort = { "FOR", "DES", "COS", "INT", "SAG", "CAR" };
+
+    private static readonly Dictionary<string, string> AbilityItalian = new()
+    {
+        ["strength"] = "Forza", ["dexterity"] = "Destrezza", ["constitution"] = "Costituzione",
+        ["intelligence"] = "Intelligenza", ["wisdom"] = "Saggezza", ["charisma"] = "Carisma"
+    };
+
+    private bool loading = true;
+    private bool noCampaign;
+    private bool isBusy;
+    private string? systemError;
+
+    private Character draft = new();
+
+    private List<Race> races = new();
+    private List<PackageSpecies> racePackages = new();
+    private List<CharacterClass> classes = new();
+    private List<PackageClass> classPackages = new();
+    private List<Background> backgrounds = new();
+    private List<PackageBackground> backgroundPackages = new();
+
+    private int currentStep;
+    private int maxStepReached;
+
+    private bool isRaceCustom;
+    private bool isClassCustom;
+    private bool isBackgroundCustom;
+
+    private CharacterWizardLogic.AbilityScoreMethod abilityMethod = CharacterWizardLogic.AbilityScoreMethod.StandardArray;
+    private int[] baseScores = (int[])CharacterWizardLogic.StandardArrayScores.Clone();
+
+    private CharacterWizardLogic.BackgroundAbilitySplit bgSplit = CharacterWizardLogic.BackgroundAbilitySplit.TwoAndOne;
+    private string? twoBonusAbility;
+    private string? oneBonusAbility;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await CurrentUser.EnsureLoadedAsync();
+
+            if (string.IsNullOrEmpty(CurrentUser.UserId) || string.IsNullOrEmpty(CurrentUser.CampaignId))
+            {
+                noCampaign = true;
+                return;
+            }
+
+            draft = new Character
+            {
+                OwnerId = CurrentUser.UserId,
+                CampaignId = CurrentUser.CampaignId,
+                Level = 1,
+                ArmorClass = 10,
+                HitPoints = 10,
+                MaxHitPoints = 10,
+                Size = "Media",
+                Speed = 9
+            };
+
+            var raceTask = Catalog.GetRacesAsync(CurrentUser.CampaignId);
+            var classTask = Catalog.GetClassesAsync(CurrentUser.CampaignId);
+            var backgroundTask = Catalog.GetBackgroundsAsync(CurrentUser.CampaignId);
+            await Task.WhenAll(raceTask, classTask, backgroundTask);
+
+            races = raceTask.Result.DbRows.ToList();
+            racePackages = raceTask.Result.PackageEntries.ToList();
+            classes = classTask.Result.DbRows.ToList();
+            classPackages = classTask.Result.PackageEntries.ToList();
+            backgrounds = backgroundTask.Result.DbRows.ToList();
+            backgroundPackages = backgroundTask.Result.PackageEntries.ToList();
+
+            // Catalogo vuoto (nessuna riga di campagna, nessun pacchetto ancora disponibile):
+            // si parte già in modalità testo libero, niente vicolo cieco (§ requisito wizard).
+            isRaceCustom = AllRaceNames.Count == 0;
+            isClassCustom = AllClassNames.Count == 0;
+            isBackgroundCustom = AllBackgroundNames.Count == 0;
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore caricamento cataloghi: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    // ----- Liste unificate catalogo campagna + pacchetto (già senza doppioni: CatalogService
+    // nasconde le voci di pacchetto già coperte da una riga di campagna) -----
+
+    private List<string> AllRaceNames => races.Select(r => r.Name)
+        .Concat(racePackages.Select(p => p.Name))
+        .Distinct().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private List<string> AllClassNames => classes.Select(c => c.Name)
+        .Concat(classPackages.Select(p => p.Name))
+        .Distinct().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private List<string> AllBackgroundNames => backgrounds.Select(b => b.Name)
+        .Concat(backgroundPackages.Select(p => p.Name))
+        .Distinct().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+
+    private Race? SelectedRaceDb => races.FirstOrDefault(r => r.Name == draft.Race);
+    private PackageSpecies? SelectedRacePackage =>
+        SelectedRaceDb is null ? racePackages.FirstOrDefault(p => p.Name == draft.Race) : null;
+
+    private CharacterClass? SelectedClassDb => classes.FirstOrDefault(c => c.Name == draft.Class);
+    private PackageClass? SelectedClassPackage =>
+        SelectedClassDb is null ? classPackages.FirstOrDefault(p => p.Name == draft.Class) : null;
+
+    private Background? SelectedBackgroundDb => backgrounds.FirstOrDefault(b => b.Name == draft.Background);
+    private PackageBackground? SelectedBackgroundPackage =>
+        SelectedBackgroundDb is null ? backgroundPackages.FirstOrDefault(p => p.Name == draft.Background) : null;
+
+    private string CurrentRaceSelection => isRaceCustom ? CustomOptionValue : (draft.Race ?? string.Empty);
+    private string CurrentClassSelection => isClassCustom ? CustomOptionValue : (draft.Class ?? string.Empty);
+    private string CurrentBackgroundSelection => isBackgroundCustom ? CustomOptionValue : (draft.Background ?? string.Empty);
+
+    private void OnRaceSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue) { isRaceCustom = true; draft.Race = string.Empty; }
+        else { isRaceCustom = false; draft.Race = val; }
+    }
+
+    private void OnClassSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue) { isClassCustom = true; draft.Class = string.Empty; }
+        else { isClassCustom = false; draft.Class = val; }
+    }
+
+    private void OnBackgroundSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue) { isBackgroundCustom = true; draft.Background = string.Empty; }
+        else { isBackgroundCustom = false; draft.Background = val; }
+    }
+
+    // ----- Bonus di background (§4.7): applicati SOLO se il background ne concede e la specie
+    // scelta non ne porta già di suoi (evita di sommare due edizioni) -----
+
+    private bool HasSelectedBackground => !string.IsNullOrWhiteSpace(draft.Background);
+
+    private string? SelectedBackgroundAbilityScoresText =>
+        SelectedBackgroundDb?.AbilityScores
+        ?? (SelectedBackgroundPackage is not null ? string.Join(", ", SelectedBackgroundPackage.AbilityScores) : null);
+
+    private IReadOnlyList<string> BgKeys => CharacterWizardLogic.BackgroundAbilityKeys(SelectedBackgroundAbilityScoresText);
+
+    private bool BgBonusesApply => CharacterWizardLogic.ShouldApplyBackgroundBonuses(SelectedRaceDb, BgKeys);
+
+    private string? EffectiveTwoBonusAbility =>
+        (twoBonusAbility is not null && BgKeys.Contains(twoBonusAbility)) ? twoBonusAbility : BgKeys.ElementAtOrDefault(0);
+
+    private string? EffectiveOneBonusAbility
+    {
+        get
+        {
+            var candidates = BgKeys.Where(k => k != EffectiveTwoBonusAbility).ToList();
+            if (oneBonusAbility is not null && candidates.Contains(oneBonusAbility)) return oneBonusAbility;
+            return candidates.ElementAtOrDefault(0);
+        }
+    }
+
+    // La ripartizione +2/+1 richiede DUE caratteristiche: un background di campagna scritto a mano
+    // può averne una sola, e in quel caso la mappa uscirebbe vuota — nessun bonus applicato, nessun
+    // messaggio, con il select "Riceve +1" vuoto come unico indizio. Si ricade allora sul +1 a
+    // testa, che con una sola caratteristica significa semplicemente +1 a quella.
+    private CharacterWizardLogic.BackgroundAbilitySplit EffectiveSplit =>
+        BgKeys.Count < 2 ? CharacterWizardLogic.BackgroundAbilitySplit.OneEachOfThree : bgSplit;
+
+    private IReadOnlyDictionary<string, int> EffectiveBonusMap
+    {
+        get
+        {
+            if (!BgBonusesApply) return new Dictionary<string, int>();
+
+            IReadOnlyList<string> chosen = EffectiveSplit == CharacterWizardLogic.BackgroundAbilitySplit.TwoAndOne
+                ? new[] { EffectiveTwoBonusAbility, EffectiveOneBonusAbility }
+                    .Where(x => x is not null).Select(x => x!).ToList()
+                : BgKeys;
+
+            return CharacterWizardLogic.BuildBackgroundBonusMap(EffectiveSplit, chosen);
+        }
+    }
+
+    private int BonusForIndex(int idx) => BgBonusesApply
+        ? (EffectiveBonusMap.TryGetValue(CharacterWizardLogic.AbilityKeyOrder[idx], out var v) ? v : 0)
+        : CharacterWizardLogic.RaceBonuses(SelectedRaceDb)[idx];
+
+    private int[] AdjustedBaseScores => BgBonusesApply
+        ? CharacterWizardLogic.ApplyBackgroundBonuses(baseScores, EffectiveBonusMap)
+        : baseScores;
+
+    private int[] FinalScores => CharacterWizardLogic.FinalAbilityScores(AdjustedBaseScores, SelectedRaceDb);
+
+    // ----- Metodo di generazione punteggi -----
+
+    private void SetMethod(CharacterWizardLogic.AbilityScoreMethod method)
+    {
+        abilityMethod = method;
+        baseScores = CharacterWizardLogic.InitialScoresFor(method);
+    }
+
+    private void ResetStandardArray() => baseScores = (int[])CharacterWizardLogic.StandardArrayScores.Clone();
+
+    private void SetBaseFromSelect(int idx, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v)) baseScores[idx] = v;
+    }
+
+    // I limiti arrivano da CharacterWizardLogic, dove sono derivati dalla tabella dei costi:
+    // ripeterli qui come letterali li farebbe divergere in silenzio se la tabella cambiasse.
+    private void IncPointBuy(int idx) => baseScores[idx] = CharacterWizardLogic.ClampPointBuy(baseScores[idx] + 1);
+    private void DecPointBuy(int idx) => baseScores[idx] = CharacterWizardLogic.ClampPointBuy(baseScores[idx] - 1);
+
+    // Cambia a ogni clamp per far ricreare il campo (v. @key nel markup): senza, un valore
+    // rifiutato resta scritto a schermo mentre il modello ne contiene un altro.
+    private int rollRenderTick;
+
+    private void SetRollScore(int idx, ChangeEventArgs e)
+    {
+        var grezzo = e.Value?.ToString();
+        var v = int.TryParse(grezzo, out var n) ? n : baseScores[idx];
+        var clamped = Math.Clamp(v, 1, 30);
+
+        // Il confronto è con il TESTO digitato, non con il numero: così copre insieme il valore
+        // clampato (digito 50, resta 30), il testo non numerico e il campo svuotato — in tutti e
+        // tre i casi il modello contiene un numero che il campo non sta mostrando.
+        if (!string.Equals(grezzo, clamped.ToString(), StringComparison.Ordinal)) rollRenderTick++;
+        baseScores[idx] = clamped;
+    }
+
+    private int RemainingPoints => CharacterWizardLogic.PointBuyRemaining(baseScores) ?? 0;
+
+    // ----- Dettagli: dado vita/PF/CA/velocità suggeriti -----
+
+    private string? ClassHitDie => SelectedClassDb?.HitDie ?? SelectedClassPackage?.HitDie;
+
+    private int SuggestedHp =>
+        CharacterWizardLogic.SuggestMaxHp(ClassHitDie, CharacterCalculations.GetModifier(FinalScores[2]), draft.Level);
+
+    private int SuggestedAc => CharacterWizardLogic.BaseArmorClass(FinalScores[1]);
+
+    private string SuggestedHitDice => CharacterWizardLogic.BuildHitDice(ClassHitDie, draft.Level);
+
+    private void UseSuggestedHp() => draft.MaxHitPoints = SuggestedHp;
+    private void UseSuggestedAc() => draft.ArmorClass = SuggestedAc;
+    private void UseSuggestedHitDice() => draft.HitDiceMax = SuggestedHitDice;
+
+    private int? RaceSpeedValue => SelectedRaceDb?.Speed ?? SelectedRacePackage?.Speed?.Value;
+
+    private string? RaceSpeedUnit => SelectedRaceDb is not null
+        ? (FormValidation.IsMetric(SelectedRaceDb.SpeedUnit) ? "m" : "ft")
+        : SelectedRacePackage?.Speed?.Unit;
+
+    // Converte, non copia: il campo del PG è in metri, mentre il pacchetto SRD dichiara i piedi
+    // per TUTTE le specie. Scrivere il numero grezzo darebbe «30 metri» a ogni personaggio creato
+    // dal catalogo di manuale, e l'errore si propagherebbe alla scheda e alla vista Party.
+    private void CopyRaceSpeed()
+    {
+        if (RaceSpeedValue is int v) draft.Speed = CharacterWizardLogic.SpeedInMeters(v, RaceSpeedUnit);
+    }
+
+    // ----- Navigazione fra passi, con validazione (§ requisito wizard) -----
+
+    private string? ValidateStep(int step) => step switch
+    {
+        0 => CharacterWizardLogic.ValidateSpeciesStep(draft.Race),
+        1 => CharacterWizardLogic.ValidateClassStep(draft.Class),
+        2 => CharacterWizardLogic.ValidateBackgroundStep(draft.Background),
+        3 => CharacterWizardLogic.ValidateAbilitiesStep(abilityMethod, baseScores),
+        4 => CharacterWizardLogic.ValidateDetailsStep(draft),
+        _ => null
+    };
+
+    private void GoToStep(int step)
+    {
+        if (step > maxStepReached) return; // passo non ancora sbloccato
+        currentStep = Math.Clamp(step, 0, TotalSteps - 1);
+    }
+
+    private void Next()
+    {
+        var error = ValidateStep(currentStep);
+        if (error is not null)
+        {
+            Toasts.ShowError(error);
+            return;
+        }
+        currentStep = Math.Min(currentStep + 1, TotalSteps - 1);
+        if (currentStep > maxStepReached) maxStepReached = currentStep;
+    }
+
+    private void Prev() => GoToStep(currentStep - 1);
+
+    private async Task ExitAsync()
+    {
+        var confirmed = await Confirm.ShowAsync("Uscire senza salvare? Il personaggio non ancora creato andrà perso.");
+        // Percorsi RELATIVI, senza '/' iniziale: in produzione il <base href> è
+        // /dnd-companion-app/, e uno slash iniziale uscirebbe dal sottopercorso di GitHub Pages
+        // (in locale, con base '/', il difetto resterebbe invisibile).
+        if (confirmed) Navigation.NavigateTo("characters");
+    }
+
+    // ----- Salvataggio -----
+
+    private void ApplyClassSaveProficiencies()
+    {
+        var savesText = SelectedClassDb?.SavingThrows
+            ?? (SelectedClassPackage is not null ? string.Join(", ", SelectedClassPackage.SavingThrows) : null);
+
+        // Azzera prima di applicare: questo metodo può girare più volte sullo stesso draft (un
+        // salvataggio fallito lascia la pagina aperta, l'utente torna indietro e cambia classe).
+        // Mettendo solo a `true`, le competenze della classe abbandonata resterebbero addosso al
+        // personaggio: un Mago con le competenze del Guerriero, senza alcun segnale.
+        draft.ProfSaveStrength = draft.ProfSaveDexterity = draft.ProfSaveConstitution = false;
+        draft.ProfSaveIntelligence = draft.ProfSaveWisdom = draft.ProfSaveCharisma = false;
+
+        foreach (var key in CharacterWizardLogic.ParseSaveProficiencies(savesText))
+        {
+            switch (key)
+            {
+                case "strength": draft.ProfSaveStrength = true; break;
+                case "dexterity": draft.ProfSaveDexterity = true; break;
+                case "constitution": draft.ProfSaveConstitution = true; break;
+                case "intelligence": draft.ProfSaveIntelligence = true; break;
+                case "wisdom": draft.ProfSaveWisdom = true; break;
+                case "charisma": draft.ProfSaveCharisma = true; break;
+            }
+        }
+    }
+
+    /// <summary>Il primo passo che non supera la propria validazione, o null se sono tutti a posto.
+    /// L'ordine è quello dei passi, così si atterra sul più a monte: correggerlo può risolvere
+    /// anche quelli a valle.</summary>
+    private int? PassoDellErrore()
+    {
+        if (CharacterWizardLogic.ValidateSpeciesStep(draft.Race) is not null) return 0;
+        if (CharacterWizardLogic.ValidateClassStep(draft.Class) is not null) return 1;
+        if (CharacterWizardLogic.ValidateAbilitiesStep(abilityMethod, baseScores) is not null) return 3;
+        if (CharacterWizardLogic.ValidateDetailsStep(draft) is not null) return 4;
+        return null;
+    }
+
+    private async Task SaveAsync()
+    {
+        // I punteggi finali restano fuori dal Draft per tutto il wizard (evita letture stantie
+        // mentre base/razza/background cambiano): si sincronizzano solo ora, al salvataggio.
+        var final = FinalScores;
+        draft.Strength = final[0];
+        draft.Dexterity = final[1];
+        draft.Constitution = final[2];
+        draft.Intelligence = final[3];
+        draft.Wisdom = final[4];
+        draft.Charisma = final[5];
+        draft.HitPoints = draft.MaxHitPoints;
+        draft.BackgroundAbilityChoice = CharacterWizardLogic.FormatBackgroundAbilityChoice(EffectiveBonusMap);
+        ApplyClassSaveProficiencies();
+
+        // Rivalida anche le caratteristiche: ai pallini di passo si può tornare indietro e poi
+        // risalire senza passare da "Avanti", che è l'unico punto in cui il passo 4 si valida.
+        var error = CharacterWizardLogic.ValidateSummaryStep(draft, abilityMethod, baseScores);
+        if (error is not null)
+        {
+            // Riporta al passo che ha prodotto l'errore, non solo il messaggio: il riepilogo mostra
+            // le caratteristiche già sommate ai bonus, quindi «non sembrano» sbagliate, e il toast
+            // sparisce da solo. Senza questo salto l'utente resta a guardare una schermata che gli
+            // pare corretta, senza sapere dove intervenire.
+            var passo = PassoDellErrore();
+            if (passo is int p && p != currentStep) currentStep = p;
+
+            Toasts.ShowError(error);
+            return;
+        }
+
+        CharacterNormalizer.Normalize(draft);
+
+        isBusy = true;
+        systemError = null;
+        try
+        {
+            draft.OwnerId = CurrentUser.UserId ?? string.Empty;
+            draft.CampaignId = CurrentUser.CampaignId ?? string.Empty;
+
+            var saved = await CharacterRepository.CreateCharacterAsync(draft);
+            if (saved is null)
+            {
+                systemError = "Il server non ha restituito il personaggio salvato.";
+                return;
+            }
+
+            Toasts.ShowSuccess("Personaggio creato");
+            Navigation.NavigateTo($"characters?id={Uri.EscapeDataString(saved.Id)}");
+        }
+        catch (Exception ex)
+        {
+            systemError = $"Errore salvataggio: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

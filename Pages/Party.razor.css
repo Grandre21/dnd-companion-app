@@ -1,0 +1,294 @@
+.party-container {
+    margin: -1.1rem -1.5rem 0 -1.5rem;
+    padding: 1rem 1rem 5rem;
+    min-height: 100dvh;
+    background:
+        radial-gradient(ellipse at top, rgba(var(--gold-rgb), 0.08) 0%, transparent 50%),
+        linear-gradient(180deg, var(--text-on-gold) 0%, rgb(var(--shadow-warm-rgb)) 100%);
+    color: #e8d9b5;
+    font-family: 'Georgia', 'Cambria', serif;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.25);
+}
+
+/* Replicata, non ereditata: .primary-btn NON sta in app.css — ogni pagina che la usa se la
+   ridichiara nel proprio foglio isolato (sono 13 fogli a farlo). Senza questa copia il bottone
+   dell'empty state resterebbe un bottone di sistema, senza tema. Promuoverla in app.css
+   sarebbe l'alternativa pulita, ma toccherebbe 13 file già in produzione: fuori mandato qui. */
+.primary-btn {
+    background: linear-gradient(180deg, var(--gold) 0%, #b8864d 100%);
+    color: var(--text-on-gold);
+    border: none;
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
+}
+
+.back-btn {
+    background: transparent;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--gold-muted);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.back-btn:hover {
+    background: rgba(var(--gold-rgb), 0.12);
+    color: var(--gold-light);
+    border-color: rgba(var(--gold-rgb), 0.6);
+}
+
+.page-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.5px;
+}
+
+.state-message {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: rgb(var(--gold-muted-rgb));
+    font-style: italic;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 3.5rem;
+    filter: drop-shadow(0 2px 8px rgba(var(--black-rgb), 0.5));
+    margin-bottom: 0.25rem;
+}
+
+.empty-text {
+    margin: 0;
+    max-width: 420px;
+    font-size: 0.95rem;
+    color: var(--gold-muted);
+    line-height: 1.55;
+}
+
+.empty-text strong {
+    color: var(--gold-light);
+    font-weight: 700;
+}
+
+/* ===== Sezioni (il tuo PG / il gruppo) ===== */
+.party-section {
+    margin-bottom: 1.25rem;
+}
+
+.party-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgb(var(--gold-muted-rgb));
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin: 0 0 0.6rem;
+}
+
+.party-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+/* ===== Card personaggio ===== */
+.party-card {
+    background: linear-gradient(180deg, var(--bg-alt) 0%, #1f1710 100%);
+    border: 2px solid #8b6f47;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 3px 8px rgba(var(--black-rgb), 0.4);
+}
+
+.party-card-mine {
+    border-color: var(--gold);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.45), 0 0 0 1px rgba(var(--gold-rgb), 0.25);
+}
+
+.party-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.party-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold-light);
+    line-height: 1.25;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+.mine-badge {
+    flex-shrink: 0;
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    background: linear-gradient(180deg, var(--gold) 0%, #b8864d 100%);
+    color: var(--text-on-gold);
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.owner-badge {
+    flex-shrink: 0;
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    background: rgba(var(--gold-muted-rgb), 0.15);
+    border: 1px solid rgba(var(--gold-muted-rgb), 0.4);
+    color: var(--author-badge-text);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.party-sub {
+    font-size: 0.85rem;
+    color: rgb(var(--gold-muted-rgb));
+    margin-top: 0.2rem;
+}
+
+/* ===== Barra PF ===== */
+.hp-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+}
+
+.hp-track {
+    flex: 1;
+    height: 10px;
+    background: rgba(var(--black-rgb), 0.4);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.hp-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.2s ease;
+}
+
+.hp-fill-ok {
+    background: linear-gradient(90deg, #7ea242 0%, #a8cf6e 100%);
+}
+
+.hp-fill-warn {
+    background: linear-gradient(90deg, #b8864d 0%, #e0b583 100%);
+}
+
+.hp-fill-danger {
+    background: linear-gradient(90deg, #a13c2a 0%, #e6a373 100%);
+}
+
+.hp-label {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--gold-light);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ===== Stat chiave (CA / Percezione / Velocità) ===== */
+.key-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.key-stat {
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    border-radius: 8px;
+    padding: 0.5rem 0.4rem;
+    text-align: center;
+}
+
+.key-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: rgb(var(--gold-muted-rgb));
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.2rem;
+}
+
+.key-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gold-light);
+    font-variant-numeric: tabular-nums;
+}
+
+.key-unit {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgb(var(--gold-muted-rgb));
+    margin-left: 0.15rem;
+}
+
+/* ===== Desktop ===== */
+@media (min-width: 641px) {
+    .party-container {
+        padding: 1.5rem 2rem 5rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+    }
+
+    .party-section {
+        max-width: 820px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .party-name {
+        font-size: 1.2rem;
+    }
+}

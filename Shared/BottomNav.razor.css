@@ -18,8 +18,24 @@
     box-sizing: content-box;
 
     background: linear-gradient(180deg, var(--bottom-nav-bg-top) 0%, var(--bottom-nav-bg-bottom) 100%);
-    border-top: 1px solid rgba(var(--gold-rgb), 0.28);
+    /* Larghezza nel token --bottom-nav-border-width (app.css): con box-sizing content-box il
+       bordo si somma all'altezza resa e --bottom-nav-space deve includerlo, altrimenti FAB/
+       toast/banner PWA/sticky del Combat restano 1px sopra il bordo vero invece che a filo. */
+    border-top: var(--bottom-nav-border-width) solid rgba(var(--gold-rgb), 0.28);
     box-shadow: 0 -4px 14px rgba(var(--black-rgb), 0.45);
+
+    /* Promozione a layer di composizione proprio (motivo, non a caso): su Chrome Android la
+       barra URL dinamica si ritira/espande durante lo scroll, e un elemento `position: fixed`
+       viene ricollocato dal browser a ogni frame di quella transizione seguendo il viewport
+       visuale corrente. Senza layer proprio, ogni ricollocazione costringe il thread principale
+       a ridisegnare da capo il gradiente + l'ombra (box-shadow sfocata, costosa) di questa barra
+       — è il "tremolio"/distorsione segnalato durante lo scroll sia nel browser sia nella PWA
+       installata (dove la barra di sistema/gesture può nascondersi allo stesso modo). Con
+       `translateZ(0)` il compositor GPU sposta un layer già rasterizzato invece di ridisegnarlo:
+       costo, un layer in più in memoria GPU per un elemento piccolo e a dimensione fissa, sempre
+       visibile quando c'è una campagna attiva — trascurabile rispetto al ridisegno ripetuto che
+       elimina. */
+    transform: translateZ(0);
 }
 
 .bnav-item {

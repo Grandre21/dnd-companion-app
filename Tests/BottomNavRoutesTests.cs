@@ -54,11 +54,34 @@ public class BottomNavRoutesTests
     public void Comparison_is_case_insensitive()
         => Assert.True(BottomNavRoutes.IsActive("Characters", "characters"));
 
-    // Una sotto-rotta non è la sezione: se un domani esistesse "spells/123" non deve
-    // accendere la voce "spells" per sbaglio (il confronto è sull'intero percorso).
+    // COMPORTAMENTO CAMBIATO il 2026-07-31. Prima una sotto-rotta NON accendeva la sezione
+    // ("il confronto è sull'intero percorso"): finché non esistevano sotto-rotte era una scelta
+    // prudente. Ora ne esiste una vera — `characters/nuovo`, il wizard di creazione diventato
+    // pagina — e con la vecchia regola la barra restava senza alcuna voce attiva per tutta la
+    // creazione del personaggio. Un sottopercorso appartiene alla sua sezione.
     [Fact]
-    public void Sub_route_is_not_the_section()
-        => Assert.False(BottomNavRoutes.IsActive("spells/123", "spells"));
+    public void Sub_route_belongs_to_its_section()
+    {
+        Assert.True(BottomNavRoutes.IsActive("characters/nuovo", "characters"));
+        Assert.True(BottomNavRoutes.IsActive("spells/123", "spells"));
+    }
+
+    // Il confronto resta però sul SEGMENTO intero: "charactersXYZ" non è dentro "characters".
+    [Fact]
+    public void Prefix_without_separator_is_not_the_section()
+    {
+        Assert.False(BottomNavRoutes.IsActive("charactersXYZ", "characters"));
+        Assert.False(BottomNavRoutes.IsActive("party-old", "party"));
+    }
+
+    // La Home ha rotta vuota, che sarebbe prefisso di qualunque percorso: non deve restare
+    // accesa ovunque, altrimenti la barra mostrerebbe sempre due voci attive.
+    [Fact]
+    public void Home_does_not_match_every_route()
+    {
+        Assert.False(BottomNavRoutes.IsActive("characters", ""));
+        Assert.False(BottomNavRoutes.IsActive("characters/nuovo", ""));
+    }
 
     [Fact]
     public void Null_path_is_treated_as_home()

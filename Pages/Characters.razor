@@ -159,11 +159,6 @@
             <CharacterEditForm Draft="@editDraft" Classes="@classes" Races="@races"
                                IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm" />
             break;
-
-        case ViewMode.Wizard:
-            <CharacterWizard Draft="@editDraft" Classes="@classes" Races="@races"
-                             IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm" />
-            break;
     }
 
     @* Creazione personaggio: per OGNI membro (player e master), in ogni vista tranne il form. *@
@@ -176,7 +171,11 @@
 </div>
 
 @code {
-    private enum ViewMode { Loading, Empty, List, Detail, Form, Wizard }
+    private enum ViewMode { Loading, Empty, List, Detail, Form }
+
+    // Precompilato da CharacterWizard (pagina /characters/nuovo) dopo la creazione: apre subito
+    // il dettaglio del PG appena nato invece di lasciare l'utente sulla lista.
+    [SupplyParameterFromQuery] public string? Id { get; set; }
 
     private ViewMode mode = ViewMode.Loading;
     private List<Character> characters = new();
@@ -229,6 +228,21 @@
             classes = classesTask.Result;
 
             await UpdateModeFromCharactersAsync();
+
+            // Rientro dal wizard di creazione: apre subito il PG appena creato, sia in lista
+            // (master, o giocatore con più PG) sia quando il caso singolo sopra ha già scelto
+            // un altro personaggio.
+            if (!string.IsNullOrEmpty(Id))
+            {
+                var justCreated = characters.FirstOrDefault(c => c.Id == Id);
+
+                // Solo se non è GIÀ quello aperto: con un solo personaggio in campagna —
+                // il caso del giocatore che rientra dal wizard, cioè il percorso più frequente —
+                // UpdateModeFromCharactersAsync lo ha appena aperto, e riaprirlo qui rifarebbe
+                // da capo il caricamento dell'inventario.
+                if (justCreated is not null && !ReferenceEquals(selected, justCreated))
+                    await OpenDetailAsync(justCreated);
+            }
         }
         catch (Exception ex)
         {
@@ -336,25 +350,13 @@
         }
     }
 
-    private void OpenCreateForm()
-    {
-        editDraft = new Character
-        {
-            OwnerId = CurrentUser.UserId ?? string.Empty,
-            CampaignId = CurrentUser.CampaignId ?? string.Empty,
-            Level = 1,
-            ArmorClass = 10,
-            HitPoints = 10,
-            MaxHitPoints = 10,
-            Strength = 10,
-            Dexterity = 10,
-            Constitution = 10,
-            Intelligence = 10,
-            Wisdom = 10,
-            Charisma = 10
-        };
-        mode = ViewMode.Wizard;
-    }
+    // La creazione guidata vive nella sua pagina dedicata (§ wizard principiante): un passo alla
+    // volta, con spiegazioni e collegamento a specie/classe/background del catalogo. Qui restava
+    // solo la modifica di un PG esistente (ViewMode.Form/CharacterEditForm), invariata.
+    // Percorso RELATIVO, senza '/' iniziale: in produzione il <base href> è /dnd-companion-app/,
+    // e uno slash iniziale porterebbe fuori dal sottopercorso di GitHub Pages (in locale, dove la
+    // base è '/', il difetto non si vedrebbe). Stessa convenzione degli href di BottomNav.
+    private void OpenCreateForm() => Navigation.NavigateTo("characters/nuovo");
 
     private void OpenEditForm()
     {

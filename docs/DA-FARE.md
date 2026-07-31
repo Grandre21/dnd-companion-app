@@ -6,13 +6,66 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-07-30**
+> Ultimo aggiornamento: **2026-07-31**
 >
 > I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
 > in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
 > la monetizzazione.
 
 Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
+
+---
+
+## ⛔ Da fare PRIMA del prossimo push (sessione 2026-07-31)
+
+> Il gate automatico non copre nulla di ciò che segue. `main` pubblica: quanto è qui va risolto
+> **prima**, non dopo.
+
+- 🔴 **Applicare a mano la migrazione `supabase/migrations/20260731000000_party_visibility.sql`**
+  al progetto Supabase hosted, **prima** del push. Il deploy rilascia solo il client: se il client
+  arriva per primo, la pagina Party chiama una funzione che non esiste. La migrazione restringe
+  `characters_select` e crea la RPC `get_party_overview`; è idempotente e rieseguibile.
+  **Compatibilità col client attualmente live:** la restrizione è sicura anche nell'ordine inverso —
+  il client vecchio continua a funzionare, semplicemente un giocatore vede meno righe (solo le
+  proprie), che è esattamente la correzione voluta.
+- 🔴 **Verifica a due account** (un master e un giocatore, la seconda sessione in incognito): il
+  giocatore vede in Personaggi **solo i propri** PG; il master li vede **tutti**; entrambi vedono il
+  gruppo in **Party** con le sole stat sintetiche; il giocatore **non** vede inventario e incantesimi
+  dei PG altrui, il master sì. Serve un secondo account vero: le RLS non si esercitano da soli.
+- 🟠 **Verifica del publish Release con trimming** — `dotnet publish DndCompanion.csproj -c Release -o publish`,
+  poi servire `publish/wwwroot` **con accesso fatto e almeno una pagina di dati aperta**. Questa
+  sessione introduce un modello nuovo deserializzato via reflection (`PartyMember`, via Newtonsoft
+  dentro `Rpc<T>`): è esattamente la forma del difetto tipico del repo. L'assembly dell'app è coperto
+  da `TrimmerRootAssembly Include="DndCompanion"`, quindi in teoria è al sicuro — ma «in teoria» qui
+  si verifica, perché il difetto si vede **solo** sul sito pubblicato.
+- 🟠 **Verifica a vista della barra inferiore su Android/Chrome e in PWA installata**, scorrendo una
+  pagina lunga: il tremolio nasceva dalla barra URL dinamica e l'emulazione di DevTools non la simula
+  (v. DIARIO 2026-07-31). Con sei voci ora, controllare anche che nessuna etichetta tronchi sullo
+  schermo più stretto.
+- 🟡 **Trappola nei nomi dei design token: `--gold-muted` e `--gold-muted-rgb` NON sono lo stesso
+  colore.** Il primo è `#c9b88a`, il secondo `154, 140, 106` = `#9a8c6a`: la coppia sembra la solita
+  «versione hex + versione rgb dello stesso token», e invece sono due tinte diverse. Chi sostituisce
+  un literal `#9a8c6a` con `var(--gold-muted)` "per pulizia" cambia il colore senza accorgersene —
+  è successo di sfiorarlo il 2026-07-31 in `Pages/Party.razor.css`. Da rinominare (es.
+  `--gold-dim-rgb`) o da allineare, ma è un cambio che tocca tutti i punti d'uso: va fatto in un
+  intervento dedicato, non di passaggio.
+- 🟡 **Due voci narranti nelle descrizioni degli incantesimi — decisione editoriale aperta.**
+  Misurato sul pacchetto: i livelli **3 e 5** (80 incantesimi) sono in **terza persona**
+  («l'incantatore tocca una creatura…»), gli altri otto livelli (259) in **seconda persona**
+  («tocchi una creatura…»). Le regole sono corrette in entrambi i casi: è solo tono. Le opzioni non
+  costano uguale e la scelta è editoriale, non tecnica:
+  (a) uniformare a **terza persona** = lo stile del manuale ufficiale italiano, ma tocca 259 voci;
+  (b) uniformare a **seconda persona** = tocca 80 voci, ma allontana dal testo ufficiale;
+  (c) lasciare com'è. Qualunque riscrittura di massa passa sopra il testo delle regole, quindi va
+  fatta a fonte aperta e verificata, non con una sostituzione automatica.
+- 🟡 **Peso del pacchetto dati.** `wwwroot/data/srd-2024-it.json` è il primo file davvero grande
+  dell'app: **903 KB grezzi, 165 KB compressi** (misurati, non stimati — GitHub Pages serve i JSON
+  con compressione). È **escluso dal precache** del service worker (`offlineAssetsExclude`, già
+  previsto) e viene scaricato al primo uso: il costo reale è quindi un download da 165 KB alla prima
+  apertura di un catalogo, non un rallentamento dell'avvio. Da guardare comunque su rete lenta.
+  Si lega alla **virtualizzazione delle liste** (§5): con il manuale caricato i cataloghi superano di
+  molto le ~50 voci su cui poggiava la decisione di scartarla — il trigger di rivalutazione dichiarato
+  allora è ora scattato per davvero.
 
 ---
 
@@ -339,8 +392,7 @@ mega-componente (quello resta in §3).
   (`#b89a80`), introdotto per `Pages/Monsters.razor.css` nella Fase 2, è ora usato anche da
   `Spells`/`Races`/`Classes.razor.css`, che avevano lo stesso badge col literal — stesso valore esatto,
   nessun cambio visivo. (`Pages/Notes.razor.css` usa `var(--gold)`, colore diverso: non era nel novero.
-  Lo stesso `#b89a80` resta in `.master-placeholder` di Home e `.inv-weight` dell'inventario, che badge
-  non sono.)
+  Lo stesso `#b89a80` resta in `.inv-weight` dell'inventario, che badge non è: lì il literal resta.)
 - 🟡 **Tap target (2026-07-30, lavoro mobile-first).** ✅ Portati a **44px** tutti i pulsanti
   (`hp-btn` — i ± dei PF, il controllo più toccato dell'app — `qty-btn`, `remove-btn`, `hd-btn`,
   `header-btn`, `db-error-dismiss`/`db-error-repair`, `inv-eq-toggle`); i pallini
@@ -348,16 +400,38 @@ mega-componente (quello resta in §3).
   runtime**: i tap target dei pallini **si sovrapponevano** (7 coppie su `sc-dot`; per costruzione
   anche `ds-dot` e `spell-slot-dot`) — un'area allargata che sconfina sul vicino sposta il bersaglio
   invece di allargarlo. Regola adottata: l'area non supera mai il passo fra i centri; dove serve è il
-  `gap` ad aumentare. **Resta:** le **72 `.skill-check`** e le `checkbox-row` sono a **24px** (minimo
+  `gap` ad aumentare. **Resta:** le **36 `.skill-check`** sono a **24px** (minimo
   WCAG 2.2 AA) e non a 44 — un `<input>` è un elemento rimpiazzato, `::after` non viene reso e a 44px
   il quadratino nativo si deforma. Per arrivare a 44 bisogna **avvolgere ogni casella in una `<label>`
-  che occupi la cella** (72 punti di markup in `CharacterEditForm` e `CharacterWizard`): da fare quando
+  che occupi la cella** (36 punti di markup nel solo `CharacterEditForm`; le 6 `.checkbox-row` hanno già il bersaglio `<label>` da 40px, e resta sotto i 44 solo il quadratino): da fare quando
   si rimette mano a quel form. Idem `.wiz-step-dot`, fermo a 40px per stare in sei su 320px, e i due
   pallini isolati `prep-toggle` (38px) e `inspiration-toggle` (36px): sopra il minimo WCAG 2.2 AA,
-  senza sovrapposizioni con nulla, ritocco rimandato. **Sotto** il minimo resta un solo controllo,
-  e solo a 320px: il campo del punteggio nel wizard (`.wiz-base-input`), che a quella larghezza si
-  stringe a 23px perché a cedere sia lui e non i due pulsanti da 44px che ha accanto. Per chiuderlo
-  servirebbe portare lo stepper su una riga propria della griglia sotto una certa larghezza.
+  senza sovrapposizioni con nulla, ritocco rimandato.
+  ✅ **Aggiornato il 2026-07-31:** il wizard riscritto come pagina non ha più il passo Competenze,
+  quindi le caselle sotto i 44px restano solo in `CharacterEditForm`; e `.wiz-base-input`, l'unico
+  controllo che a 320px scendeva a 23px, non esiste più (il nuovo campo è `.wiz-simple-input` in una
+  griglia `3rem 1fr auto`, con i pulsanti dello stepper a 2.75rem). Da riverificare a vista su uno
+  schermo da 320px, ma il punto noto è chiuso.
+- 🟡 **Bottom-nav che si distorce allo scroll (Android/Chrome, browser e PWA standalone)** —
+  segnalato dall'utente, corretto il 2026-07-31. Causa: `.bottom-nav` (`position: fixed`,
+  gradiente + `box-shadow` sfocata) non aveva un layer di composizione proprio; la barra URL
+  dinamica di Chrome Android sposta il viewport a ogni frame durante lo scroll (idem la barra di
+  sistema in standalone), e senza `transform`/`will-change` il thread principale ridisegnava
+  gradiente+ombra a ogni ricollocamento — da cui il tremolio. ✅ Aggiunto `transform: translateZ(0)`
+  su `.bottom-nav` (`Shared/BottomNav.razor.css`) per promuoverla a layer GPU. Collaterale scoperto
+  verificando i token: `--bottom-nav-space` (app.css) non includeva il `border-top` di 1px di
+  `.bottom-nav` (che usa `box-sizing: content-box`), lasciando FAB/toast/banner PWA/sticky del
+  Combat 1px sopra il bordo reale della barra — nuovo token `--bottom-nav-border-width` per
+  riallinearli. Verificate e **scartate** come cause: `100vh` (già `dvh` ovunque dal 2026-07-30),
+  `viewport-fit=cover` (già presente in `index.html`), `overscroll-behavior` (già `contain` su
+  `html`). **Resta aperta la verifica a vista su un dispositivo Android reale**: il fix è motivato
+  dal comportamento documentato di Chrome sulla barra URL dinamica, ma l'emulazione mobile di
+  Chrome DevTools non la riproduce, quindi non è stato possibile confermarlo empiricamente in locale.
+- ✅ **Audit mobile-first ulteriore (2026-07-31).** `.form-grid` (Backgrounds/Classes/Combat/
+  Monsters/Races/Spells) passava a 2 colonne anche sotto i 641px (campi da ~137px l'uno a 320px);
+  ora colonna singola di base, 2 colonne solo da 641px in su, stesso pattern già in uso nel resto
+  di ciascun file. `.chip` (filtri CR/tipo in Monsters, livello/classe in Spells) portato a 44px
+  di tap target (era ~38px): non era nell'elenco dei controlli sistemati il 2026-07-30 sopra.
 - 🟢 **Il `← Home` di pagina è ridondante** dopo la barra di navigazione (2026-07-30): toglierlo
   libererebbe una riga di header su ogni pagina, ma cambia il flusso di ritorno (la barra porta a Home,
   non "indietro") — decisione di prodotto, non ritocco.
@@ -434,7 +508,11 @@ mega-componente (quello resta in §3).
     open — da non confondere con **Grok** di xAI). Da decidere nel brainstorm dedicato: provider, gestione
     della API key nel proxy, prompt, parsing dell'output nei Model, costi/limiti, UX. **Merita il suo spec
     separato**, da fare *dopo* le RLS.
-- ✅ **Redesign del flusso scheda / wizard** — FATTO (2026-06-25). Wizard di **sola creazione** a 6 step
+- ✅ **Redesign del flusso scheda / wizard** — FATTO (2026-06-25), **rifatto il 2026-07-31**: il wizard
+  è ora la pagina `Pages/CharacterWizard.razor` (rotta `characters/nuovo`) e pesca dal catalogo
+  unificato `ICatalogService`; l'enum `ViewMode.Wizard` e il componente in `Shared/CharacterTabs/`
+  non esistono più. Quanto segue descrive la versione del 2026-06-25, superata.
+  Wizard di **sola creazione** a 6 step
   (Identità → Caratteristiche → Vitalità & combattimento → Competenze → Incantesimi → Riepilogo), accessibile
   via `ViewMode.Wizard` in `Characters.razor`. Automazione intermedia: bonus razza applicati alle
   caratteristiche e dado vita pre-compilato alla scelta di razza/classe; PF e tiri salvezza suggeriti con un
@@ -519,9 +597,20 @@ modelli di salvataggio opposti.
     campagne che non hanno mai importato nulla di ufficiale).
     **Resta da fare:** la verifica manuale end-to-end (import di un pacchetto di prova + rimozione con un
     secondo account non-master), mai eseguita.
-  - 🟠 **Fase 3 (contenuto e wizard 2024)** — non iniziata: campione SRD per validare il formato sul campo,
-    traduzione del pacchetto completo, wizard che prende i bonus dal background con ripartizione, tetto di
-    20 e convivenza con le specie legacy.
+  - ✅ **Fase 3 (contenuto e wizard 2024) — FATTA (2026-07-31).** Consegnati entrambi i pezzi:
+    il **pacchetto completo** `wwwroot/data/srd-2024-it.json` (10 specie, 4 background, 17 talenti,
+    12 classi con 20 livelli, 339 incantesimi, 331 mostri — dal PDF **ufficiale italiano**, con i
+    nomi ufficiali: 339 su 339) e il **wizard 2024** (`Pages/CharacterWizard.razor` +
+    `BuildBackgroundBonusMap`/`ApplyBackgroundBonuses` con tetto 20 e `ShouldApplyBackgroundBonuses`
+    per la convivenza con le specie 2014). Dettaglio e motivazioni nel DIARIO, sezione
+    «Il manuale SRD 5.2.1 caricato».
+    **Resta aperto:** le due voci narranti delle descrizioni e le verifiche manuali, entrambe in cima
+    al documento nel blocco «Da fare PRIMA del prossimo push».
+    ✅ **Deciso il 2026-07-31 — il nodo qui sotto è chiuso per il pacchetto dell'app:** si dichiarano
+    i **piedi** (`"unit": "ft"`), che sono interi per ogni specie SRD, e la conversione verso i metri
+    del PG la fa `CharacterWizardLogic.SpeedInMeters`. Nessun dato falsificato, nessuna migrazione.
+    Il nodo `int`-vs-`decimal` **resta aperto per i pacchetti di terzi**, che possono contenere un
+    decimale e far fallire la lettura dell'intero file. Il testo originale segue, per memoria.
     ⚠️ **Da decidere PRIMA di tradurre, limite del formato emerso in Fase 2:** `PackageSpeed.Value` è un
     `int`, e un decimale nel JSON fa fallire la deserializzazione dell'**intero** pacchetto, non della singola
     voce. **Il caso si presenta già nel contenuto ufficiale:** la gran parte delle specie 2024 sta a 30 piedi
@@ -547,7 +636,7 @@ modelli di salvataggio opposti.
   CD incantesimo. Indipendente dai punti sopra.
 - ✅/🟡 **Barra di navigazione + cache dei cataloghi** — la **barra è FATTA** (2026-07-30,
   `Shared/BottomNav.razor`, spec [`2026-07-30-mobile-first-design.md`](./superpowers/specs/2026-07-30-mobile-first-design.md)):
-  cinque voci (Home, Personaggi, Iniziativa, Incantesimi, Appunti), visibile solo con una campagna
+  sei voci (Home, Personaggi, Party, Iniziativa, Incantesimi, Appunti), visibile solo con una campagna
   attiva; le altre cinque sezioni (Mostri, Classi, Razze, Background, Dati) restano dalla Home.
   **Resta la cache** dei cataloghi (v. §5): le pagine ricaricano i propri dati a ogni ingresso e 4 su 6
   rifanno `GetProfilesAsync()`.
@@ -583,9 +672,12 @@ modelli di salvataggio opposti.
 5. **Combat condiviso** (§8) — feature più sentita dall'uso reale.
 6. ~~**Rimozione Realtime** (§2)~~ ✅ e **design token / refactor `Characters.razor`** (§3, §6) — manutenibilità.
 7. Il resto (AI compilazione, ~~wizard scheda~~ ✅, performance, a11y, i18n, idee) secondo priorità di prodotto.
-8. **Mobile-first** (2026-07-30) — ✅ fatto il grosso: barra di navigazione, rimozione di Bootstrap,
-   safe-area/`100dvh`, tap target, manifest. Restano i residui elencati in §6 (caselle competenza a
-   24px, `← Home` ridondante, token dei gradienti) e la **verifica a vista da telefono, loggati**.
+8. **Mobile-first** (2026-07-30, seguito 2026-07-31) — ✅ fatto il grosso: barra di navigazione,
+   rimozione di Bootstrap, safe-area/`100dvh`, tap target, manifest. ✅ Corretta la distorsione
+   della barra allo scroll segnalata dall'utente + audit ulteriore (`.form-grid`, `.chip`) — v. §6.
+   Restano i residui elencati in §6 (caselle competenza a 24px, `← Home` ridondante, token dei
+   gradienti) e la **verifica a vista su un Android reale** (l'emulazione desktop non riproduce la
+   barra URL dinamica: il fix va confermato a occhio appena possibile).
 9. **Attrito d'uso / mappa UX** (§8-bis, 2026-07-25) — **modello 2024 + import** (design approvato) viene
    prima di motore di derivazione e level-up guidato, in quest'ordine: ognuno dipende dal precedente.
    I punti indipendenti (~~navigazione~~ ✅ + cache dei cataloghi, aiuto contestuale dal manuale,

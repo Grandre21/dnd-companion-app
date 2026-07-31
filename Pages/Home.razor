@@ -4,6 +4,7 @@
 @inject SupabaseService SupabaseService
 @inject IProfileRepository ProfileRepository
 @inject ICampaignRepository CampaignRepository
+@inject ICharacterRepository CharacterRepository
 @inject CampaignStateService CampaignState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -125,20 +126,64 @@
 
         @if (!string.IsNullOrEmpty(CampaignState.ActiveCampaignId))
         {
-            <section class="card-grid">
-                @foreach (var card in cards)
-                {
-                    <button type="button" class="feature-card" @onclick="@(() => Navigation.NavigateTo(card.Route))">
-                        <span class="card-icon" aria-hidden="true">@card.Icon</span>
-                        <span class="card-title">@card.Title</span>
-                        <span class="card-desc">@card.Description</span>
-                    </button>
-                }
-                <button type="button" class="feature-card" @onclick='() => Navigation.NavigateTo("combat")'>
-                    <span class="card-icon" aria-hidden="true">⚔️</span>
-                    <span class="card-title">Combattimento</span>
-                    <span class="card-desc">@(isMaster ? "Tracker iniziativa" : "Iniziativa (gestita dal Master)")</span>
-                </button>
+            @if (showOnboarding)
+            {
+                <section class="onboarding" aria-label="Primi passi">
+                    <h2>Primi passi</h2>
+                    <ol class="onboarding-list">
+                        @foreach (var step in onboardingSteps)
+                        {
+                            <li class="onboarding-step @(step.IsDone ? "done" : null)">
+                                @* Lo stato "fatto" non passa solo dalla spunta e dal testo barrato:
+                                   a uno screen reader i passi completati suonerebbero identici a
+                                   quelli da fare, e per i primi manca pure il pulsante "Vai" che
+                                   altrimenti li distingue. *@
+                                <span class="step-check"
+                                      role="@(step.IsDone ? "img" : null)"
+                                      aria-label="@(step.IsDone ? "Completato" : null)"
+                                      aria-hidden="@(step.IsDone ? null : "true")">@(step.IsDone ? "✓" : "")</span>
+                                <div class="step-body">
+                                    <span class="step-title">@step.Title</span>
+                                    <span class="step-desc">@step.Description</span>
+                                </div>
+                                @if (!step.IsDone)
+                                {
+                                    @* StepAction.None non ha pulsante: quel passo si compie nel
+                                       selettore di campagna qui sopra, non altrove. *@
+                                    @if (step.Action == HomeOnboardingLogic.StepAction.Navigate && step.Route is not null)
+                                    {
+                                        <button type="button" class="step-action" @onclick="@(() => Navigation.NavigateTo(step.Route))">
+                                            Vai
+                                        </button>
+                                    }
+                                    else if (step.Action == HomeOnboardingLogic.StepAction.CopyInviteCode)
+                                    {
+                                        <button type="button" class="step-action" @onclick="CopyInviteCodeAsync">
+                                            Copia codice
+                                        </button>
+                                    }
+                                }
+                            </li>
+                        }
+                    </ol>
+                </section>
+            }
+
+            <section class="catalog-section" aria-label="Cataloghi di consultazione">
+                <h2>Cataloghi</h2>
+                <p class="catalog-hint">
+                    Materiale di consultazione — mostri, classi, razze, background, dati di campagna.
+                    Non serve per iniziare a giocare: torna qui quando prepari qualcosa.
+                </p>
+                <div class="catalog-list">
+                    @foreach (var item in catalogItems)
+                    {
+                        <button type="button" class="catalog-item" @onclick="@(() => Navigation.NavigateTo(item.Route))">
+                            <span class="catalog-icon" aria-hidden="true">@item.Icon</span>
+                            <span class="catalog-title">@item.Title</span>
+                        </button>
+                    }
+                </div>
             </section>
         }
         else
@@ -149,25 +194,30 @@
 </div>
 
 @code {
-    private record FeatureCard(string Icon, string Title, string Description, string Route);
-
     private enum FormKind { None, Create, Join }
 
-    private readonly FeatureCard[] cards =
+    private record CatalogItem(string Icon, string Title, string Route);
+
+    // Le altre quattro voci della vecchia griglia (Personaggi, Incantesimi, Appunti, Combattimento)
+    // sono ora raggiungibili dalla barra di navigazione inferiore (Shared/BottomNav.razor) e non
+    // hanno più bisogno di una card qui: restano solo i cataloghi di sola consultazione, che la
+    // barra non ospita. Il pacchetto SRD è arrivato il 2026-07-31, ma NON aggiunge una voce
+    // "Manuale": le sue voci compaiono già dentro i cataloghi qui sotto (CatalogService unisce
+    // pacchetto e righe di campagna), quindi una card a parte mostrerebbe le stesse cose due volte.
+    private static readonly CatalogItem[] catalogItems =
     {
-        new("🗡️", "Personaggi",  "Gestisci la tua scheda", "characters"),
-        new("📜", "Incantesimi", "Consulta gli incantesimi", "spells"),
-        new("🐉", "Mostri",      "Bestiario e statistiche", "monsters"),
-        new("📝", "Appunti",     "Note di campagna", "notes"),
-        new("⚔️", "Classi",      "Manuale delle classi", "classes"),
-        new("🧝", "Razze",       "Manuale delle razze", "races"),
-        new("🎭", "Background",  "Tratti d'origine 2024", "backgrounds"),
-        new("📦", "Dati",        "Importa ed esporta cataloghi", "dati"),
+        new("🐉", "Mostri",      "monsters"),
+        new("⚔️", "Classi",      "classes"),
+        new("🧝", "Razze",       "races"),
+        new("🎭", "Background",  "backgrounds"),
+        new("📦", "Dati",        "dati"),
     };
 
     private string? userId;
     private string? displayName;
     private List<Campaign> campaigns = new();
+    private List<Character> campaignCharacters = new();
+    private List<CampaignMember> campaignMembers = new();
     private bool isLoading = true;
     private bool isBusy;
     private string? errorMessage;
@@ -180,6 +230,19 @@
 
     private Campaign? ActiveCampaign =>
         campaigns.FirstOrDefault(c => c.Id == CampaignState.ActiveCampaignId);
+
+    private bool hasOwnCharacter =>
+        !string.IsNullOrEmpty(userId) && campaignCharacters.Any(c => c.OwnerId == userId);
+
+    private bool hasOtherMembers => campaignMembers.Count > 1;
+
+    private IReadOnlyList<HomeOnboardingLogic.Step> onboardingSteps => HomeOnboardingLogic.BuildSteps(
+        hasActiveCampaign: !string.IsNullOrEmpty(CampaignState.ActiveCampaignId),
+        isMaster: isMaster,
+        hasOwnCharacter: hasOwnCharacter,
+        hasOtherMembers: hasOtherMembers);
+
+    private bool showOnboarding => !HomeOnboardingLogic.IsSetupComplete(onboardingSteps);
 
     protected override async Task OnInitializedAsync()
     {
@@ -215,6 +278,8 @@
             {
                 await CampaignState.SetActiveCampaignAsync(campaigns[0].Id);
             }
+
+            await LoadOnboardingDataAsync();
         }
         catch (Exception ex)
         {
@@ -224,6 +289,57 @@
         {
             isLoading = false;
         }
+    }
+
+    // Dati SOLO per decidere quali passi del percorso guidato sono già completati (personaggio
+    // proprio, altri membri): non sono dati di dominio mostrati altrove in questa pagina, quindi un
+    // fallimento qui non merita il DbErrorBanner. Si tace e si riprova al prossimo cambio campagna,
+    // stesso criterio di Shared/BottomNav.razor per gli aiuti di sola guida.
+    //
+    // Le due chiamate hanno try/catch separati: se una fallisce e l'altra riesce, il risultato buono
+    // non va perso (altrimenti un errore transitorio sui membri farebbe ricomparire "Crea il tuo
+    // personaggio" come da fare anche se il personaggio c'è già).
+    //
+    // Il selettore campagna (riga sopra) non è disabilitato durante il caricamento: un cambio rapido
+    // può quindi avviare una seconda LoadOnboardingDataAsync mentre la prima è ancora in attesa di
+    // rete, e l'ordine di arrivo delle risposte non è garantito. Senza il controllo finale, la
+    // risposta più lenta per la campagna PRECEDENTE potrebbe sovrascrivere quella già corretta della
+    // campagna attuale. Si scarta quindi il risultato se, nel frattempo, la campagna attiva è
+    // cambiata rispetto a quella richiesta.
+    private async Task LoadOnboardingDataAsync()
+    {
+        var campaignId = CampaignState.ActiveCampaignId;
+        if (string.IsNullOrEmpty(campaignId))
+        {
+            campaignCharacters = new();
+            campaignMembers = new();
+            return;
+        }
+
+        List<Character> characters;
+        try
+        {
+            characters = await CharacterRepository.GetCharactersForCampaignAsync(campaignId);
+        }
+        catch
+        {
+            characters = new();
+        }
+
+        List<CampaignMember> members;
+        try
+        {
+            members = await CampaignRepository.GetCampaignMembersAsync(campaignId);
+        }
+        catch
+        {
+            members = new();
+        }
+
+        if (CampaignState.ActiveCampaignId != campaignId) return; // superato da un cambio nel frattempo
+
+        campaignCharacters = characters;
+        campaignMembers = members;
     }
 
     private async Task OnCampaignSelectedAsync(ChangeEventArgs e)
@@ -237,6 +353,7 @@
         {
             await CampaignState.SetActiveCampaignAsync(id);
         }
+        await LoadOnboardingDataAsync();
         StateHasChanged();
     }
 
@@ -266,6 +383,7 @@
             var created = await CampaignRepository.CreateCampaignAsync(newCampaignName.Trim(), userId);
             campaigns.Add(created);
             await CampaignState.SetActiveCampaignAsync(created.Id);
+            await LoadOnboardingDataAsync();
             formKind = FormKind.None;
         }
         catch (Exception ex)
@@ -302,6 +420,7 @@
                 campaigns.Add(joined);
 
             await CampaignState.SetActiveCampaignAsync(joined.Id);
+            await LoadOnboardingDataAsync();
             formKind = FormKind.None;
         }
         catch (Exception ex)
@@ -377,11 +496,32 @@
     }
 
     // Dopo eliminazione/uscita: se restano campagne ne seleziona una; altrimenti resta
-    // nessuna campagna attiva e la UI mostra l'onboarding (campaigns.Count == 0).
+    // nessuna campagna attiva e la UI mostra l'onboarding (campaigns.Count == 0). In entrambi i
+    // casi i dati del percorso guidato vanno ricaricati: o per la campagna appena selezionata, o
+    // azzerati perché non ce n'è più una attiva.
     private async Task SelectFirstOrNoneAsync()
     {
         if (string.IsNullOrEmpty(CampaignState.ActiveCampaignId) && campaigns.Count > 0)
             await CampaignState.SetActiveCampaignAsync(campaigns[0].Id);
+        await LoadOnboardingDataAsync();
+    }
+
+    private async Task CopyInviteCodeAsync()
+    {
+        var code = ActiveCampaign?.InviteCode;
+        if (string.IsNullOrEmpty(code)) return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", code);
+            Toasts.ShowSuccess("Codice invito copiato");
+        }
+        catch
+        {
+            // Clipboard non disponibile (permessi negati, contesto non sicuro): il codice resta
+            // comunque visibile e selezionabile a mano nel box qui sopra.
+            Toasts.ShowError("Impossibile copiare: seleziona il codice qui sopra a mano");
+        }
     }
 
     private async Task OnLogoutAsync()

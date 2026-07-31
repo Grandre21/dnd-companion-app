@@ -220,6 +220,19 @@ quindi funziona già con una voce di pacchetto.
 
 ### 4.5 Velocità: l'unità va scritta, non dedotta
 
+> ⚠️ **Corretto il 2026-07-31, alla prova del contenuto reale.** Questo paragrafo dava il pacchetto
+> italiano in **metri**: il pacchetto effettivamente spedito
+> (`wwwroot/data/srd-2024-it.json`) dichiara i **piedi** (`"unit": "ft"`), per tutte e dieci le specie.
+> Motivo: `PackageSpeed.Value` è un `int`, e il Golia — 35 piedi, cioè **10,5 m** sul manuale italiano
+> ufficiale — avrebbe richiesto un decimale, che fa fallire la deserializzazione dell'**intero**
+> pacchetto, non della singola voce. Le alternative erano falsificare il dato arrotondando o migrare
+> `PackageSpeed.Value`/`Race.Speed`/la colonna `races.speed` a decimale; dichiarare i piedi non costa
+> nulla, è già ammesso dal formato e dal `CHECK` `races_speed_unit_check`, e non falsifica niente.
+> **Conseguenza da non perdere di vista:** la conversione verso i metri del PG diventa obbligatoria a
+> valle, ed è `CharacterWizardLogic.SpeedInMeters` a farla (il wizard copiava il numero grezzo e
+> scriveva «30 metri» — difetto trovato in revisione lo stesso giorno). Il resto del paragrafo — che
+> l'unità si **scriva** invece di dedurla — resta valido ed è anzi ciò che rende innocuo il cambio.
+
 Il pacchetto italiano è in **metri** (il manuale italiano usa 9 m dove l'inglese usa 30 ft); le righe
 esistenti sono in **piedi**. Dedurre l'unità dalla sorgente non regge a due casi reali: una voce di
 pacchetto duplicata in campagna (§6) diventerebbe una riga letta come piedi, e una razza creata a mano

@@ -42,6 +42,22 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
     // perché richiederebbe divergere dalla policy di races, fuori mandato di questo task).
     public const string BackgroundBC1ForMasterMoveDenied = "b4444444-4444-4444-4444-444444444444";
 
+    // Personaggi (Party visibility): CharacterAC1 di A (master) e CharacterBC1 di B (player), stessa
+    // campagna C1. CharacterAC2 è di A in C2, di cui B NON è membro — serve a provare che la RPC
+    // nega le righe a un non-membro anche quando la campagna ha personaggi da nascondere davvero.
+    // Saggezza/livello/competenza di CharacterAC1 sono scelti per un valore di percezione passiva
+    // verificabile a mano: mod(14)=2, pb(livello 3)=2, competente → 10+2+2=14.
+    public const string CharacterAC1 = "c1111111-1111-1111-1111-111111111111";
+    public const string CharacterBC1 = "c2222222-2222-2222-2222-222222222222";
+    public const string CharacterAC2 = "c3333333-3333-3333-3333-333333333333";
+    public const int CharacterAC1PassivePerception = 14;
+
+    // Inventario (cascata RLS characters -> inventory): un oggetto per personaggio, per provare che
+    // dopo la restrizione di characters_select il player non legge l'inventario del PG del master,
+    // mentre il master continua a leggere quello del player.
+    public const string InventoryItemAC1 = "d1111111-1111-1111-1111-111111111111";
+    public const string InventoryItemBC1 = "d2222222-2222-2222-2222-222222222222";
+
     private const string EmailA = "rls-test-a@example.com";
     private const string EmailB = "rls-test-b@example.com";
     private const string Password = "password123";
@@ -108,8 +124,17 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
     private async Task SeedAsync()
     {
         // Cleanup idempotente: elimina le campagne di test → cascade (FK ON DELETE CASCADE) su
-        // campaign_members, notes, combat_state, backgrounds. Poi reinserisce da zero.
+        // campaign_members, notes, combat_state, backgrounds, characters (e a sua volta su
+        // inventory/character_spells via characters). Poi reinserisce da zero.
         await DeleteAsync($"campaigns?id=in.({CampaignC1},{CampaignC2},{CampaignC3})");
+
+        // profiles NON è campaign-scoped: upsert idempotente (i due utenti di test sopravvivono a
+        // più esecuzioni della fixture), serve al join owner_id->display_name di get_party_overview.
+        await UpsertAsync("profiles", new[]
+        {
+            new { id = UserAId, display_name = "Master di Prova" },
+            new { id = UserBId, display_name = "Player di Prova" },
+        });
 
         await InsertAsync("campaigns", new[]
         {
@@ -138,6 +163,34 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
             new { id = BackgroundBC1ForMasterEdit, name = "Background B in C1 (master edit)", added_by = UserBId, campaign_id = CampaignC1 },
             new { id = BackgroundBC1ForMasterMoveDenied, name = "Background B in C1 (master move denied)", added_by = UserBId, campaign_id = CampaignC1 },
         });
+        // Stessa forma anonima per tutte le righe (stesse proprietà, stesso ordine): un array
+        // implicitamente tipizzato con oggetti anonimi "sbilanciati" non compila (CS0826).
+        await InsertAsync("characters", new[]
+        {
+            new
+            {
+                id = CharacterAC1, name = "Personaggio di A (C1)", owner_id = UserAId, campaign_id = CampaignC1,
+                level = 3, armor_class = 15, hit_points = 18, max_hit_points = 24, wisdom = 14, prof_perception = true,
+            },
+            new
+            {
+                id = CharacterBC1, name = "Personaggio di B (C1)", owner_id = UserBId, campaign_id = CampaignC1,
+                level = 1, armor_class = 12, hit_points = 10, max_hit_points = 10, wisdom = 10, prof_perception = false,
+            },
+            // In C2, di cui B non è membro: prova che la RPC nega le righe a un non-membro anche
+            // quando ci sono davvero personaggi da nascondere (altrimenti un array vuoto non
+            // proverebbe la guardia, proverebbe solo l'assenza di dati).
+            new
+            {
+                id = CharacterAC2, name = "Personaggio di A (C2)", owner_id = UserAId, campaign_id = CampaignC2,
+                level = 1, armor_class = 10, hit_points = 8, max_hit_points = 8, wisdom = 10, prof_perception = false,
+            },
+        });
+        await InsertAsync("inventory", new[]
+        {
+            new { id = InventoryItemAC1, character_id = CharacterAC1, name = "Spada del master" },
+            new { id = InventoryItemBC1, character_id = CharacterBC1, name = "Pugnale del player" },
+        });
     }
 
     private async Task DeleteAsync(string pathAndQuery)
@@ -160,6 +213,23 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
         using var resp = await Http.SendAsync(req);
         if (!resp.IsSuccessStatusCode)
             throw new InvalidOperationException($"Seed '{table}' fallito: {(int)resp.StatusCode} {await resp.Content.ReadAsStringAsync()}");
+    }
+
+    /// <summary>
+    /// Come <see cref="InsertAsync"/> ma con upsert (Prefer: resolution=merge-duplicates): per righe
+    /// NON campaign-scoped (es. profiles) che il cleanup di <see cref="SeedAsync"/> non cancella e
+    /// che quindi possono già esistere da un'esecuzione precedente della fixture.
+    /// </summary>
+    private async Task UpsertAsync(string table, object rows)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{ApiUrl}/rest/v1/{table}");
+        req.Headers.Add("apikey", ServiceKey);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ServiceKey);
+        req.Headers.Add("Prefer", "resolution=merge-duplicates,return=minimal");
+        req.Content = JsonContent.Create(rows);
+        using var resp = await Http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Upsert '{table}' fallito: {(int)resp.StatusCode} {await resp.Content.ReadAsStringAsync()}");
     }
 
     /// <summary>Crea una richiesta REST autenticata come l'utente con il JWT indicato.</summary>

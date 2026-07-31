@@ -324,91 +324,180 @@ select.input {
     cursor: pointer;
 }
 
-.card-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+/* ===== Primi passi (percorso guidato al primo avvio) =====
+   Sparisce da solo quando i passi tracciabili sono fatti (HomeOnboardingLogic.IsSetupComplete):
+   non è un fisso della Home, ma una guida che si toglie di mezzo da sé. */
+.onboarding {
+    margin-bottom: 2rem;
+    padding: 1.1rem 1.1rem 1.25rem;
+    background: linear-gradient(180deg, var(--bg-card) 0%, #211810 100%);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.35);
 }
 
-.feature-card {
+.onboarding h2 {
+    margin: 0 0 0.85rem 0;
+    font-size: 1.05rem;
+    color: var(--gold);
+    letter-spacing: 0.4px;
+}
+
+.onboarding-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
+    gap: 0.65rem;
+}
+
+.onboarding-step {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    background: rgba(var(--black-rgb), 0.25);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 10px;
+}
+
+/* Passo completato: tinta verde presa dai token --success-* già in uso altrove (Notes, Combat,
+   ToastHost) per lo stesso significato, non un colore nuovo. */
+.onboarding-step.done {
+    background: rgba(var(--success-dark-rgb), 0.18);
+    border-color: rgba(var(--success-rgb), 0.4);
+    opacity: 0.85;
+}
+
+.step-check {
+    flex-shrink: 0;
+    display: flex;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    gap: 0.5rem;
-    padding: 1.5rem 1rem;
-    min-height: 160px;
-    background: linear-gradient(180deg, var(--bg-alt) 0%, #1f1710 100%);
-    border: 2px solid #8b6f47;
-    border-radius: 14px;
-    color: #e8d9b5;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.18s ease;
-    box-shadow:
-        0 4px 12px rgba(var(--black-rgb), 0.4),
-        inset 0 1px 0 rgba(var(--gold-rgb), 0.15);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold-light);
+    font-size: 0.95rem;
+    font-weight: 700;
 }
 
-.feature-card:hover,
-.feature-card:focus-visible {
-    transform: translateY(-3px);
-    border-color: var(--gold);
-    box-shadow:
-        0 8px 20px rgba(var(--black-rgb), 0.5),
-        0 0 0 1px rgba(var(--gold-rgb), 0.3),
-        inset 0 1px 0 rgba(var(--gold-rgb), 0.25);
-    outline: none;
+.onboarding-step.done .step-check {
+    background: rgba(var(--success-rgb), 0.3);
+    border-color: rgba(var(--success-rgb), 0.65);
+    color: var(--text-on-gold);
 }
 
-.feature-card:active {
-    transform: translateY(-1px);
+.step-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
 }
 
-.card-icon {
-    font-size: 2.75rem;
-    line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(var(--black-rgb), 0.5));
-}
-
-.card-title {
-    font-size: 1.15rem;
+.step-title {
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--gold-light);
-    letter-spacing: 0.3px;
 }
 
-.card-desc {
+.onboarding-step.done .step-title {
+    text-decoration: line-through;
+    color: var(--gold-muted);
+}
+
+.step-desc {
     font-size: 0.8rem;
     color: #9a8c6a;
     line-height: 1.3;
 }
 
-.master-section {
-    margin-top: 2.5rem;
-    padding: 1.25rem 1.25rem 1.5rem;
-    background: linear-gradient(180deg, rgba(var(--error-rgb), 0.18) 0%, rgba(var(--error-dark-rgb), 0.12) 100%);
-    border: 1px solid rgba(var(--danger-rgb), 0.4);
-    border-radius: 12px;
-}
-
-.master-section h2 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.15rem;
-    color: #e6a373;
-    letter-spacing: 0.5px;
-}
-
-.master-placeholder {
-    margin: 0;
+.step-action {
+    flex-shrink: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem 0.9rem;
+    background: linear-gradient(180deg, var(--gold) 0%, #b8864d 100%);
+    color: var(--text-on-gold);
+    border: none;
+    border-radius: 8px;
     font-size: 0.85rem;
-    color: #b89a80;
-    font-style: italic;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
 }
 
-.master-grid {
-    margin-top: 0.75rem;
+.step-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(var(--gold-rgb), 0.35);
+}
+
+/* ===== Cataloghi di consultazione =====
+   Deliberatamente in secondo piano (titolo minuscolo, righe non quadrati, niente icone grandi):
+   Personaggi/Iniziativa/Incantesimi/Appunti sono già nella barra di navigazione inferiore e non
+   compaiono più qui. Restano solo le cinque sezioni che la barra non ospita. */
+.catalog-section {
+    margin-bottom: 1.5rem;
+}
+
+.catalog-section h2 {
+    margin: 0 0 0.35rem 0;
+    font-size: 0.95rem;
+    color: var(--gold-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.catalog-hint {
+    margin: 0 0 0.9rem 0;
+    font-size: 0.82rem;
+    color: #9a8c6a;
+    line-height: 1.4;
+}
+
+.catalog-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+}
+
+.catalog-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 44px;
+    padding: 0.65rem 0.85rem;
+    background: rgba(var(--black-rgb), 0.2);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 10px;
+    color: var(--gold-muted);
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: all 0.15s ease;
+}
+
+.catalog-item:hover,
+.catalog-item:focus-visible {
+    border-color: rgba(var(--gold-rgb), 0.5);
+    color: var(--gold-light);
+    background: rgba(var(--gold-rgb), 0.08);
+    outline: none;
+}
+
+.catalog-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.catalog-title {
+    font-size: 0.88rem;
+    font-weight: 600;
 }
 
 @media (min-width: 641px) {
@@ -425,30 +514,14 @@ select.input {
         font-size: 2rem;
     }
 
-    .card-grid {
+    /* Stessa larghezza massima della barra campagna: coerenza visiva, niente righe che
+       si allargano a dismisura su desktop. */
+    .onboarding,
+    .catalog-section {
+        max-width: 640px;
+    }
+
+    .catalog-list {
         grid-template-columns: repeat(3, 1fr);
-        gap: 1.25rem;
-        max-width: 1000px;
-    }
-
-    .feature-card {
-        min-height: 200px;
-        padding: 2rem 1.25rem;
-    }
-
-    .card-icon {
-        font-size: 3.25rem;
-    }
-
-    .card-title {
-        font-size: 1.3rem;
-    }
-
-    .card-desc {
-        font-size: 0.9rem;
-    }
-
-    .master-section {
-        max-width: 1100px;
     }
 }

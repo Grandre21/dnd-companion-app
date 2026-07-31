@@ -30,7 +30,12 @@ public sealed class PackageLicense
 public sealed class PackageSpeed
 {
     [JsonPropertyName("value")] public int Value { get; set; }
-    /// <summary>"m" o "ft" (§4.5). Il pacchetto italiano usa i metri.</summary>
+    /// <summary>"m" o "ft" (§4.5). Il pacchetto SRD distribuito con l'app usa i <b>piedi</b>: il
+    /// Golia sta a 35 ft, cioè 10,5 m, e <see cref="Value"/> è un <c>int</c> — un decimale farebbe
+    /// fallire la deserializzazione dell'intero pacchetto, non della singola voce (v. la nota
+    /// datata in §4.5 dello spec). Il default resta "m" per non cambiare come vengono letti i
+    /// pacchetti di terzi già scritti senza questo campo; il riconoscimento vero passa comunque da
+    /// <c>PackageRowMerge.UnitaValida</c>.</summary>
     [JsonPropertyName("unit")] public string Unit { get; set; } = "m";
 }
 

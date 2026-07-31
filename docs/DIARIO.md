@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-07-30**.
+> Aggiornato: **2026-07-31**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -657,6 +657,48 @@ componenti (barra di navigazione, riga del tracker) è stato iniettato il markup
 classi di scope, così da misurare le regole vere e non una loro imitazione.
 
 
+## Bottom-nav che si distorceva allo scroll + audit mobile-first ulteriore (2026-07-31)
+
+L'utente ha segnalato che la barra di navigazione «si distorce» muovendosi, riprodotto su
+Android/Chrome sia nel browser sia nella PWA installata (standalone). Prima ipotesi scartata:
+`100vh`. Era già stata convertita a `100dvh` ovunque il 2026-07-30 proprio per il motivo opposto
+(su mobile `vh` non segue la barra URL che si ritrae) — non c'era altro `vh` da correggere.
+Scartate anche `viewport-fit=cover` (già presente) e `overscroll-behavior` (già `contain` su
+`html`): nessuna delle tre regressioni "da manuale" era in gioco.
+
+La causa più probabile, verificata nel codice: `.bottom-nav` è `position: fixed` con un
+gradiente e una `box-shadow` sfocata, senza layer di composizione proprio. Su Chrome Android la
+barra URL dinamica (e, in standalone, la barra di sistema/gesture) sposta il viewport a ogni
+frame durante lo scroll; senza `transform`/`will-change`, il browser deve ridisegnare gradiente e
+ombra sul thread principale a ogni ricollocamento invece di ricomporre un layer GPU già
+rasterizzato — il tremolio segnalato. Aggiunto `transform: translateZ(0)` a `.bottom-nav`
+(`Shared/BottomNav.razor.css`), con la motivazione del costo commentata sul posto (un layer GPU in
+più, trascurabile per un elemento piccolo e sempre visibile a campagna attiva): buona prassi per
+le scelte non ovvie, seguita dal resto del CSS di progetto anche se CLAUDE.md non la impone come
+regola esplicita. **Non verificabile empiricamente in questa sessione**: Chrome
+DevTools in emulazione mobile non riproduce la barra URL dinamica, quindi resta da confermare a
+vista su un Android reale.
+
+Verificando la coerenza dei token `--bottom-nav-*` (uno dei sospetti elencati) è emerso un
+secondo difetto, minore ma reale: `.bottom-nav` usa `box-sizing: content-box` apposta (per tenere
+l'altezza fissa e sommarci sopra la safe-area variabile), ma il suo `border-top` di 1px si
+aggiunge all'altezza resa e nessuno dei token lo contava — `--bottom-nav-space` restava 1px più
+corto della barra vera, quindi FAB, toast, banner PWA e i controlli sticky del Combat sedevano 1px
+sopra il bordo reale invece che a filo. Nuovo token `--bottom-nav-border-width` (app.css),
+referenziato sia nel `border-top` di `BottomNav.razor.css` sia nel calcolo di
+`--bottom-nav-space`, così i due non possono più andare fuori sincrono.
+
+**Audit mobile-first delle pagine catalogo.** `.form-grid` (Backgrounds/Classes/Combat/Monsters/
+Races/Spells) era a due colonne **anche sotto i 641px** — a 320px, campi da ~137px l'uno, contro
+il pattern mobile-first che il resto di ognuno di quei file già segue (base per il telefono, un
+solo blocco `@media (min-width: 641px)` di enhancement). Ora la base è a colonna singola e le due
+colonne tornano nel blocco desktop già esistente. `.chip` (i pulsanti di filtro — CR/tipo in
+Monsters, livello/classe in Spells) misurava ~38px di altezza, sotto la soglia del dito e non
+compreso nel giro di tap target del 2026-07-30: portato a 44px con `min-height` + flex di
+centratura, senza toccare `min-width`/aspetto.
+
+400 test verdi, build Release 0 warning/0 errori invariati (nessuna modifica C#, solo CSS).
+
 ## Metodo: ramo unico `main` (2026-07-30)
 
 Deciso di lavorare su **un solo ramo**, senza feature branch né pull request. La ragione per cui la
@@ -672,3 +714,163 @@ usati via reflection; il deploy rilascia **solo il client**, mentre le migrazion
 applicano a mano e devono restare compatibili col client già live; l'aggiornamento PWA è on-demand,
 quindi dopo il push gli utenti restano sulla versione in cache — e i loro dati passano dallo stesso
 database; il rollback è `git revert` più push, mai un force-push sul ramo di rilascio.
+
+## Home come guida di primo avvio (2026-07-31)
+
+La Home esponeva nove destinazioni (otto card + Combattimento) tutte allo stesso peso, senza dire a
+chi non conosce l'app **da dove iniziare né in che ordine**: esattamente il sintomo descritto in
+`docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md` §2.1 ("la campagna appena creata è un
+guscio vuoto... nessuna delle sette card avverte che dietro non c'è nulla").
+
+**Percorso guidato "Primi passi".** Quattro passi in ordine (tre per il giocatore, che salta
+l'invito): creare/entrare in campagna → creare il proprio personaggio (rotta `characters/nuovo`,
+il wizard guidato, realizzato nella stessa sessione — v. la sezione più sotto) → il master invita i compagni (copia il
+codice invito negli appunti) → aprire il tracker iniziativa (`combat`). Ogni passo mostra una
+spunta se già fatto. La logica di quali passi mostrare e quali risultano completati, dato lo stato
+(campagna attiva, personaggio proprio, altri membri, ruolo), vive in
+`Services/HomeOnboardingLogic.cs` — statico, puro, testato in
+`Tests/HomeOnboardingLogicTests.cs` — non nel `.razor`, per lo stesso motivo di
+`BottomNavRoutes.IsActive`: sono rami di decisione che meritano test propri.
+
+L'ultimo passo (tracker iniziativa) non ha un segnale di completamento persistito — aprirlo non
+lascia traccia in nessuna tabella, e una colonna nuova solo per questo sarebbe fuori scopo — quindi
+resta sempre "da fare" nel modello. `IsSetupComplete` lo esclude apposta dal conteggio: altrimenti
+il percorso guidato non sparirebbe mai, restando visibile anche a campagna avviata da mesi. Con
+questo, la guida compare al primo avvio e si toglie da sola una volta che campagna, personaggio e
+(per il master) compagni ci sono.
+
+**Sfoltimento.** Personaggi, Iniziativa, Incantesimi e Appunti sono raggiungibili dalla barra di
+navigazione inferiore (`Shared/BottomNav.razor`, aggiunta il 2026-07-30): le tre card
+corrispondenti — e il pulsante Combattimento, cioè quattro delle nove destinazioni originarie — sono state tolte
+dalla Home perché duplicate. Restano le cinque voci non ospitate dalla barra (Mostri, Classi, Razze,
+Background, Dati), in una lista "Cataloghi" volutamente più dimessa delle vecchie card quadrate: sono
+materiale di consultazione, non il percorso per iniziare a giocare.
+
+**Un dettaglio di stato da non perdere.** Il selettore di campagna attiva non è disabilitato durante
+il caricamento (già così prima di questo intervento): un cambio rapido di campagna può avviare due
+caricamenti concorrenti dei dati che alimentano il percorso guidato, e l'ordine di arrivo delle
+risposte di rete non è garantito. Il caricamento verifica quindi, appena prima di scrivere lo stato,
+che la campagna attiva non sia nel frattempo cambiata — altrimenti scarta il risultato — per non
+mostrare passi "fatto/non fatto" riferiti alla campagna sbagliata.
+
+414 test unitari verdi (14 nuovi su `HomeOnboardingLogic`), build 0 warning / 0 errori. File toccati:
+`Pages/Home.razor`, `Pages/Home.razor.css`, `Services/HomeOnboardingLogic.cs`,
+`Tests/HomeOnboardingLogicTests.cs`.
+
+---
+
+## Privacy dei personaggi e menu Party (2026-07-31)
+
+**Il difetto era in una riga di SQL, non nella UI.** Alcuni giocatori vedevano il personaggio di un
+altro nella schermata Personaggi. La causa: `characters_select` diceva
+`owner_id = auth.uid() OR is_campaign_member(campaign_id)` — cioè *qualunque* membro della campagna
+poteva leggere *qualunque* personaggio. Non era un difetto di visualizzazione: la stessa lettura era
+possibile via REST diretto, quindi filtrare lato client non avrebbe risolto nulla.
+
+**Nuova regola:** un giocatore vede solo i propri PG, il master li vede tutti
+(`owner_id = auth.uid() OR is_campaign_master(campaign_id)`).
+
+**Il Party non è una SELECT sulla tabella.** Le stat dei compagni servono comunque, ma non la scheda
+intera: la RPC `get_party_overview` (SECURITY DEFINER, `search_path` fisso, `EXECUTE` revocato a
+`public`/`anon` e concesso ad `authenticated`) restituisce **solo** nome, specie, classe, livello, CA,
+PF, percezione passiva, velocità e nickname del proprietario, e solo se il chiamante è membro della
+campagna. La percezione passiva è calcolata **dentro** la funzione proprio per non dover restituire
+saggezza e competenze grezze al client.
+
+**La restrizione si propaga da sola, ed è una buona notizia.** Le policy di `inventory` e
+`character_spells` leggono `characters` con un `EXISTS`; in PostgreSQL la RLS si applica anche alle
+subquery dentro le policy, quindi quella `SELECT 1 FROM characters` subisce a sua volta la nuova
+`characters_select`. Effetto: un giocatore non vede più nemmeno inventario e incantesimi dei PG
+altrui, il master continua a vederli. Nessuna modifica necessaria a quelle policy — verificato riga
+per riga sullo schema, non assunto.
+
+**Gotcha di libreria che sarebbe esploso solo in produzione.** `Rpc<T>` di postgrest-csharp 3.5.1
+deserializza con `JsonConvert.DeserializeObject<T>` **senza** passare le `SerializerSettings` del
+client, quindi senza il contract resolver che altrove traduce `[Column("snake_case")]`. Con
+l'attributo `Column`, `PartyMember` si sarebbe popolato di campi vuoti — build verde, test verdi,
+pagina vuota online. La mappatura usa perciò `[JsonProperty]` di Newtonsoft.
+
+⚠️ **La migrazione `20260731000000_party_visibility.sql` va applicata a mano al progetto hosted
+PRIMA del push**: il deploy rilascia solo il client. Nell'ordine inverso, la pagina Party chiamerebbe
+una funzione inesistente.
+
+---
+
+## Wizard di creazione guidato (2026-07-31)
+
+**Un wizard c'era già, e non bastava.** `Shared/CharacterTabs/CharacterWizard.razor` riceveva
+`Classes` e `Races` come parametri dalla pagina, che li caricava dai **soli cataloghi di campagna**:
+righe che qualcuno deve aver creato a mano. Da lì l'attrito segnalato — un principiante deve capire
+da sé che prima si creano classe, razza e background nelle pagine catalogo, e solo dopo il
+personaggio.
+
+**Ora il wizard pesca da `ICatalogService`**, che unisce le righe di campagna con le voci del
+pacchetto SRD: alla prima apertura le scelte ci sono già. È diventato una **pagina**
+(`/characters/nuovo`) invece di un componente: sei passi, uno per schermata, e un indirizzo proprio —
+la creazione non è più uno stato nascosto dentro la lista dei personaggi. Il vecchio componente è
+stato rimosso, non affiancato.
+
+⚠️ I **passi** non stanno nell'URL, che resta uno solo: il tasto indietro del telefono esce dal
+wizard invece di tornare al passo precedente, e per giunta scavalca la conferma «Uscire senza
+salvare?». Metterli in query string è la correzione vera — annotata in `DA-FARE`, non fatta qui.
+
+**Difetto intercettato in integrazione:** tre `NavigateTo("/characters...")` con lo slash iniziale.
+In locale il `<base href>` è `/` e funzionano; in produzione è `/dnd-companion-app/` e sarebbero
+usciti dal sottopercorso di GitHub Pages. Convertiti alla forma relativa già usata da `BottomNav`.
+
+**Sesta voce nella barra.** `Party` sta accanto a `Personaggi`, di cui è la controparte da quando
+la lista mostra solo i PG propri. Sei è il tetto: a 390px sono celle da 65px, ancora sopra i 44px di
+target tap; una settima scenderebbe a 55px con le etichette quasi tutte troncate.
+
+---
+
+## Il manuale SRD 5.2.1 caricato (2026-07-31)
+
+`CatalogService` cercava `wwwroot/data/srd-2024-it.json` da quando esiste la Fase 1, ma quel file non
+era mai stato prodotto: i cataloghi erano vuoti finché l'utente non digitava tutto a mano. Ora c'è.
+
+**Il perimetro è la licenza, non il manuale.** Lo SRD 5.2.1 (CC BY 4.0) è un sottoinsieme
+deliberatamente ridotto del Manuale del Giocatore 2024: contiene **4 background** (Accolito,
+Criminale, Saggio, Soldato) e **17 talenti**, non i 16 e i ~40 del manuale commerciale. Artigiano,
+Marinaio, Fortunato, Robusto e simili **non sono ridistribuibili**: sono stati esclusi
+deliberatamente, non dimenticati. L'attribuzione CC BY 4.0 è nel campo `license` del pacchetto ed è
+la condizione della licenza — se sparisce, la ridistribuzione non è più conforme.
+
+**Fonte: il PDF ufficiale, anche per l'italiano.** WotC pubblica l'SRD 5.2.1 tradotto, e i nomi
+italiani non sono deducibili dall'inglese: *Eldritch Blast* è **Deflagrazione occulta**, *Acid Splash*
+è **Fiotto acido**, *Vicious Mockery* è **Beffa crudele**. Un primo giro di traduzione a mano aveva
+prodotto nomi plausibili ma inventati — al livello 1 solo 27 su 57 coincidevano con il manuale. Sono
+stati riallineati tutti: **339 nomi su 339** ora identici all'ufficiale, con la convenzione italiana
+della minuscola dopo la prima parola («Palla di fuoco», non «Palla di Fuoco»). Stessa verifica per la
+terminologia: la condizione *Charmed* è **affascinato** (105 occorrenze nel PDF ufficiale, zero di
+«ammaliato»), e il master è **GM**.
+
+**Velocità in piedi, non in metri.** `PackageSpeed.Value` è un `int` e un decimale fa fallire la
+deserializzazione dell'**intero** pacchetto, non della singola voce: il Golia a 35 piedi diventerebbe
+10,5 m. Il formato ammette già `"unit": "ft"` e il `CHECK` sul database pure, quindi il pacchetto
+dichiara i piedi — nessun dato falsificato per arrotondamento, nessuna migrazione di colonna, e il
+nodo `int`-vs-`decimal` di `DA-FARE` resta aperto ma non più bloccante per il contenuto dell'app.
+
+**Il pacchetto è dato, non codice: si verifica con i test.** `Tests/SrdPackageContentTests.cs` (14
+test) controlla ciò che né il compilatore né la CI vedrebbero: che il parser lo accetti, che ogni
+sezione abbia contenuto, che ogni voce porti il prefisso di provenienza `srd-2024-it/` (senza, la
+voce sembrerebbe modificabile invece che di sola lettura), che le velocità siano intere e nel
+dominio, che ogni classe copra 20 livelli con 9 slot ciascuno, che i tiri salvezza siano riconosciuti
+da `ParseSaveProficiencies` e i nomi di classe da `SpellClassNames` — con una prova end-to-end che
+il filtro per classe trovi davvero incantesimi per tutte e otto le classi incantatrici.
+
+**Chiusura della sessione del 2026-07-31.** 552 test unitari verdi (erano 400 a inizio giornata),
+build Release 0 warning / 0 errori. Il gate a due agenti è girato **tre volte** sul diff completo:
+il primo giro ha prodotto un BLOCCANTE — il wizard copiava la velocità della specie senza convertire
+i piedi in metri, difetto reso attuale proprio dalla scelta di dichiarare i piedi nel pacchetto — più
+sette SERI, fra cui la validazione delle caratteristiche aggirabile dai pallini di passo (si salvava
+un personaggio con sei 15, o con 54 punti spesi su 27) e cinque affermazioni false nei documenti
+scritti in questa stessa sessione. Il secondo giro ha chiuso senza bloccanti, con tre SERI residui —
+due letture divergenti dell'unità di velocità (risolta facendo dipendere `SpeedInMeters` dalla fonte
+unica `PackageRowMerge.UnitaValida`) e due voci di backlog che descrivevano codice cancellato dal
+diff. Il terzo giro non ha trovato né bloccanti né seri: solo rifiniture, fra cui una regressione
+introdotta dalla correzione precedente (il `@key` sul campo dei punteggi dipendeva anche dal valore,
+quindi le frecce dello spinner perdevano il fuoco dopo il primo scatto) e un residuo della stessa
+divergenza sull'unità, rimasto nel testo del suggerimento invece che nel calcolo. Vale la pena
+annotarlo: la parte più difficile da tenere vera non è stata il codice, ma i numeri e le affermazioni
+nei documenti, che il diff stesso invecchiava mentre veniva scritto.

@@ -127,7 +127,10 @@
 
 .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Colonna singola sotto i 641px (mobile-first): "Iniziativa" e "PF attuali" affiancati
+       scendono a ~137px l'uno a 320px, stretti per digitare col tastierino numerico aperto.
+       Tornano affiancati nel blocco Desktop. */
+    grid-template-columns: 1fr;
     gap: 0.7rem;
     margin-bottom: 0.85rem;
 }
@@ -529,6 +532,10 @@
 @media (min-width: 641px) {
     .combat-container {
         padding: 1.5rem 2rem 6rem;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr 1fr;
     }
 
     .page-title {

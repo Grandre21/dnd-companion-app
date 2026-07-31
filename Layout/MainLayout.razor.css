@@ -14,7 +14,7 @@ article.content {
 }
 
 /* Padding orizzontale SIMMETRICO (2026-07-30). Prima era 2rem a sinistra e 1.5rem a
-   destra, ma tutti e 10 i container di pagina lo annullano con lo stesso
+   destra, ma tutti e 12 i container di pagina lo annullano con lo stesso
    `margin: -1.1rem -1.5rem 0 -1.5rem`: sotto i 641px restavano 8px di scarto a sinistra e
    zero a destra, cioè il layout era sbilanciato **solo sul telefono** (il blocco ≥641px di
    ogni pagina correggeva con -2rem/-1.5rem). Con 1.5rem su entrambi i lati il margin base

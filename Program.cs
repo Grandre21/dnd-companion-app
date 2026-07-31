@@ -31,6 +31,7 @@ builder.Services.AddSingleton<IInventoryRepository, InventoryRepository>();
 builder.Services.AddSingleton<ICharacterSpellRepository, CharacterSpellRepository>();
 builder.Services.AddSingleton<ICampaignRepository, CampaignRepository>();
 builder.Services.AddSingleton<IBackgroundRepository, BackgroundRepository>();
+builder.Services.AddSingleton<IPartyRepository, PartyRepository>();
 
 // Scoped, NON Singleton: dipende da HttpClient, che Program.cs registra AddScoped, e un singleton
 // che cattura uno scoped lo tiene per sempre — l'accoppiamento sbagliato, oltre a far fallire la

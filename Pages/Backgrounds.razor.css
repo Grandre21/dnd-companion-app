@@ -356,7 +356,9 @@
 
 .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Colonna singola sotto i 641px (mobile-first): a 320px due campi affiancati scendono
+       a ~137px l'uno, stretti per digitare. Tornano affiancati nel blocco Desktop. */
+    grid-template-columns: 1fr;
     gap: 0.85rem;
 }
 
@@ -456,6 +458,10 @@
 @media (min-width: 641px) {
     .backgrounds-container {
         padding: 1.5rem 2rem 5rem;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr 1fr;
     }
 
     .page-title {

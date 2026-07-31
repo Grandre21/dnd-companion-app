@@ -20,7 +20,19 @@ public static class BottomNavRoutes
         var cut = current.IndexOfAny(new[] { '?', '#' });
         if (cut >= 0) current = current[..cut];
 
-        return string.Equals(current.Trim('/'), (route ?? string.Empty).Trim('/'),
-            StringComparison.OrdinalIgnoreCase);
+        current = current.Trim('/');
+        var target = (route ?? string.Empty).Trim('/');
+
+        if (string.Equals(current, target, StringComparison.OrdinalIgnoreCase)) return true;
+
+        // I SOTTOPERCORSI appartengono alla loro sezione: "characters/nuovo" (il wizard di
+        // creazione, che dal 2026-07-31 è una pagina propria) deve tenere accesa la voce
+        // "Personaggi". Con il solo confronto esatto la barra restava senza alcuna voce attiva.
+        // La rotta vuota della Home è esclusa di proposito: sarebbe prefisso di QUALUNQUE percorso
+        // e resterebbe accesa ovunque.
+        return target.Length > 0
+            && current.StartsWith(target, StringComparison.OrdinalIgnoreCase)
+            && current.Length > target.Length
+            && current[target.Length] == '/';
     }
 }

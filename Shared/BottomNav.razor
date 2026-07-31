@@ -7,10 +7,15 @@
     prima di questa barra ogni spostamento passava dalla Home, cioè due tap e un
     ricaricamento dati per ogni cambio di sezione. Sul telefono era l'attrito n.1.
 
-    Cinque voci, non nove: le destinazioni sono nove (8 card + Combattimento) e su 390px
-    darebbero celle da 43px, sotto la soglia del dito. Qui stanno le quattro sezioni di uso
-    continuo al tavolo più la Home, che resta l'accesso a tutto il resto (Mostri, Classi,
-    Razze, Background, Dati) e al cambio campagna.
+    Sei voci, non tutte: le destinazioni dell'app sono dieci e su 390px darebbero celle da 39px,
+    sotto la soglia del dito. Qui stanno le cinque sezioni di uso continuo al tavolo più la Home,
+    che resta l'accesso a tutto il resto — i cinque cataloghi di consultazione (Mostri, Classi,
+    Razze, Background, Dati) e il cambio campagna.
+
+    Il tetto è proprio sei: a 390px — lo schermo più stretto che consideriamo — sei celle
+    danno 65px l'una, ancora sopra i 44px di target tap; una settima scenderebbe a 55px con
+    etichette che troncano quasi tutte. Se servirà una destinazione in più, ne va tolta una,
+    non aggiunta e basta.
 
     Compare solo con una campagna attiva: senza, le sezioni non avrebbero dati da mostrare
     e la Home è comunque l'unica destinazione sensata. Il cambio campagna avviene in una
@@ -52,6 +57,11 @@
     {
         new("🏠", "Home",        ""),
         new("🗡️", "Personaggi",  "characters"),
+        // Party sta accanto a Personaggi perché è la sua controparte: da quando un giocatore
+        // vede in Personaggi solo i PROPRI PG (RLS ristretta, migrazione party_visibility), è
+        // qui che si guardano le stat dei compagni. Senza questa voce la pagina non sarebbe
+        // raggiungibile da nessun punto dell'app.
+        new("🛡️", "Party",       "party"),
         new("⚔️", "Iniziativa",  "combat"),
         new("📜", "Incantesimi", "spells"),
         new("📝", "Appunti",     "notes"),

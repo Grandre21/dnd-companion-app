@@ -371,7 +371,10 @@
 
 .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Colonna singola sotto i 641px (mobile-first): due campi da ~137px l'uno a 320px
+       ("Dado Vita" + "Abilità Primaria") sono stretti per digitare comodamente. La coppia
+       torna affiancata nel blocco Desktop qui sotto. */
+    grid-template-columns: 1fr;
     gap: 0.85rem;
 }
 
@@ -471,6 +474,10 @@
 @media (min-width: 641px) {
     .classes-container {
         padding: 1.5rem 2rem 5rem;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr 1fr;
     }
 
     .page-title {
