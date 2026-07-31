@@ -56,7 +56,7 @@
                 </div>
 
                 <div class="field">
-                    <label>Challenge Rating</label>
+                    <label>Grado sfida</label>
                     <input type="text" class="input" maxlength="10" @bind="editDraft.ChallengeRating" />
                 </div>
 
@@ -132,7 +132,7 @@
             <input type="text" class="search-input" placeholder="Cerca mostri..."
                    @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
 
-            <div class="filter-label">Challenge Rating</div>
+            <div class="filter-label">Grado sfida</div>
             <div class="chips-row">
                 @foreach (var cr in crFilters)
                 {
@@ -154,6 +154,16 @@
                         @t.Label
                     </button>
                 }
+            </div>
+
+            <div class="filter-label">Ordina per</div>
+            <div class="chips-row">
+                <button type="button" class="chip @(sortByCr ? "" : "chip-active")" @onclick="() => sortByCr = false">
+                    Nome
+                </button>
+                <button type="button" class="chip @(sortByCr ? "chip-active" : "")" @onclick="() => sortByCr = true">
+                    Grado sfida
+                </button>
             </div>
 
             <div class="results-info">
@@ -180,7 +190,7 @@
                             <div class="card-main">
                                 <div class="card-name">@entry.Name</div>
                                 <div class="card-meta">
-                                    <span class="cr-badge">CR @(string.IsNullOrEmpty(entry.ChallengeRating) ? "—" : entry.ChallengeRating)</span>
+                                    <span class="cr-badge">GS @(string.IsNullOrEmpty(entry.ChallengeRating) ? "—" : entry.ChallengeRating)</span>
                                     @if (entry.Db is not null)
                                     {
                                         <span class="type">@entry.Db.Type</span>
@@ -360,6 +370,9 @@
         new("21+",   v => v >= 21)
     };
     private readonly HashSet<string> crFilterLabels = new();
+
+    /// <summary>Ordine dell'elenco: falso = alfabetico (predefinito), vero = per grado sfida.</summary>
+    private bool sortByCr;
 
     private record MonsterType(string Label, string Match);
 
@@ -542,9 +555,14 @@
                     e.Db is not null && e.Db.Type.Contains(typeFilter, StringComparison.OrdinalIgnoreCase));
             }
 
-            return result
-                .OrderBy(e => MonsterCatalog.ParseChallengeRating(e.ChallengeRating))
-                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
+            // Alfabetico di default. Ordinando per grado sfida, i 30 mostri di GS 0 dello SRD
+            // occupano l'intera prima schermata e il bestiario sembra fatto solo di creature a
+            // zero: l'ordine per potenza serve a preparare uno scontro, non a sfogliare l'elenco.
+            return sortByCr
+                ? result
+                    .OrderBy(e => MonsterCatalog.ParseChallengeRating(e.ChallengeRating))
+                    .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                : result.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
         }
     }
 

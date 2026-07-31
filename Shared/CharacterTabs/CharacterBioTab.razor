@@ -1,4 +1,5 @@
 @using DndCompanion.Models
+@using DndCompanion.Services
 
 <div class="bio-blocks">
     <div class="bio-row">
@@ -39,10 +40,77 @@
             <p class="bio-block-text">@Character.SpeciesTraits</p>
         </div>
     }
+    @{
+        var raggiunti = ClassProgression.PrivilegiFinoAl(ClassProgressionText, Character.Level);
+        var slot = ClassProgression.SlotFinoAl(ClassProgressionText, Character.Level);
+        var prossimo = ClassProgression.ProssimoDopo(ClassProgressionText, Character.Level);
+    }
+    @if (raggiunti.Count > 0)
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">
+                DAL MANUALE — @(string.IsNullOrWhiteSpace(Character.Class) ? "CLASSE" : Character.Class.ToUpperInvariant()) FINO AL LIVELLO @Character.Level
+            </p>
+
+            @if (slot.Count > 0)
+            {
+                <p class="slot-line">
+                    <span class="slot-label">Slot incantesimo</span>
+                    @for (var i = 0; i < slot.Count; i++)
+                    {
+                        <span class="slot-chip" title="@(i + 1)° livello">@slot[i]</span>
+                    }
+                </p>
+            }
+
+            <ul class="feature-list">
+                @foreach (var riga in raggiunti)
+                {
+                    <li class="feature-row">
+                        <span class="feature-level">L@riga.Livello</span>
+                        <span class="feature-names">
+                            @foreach (var privilegio in riga.Privilegi)
+                            {
+                                var sottoclasse = ClassProgression.RiguardaSottoclasse(privilegio);
+                                <span class="feature-name @(sottoclasse ? "is-subclass" : "")">
+                                    @if (sottoclasse && !string.IsNullOrWhiteSpace(Character.Subclass))
+                                    {
+                                        @($"{privilegio}: {Character.Subclass}")
+                                    }
+                                    else
+                                    {
+                                        @privilegio
+                                    }
+                                </span>
+                            }
+                        </span>
+                    </li>
+                }
+            </ul>
+
+            @if (prossimo is not null)
+            {
+                <p class="next-level">
+                    Al livello @prossimo.Livello: @string.Join(", ", prossimo.Privilegi)
+                </p>
+            }
+
+            @* La sottoclasse si sceglie al 3° livello: finché il PG non ci arriva il campo resta
+               vuoto di proposito, e senza dirlo sembra una cosa dimenticata. *@
+            @if (string.IsNullOrWhiteSpace(Character.Subclass)
+                 && raggiunti.Any(r => r.Privilegi.Any(ClassProgression.RiguardaSottoclasse)))
+            {
+                <p class="next-level">Sottoclasse non ancora indicata: si compila dalla modifica della scheda.</p>
+            }
+        </div>
+    }
+
     @if (!string.IsNullOrWhiteSpace(Character.ClassFeatures))
     {
         <div class="bio-block">
-            <p class="bio-block-title">PRIVILEGI DI CLASSE</p>
+            @* Il titolo dice "a mano" solo quando c'è anche la tabella del manuale, altrimenti
+               distinguerebbe da nulla. *@
+            <p class="bio-block-title">@(raggiunti.Count > 0 ? "PRIVILEGI ANNOTATI A MANO" : "PRIVILEGI DI CLASSE")</p>
             <p class="bio-block-text">@Character.ClassFeatures</p>
         </div>
     }
@@ -74,6 +142,11 @@
 
     /// <summary>Abilita la modifica delle note (master o proprietario del PG); speculare alle RLS.</summary>
     [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>Tabella dei livelli della classe del personaggio, nel formato di
+    /// <see cref="ClassProgression"/>; null se la classe non è a catalogo o non ne ha una. Il
+    /// genitore la risolve perché è lui ad avere i cataloghi già caricati.</summary>
+    [Parameter] public string? ClassProgressionText { get; set; }
 
     /// <summary>Il genitore persiste le note (UpdateCharacter + sync della lista) e gestisce gli errori.</summary>
     [Parameter] public EventCallback<string> OnSaveNotes { get; set; }

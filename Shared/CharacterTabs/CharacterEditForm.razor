@@ -563,6 +563,25 @@
             Annulla
         </button>
     </div>
+
+    @* Eliminazione in fondo alla modifica e non nell'intestazione della scheda: lì starebbe
+       accanto alla matita, a distanza di pollice da un'azione quotidiana. Compare solo se il
+       genitore passa OnDelete, cioè mai in creazione. *@
+    @if (OnDelete.HasDelegate)
+    {
+        <div class="danger-zone">
+            <p class="danger-title">Eliminare il personaggio</p>
+            <p class="danger-text">
+                Se ne vanno anche il suo inventario e i suoi incantesimi. L'operazione non si annulla.
+            </p>
+            @* Senza il nome: `Draft` è la bozza, e chi rinomina senza salvare leggerebbe «Elimina
+               Gandalf il Grigio» e poi «Eliminare "Gandalf"?» nella conferma, che usa il nome
+               persistito. Il nome lo dice la conferma, una sola volta e giusto. *@
+            <button type="button" class="danger-btn" @onclick="@(() => OnDelete.InvokeAsync())" disabled="@IsBusy">
+                🗑 Elimina il personaggio
+            </button>
+        </div>
+    }
 </div>
 
 @code {
@@ -572,6 +591,10 @@
     [Parameter] public bool IsBusy { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
+
+    /// <summary>Eliminazione del personaggio. Non collegato = sezione assente: la conferma e la
+    /// chiamata al database restano al genitore, come per il salvataggio.</summary>
+    [Parameter] public EventCallback OnDelete { get; set; }
 
     private const string CustomOptionValue = "__custom__";
     private bool isClassCustom;

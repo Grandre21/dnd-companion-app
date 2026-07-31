@@ -87,6 +87,14 @@
             <input type="text" class="search-input" placeholder="Cerca background..."
                    @bind="searchInput" @bind:event="oninput" @bind:after="OnSearchInputChangedAsync" />
 
+            @* Quattro background sembrano un caricamento andato male: sono tutti quelli che la
+               licenza dello SRD 5.2.1 permette di distribuire. Detto qui, dove si conta l'elenco. *@
+            <p class="srd-note">
+                Dal manuale precaricato arrivano quattro background (Accolito, Criminale, Saggio, Soldato):
+                sono quelli che lo SRD 5.2.1 rende liberi. Gli altri del Manuale del Giocatore vanno
+                aggiunti a mano con «+».
+            </p>
+
             <div class="results-info">
                 @if (loading)
                 {

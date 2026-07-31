@@ -874,3 +874,88 @@ quindi le frecce dello spinner perdevano il fuoco dopo il primo scatto) e un res
 divergenza sull'unità, rimasto nel testo del suggerimento invece che nel calcolo. Vale la pena
 annotarlo: la parte più difficile da tenere vera non è stata il codice, ma i numeri e le affermazioni
 nei documenti, che il diff stesso invecchiava mentre veniva scritto.
+
+## Privilegi di classe, eliminazione dei PG e quattro segnalazioni dal campo (2026-07-31, secondo giro)
+
+Quattro segnalazioni arrivate dall'uso reale, subito dopo il rilascio di `0b74fa4`. Una sola era un
+difetto vero; le altre tre erano una funzione mai scritta, un ordinamento infelice e un limite di
+licenza scambiato per un caricamento a metà. Distinguerle era metà del lavoro: solo la prima si
+correggeva col codice che sembrava servire.
+
+**«La sottoclasse non porta benefici.»** Il difetto più grosso, e invisibile a build e test: il
+pacchetto porta 12 classi × 20 livelli con i privilegi e gli slot incantesimo — **274 privilegi in
+tutto** — il parser li leggeva correttamente in `PackageClass.Levels`, e poi `PackageRowMerge` li
+**buttava via**: né `NuovaClasse` né `ApplicaClasse` li copiavano da nessuna parte. Ogni classe
+importata arrivava senza un solo privilegio, e con essa la sottoclasse: al 3° livello non succedeva
+nulla perché non c'era nulla da far succedere. Il conteggio delle righe di catalogo, che è l'unica
+cosa che l'import mostra, restava giusto.
+
+La tabella `classes` non ha colonne per livello, e aggiungerle avrebbe voluto dire un'altra migrazione
+da applicare a mano al progetto hosted. I dati sono quindi finiti nell'unico posto che li accetta senza
+migrazione — il campo testuale `Features` — ma in una **forma riconoscibile**, non appiattiti in prosa:
+`L3 — Sottoclasse del Chierico · Slot 4/2`. Il nuovo helper puro `ClassProgression` la scrive e la
+rilegge, così la scheda del personaggio può mostrare i soli privilegi **già raggiunti** al suo livello,
+e la pagina Classi continua a mostrare un elenco leggibile a chi di questo formato non sa nulla.
+
+Due trappole, entrambe scoperte dai test e non a occhio. La prima: uno dei 274 privilegi si chiama
+«Movimento senza armatura (+4,5 m)» — con la virgola decimale italiana. Separare i privilegi sul
+carattere `,` lo spezzava in due voci senza senso, in silenzio; il separatore è quindi la stringa
+`", "`. La seconda: `RiguardaSottoclasse` cercava la parola «sottoclasse», e nove classi su dodici la
+usano — ma **Mago, Monaco e Paladino** conservano il nome tradizionale («Tradizione arcana»,
+«Tradizione monastica», «Giuramento sacro»). Il test che pretende una voce di sottoclasse al 3° livello
+per tutte e dodici le classi ha fatto emergere il buco: senza, proprio quei tre giocatori non avrebbero
+visto evidenziata la scelta che al 3° definisce il personaggio.
+
+Un aggiornamento non deve però cancellare il lavoro altrui: `ApplicaClasse` riscrive la tabella **solo**
+se il campo è vuoto o contiene già una tabella generata da noi. Chi ha compilato la classe a mano si
+sarebbe visto sostituire gli appunti da un re-import, senza alcun segnale.
+
+**«Non posso eliminare un mio personaggio.»** Vero, e non per un difetto: la funzione non era mai stata
+scritta. `ICharacterRepository` aveva create/read/update e basta. Lato database c'era già tutto — la
+policy `characters_delete` (proprietario o master) esiste dallo schema iniziale e le due chiavi esterne
+da `inventory` e `character_spells` sono `ON DELETE CASCADE` — quindi è bastato il client, senza
+migrazioni. Il comando sta **in fondo alla modifica**, non nell'intestazione della scheda: lì sarebbe
+finito accanto alla matita, a distanza di pollice da un'azione quotidiana. Dopo la cancellazione la
+pagina **rilegge l'elenco dal server** invece di rimuovere la riga in memoria: se la RLS ha rifiutato,
+PostgREST non solleva errori — cancella zero righe e risponde bene — e senza la rilettura l'utente
+vedrebbe sparire un personaggio ancora vivo.
+
+**«I mostri hanno tutti CD a 0.»** La sigla è quella della segnalazione: si intendeva il **grado
+sfida**, che in italiano si abbrevia GS — «CD» è la Classe Difficoltà. E qui non c'era alcun difetto
+nei dati: dei 331 mostri solo 30 hanno grado sfida 0, e i valori nel pacchetto sono corretti. Il
+problema era l'**ordinamento predefinito**,
+per grado sfida crescente: quei 30 occupavano l'intera prima schermata, e da telefono il bestiario
+sembrava fatto solo di creature a zero. Ora l'ordine di default è alfabetico, con un selettore
+Nome/Grado sfida — l'ordine per potenza serve a preparare uno scontro, non a sfogliare l'elenco.
+Nell'occasione l'etichetta è passata da «CR» a «GS», che è la sigla italiana ufficiale.
+
+**«Non ci sono abbastanza background.»** Nemmeno questo è un difetto: sono quattro perché **lo SRD 5.2.1
+ne concede quattro** (Accolito, Criminale, Saggio, Soldato). Gli altri del Manuale del Giocatore non
+sono ridistribuibili, e aggiungerli significherebbe pubblicare online materiale protetto. La correzione
+è quindi di **interfaccia**, non di dati: la pagina Background e il passo del wizard ora lo dicono, e
+indicano come aggiungerne di propri. Un limite di licenza che non si spiega viene letto come un
+caricamento andato male — ed era esattamente quello che era successo.
+
+Nell'occasione sono state tradotte le etichette delle tab della scheda (Combat/Stats/Bio/Items/Magic →
+Scontro/Stat/Bio/Zaino/Magia): erano rimaste in inglese dentro un'app interamente italiana.
+
+**Chiusura del secondo giro (2026-07-31).** 609 test unitari verdi (erano 552 a fine primo giro),
+build 0 warning / 0 errori. Il gate a due agenti è girato **tre volte**. Il primo giro ha trovato un
+SERIO — le righe di livello con i soli slot venivano stampate vuote, e sette classi su dodici ne
+hanno: un Mago avrebbe letto «L7» seguito dal nulla, cioè la stessa aria di dato mancante che questo
+lavoro doveva togliere — più sei rifiniture, fra cui una che valeva davvero: l'export di campagna non
+riesportava la tabella dei livelli, quindi una campagna esportata e reimportata altrove sarebbe
+tornata senza privilegi. Il secondo giro ha trovato un SERIO **nato dalla correzione precedente**:
+avendo fatto mostrare i venti livelli anche alla voce «Dal manuale», «Duplica e modifica» apriva una
+textarea vuota e la copia salvata nascondeva per nome la voce di pacchetto, facendo sparire la
+tabella dalla pagina. Il terzo giro non ha trovato né bloccanti né seri: sei rifiniture, di cui una
+sola sul comportamento — il ripiego sul manuale scattava anche per una classe scritta dal tavolo,
+che nella pagina Classi oscura la voce di pacchetto: la scheda avrebbe mostrato i privilegi SRD di
+una classe deliberatamente sostituita. La regola finale distingue per **provenienza**: una riga
+importata senza tabella è solo vecchia e si aggiorna dal manuale, una riga del tavolo no.
+
+Due osservazioni che valgono più delle singole correzioni. La prima: entrambi i SERI riguardavano
+casi che i dati reali producono e gli esempi inventati no — i livelli di soli slot, l'omonimia fra
+una classe del manuale e una del tavolo. I test scritti sul pacchetto vero li hanno trovati, quelli
+scritti a tavolino no. La seconda: il secondo SERIO l'ha introdotto una correzione del giro
+precedente, il che è l'argomento migliore per non fermare il gate al primo giro pulito.

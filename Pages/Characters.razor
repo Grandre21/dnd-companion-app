@@ -92,11 +92,11 @@
                 <div class="tab-bar">
                     <button class="tab-item @(activeTab == "combat" ? "active" : "")" @onclick='() => activeTab = "combat"'>
                         <span class="tab-icon">⚔</span>
-                        <span class="tab-label">Combat</span>
+                        <span class="tab-label">Scontro</span>
                     </button>
                     <button class="tab-item @(activeTab == "stats" ? "active" : "")" @onclick='() => activeTab = "stats"'>
                         <span class="tab-icon">📊</span>
-                        <span class="tab-label">Stats</span>
+                        <span class="tab-label">Stat</span>
                     </button>
                     <button class="tab-item @(activeTab == "bio" ? "active" : "")" @onclick='() => activeTab = "bio"'>
                         <span class="tab-icon">👤</span>
@@ -104,13 +104,13 @@
                     </button>
                     <button class="tab-item @(activeTab == "items" ? "active" : "")" @onclick='() => activeTab = "items"'>
                         <span class="tab-icon">🎒</span>
-                        <span class="tab-label">Items</span>
+                        <span class="tab-label">Zaino</span>
                     </button>
                     @if (!string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
                     {
                         <button class="tab-item @(activeTab == "magic" ? "active" : "")" @onclick='() => activeTab = "magic"'>
                             <span class="tab-icon">✨</span>
-                            <span class="tab-label">Magic</span>
+                            <span class="tab-label">Magia</span>
                         </button>
                     }
                 </div>
@@ -133,7 +133,8 @@
                 @* ===================== TAB BIO ===================== *@
                 @if (activeTab == "bio")
                 {
-                    <CharacterBioTab Character="@selected" CanEdit="@CanEdit" OnSaveNotes="@SaveNotesAsync" />
+                    <CharacterBioTab Character="@selected" CanEdit="@CanEdit" OnSaveNotes="@SaveNotesAsync"
+                                     ClassProgressionText="@ProgressioneClasseSelezionata" />
                 }
 
                 @* ===================== TAB ITEMS ===================== *@
@@ -157,7 +158,8 @@
 
         case ViewMode.Form:
             <CharacterEditForm Draft="@editDraft" Classes="@classes" Races="@races"
-                               IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm" />
+                               IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm"
+                               OnDelete="@DeleteSelectedAsync" />
             break;
     }
 
@@ -192,6 +194,15 @@
     private List<Spell> allSpells = new();
     private List<PackageSpell> packageSpells = new();
     private bool spellsLoaded;
+
+    // Classi del pacchetto: servono per mostrare i privilegi anche a chi NON ha importato le classi
+    // nella campagna, che è il caso normale. Le righe di database restano la fonte prioritaria.
+    private List<PackageClass> packageClasses = new();
+
+    /// <summary>Tabella dei livelli della classe del PG aperto; la regola di precedenza sta
+    /// nell'helper puro, qui restano solo le due collezioni già caricate.</summary>
+    private string? ProgressioneClasseSelezionata
+        => selected is null ? null : ClassProgression.Risolvi(classes, packageClasses, selected.Class);
 
     // ===== Navigazione a tab della vista detail =====
     // valori: combat | stats | bio | items | magic
@@ -278,6 +289,26 @@
         activeTab = "combat";
         await LoadInventoryAsync(c.Id);
         await EnsureSpellCatalogAsync();
+        await EnsureClassPackageAsync();
+    }
+
+    // Le classi del pacchetto, tutte: non la vista unita, che nasconde le voci già coperte da una
+    // riga di campagna. Chi ha importato le classi PRIMA che l'import portasse la tabella dei
+    // livelli ha righe senza privilegi, e la vista unita lascerebbe quel PG senza nulla da mostrare.
+    // Nessun traffico in più: il pacchetto è già stato scaricato qui sopra e resta in cache.
+    private async Task EnsureClassPackageAsync()
+    {
+        if (packageClasses.Count > 0) return;
+        try
+        {
+            var pacchetto = await Catalog.GetPackageAsync();
+            if (pacchetto is not null) packageClasses = pacchetto.Classes;
+        }
+        catch (Exception ex)
+        {
+            // Non blocca la scheda: senza tabella dei livelli il resto del personaggio è intatto.
+            errorMessage = $"Errore caricamento privilegi di classe: {ex.Message}";
+        }
     }
 
     // Carica catalogo globale (una sola volta) + incantesimi del PG, solo per gli incantatori.
@@ -378,6 +409,60 @@
         else
         {
             mode = ViewMode.Empty;
+        }
+    }
+
+    private async Task DeleteSelectedAsync()
+    {
+        // Speculare a characters_delete: proprietario o master. Senza il permesso il server non
+        // cancella e non protesta, quindi la finta riuscita si eviterebbe solo qui.
+        if (selected is null || !CanEdit) return;
+
+        var nome = string.IsNullOrWhiteSpace(selected.Name) ? "questo personaggio" : $"\"{selected.Name}\"";
+        var confermato = await Confirm.ShowAsync(
+            $"Eliminare {nome}? Spariscono anche il suo inventario e i suoi incantesimi.");
+        if (!confermato) return;
+
+        var id = selected.Id;
+        isBusy = true;
+        errorMessage = null;
+        var cancellato = false;
+        try
+        {
+            await CharacterRepository.DeleteCharacterAsync(id);
+            cancellato = true;
+
+            // Riletto dal server invece che rimosso dalla lista in memoria: se la RLS ha rifiutato
+            // la cancellazione PostgREST non protesta — elimina zero righe e risponde bene — e senza
+            // la rilettura l'utente vedrebbe sparire un personaggio ancora vivo.
+            characters = await CharacterRepository.GetCharactersForCampaignAsync(
+                CurrentUser.CampaignId ?? string.Empty);
+
+            var sopravvissuto = characters.FirstOrDefault(c => c.Id == id);
+            if (sopravvissuto is not null)
+            {
+                errorMessage = "Il personaggio non è stato eliminato: non hai i permessi per farlo.";
+                await OpenDetailAsync(sopravvissuto);
+                return;
+            }
+
+            selected = null;
+            editDraft = new Character();
+            Toasts.ShowSuccess("Personaggio eliminato");
+            await UpdateModeFromCharactersAsync();
+        }
+        catch (Exception ex)
+        {
+            // Due punti di fallimento distinti. Se la cancellazione è già passata e a cadere è la
+            // rilettura, dire "errore eliminazione" manderebbe l'utente a ritentare su un
+            // personaggio che non esiste più.
+            errorMessage = cancellato
+                ? $"Personaggio eliminato, ma l'elenco non si è aggiornato: {ex.Message}"
+                : $"Errore eliminazione: {ex.Message}";
+        }
+        finally
+        {
+            isBusy = false;
         }
     }
 

@@ -170,6 +170,51 @@ public class CampaignExportTests
         Assert.Equal(new[] { "Arcano", "Storia" }, mago.SkillChoices.From);
     }
 
+    // La tabella dei livelli, da quando l'import la scrive in `features`, ha un'inversione: senza
+    // riesportarla una campagna esportata e reimportata altrove perderebbe la progressione, e le
+    // schede tornerebbero senza privilegi. Gli slot tornano a nove, come vuole il formato.
+    [Fact]
+    public void Build_Classe_RiesportaLaTabellaDeiLivelli()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes =
+            {
+                new CharacterClass
+                {
+                    Id = "uuid-4", Name = "Chierico", CampaignId = "c1",
+                    Features = "L1 — Lanciare incantesimi, Ordine divino · Slot 2\nL3 — Sottoclasse del Chierico · Slot 4/2",
+                },
+            },
+        };
+
+        var chierico = Assert.Single(CampaignExport.Build(cataloghi, "c").Classes);
+
+        Assert.Equal(2, chierico.Levels.Count);
+        Assert.Equal(new[] { "Lanciare incantesimi", "Ordine divino" }, chierico.Levels[0].Features);
+        Assert.Equal(3, chierico.Levels[1].Level);
+        Assert.Equal(new[] { 4, 2, 0, 0, 0, 0, 0, 0, 0 }, chierico.Levels[1].SpellSlots);
+    }
+
+    // Il testo scritto a mano non è una tabella: non va inventata una progressione dal nulla.
+    [Fact]
+    public void Build_ClasseConFeaturesScritteAMano_NonInventaLivelli()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes =
+            {
+                new CharacterClass
+                {
+                    Id = "uuid-4", Name = "Mago", CampaignId = "c1",
+                    Features = "Recupero arcano, e altre note sparse.",
+                },
+            },
+        };
+
+        Assert.Empty(Assert.Single(CampaignExport.Build(cataloghi, "c").Classes).Levels);
+    }
+
     // Il testo libero digitato a mano dopo l'import non ha un'inversione affidabile: il campo va
     // omesso, non sostituito da una struttura inventata, e il resto della classe resta esportato.
     [Fact]

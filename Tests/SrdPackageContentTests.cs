@@ -225,6 +225,54 @@ public class SrdPackageContentTests
         }
     }
 
+    /// <summary>I 20 livelli arrivano alla scheda solo passando dal formato testuale di
+    /// <see cref="ClassProgression"/>: è l'unico posto dove stanno, perché la tabella
+    /// <c>classes</c> non ha colonne per livello. Un privilegio che non sopravvive al giro
+    /// sparisce dalla scheda in silenzio — e i nomi veri contengono già una virgola decimale
+    /// («Movimento senza armatura (+4,5 m)»), cioè il caso che rompe lo split ingenuo.</summary>
+    [Fact]
+    public void I_privilegi_delle_classi_sopravvivono_al_giro_di_serializzazione()
+    {
+        var p = CaricaPacchetto();
+
+        foreach (var c in p.Classes)
+        {
+            var testo = ClassProgression.Serializza(c.Levels);
+            var riletti = ClassProgression.Leggi(testo);
+
+            foreach (var atteso in c.Levels.Where(l => l.Features.Count > 0))
+            {
+                var riga = riletti.SingleOrDefault(r => r.Livello == atteso.Level);
+                Assert.True(riga is not null,
+                    $"Classe «{c.Name}»: il livello {atteso.Level} è sparito nel giro di serializzazione.");
+                Assert.True(atteso.Features.SequenceEqual(riga!.Privilegi),
+                    $"Classe «{c.Name}» livello {atteso.Level}: attesi [{string.Join(" | ", atteso.Features)}], "
+                    + $"riletti [{string.Join(" | ", riga.Privilegi)}].");
+            }
+        }
+    }
+
+    /// <summary>Ogni classe deve dichiarare dove si sblocca la sottoclasse: è la domanda che fa
+    /// sempre chi comincia, ed è ciò che la scheda evidenzia. Nel 2024 succede al 3° livello per
+    /// tutte e dodici.</summary>
+    [Fact]
+    public void Ogni_classe_dichiara_il_livello_della_sottoclasse()
+    {
+        var p = CaricaPacchetto();
+
+        foreach (var c in p.Classes)
+        {
+            var livelli = c.Levels
+                .Where(l => l.Features.Any(ClassProgression.RiguardaSottoclasse))
+                .Select(l => l.Level)
+                .ToList();
+
+            Assert.True(livelli.Contains(3),
+                $"Classe «{c.Name}»: nessun privilegio di sottoclasse al 3° livello "
+                + $"(trovati ai livelli [{string.Join(", ", livelli)}]).");
+        }
+    }
+
     [Fact]
     public void I_tiri_salvezza_delle_classi_sono_riconosciuti_dal_wizard()
     {

@@ -22,12 +22,14 @@ Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** ·
 > **prima**, non dopo.
 
 - 🔴 **Applicare a mano la migrazione `supabase/migrations/20260731000000_party_visibility.sql`**
-  al progetto Supabase hosted, **prima** del push. Il deploy rilascia solo il client: se il client
-  arriva per primo, la pagina Party chiama una funzione che non esiste. La migrazione restringe
-  `characters_select` e crea la RPC `get_party_overview`; è idempotente e rieseguibile.
-  **Compatibilità col client attualmente live:** la restrizione è sicura anche nell'ordine inverso —
+  al progetto Supabase hosted — **se non è già stata applicata**. Il commit `0b74fa4` è già stato
+  spinto (quindi già pubblicato) *prima* della migrazione, su richiesta esplicita: finché la query
+  non gira, la pagina Party mostra il banner d'errore perché chiama una funzione che non esiste.
+  La migrazione restringe `characters_select` e crea la RPC `get_party_overview`; è idempotente e
+  rieseguibile. **Compatibilità col client live:** la restrizione è sicura in entrambi gli ordini —
   il client vecchio continua a funzionare, semplicemente un giocatore vede meno righe (solo le
-  proprie), che è esattamente la correzione voluta.
+  proprie), che è esattamente la correzione voluta. Verifica: `SELECT proname FROM pg_proc WHERE
+  proname = 'get_party_overview';` deve restituire una riga.
 - 🔴 **Verifica a due account** (un master e un giocatore, la seconda sessione in incognito): il
   giocatore vede in Personaggi **solo i propri** PG; il master li vede **tutti**; entrambi vedono il
   gruppo in **Party** con le sole stat sintetiche; il giocatore **non** vede inventario e incantesimi
@@ -42,6 +44,20 @@ Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** ·
   pagina lunga: il tremolio nasceva dalla barra URL dinamica e l'emulazione di DevTools non la simula
   (v. DIARIO 2026-07-31). Con sei voci ora, controllare anche che nessuna etichetta tronchi sullo
   schermo più stretto.
+- 🟠 **Provare davvero l'eliminazione di un personaggio** (sessione 2026-07-31, secondo giro): il
+  percorso è Personaggi → apri il PG → ✎ → in fondo, «Elimina». Nessun test automatico può coprirlo,
+  perché il comportamento che conta è del **database**: inventario e incantesimi devono sparire con
+  lui (`ON DELETE CASCADE`). La prova a due account che ha senso è **il master che elimina il PG di
+  un giocatore**, con il giocatore in incognito che lo vede sparire. Il caso opposto — un giocatore
+  che cancella il PG altrui — non è raggiungibile dall'interfaccia (la ✎ è nascosta da
+  `AccessControl.CanEdit`, e con la migrazione party_visibility quel PG non gli viene nemmeno
+  mostrato): il controllo in `DeleteSelectedAsync` è difesa in profondità, non un percorso da
+  riprodurre a mano.
+- 🟡 **Guardare la scheda di un PG di livello ≥ 3 con una classe del manuale**: la scheda Bio ora
+  mostra la tabella dei privilegi fino al suo livello, con la voce di sottoclasse evidenziata e gli
+  slot incantesimo. Chi ha importato le classi **prima** di oggi ha righe senza tabella: la scheda
+  ripiega sul pacchetto e mostra comunque i privilegi, ma per aggiornare il catalogo di campagna
+  serve un re-import dalla schermata Dati.
 - 🟡 **Trappola nei nomi dei design token: `--gold-muted` e `--gold-muted-rgb` NON sono lo stesso
   colore.** Il primo è `#c9b88a`, il secondo `154, 140, 106` = `#9a8c6a`: la coppia sembra la solita
   «versione hex + versione rgb dello stesso token», e invece sono due tinte diverse. Chi sostituisce
@@ -393,6 +409,17 @@ mega-componente (quello resta in §3).
   `Spells`/`Races`/`Classes.razor.css`, che avevano lo stesso badge col literal — stesso valore esatto,
   nessun cambio visivo. (`Pages/Notes.razor.css` usa `var(--gold)`, colore diverso: non era nel novero.
   Lo stesso `#b89a80` resta in `.inv-weight` dell'inventario, che badge non è: lì il literal resta.)
+  🟡 **Due literal ancora da consolidare (aperto il 2026-07-31).** Introdotti in `:root` due token
+  con il valore **esatto** dei literal già in uso, per le regole nuove di quel giorno: `--text-body`
+  (`#c8b88a`, testo di paragrafo nelle card) e `--danger-text` (`#e6a373`, testo delle azioni
+  distruttive). Convertite solo le occorrenze nei due file già aperti dall'intervento; restano
+  literal `#c8b88a` in **4 file** (`CharacterCombatTab`, `SpellListItem`, `SpellPicker`, `StatCard`)
+  e `#e6a373` in **6** (`Classes`×2, `Combat`×2, `Monsters`×2, `Notes`, `Races`, `Spells` = 9
+  occorrenze). La decima occorrenza di `#e6a373`, in `Party.razor.css`, è uno **stop di gradiente**
+  e non un'azione distruttiva: quella non va convertita. Sweep meccanico da 9+4 occorrenze in file
+  non toccati da questo intervento: a parte, come fu per `--author-badge-text`. **Attenzione:** `--text-body` (`#c8b88a`) e `--gold-muted` (`#c9b88a`)
+  differiscono di un punto sul canale rosso — impercettibile a occhio, quindi la sostituzione va
+  fatta sul valore, mai "a somiglianza di nome".
 - 🟡 **Tap target (2026-07-30, lavoro mobile-first).** ✅ Portati a **44px** tutti i pulsanti
   (`hp-btn` — i ± dei PF, il controllo più toccato dell'app — `qty-btn`, `remove-btn`, `hd-btn`,
   `header-btn`, `db-error-dismiss`/`db-error-repair`, `inv-eq-toggle`); i pallini

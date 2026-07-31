@@ -111,6 +111,18 @@
     box-shadow: 0 0 0 3px rgba(var(--gold-rgb), 0.15);
 }
 
+/* Nota sul perimetro dello SRD: informativa, non un errore — niente rosso, niente icona d'allarme. */
+.srd-note {
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: rgb(var(--gold-muted-rgb));
+    background: rgba(var(--gold-rgb), 0.06);
+    border-left: 2px solid rgba(var(--gold-rgb), 0.35);
+    border-radius: 0 6px 6px 0;
+}
+
 .results-info {
     margin-top: 0.75rem;
     font-size: 0.85rem;

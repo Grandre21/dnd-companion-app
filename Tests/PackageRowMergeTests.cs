@@ -221,6 +221,85 @@ public class PackageRowMergeTests
     public void LeggiScelte_TestoLiberoONonDichiarato_ProduceNull(string? testo)
         => Assert.Null(PackageRowMerge.LeggiScelte(testo));
 
+    // ---- Tabella dei livelli (v. ClassProgressionTests per il formato) ----
+
+    private static PackageClass ClasseConLivelli(string nome = "Barbaro") => new()
+    {
+        Id = "p/" + nome.ToLowerInvariant(),
+        Name = nome,
+        Levels = new List<PackageClassLevel>
+        {
+            new() { Level = 1, Features = new List<string> { "Ira" } },
+            new() { Level = 3, Features = new List<string> { "Sottoclasse del Barbaro" } },
+        },
+    };
+
+    [Fact]
+    public void NuovaClasse_PortaLaTabellaDeiLivelli()
+    {
+        var riga = PackageRowMerge.NuovaClasse(ClasseConLivelli(), "c1", "u1");
+
+        Assert.Equal("L1 — Ira\nL3 — Sottoclasse del Barbaro", riga.Features);
+    }
+
+    [Fact]
+    public void ApplicaClasse_ScriveLaTabellaSeIlCampoEVuoto()
+    {
+        var esistente = new CharacterClass { Id = "uuid-1", Name = "Barbaro", CampaignId = "c1" };
+
+        PackageRowMerge.ApplicaClasse(ClasseConLivelli(), esistente);
+
+        Assert.True(ClassProgression.SembraProgressione(esistente.Features));
+    }
+
+    [Fact]
+    public void ApplicaClasse_AggiornaUnaTabellaGiaGenerata()
+    {
+        var esistente = new CharacterClass
+        {
+            Id = "uuid-1", Name = "Barbaro", CampaignId = "c1",
+            Features = "L1 — Vecchia voce",
+        };
+
+        PackageRowMerge.ApplicaClasse(ClasseConLivelli(), esistente);
+
+        Assert.DoesNotContain("Vecchia voce", esistente.Features);
+        Assert.Contains("Sottoclasse del Barbaro", esistente.Features);
+    }
+
+    /// <summary>La guardia che conta: chi ha compilato la classe a mano non deve vedersi cancellare
+    /// il testo da un re-import, e l'unico segnale disponibile è la forma del campo.</summary>
+    [Fact]
+    public void ApplicaClasse_NonSovrascriveGliAppuntiScrittiAMano()
+    {
+        var esistente = new CharacterClass
+        {
+            Id = "uuid-1", Name = "Barbaro", CampaignId = "c1",
+            Features = "Ricordarsi che al 3 sceglie il Berserker, come da accordo col gruppo.",
+        };
+
+        PackageRowMerge.ApplicaClasse(ClasseConLivelli(), esistente);
+
+        Assert.Equal("Ricordarsi che al 3 sceglie il Berserker, come da accordo col gruppo.", esistente.Features);
+    }
+
+    /// <summary>Il caso che una guardia basata su «contiene almeno una riga valida» lascerebbe
+    /// passare: la nota in coda alla tabella sparirebbe al primo re-import, senza segnale.</summary>
+    [Fact]
+    public void ApplicaClasse_NonToccaUnCampoConTabellaPiuNote()
+    {
+        var misto = "L1 — Ira\nNota: da noi la sottoclasse si sceglie a fine capitolo.";
+        var esistente = new CharacterClass
+        {
+            Id = "uuid-1", Name = "Barbaro", CampaignId = "c1",
+            Features = misto,
+        };
+
+        PackageRowMerge.ApplicaClasse(ClasseConLivelli(), esistente);
+
+        Assert.Equal(misto, esistente.Features);
+    }
+
     [Fact]
     public void ApplicaBackground_ListeVuote_NonAzzeranoLeColonne()
     {

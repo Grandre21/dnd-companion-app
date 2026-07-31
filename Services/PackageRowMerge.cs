@@ -58,6 +58,10 @@ public static class PackageRowMerge
         PrimaryAbility = p.PrimaryAbility,
         SavingThrows = Unisci(p.SavingThrows),
         SkillChoices = DescriviScelte(p.SkillChoices) ?? string.Empty,
+        // La tabella dei livelli è l'unico posto da cui il personaggio può sapere che cosa gli dà
+        // la classe (e quando si sblocca la sottoclasse): senza questa riga i 20 livelli del file
+        // venivano letti dal parser e poi buttati, e ogni classe importata arrivava senza privilegi.
+        Features = ClassProgression.Serializza(p.Levels),
         SourceId = p.Id,
         CampaignId = campaignId,
         AddedBy = userId,
@@ -127,7 +131,19 @@ public static class PackageRowMerge
         Scrivi(p.PrimaryAbility, v => c.PrimaryAbility = v);
         Scrivi(Unisci(p.SavingThrows), v => c.SavingThrows = v);
         Scrivi(DescriviScelte(p.SkillChoices), v => c.SkillChoices = v);
-        // c.Description, c.Features, c.ArmorProficiencies, c.WeaponProficiencies restano.
+
+        // La tabella dei livelli si riscrive solo se il campo è vuoto o contiene **soltanto** una
+        // tabella generata da noi. `Features` è testo libero e nella pagina Classi si scrive a mano:
+        // un re-import non deve cancellare gli appunti di chi ha compilato la classe da sé — né
+        // quelli aggiunti in coda alla tabella — e senza questa guardia lo farebbe in silenzio,
+        // perché il conteggio delle righe di catalogo non cambia.
+        if (p.Levels.Count > 0
+            && (string.IsNullOrWhiteSpace(c.Features) || ClassProgression.SoloProgressione(c.Features)))
+        {
+            Scrivi(ClassProgression.Serializza(p.Levels), v => c.Features = v);
+        }
+
+        // c.Description, c.ArmorProficiencies, c.WeaponProficiencies restano.
     }
 
     public static void ApplicaBackground(PackageBackground p, Background b)

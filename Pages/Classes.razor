@@ -334,6 +334,11 @@
         PrimaryAbility = p.PrimaryAbility,
         SavingThrows = string.Join(", ", p.SavingThrows),
         SkillChoices = PackageRowMerge.DescriviScelte(p.SkillChoices) ?? string.Empty,
+        // La tabella dei livelli va copiata come tutto il resto: la card mostra i venti livelli, e
+        // senza questa riga «Duplica e modifica» aprirebbe una textarea vuota. La copia, non avendo
+        // SourceId, oscura per nome la voce di pacchetto (CatalogMerge): la tabella sparirebbe
+        // dalla pagina e la scheda del PG mostrerebbe i privilegi SRD di una classe sostituita.
+        Features = ClassProgression.Serializza(p.Levels),
         SourceId = null,
         CampaignId = CurrentUser.CampaignId ?? string.Empty,
         AddedBy = CurrentUser.UserId,
@@ -386,10 +391,11 @@
         "db:" + c.Id, c.Name, c.Description, c.HitDie, c.PrimaryAbility, c.SavingThrows,
         c.SkillChoices, c.Features, false, CatalogKey.IsFromAppPackage(c.SourceId), c, null);
 
-    // Le liste del pacchetto diventano testo, come le colonne del Model. `levels` NON viene
-    // riversata in `features`: contiene la progressione completa per livello e la consumerà il
-    // motore di derivazione, che è fuori da questo spec (§3). Riversarla qui produrrebbe un muro
-    // di testo in una colonna pensata per l'elenco dei privilegi.
+    // Le liste del pacchetto diventano testo, come le colonne del Model. `levels` passa da
+    // ClassProgression.Serializza, la stessa conversione che usa l'import (2026-07-31): prima
+    // veniva scartata, e la voce «Dal manuale» mostrava la sezione privilegi vuota mentre la riga
+    // importata della stessa classe mostrava i venti livelli — due schede diverse per la stessa
+    // classe. Il formato resta a righe e `.section-body` ha `white-space: pre-wrap`.
     //
     // La descrizione delle scelte di abilità passa da PackageRowMerge.DescriviScelte, non da una
     // formula riscritta qui: è la stessa che usano import e aggiornamento, e tre copie
@@ -398,7 +404,7 @@
         "pkg:" + p.Id, p.Name, string.Empty, p.HitDie, p.PrimaryAbility,
         string.Join(", ", p.SavingThrows),
         PackageRowMerge.DescriviScelte(p.SkillChoices) ?? string.Empty,
-        string.Empty, true, true, null, p);
+        ClassProgression.Serializza(p.Levels), true, true, null, p);
 
     private IEnumerable<Entry> FilteredEntries
     {

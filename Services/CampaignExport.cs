@@ -158,6 +158,22 @@ public static class CampaignExport
                 PrimaryAbility = c.PrimaryAbility,
                 SavingThrows = SplitList(c.SavingThrows),
                 SkillChoices = PackageRowMerge.LeggiScelte(c.SkillChoices),
+                // `features` ha un'inversione da quando l'import ci scrive la tabella dei livelli
+                // (2026-07-31): senza questa riga una campagna esportata e reimportata altrove
+                // perderebbe la progressione, e le schede tornerebbero senza privilegi. Il testo
+                // che tabella non è produce una lista vuota, cioè il comportamento di prima.
+                Levels = ClassProgression.Leggi(c.Features)
+                    .Select(r => new PackageClassLevel
+                    {
+                        Level = r.Livello,
+                        Features = r.Privilegi.ToList(),
+                        // Nove esatti: il formato dichiara «nove slot, dal livello 1 al 9»
+                        // (PackageClassLevel), mentre nel testo gli zeri finali sono omessi.
+                        SpellSlots = Enumerable.Range(0, 9)
+                            .Select(i => i < r.Slot.Count ? r.Slot[i] : 0)
+                            .ToList(),
+                    })
+                    .ToList(),
             }).ToList(),
 
             Spells = incantesimi.Select((s, i) => new PackageSpell

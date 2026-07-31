@@ -42,9 +42,90 @@
 .bio-block-text {
     margin: 0;
     font-size: 13px;
-    color: #c8b88a;
+    color: var(--text-body);
     line-height: 1.5;
     white-space: pre-wrap;
+}
+
+/* ---- Tabella dei privilegi presi dal manuale ---- */
+
+.feature-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.feature-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.feature-level {
+    flex-shrink: 0;
+    min-width: 26px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gold-dim);
+    letter-spacing: 0.5px;
+}
+
+.feature-names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+}
+
+.feature-name {
+    font-size: 13px;
+    color: var(--text-body);
+    line-height: 1.4;
+}
+
+/* Non è solo un altro privilegio: è quello che apre la sottoclasse, ed è la domanda che fa
+   sempre chi comincia. */
+.feature-name.is-subclass {
+    color: var(--gold-light);
+    font-weight: 600;
+}
+
+.slot-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 0.6rem;
+}
+
+.slot-label {
+    font-size: 11px;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+}
+
+.slot-chip {
+    min-width: 20px;
+    padding: 1px 5px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    background: rgba(var(--gold-rgb), 0.12);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    border-radius: 4px;
+}
+
+.next-level {
+    margin: 0.6rem 0 0;
+    font-size: 12px;
+    color: var(--gold-dim);
+    line-height: 1.4;
+    font-style: italic;
 }
 
 .notes-textarea {

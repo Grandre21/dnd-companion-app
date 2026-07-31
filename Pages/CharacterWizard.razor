@@ -271,6 +271,13 @@
                                            placeholder="Scrivi il background" @bind="draft.Background" @bind:event="oninput" />
                                     <p class="field-hint">Un background scritto a mano non concede bonus automatici alle caratteristiche.</p>
                                 }
+                                @* I quattro dello SRD sono pochi e la reazione naturale è pensare a un
+                                   caricamento incompleto: meglio dirlo qui, dove si nota. *@
+                                <p class="field-hint">
+                                    Il manuale libero (SRD 5.2.1) ne contiene quattro. Gli altri del Manuale del
+                                    Giocatore non sono ridistribuibili: aggiungili dalla pagina Background, o scegli
+                                    «Altro» e scrivilo a mano.
+                                </p>
                             </div>
 
                             @if (SelectedBackgroundDb is not null)
