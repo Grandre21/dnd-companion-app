@@ -1,769 +1,195 @@
 # DA FARE — D&D Companion
 
-> Cose ancora da implementare, debito tecnico da pianificare e idee aperte da ragionare.
-> Per lo stato di ciò che è già fatto vedi [DIARIO.md](./DIARIO.md).
+> **Solo ciò che è aperto.** Una voce = 1-3 righe. Se serve più spazio, il racconto va in
+> [DIARIO.md](./DIARIO.md) e qui resta il rimando: questo documento si legge a ogni sessione, e la
+> sua lunghezza è un costo fisso.
 >
-> Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
-> riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
+> - Perché delle scelte già fatte → [DIARIO.md](./DIARIO.md).
+> - Punti **chiusi** con motivazioni, misure e alternative scartate →
+>   [archivio/DA-FARE-chiuso.md](./archivio/DA-FARE-chiuso.md) (il documento come era fino al 2026-08-01).
+> - Spec e piani → `docs/superpowers/specs/` e `docs/superpowers/plans/`.
+> - Monetizzazione → [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md) (accantonata).
 >
 > Ultimo aggiornamento: **2026-08-01**
->
-> I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
-> in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
-> la monetizzazione.
 
-Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
+Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
 
 ---
 
-## ⛔ Da fare PRIMA del prossimo push (sessioni 2026-07-31 e 2026-08-01)
+## ⛔ Verifiche manuali in sospeso
 
-> Il gate automatico non copre nulla di ciò che segue. `main` pubblica: quanto è qui va risolto
-> **prima**, non dopo.
+> Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
+> ogni push e da segnalare all'utente.
 
-- 🔴 **Applicare a mano la migrazione `supabase/migrations/20260731000000_party_visibility.sql`**
-  al progetto Supabase hosted — **se non è già stata applicata**. Il commit `0b74fa4` è già stato
-  spinto (quindi già pubblicato) *prima* della migrazione, su richiesta esplicita: finché la query
-  non gira, la pagina Party mostra il banner d'errore perché chiama una funzione che non esiste.
-  La migrazione restringe `characters_select` e crea la RPC `get_party_overview`; è idempotente e
-  rieseguibile. **Compatibilità col client live:** la restrizione è sicura in entrambi gli ordini —
-  il client vecchio continua a funzionare, semplicemente un giocatore vede meno righe (solo le
-  proprie), che è esattamente la correzione voluta. Verifica: `SELECT proname FROM pg_proc WHERE
-  proname = 'get_party_overview';` deve restituire una riga.
-- 🔴 **Verifica a due account** (un master e un giocatore, la seconda sessione in incognito): il
-  giocatore vede in Personaggi **solo i propri** PG; il master li vede **tutti**; entrambi vedono il
-  gruppo in **Party** con le sole stat sintetiche; il giocatore **non** vede inventario e incantesimi
-  dei PG altrui, il master sì. Serve un secondo account vero: le RLS non si esercitano da soli.
-- 🟠 **Verifica del publish Release con trimming** — `dotnet publish DndCompanion.csproj -c Release -o publish`,
-  poi servire `publish/wwwroot` **con accesso fatto e almeno una pagina di dati aperta**. Questa
-  sessione introduce un modello nuovo deserializzato via reflection (`PartyMember`, via Newtonsoft
-  dentro `Rpc<T>`): è esattamente la forma del difetto tipico del repo. L'assembly dell'app è coperto
-  da `TrimmerRootAssembly Include="DndCompanion"`, quindi in teoria è al sicuro — ma «in teoria» qui
-  si verifica, perché il difetto si vede **solo** sul sito pubblicato.
-  **Aggiornato il 2026-08-01:** il diff aggiunge un secondo modello nuovo, `PackageSubclass`
-  (annidato in `PackageClass`, letto da System.Text.Json col contesto generato). Non basta quindi
-  aprire la pagina Party: nel publish trimmato va aperta anche una **scheda o il wizard su una classe
-  del manuale**, che è dove le sottoclassi si deserializzano davvero.
-- 🟠 **Verifica a vista della barra inferiore su Android/Chrome e in PWA installata**, scorrendo una
-  pagina lunga: il tremolio nasceva dalla barra URL dinamica e l'emulazione di DevTools non la simula
-  (v. DIARIO 2026-07-31). Con sei voci ora, controllare anche che nessuna etichetta tronchi sullo
-  schermo più stretto.
-- 🟠 **Guardare la scheda riorganizzata su telefono** (2026-08-01): barra dei valori e tab sono un
-  unico blocco sticky. Da controllare (a) **la card dei PF a 360, 375 e 412px, su un PG con PF a
-  tre cifre** — è la fascia dove il gate ha trovato il «+» che usciva dalla card e finiva coperto
-  da quella della CA; ora numero e ± sono impilati, ma la misura va vista, non calcolata. I 360px
-  sono il valore in cui il media query attacca e la card deve *ancora* reggere i due pulsanti
-  affiancati (11px di margine, il minimo di tutta la scala); a 359 deve invece passare a riga
-  intera, ed è lì che cambia l'altezza del blocco sticky — cioè il punto (c); (b) che
-  PF/CA/INI/PERC restino leggibili scorrendo una scheda lunga; (c) che fra barra sticky in alto e
-  navigazione in basso resti abbastanza contenuto a vista. È la stessa categoria di verifica del
-  tremolio della barra inferiore: l'emulazione di DevTools non riproduce la barra URL dinamica di
-  Chrome su Android.
-- 🟠 **Provare il pannello «Importa mostri» del tracker** (2026-08-01, la pagina ora attinge a due
-  sorgenti): a ricerca vuota deve mostrare **le sole righe di campagna** — il comportamento che il
-  tracker ha sempre avuto — e scrivendo un nome devono comparire anche le voci del manuale, marcate
-  «Dal manuale», al massimo 40 con il conteggio delle altre. Due cose che nessun test di unità
-  copre, perché stanno nell'attraversamento fra picker e pagina: che le quantità scelte
-  **sopravvivano al cambio di ricerca** (si sceglie un mostro, si cerca il successivo, il primo deve
-  restare nel conteggio) e che i combattenti aggiunti arrivino nel tracker con i PF giusti.
-- 🟠 **Provare «Esporta tutto, manuale incluso»** (2026-08-01): il file scaricato deve avere tutte le
-  sezioni piene — specie, classi **con le sottoclassi**, background, incantesimi, mostri, talenti —
-  e il campo `license` con l'attribuzione CC BY; poi **reimportarlo** in una campagna di prova, che è
-  la sola verifica del giro completo. Da guardare anche il caso opposto, che è quello sottile:
-  l'export della **sola** campagna, in un tavolo dove un giocatore ha aggiunto alla scheda un
-  incantesimo del manuale (`SpellMaterialization` scrive una riga con testo SRD), deve **comunque**
-  riportare la licenza.
-- 🟡 **Guardare la scelta di sottoclasse** (2026-08-01) in creazione (wizard) e in modifica: con una
-  classe del manuale è un menu, con una classe propria del tavolo resta testo libero. Cambiando
-  classe, la sottoclasse dell'altra classe deve **sparire**, mentre una scritta a mano deve
-  **restare** (nel campo libero). Sulla tab «Scheda» di un PG di livello ≥ 3 devono comparire i
-  privilegi della sottoclasse e il testo delle sue regole.
-- 🟠 **Provare davvero l'eliminazione di un personaggio** (sessione 2026-07-31, secondo giro): il
-  percorso è Personaggi → apri il PG → tab «Scheda» → in fondo, «Elimina il personaggio». Nessun
-  test automatico può coprirlo, perché il comportamento che conta è del **database**: inventario e
-  incantesimi devono sparire con lui (`ON DELETE CASCADE`). La prova a due account che ha senso è
-  **il master che elimina il PG di un giocatore**, con il giocatore in incognito che lo vede
-  sparire. Il caso opposto — un giocatore
-  che cancella il PG altrui — non è raggiungibile dall'interfaccia (la ✎ è nascosta da
-  `AccessControl.CanEdit`, e con la migrazione party_visibility quel PG non gli viene nemmeno
-  mostrato): il controllo in `DeleteSelectedAsync` è difesa in profondità, non un percorso da
-  riprodurre a mano.
-- 🟡 **Guardare la scheda di un PG di livello ≥ 3 con una classe del manuale**: la tab «Scheda» ora
-  mostra la tabella dei privilegi fino al suo livello, con la voce di sottoclasse evidenziata e gli
-  slot incantesimo. Chi ha importato le classi **prima** di oggi ha righe senza tabella: la scheda
-  ripiega sul pacchetto e mostra comunque i privilegi, ma per aggiornare il catalogo di campagna
-  serve un re-import dalla schermata Dati.
-- 🟡 **Trappola nei nomi dei design token: `--gold-muted` e `--gold-muted-rgb` NON sono lo stesso
-  colore.** Il primo è `#c9b88a`, il secondo `154, 140, 106` = `#9a8c6a`: la coppia sembra la solita
-  «versione hex + versione rgb dello stesso token», e invece sono due tinte diverse. Chi sostituisce
-  un literal `#9a8c6a` con `var(--gold-muted)` "per pulizia" cambia il colore senza accorgersene —
-  è successo di sfiorarlo il 2026-07-31 in `Pages/Party.razor.css`. Da rinominare (es.
-  `--gold-dim-rgb`) o da allineare, ma è un cambio che tocca tutti i punti d'uso: va fatto in un
-  intervento dedicato, non di passaggio.
-- 🟡 **Due voci narranti nelle descrizioni degli incantesimi — decisione editoriale aperta.**
-  Misurato sul pacchetto: i livelli **3 e 5** (80 incantesimi) sono in **terza persona**
-  («l'incantatore tocca una creatura…»), gli altri otto livelli (259) in **seconda persona**
-  («tocchi una creatura…»). Le regole sono corrette in entrambi i casi: è solo tono. Le opzioni non
-  costano uguale e la scelta è editoriale, non tecnica:
-  (a) uniformare a **terza persona** = lo stile del manuale ufficiale italiano, ma tocca 259 voci;
-  (b) uniformare a **seconda persona** = tocca 80 voci, ma allontana dal testo ufficiale;
-  (c) lasciare com'è. Qualunque riscrittura di massa passa sopra il testo delle regole, quindi va
-  fatta a fonte aperta e verificata, non con una sostituzione automatica.
-- 🟡 **Peso del pacchetto dati.** `wwwroot/data/srd-2024-it.json` è il primo file davvero grande
-  dell'app: **943 KB grezzi, 176 KB compressi** (misurati, non stimati — GitHub Pages serve i JSON
-  con compressione). Erano 903 e 165 KB fino al 2026-08-01: i 40 KB in più sono le 12 sottoclassi
-  con il testo delle loro regole. È **escluso dal precache** del service worker (`offlineAssetsExclude`, già
-  previsto) e viene scaricato al primo uso: il costo reale è quindi un download da 176 KB alla prima
-  apertura di un catalogo, non un rallentamento dell'avvio. Da guardare comunque su rete lenta.
-  Si lega alla **virtualizzazione delle liste** (§5): con il manuale caricato i cataloghi superano di
-  molto le ~50 voci su cui poggiava la decisione di scartarla — il trigger di rivalutazione dichiarato
-  allora è ora scattato per davvero.
+- 🔴 **Migrazione `20260731000000_party_visibility.sql`** applicata a mano al Supabase hosted, se non
+  già fatto: finché non gira, la pagina Party mostra il banner d'errore. Verifica:
+  `SELECT proname FROM pg_proc WHERE proname = 'get_party_overview';`
+- 🔴 **Prova a due account** (master + giocatore in incognito): il giocatore vede solo i propri PG, il
+  master tutti; entrambi vedono il gruppo in Party con le sole stat sintetiche.
+- 🟠 **Publish Release trimmato**: `dotnet publish DndCompanion.csproj -c Release -o publish`, servire
+  `publish/wwwroot` **con accesso fatto**, aprendo la pagina Party **e** una scheda su una classe del
+  manuale (è lì che si deserializzano `PartyMember` e `PackageSubclass`).
+- 🟠 **Android reale**: barra inferiore allo scroll (l'emulazione non riproduce la barra URL dinamica)
+  e card dei PF a 360/375/412px su un PG con PF a tre cifre.
+- 🟠 **Tracker → «Importa mostri»**: a ricerca vuota solo le righe di campagna; cercando, anche il
+  manuale; le quantità devono sopravvivere al cambio di ricerca.
+- 🟠 **Export «tutto, manuale incluso» + reimport** in una campagna di prova. Caso sottile: l'export
+  della **sola** campagna, in un tavolo che ha materializzato un incantesimo, deve comunque portare la
+  licenza.
+- 🟠 **Eliminazione di un PG** (Scheda → in fondo): inventario e incantesimi devono sparire con lui
+  (`ON DELETE CASCADE`). La prova che conta è il master che elimina il PG di un giocatore.
+- 🟡 **Scelta della sottoclasse** in creazione e modifica: menu con una classe del manuale, testo
+  libero con una classe propria; cambiando classe quella dell'altra sparisce, una scritta a mano resta.
+- 🟡 **PG di livello ≥ 3 con classe importata prima del 2026-07-31**: la scheda ripiega sul pacchetto,
+  ma per aggiornare il catalogo di campagna serve un re-import dalla pagina Dati.
 
 ---
 
-## 🔜 Pronti per /loop — quick-win ingegnerizzati
+## 1. La direzione scelta il 2026-08-01
 
-> Tre interventi a basso rischio, indipendenti tra loro, pensati per una singola sessione `/loop`.
-> Emersi dall'uso reale dell'app (sessione del 2026-06-19).
+> Tre filoni decisi con l'utente, in un solo blocco perché toccano gli stessi file. Motivazioni in
+> [DIARIO.md](./DIARIO.md), sezione «La direzione scelta».
 
-### A. Recovery cache negli errori DB (caso Firefox) — ✅ FATTO (2026-06-20)
-**Problema:** all'apertura l'app a volte mostra "errore di connessione al DB" per cache PWA corrotta; pulire
-la cache a mano è proibitivo per utenti non esperti.
-**Come:** helper JS `window.repairApp()` in `wwwroot` che deregistra il service worker, svuota tutte le
-Cache API e ricarica — **senza toccare `localStorage`**, così la sessione Google resta attiva. Lato Blazor
-un piccolo componente riutilizzabile (`Shared/DbErrorBanner.razor`) con messaggio + pulsante
-"🔧 Ripara e ricarica" che invoca `repairApp()`, agganciato ai banner di errore di connessione (almeno
-Home, Characters, Combat).
-**Fatto quando:** con cache corrotta su Firefox, un click rimette in piedi l'app **già loggata**.
-**Stato:** ✅ `window.repairApp()` in `index.html` + `Shared/DbErrorBanner.razor` (tasto "🔧 Ripara e ricarica"
-solo sugli errori di sistema), applicato a tutte e 8 le pagine. Build Debug pulita.
+### A. 🟠 La sottoclasse è una **scelta**, non un campo di testo
+Richiesta ripetuta più volte: nel manuale la sottoclasse porta privilegi e abilità uniche, quindi
+ogni classe deve contenere le sue e il personaggio deve scegliere fra quelle.
+- Oggi funziona **solo** per le classi che il manuale conosce: una classe del tavolo, o una importata,
+  non ha dove tenere le proprie sottoclassi.
+- Serve una **casa nei dati**: colonna testuale su `classes` (come già per la tabella dei livelli) o
+  tabella dedicata — decisione da prendere, la seconda costa una migrazione e una RLS.
+- L'import deve **scriverle** (oggi le legge e le scarta); la pagina Classi deve permettere di
+  aggiungerle e modificarle; scheda e wizard le pescano da lì, non solo dal manuale.
+- I privilegi della sottoclasse vanno **applicati**, non solo elencati: è il ponte verso §3.
 
-### B. Showroom galleria componenti — ✅ FATTO (2026-06-20)
-**Problema:** serve una base per rendere la UI più curata e coerente.
-**Come:** nuova pagina `Pages/Showroom.razor` su rotta `/_showroom`, fuori dalla navigazione normale
-(raggiungibile via URL). Renderizza la libreria UI a tema: palette colori attuali, tipografia, bottoni
-(primario/secondario/danger), card, `StatCard`, `SpellListItem`, banner errore, FAB, campi input, empty
-state.
-**Si ripaga:** diventa il banco di lavoro per estrarre i **design token** (vedi §6) — guardando tutto
-insieme si vedono i colori da centralizzare.
-**Fatto quando:** `/_showroom` mostra tutti i mattoncini visivi a tema in un'unica pagina.
-**Stato:** ✅ `Pages/Showroom.razor` (rotta `/_showroom`, `LoginLayout` → niente guard). Palette colori con
-hex (bozza token), tipografia, bottoni, form, card, banner (`DbErrorBanner` reale), `StatCard`/`SpellListItem`
-con dati di esempio, FAB, empty state. Build Debug pulita.
+### B. 🟠 Il file di dati porta **tutto**
+Tutto ciò che l'app sa deve uscire in JSON, essere editabile e rientrare senza perdite: sono i
+giocatori a portarsi dentro i contenuti.
+- **Perimetro (deciso):** cataloghi al completo — specie, classi *con sottoclassi e livelli*,
+  background, talenti, incantesimi, mostri. PG, appunti e stato del combattimento restano fuori.
+- Da chiudere le perdite attuali: `skillChoices` digitato a mano non ha inversione; le sottoclassi
+  escono solo sulle righe di provenienza manuale; i talenti non hanno tabella (decidere se dargliela).
+- **Nessun limite di volume** (deciso): il formato deve scalare. Niente tetti al numero di voci.
+- Criterio di fatto: un test di **round-trip** — export → import → export produce lo stesso file.
 
-### C. Bonus raggruppati + scaletta di compilazione — ✅ FATTO (2026-06-20)
-**Problema:** compilare la scheda è lento e disorientante — i bonus sono sparsi e non c'è un ordine chiaro.
-**Come:** in `Characters.razor` (form di modifica) radunare i bonus/derivati oggi sparsi (competenza,
-iniziativa, modificatori caratteristiche, bonus razziali) in **un blocco riepilogo coerente**, e dare alle
-sezioni del form una **scaletta numerata in ordine logico** (1. Identità → 2. Caratteristiche →
-3. Combattimento → 4. Risorse → 5. Incantesimi → …). Intervento UX **mirato sul markup**, non refactor del
-mega-componente (quello resta in §3).
-**Fatto quando:** il form ha sezioni numerate in ordine logico e i bonus stanno in un unico blocco.
-**Stato:** ✅ I 7 titoli del form di modifica numerati (1. Identità → 7. Incantesimi) + blocco riepilogo
-(competenza + 6 modificatori) in cima alla sezione Caratteristiche, riusando `.derived-info`. Build Debug pulita.
-
-> ⚠️ Tampone, non redesign: il flusso di compilazione vero (wizard guidato) è in §8. Questo lo rende solo
-> più sopportabile subito.
+### C. 🔴 Sicurezza dell'import (nello stesso lavoro di B)
+Un file scritto a mano può dichiarare `"id": "srd-2024-it"` e **spacciarsi per il manuale**: le righe
+che ne nascono si presentano come ufficiali, non sono modificabili dall'interfaccia (nemmeno dal
+master) e «Rimuovi un import» rifiuta quel prefisso — restano indelebili, recuperabili solo via
+database. Il parser deve rifiutare o rinominare gli id che rivendicano il prefisso del manuale.
+Verificato il 2026-08-01: nessuna escalation (le RLS tengono) e nessuna iniezione HTML
+(`MarkupString` non è usato). Minore: nomi con caratteri simili possono oscurare una voce ufficiale
+sfruttando «a parità di nome vince la riga locale».
 
 ---
 
-## 1. Sicurezza — prerequisito al lancio pubblico
+## 2. Sicurezza — gate del lancio pubblico
 
-> **Stato (2026-06-24): RLS attive e corrette su tutte le tabelle.** L'audit del DB ha rivelato che le
-> Row-Level Security erano **già implementate** (non permissive come annotato in passato); abbiamo chiuso i
-> due gap residui. L'autorità sui dati è ora lato server: chi ha la anon key non può più leggere/scrivere
-> dati altrui via REST. Dettaglio in `docs/superpowers/` (spec + piano del 2026-06-24).
-> ⚠️ **Qualifica (2026-07-25):** vale per la lettura e per la generalità della scrittura; resta un varco
-> sull'`UPDATE` di **sette tabelle** — un autore può riassegnare `campaign_id` di una propria riga verso una
-> campagna di cui non è membro. Non è puntuale come sembrava a prima vista: su `characters` e `notes`
-> l'effetto è **iniezione persistente** in una campagna altrui, non semplice perdita (voce sotto, "Lacuna
-> nella `WITH CHECK`...").
-
-- ✅ **Scrivere e testare le RLS per ogni tabella** — FATTO (2026-06-24). Policy su `characters`,
-  `campaign_members`, `notes`, inventario/incantesimi, cataloghi e `campaigns`: un Player legge/modifica solo
-  ciò che gli compete; le note private restano del proprietario. Chiusi i due gap emersi dall'audit:
-  `combat_state` (era `ALL true/true` → ora scrittura al solo master) e `campaign_members_insert` (consentiva
-  l'auto-promozione a master → ora i join passano dalla RPC `join_campaign`). Verificato a due account + REST.
-- ✅ **Spostare le autorizzazioni sul server** — FATTO. Ruolo e proprietà (`isMaster`, owner del PG) sono
-  applicati via RLS basate su `auth.uid()` e sugli helper `is_campaign_member`/`is_campaign_master`, non più
-  solo nella UI.
-- 🟡 **Vincoli e validazione a livello DB.** ✅ Integrità referenziale: l'audit (2026-06-24) ha confermato
-  **FK + `ON DELETE CASCADE`** già presenti su tutte le relazioni verso `campaigns`/`characters` (gli
-  `added_by` dei cataloghi sono `SET NULL`, corretto). ✅ **Validazione di dominio lato client** (2026-06-24):
-  helper puro testato `Services/FormValidation.cs` (`ValidateMonster`/`ValidateRace`/`InRange`, 11 test);
-  form Mostri (caratteristiche 1–30, CA 0–40) e Razze (velocità 0–120) ora validano con messaggi chiari
-  (Incantesimi/Personaggi erano già coperti: livello 0–9 / `CharacterNormalizer`). ✅ **`CHECK` sul dominio
-  di `speed_unit`** (Task 4 del modello 2024, 2026-07-25): `races.speed_unit` ora accetta solo `'m'`/`'ft'`
-  a livello DB, non solo lato client (`supabase/migrations/20260726000000_catalog_packages.sql`).
-  **Resta (a livello DB):** `NOT NULL`, lunghezze e gli altri `CHECK` SQL sui range numerici
-  (caratteristiche, CA, velocità) — l'accesso alle migrazioni Supabase non è più un ostacolo, dimostrato
-  dalla migrazione del Task 4.
-- 🟡 **Header di sicurezza.** ✅ **CSP in `<meta>`** (2026-06-24): `default-src 'self'`, `connect-src` ai soli
-  self+Supabase (blocca esfiltrazione), `object-src 'none'`, `base-uri 'self'`, `script-src` con
-  `'unsafe-inline'` + `'wasm-unsafe-eval'`. Scelta pragmatica: l'approccio a hash è insostenibile perché
-  .NET inietta un `<script type="importmap">` auto-generato il cui contenuto cambia ad ogni build (motivazione
-  completa nel commento accanto al `<meta>` in `wwwroot/index.html`). Verificato in locale (boot pulito,
-  login/CRUD ok). **Resta:** GitHub Pages non
-  permette header HTTP → `frame-ancestors` (anti-clickjacking)/HSTS/`report-uri` non ottenibili via `<meta>`;
-  servirebbe un hosting con controllo header.
-- 🟡 **Lacuna nella `WITH CHECK` di update ("campaign hopping" dell'autore) — cataloghi, personaggi e note.** Scoperta in
-  revisione durante il Task 4 del modello 2024 (`backgrounds`, 2026-07-25): le policy `*_update` di
-  `races`/`classes`/`spells`/`monsters`/`characters` (e ora `backgrounds`, che le ricalca fedelmente) hanno
-  `USING`/`WITH CHECK` identiche e simmetriche (`added_by = auth.uid() OR is_campaign_master(campaign_id)`;
-  su `characters` la stessa struttura usa `owner_id` al posto di `added_by`).
-  Siccome quella colonna non cambia con uno spostamento, per l'**autore/proprietario** di una riga la `WITH CHECK` resta
-  sempre vera indipendentemente dalla campagna di destinazione: via REST diretto (non esposto dalla UI
-  attuale, che non offre un modo di riassegnare `campaign_id`) un giocatore potrebbe spostare una propria
-  riga di catalogo verso una campagna di cui non è membro. La `WITH CHECK` protegge invece correttamente il
-  caso "un master sposta una riga altrui fuori dalla propria autorità" (verificato con un test dedicato,
-  `Tests.Integration/BackgroundsRlsIntegrationTests.cs`). **Non corretto** in Task 4: irrobustirlo
-  significherebbe divergere da `races_update` e affini su più tabelle già in produzione — decisione fuori
-  mandato di quel task, serve conferma esplicita. Piste se si deciderà di chiuderla: `WITH CHECK` che leghi
-  il ramo autore alla membership di destinazione (`(added_by = auth.uid() AND is_campaign_member(campaign_id))
-  OR is_campaign_master(campaign_id)` — permetterebbe comunque lo spostamento verso campagne di cui l'autore
-  è già membro) oppure un trigger `BEFORE UPDATE` che confronti `OLD.campaign_id`/`NEW.campaign_id`.
-  **Portata reale (rivista il 2026-07-25 dopo verifica sulle policy — la prima stima era troppo generosa):**
-  le tabelle colpite sono **sette, non sei**. L'unica mancante dall'elenco sopra è **`notes`**
-  (`notes_update` è `USING/WITH CHECK (owner_id = auth.uid())`, senza alcun vincolo sulla destinazione);
-  `characters` c'era già, ma se ne sottovalutava l'effetto — sopra si parla solo di spostare «una propria
-  riga di catalogo», e non è il caso peggiore.
-  **In tutti e sette i casi la riga entra nella campagna bersaglio** e diventa visibile ai suoi membri: è
-  sempre iniezione. Quello che cambia è **se la vittima può ripulire** e se l'autore mantiene la vista:
-  - **cataloghi** — la voce compare nel catalogo della campagna bersaglio; il master di quella campagna
-    **può rimuoverla** (`*_update`/`*_delete` hanno il ramo `is_campaign_master`). L'autore perde la vista
-    (`*_select` richiede `is_campaign_member`) ma non il controllo: il ramo `added_by = auth.uid()` di
-    `USING` non dipende dalla campagna, quindi continua a modificarla e cancellarla **per id**;
-  - **`characters`** — il PG compare fra i personaggi della campagna bersaglio e nell'import del tracker
-    combattimento; anche qui il master **può rimuoverlo**. In più l'autore **non perde l'accesso**, perché
-    `characters_select` ha il ramo `owner_id = auth.uid()` (dall'app il PG sparisce comunque dal suo elenco,
-    che filtra per `campaign_id`; resta raggiungibile per id via REST);
-  - **`notes`** — con `is_shared = true` la nota si riversa nelle **note condivise** della campagna
-    bersaglio, e **nessuno può rimuoverla**: `notes_update`/`notes_delete` hanno il solo ramo
-    `owner_id = auth.uid()`, senza alcun ramo master. La vittima non ha rimedio applicativo. È il caso
-    peggiore dei sette, ed è questa la ragione — non la sola visibilità.
-
-  Resta vero che non c'è né lettura di dati altrui né escalation di ruolo: è **iniezione di contenuto**, non
-  esfiltrazione. Ma "vandalismo mirato" descrive male il caso `notes`.
-  **L'uuid della campagna bersaglio non è una barriera** per l'attaccante plausibile: un ex-membro lo
-  conserva (lo rilegge dai propri PG e dalle proprie note rimasti lì, che `owner_id = auth.uid()` gli lascia
-  vedere anche dopo la rimozione), e `find_campaign_by_invite_code` è `SECURITY DEFINER` concessa ad `anon`:
-  chiunque abbia visto un codice invito ottiene l'uuid senza unirsi. Non si indovina, ma non serve.
-  **Priorità:** la voce resta 🟡 e non 🟢 nonostante l'assenza di esfiltrazione, perché §1 è il gate di
-  pubblicazione e questo è l'unico varco di scrittura **fra campagne** noto.
-  **Da valutare nella stessa migrazione, il caso gemello:** il ramo autore/proprietario di
-  `*_update`/`*_delete` non richiede la membership **corrente**, quindi un ex-membro mantiene scrittura e
-  cancellazione su tutte le proprie righe rimaste in campagna — note, personaggi, voci di catalogo — senza
-  alcuno spostamento. Il caso più acuto è di nuovo la nota condivisa, che nessun altro può rimuovere.
-  **Come chiuderla:** migrazione **autonoma**, con il suo giro di test RLS — sette tabelle, di cui sei già in
-  produzione (`backgrounds` ci arriverà col deploy della Fase 1). **Aggiornamento (2026-07-29):** la Fase 2 si
-  è chiusa senza toccare le policy, come previsto — la finestra indicata («in prossimità della Fase 2») **è
-  ora**, fra Fase 2 e Fase 3, e **comunque prima di aprire l'app al pubblico**, coerentemente con §10 punto 2.
+- 🔴 **«Campaign hopping» nelle `WITH CHECK` di update**, 7 tabelle: l'autore può spostare una propria
+  riga in una campagna di cui non è membro. Il caso peggiore è `notes` condivise, che **nessuno** può
+  rimuovere. Caso gemello: l'ex-membro conserva scrittura sulle proprie righe rimaste in campagna.
+  Una migrazione autonoma col suo giro di test RLS. Dettaglio nell'archivio, §1.
+- 🔴 **Prefisso del manuale spoofabile** all'import → §1.C.
+- 🟡 **Vincoli DB residui**: `NOT NULL`, lunghezze e `CHECK` sui range numerici (caratteristiche, CA,
+  velocità). Oggi validati solo lato client (`FormValidation`).
+- 🟡 **Header di sicurezza**: `frame-ancestors`/HSTS/`report-uri` non ottenibili via `<meta>`; GitHub
+  Pages non permette header HTTP. Servirebbe un altro hosting (v. §7).
 
 ---
 
-## 2. Bundle & dipendenze
+## 3. Gioco al tavolo
 
-- ✅ **Eliminare Realtime / `System.Reactive`.** — FATTO (2026-06-24). Il meta-pacchetto `supabase-csharp`
-  è stato sostituito dagli standalone `postgrest-csharp 3.5.1` + `gotrue-csharp 4.2.7`; rimossi
-  `realtime-csharp`, `supabase-storage`, `System.Reactive` e `Websocket.Client`. Auth e dati vivono dietro
-  la facade `Services/SupabaseClient.cs` (`From<T>`/`Rpc<T>`/`Auth`), a superficie invariata per tutti i
-  repository e le pagine. Token per-request via `GetHeaders`. Build 0/0, 111 test verdi. Il combat resta a
-  polling (§8) — il punto di tensione non esiste più. Verifica runtime manuale (login/CRUD/RLS) mai
-  formalizzata; il codice è però live su `main` dal 2026-06-24 e l'app in produzione funziona.
-- ✅ **Misurare il bundle pubblicato** — FATTO (2026-06-24). Confronto publish Release `before` (commit
-  `f84e133`, meta `supabase-csharp 0.16.2`) vs `after` (`main`, split standalone) su `wwwroot/_framework`:
-  **−9 assembly** (77 → 68), **−272 KB** RAW (10.62 → 10.35 MB), **−124 KB Brotli** (3.57 → 3.45 MB),
-  −160 KB Gzip. Eliminati: `Supabase`(meta)/`Supabase.Realtime`/`Supabase.Functions`/`Supabase.Storage`,
-  `System.Reactive`, `Websocket.Client`, `System.Net.WebSockets`(+`.Client`), `System.Threading.Channels`.
-  **Smoke test trim `full`:** publish exit 0, 0 avvisi, gli assembly radicati `Supabase.Gotrue`/`Supabase.Postgrest`
-  presenti → nessun ctor strippato. ⚠️ **Criterio smentito il 2026-07-30:** quei due controlli **non provano
-  nulla**. Gli avvisi di trim li spegne il Blazor SDK (`SuppressTrimAnalysisWarnings` vale `true` se non la si
-  forza → ILLink riceve `--notrimwarn`), e i due assembly compaiono in `_framework` anche se il rooting salta,
-  perché li istanzia direttamente `SupabaseService`: sarebbero solo più piccoli, coi costruttori via reflection
-  già strippati. I segnali validi sono la **taglia** dell'assembly contro il `.dll` NuGet e il **caricamento
-  dell'app pubblicata con accesso fatto** (l'errore è a runtime nel browser). Regola operativa in `CLAUDE.md`,
-  sezione sul ramo unico. Il *risultato* di allora resta plausibile — l'app in produzione funziona — ma non era
-  dimostrato da quella verifica. Il delta è modesto perché `TrimMode=full` già sfrondava `System.Reactive`
-  (70.8 KB trimmato nel `before`); il guadagno vero è rimuovere **9 file interi** (meno richieste/decompressione
-  al cold-load). ⚠️ Numeri assoluti misurati **senza** workload `wasm-tools` (non installato in locale): in
-  produzione la CI fa `dotnet workload restore` → relinking nativo del `dotnet.native.wasm` (2.9 MB) → bundle
-  reale più piccolo. Il *delta* del taglio resta valido.
-- ✅ **Indagine `System.Private.Xml`** — FATTO (2026-06-24, dump dipendenze del trimmer). I ~1.4 MB di
-  `System.Private.Xml` (+ `System.Private.Xml.Linq`) sono trascinati da `Newtonsoft.Json.Converters.XmlNodeConverter`
-  (col suo `XObjectWrapper`/`XContainerWrapper`); il trimmer non può eliminarlo perché Newtonsoft produce trim
-  warning (IL2104, reflection). **Non eliminabile in sicurezza** finché Newtonsoft è il serializzatore dei Model
-  Postgrest (vedi sotto): si libererà da solo quando Supabase mollerà Newtonsoft. (Collaterale: anche
-  `System.Data.Common` ~463 KB nel bundle, target separato.)
-- ✅ **Rimuovere Bootstrap** — FATTO (2026-07-30, lavoro mobile-first). L'app ne usava **due classi**
-  (`btn` in Login, già ridefinita per intero in `Login.razor.css`; `px-4` in `MainLayout`, già inerte
-  per via del `!important` sul padding di `article`), ma il service worker precacheva **per estensione**
-  (`/\.css$/`, `/\.js$/`) tutti i **22 file css/js** di `wwwroot/lib`: grid, utilities, reboot, varianti
-  RTL, bundle JS — **2,4 MB** sulla rete del telefono (l'intero `_framework` compresso ne pesa 3,45).
-  Al suo posto un **reset locale** in testa a `wwwroot/css/app.css` che replica *bootstrap-reboot* alla
-  lettera con i valori `--bs-*` risolti. Due regole erano invisibili ma indispensabili
-  (`-webkit-tap-highlight-color: transparent`, `-webkit-text-size-adjust: 100%`): senza replicarle il
-  flash grigio al tocco sarebbe comparso **a causa** della rimozione. Resa verificata a runtime su
-  `/_showroom` e `/login`. ⚠️ La gotcha «Bootstrap nasconde `.toast`» (§3) **non ha più una causa**,
-  ma la classe resta `.app-toast` per non farla rinascere.
-- ℹ️ `Newtonsoft.Json` **non è rimuovibile** finché si usa Supabase 0.16.x (serializzatore runtime dei Model).
+- 🟠 **Motore di derivazione condiviso** (PF, slot, competenze, taglia, velocità, privilegi) usato da
+  creazione, **modifica** e level-up: oggi solo il wizard suggerisce qualcosa e il form duplica il
+  markup senza calcolare niente.
+- 🟠 **Level-up guidato**: oggi salire di livello è editare a mano PF, dadi vita, 9 slot e competenze.
+  È l'attrito che torna a ogni sessione di gioco. Poggia sul motore qui sopra.
+- 🟠 **Combattimento consultabile**: il tracker porta solo nome e PF, quindi le statistiche del mostro
+  non si vedono mentre si combatte. Serve un riferimento alla sorgente nel `Combatant` (campo
+  additivo nel `jsonb`, nessuna migrazione) e un blocco statistiche apribile sulla riga.
+- 🟡 **Iniziativa precompilata o tirata**: gli import mettono `Initiative = 0` benché l'app conosca il
+  bonus di ogni PG; i PF si regolano ±1 per click (tastierino). Unico punto: `CombatImport`.
+- 🟡 **Aiuto contestuale dal manuale**: nessuna spiegazione di cosa siano tiro salvezza, competenza,
+  CD incantesimo. Indipendente da tutto il resto.
+- 🟢 **Conferma sui salvataggi impliciti** dei tab della scheda (`SaveCharacterAsync` è muto).
 
 ---
 
-## 3. Architettura & manutenibilità
+## 4. Performance
 
-- ✅ **Spezzare `Characters.razor`** — FATTO (Fase 2B, 2026-06-24). I 5 tab **e** il form di modifica/creazione sono
-  componenti in `Shared/CharacterTabs/` (`CharacterBioTab`/`StatsTab`/`CombatTab`/`ItemsTab`/`MagicTab` +
-  `CharacterEditForm`) con helper `CharacterView`; la pagina è scesa da ~2.4k a ~660 righe, comportamento invariato.
-  Il genitore resta proprietario di stato/persistenza (draft + `NormalizeDraft`/`SaveFormAsync`, inventario,
-  catalogo incantesimi). Restano (indipendenti) le sotto-fasi A (repository) e C (stato auth) qui sotto.
-- ✅ **Spezzare `SupabaseService` (god-object, ~40 metodi)** — FATTO (sotto-fase A, 2026-06-24). 11 repository per
-  aggregato dietro interfacce in `Services/Repositories/` (`ICharacterRepository`, `ISpellRepository`,
-  `IMonsterRepository`, `INoteRepository`, `ICombatStateRepository`, `IProfileRepository`, `IRaceRepository`,
-  `IClassRepository`, `IInventoryRepository`, `ICharacterSpellRepository`, `ICampaignRepository`). `SupabaseService`
-  resta il **provider di sessione/client** (`GetClientAsync` + bootstrap OAuth/refresh), da 577 a 127 righe. I
-  consumatori iniettano i repo; abilita il mocking nei test (§4). Comportamento invariato, build 0/0 + 62 test.
-- ✅ **Centralizzare lo stato di auth/ruolo** — FATTO (sotto-fase C, 2026-06-24). Nuovo `CurrentUserService`
-  (facade su `AuthStateService` + `CampaignStateService`): espone `UserId`/`DisplayName`/`IsMaster`/`CampaignId`
-  dietro un'unica `EnsureLoadedAsync()`. Le 7 pagine dati hanno sostituito il boilerplate ripetuto
-  (`InitializeAsync` + lettura di `userId`/`isMaster`/`campaignId` + 3 campi locali) con una sola chiamata,
-  leggendo dal facade. Rimosso `AuthStateService.GetRoleAsync()` (era codice morto: il ruolo vive già in
-  `CampaignStateService`). `Home` resta hub auth/campagna. Con questo la **§3 è completa**.
-- 🟡 **Gestione errori coerente.** ✅ `<ErrorBoundary>` in `MainLayout` (fallback a tema + "Ripara e ricarica"),
-  `DbErrorBanner` centralizzato, e firme `Delete` dei repository ora **coerenti** (tutte `Task`;
-  `RemoveCharacterSpellAsync` non ritorna più un `bool` sempre `true` con ramo `else` morto).
-  **Indagine (2026-06-24):** far ritornare ai `Delete` l'esito reale (per intercettare il blocco RLS silenzioso)
-  **non è fattibile in modo pulito con supabase-csharp 0.16.2** — `Table.Delete(QueryOptions)` ritorna `void`
-  (niente `Models`) e col default segnala "successo" anche quando l'RLS blocca la cancellazione (0 righe; bug noto
-  `postgrest-csharp` #91). Gli errori HTTP/rete lanciano comunque `PostgrestException` (gestiti dai try/catch →
-  banner). Il blocco RLS silenzioso **non si presenta nell'uso normale** perché la UI fa da gate via
-  `CanEdit`/`AccessControl` (speculare alle RLS). **Da rivalutare** su upgrade libreria (Delete che ritorni la
-  rappresentazione) o con un check di esistenza post-delete (round-trip extra).
-  **Decisione (2026-06-24): accettato** lo stato attuale del delete-outcome (il gate `CanEdit` copre il caso
-  pratico); si rivaluta solo su upgrade della libreria.
-  ✅ **Precedente (2026-07-29, Fase 2):** sulle cancellazioni **in blocco** il check post-delete è stato
-  applicato davvero — la rimozione per provenienza riconta gli id congelati (`CatalogRemovalPlan.StillPresent`)
-  invece di assumere l'esito, e il resoconto dice quante voci il server non ha tolto. Lì il round-trip extra
-  vale il prezzo; sulle singole cancellazioni della UI resta valida la decisione del 2026-06-24.
-  ✅ **Toast sugli errori di validazione** (2026-06-24): i messaggi di validazione input (8 pagine) ora sono
-  toast (`Toasts.ShowError`) invece del banner; gli errori di sistema/operazione restano nel banner persistente
-  (con "Ripara e ricarica"). **Bug risolto nello stesso giro:** tutti i toast erano invisibili per una collisione
-  con la classe `.toast` di Bootstrap (`.toast:not(.show){display:none}`) → rinominate le classi in `.app-toast`.
-- ✅ **Deduplicare il parsing dei dadi vita** — FATTO (2026-06-21): estratto `CharacterCalculations.GetHitDiceTotal(string?)`,
-  riusato da `GetHitDiceRemaining` e da `Characters.razor.HitDiceTotal()`. Coperto da test (8 casi).
-- ✅ **Manutenzione CI: GitHub Actions del deploy** — FATTO (2026-06-24). Bump alle ultime major (verificate via
-  API GitHub `releases/latest`): `checkout` v4→**v7**, `setup-dotnet` v4→**v5**, `configure-pages` v4→**v6**,
-  `upload-pages-artifact` v3→**v5**, `deploy-pages` v4→**v5**. Esce dal runtime Node 20 in deprecazione. Verificato
-  con un **run di prova reale** (il push stesso): deploy `success` (1m54s) + sito live che boota pulito. Il web
-  search dava versioni sbagliate → fidarsi dell'API GitHub.
+- 🟡 **Cache dei cataloghi** in memoria con invalidazione esplicita: ogni pagina ricarica i propri dati
+  a ogni ingresso e 4 su 6 rifanno `GetProfilesAsync()`. Con la barra di navigazione gli ingressi sono
+  più frequenti, non meno.
+- 🟡 **Virtualizzazione delle liste** nelle pagine di catalogo: col manuale caricato superano di molto
+  le ~50 voci su cui poggiava la decisione di scartarla. Nel tracker il caso è stato risolto con
+  ricerca + tetto a 40 voci (`MonsterPicker`), che vale come precedente: dove si **sceglie**, filtrare
+  batte virtualizzare; dove si **sfoglia**, la domanda resta aperta (card espandibili = caso ostico).
+- 🟡 **View nickname-only**: la mappatura dei nickname scarica più del necessario (richiede una vista
+  DB). Le note sono già filtrate dalle RLS, quindi non c'è perdita di riservatezza.
+- 🟡 **Peso del pacchetto dati**: `wwwroot/data/srd-2024-it.json` è 943 KB grezzi / 176 KB compressi,
+  escluso dal precache e scaricato al primo uso. Da guardare su rete lenta.
 
 ---
 
-## 4. Test
+## 5. UI / a11y
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **676 unit test** (220 → 285 con la Fase 1 del
-  modello 2024, 285 → 387 con la Fase 2, 387 → 676 col contenuto del manuale e i lavori del 2026-07-31/08-01:
-  i controlli sul pacchetto SRD sono la parte più grossa dell'aumento, perché lì il test *è* la verifica del
-  dato) + **suite d'integrazione RLS** (`Tests.Integration/`, 11 scenari verdi
-  su stack locale, vedi voce 5 — restano 11: la Fase 2 non tocca le policy). Coperti: `CharacterCalculations`
-  (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
-  `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
-  `InternalsVisibleTo`): visibilità/ordinamento note (`NoteRepository.FilterAndSortVisible`, regola di sicurezza),
-  ordinamento inventario (`InventoryRepository.SortForDisplay`), codice invito (`CampaignRepository.GenerateInviteCode`);
-  e la **logica di dominio estratta dai `.razor`**: `CharacterNormalizer.Normalize` (trim/null/clamp del draft PG),
-  `AccessControl.CanEdit` (autorizzazione master-o-proprietario), il JOIN incantesimi/orfani
-  (`CharacterSpellJoin.WithCatalog`), gli helper di vista `CharacterView` (formattazione/a11y +
-  mapping slot incantesimo 1-9, con valori distinti per livello), la redazione player del tracker
-  (`CombatVisibility`) e il grado sfida del catalogo mostri (`MonsterCatalog.ParseChallengeRating`).
-  Con la **Fase 2** (2026-07-29) si aggiungono gli helper puri dell'import/export: `PackageImportPlan`
-  (esiti dell'anteprima e gate dei permessi), `PackageRowMerge` (creazione e fusione delle righe —
-  l'invariante che un aggiornamento non tocchi identità, proprietà e colonne fuori formato),
-  `SpellMaterialization`, `CampaignExport` (id del pacchetto, degrado delle provenienze, suffissi anti-collisione),
-  `CatalogRemovalPlan` (selezione per provenienza senza `LIKE`, partizione per permessi, riconteggio) e
-  `SpellClassNames`. Col **mobile-first** (2026-07-30) si aggiunge `BottomNavRoutes.IsActive` (13 test:
-  query string, frammento, slash, rotta vuota della Home, sotto-rotte), estratto dalla barra di
-  navigazione perché la logica con rami non stia nel `.razor`.
-  Col lavoro del **2026-08-01** si aggiungono `MonsterPicker` (unione delle due sorgenti, ordine,
-  troncamento e chiavi prefissate — gli uuid del database e gli id del pacchetto vivono in spazi
-  diversi), `SubclassCatalog` (in particolare `RisolviScelta`: la sottoclasse di un'**altra** classe
-  va scollegata, quella inventata dal tavolo no) e i controlli su `CampaignExport` con il manuale
-  incluso (unione per nome normalizzato, licenza dovuta anche senza il manuale quando fra le righe
-  c'è materiale materializzato). `Tests/SrdPackageContentTests.cs` è un caso a sé: non prova codice
-  ma **il dato**, ed è ciò che ha trovato i nomi di privilegio troncati dall'estrazione dal PDF.
-  Restano da coprire:
-  1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
-  2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
-  3. ~~Autorizzazioni (`CanEdit`/`isMaster`)~~ ✅ (`AccessControl`, usato da tutte le pagine) — **irrobustito
-     (2026-07-23):** `CanEdit` esclude il match degenere `null==null` / `""==""`, così il gate client combacia
-     con la RLS (riga 51 spec RLS: seed `added_by` NULL → solo master).
-  4. ~~Filtro/JOIN incantesimi del PG (gestione orfani)~~ ✅ (`CharacterSpellJoin.WithCatalog`)
-  5. ~~Test d'integrazione sulle **RLS**~~ ✅ **FATTO (2026-06-24).** Progetto separato `Tests.Integration/`
-     (xUnit + `Xunit.SkippableFact`) che gira contro uno **stack Supabase locale** (`supabase start`) il cui
-     schema+policy sono importati da produzione (`supabase/migrations/*_remote_schema.sql`). 6 scenari verdi:
-     un player non legge la nota privata altrui ma sì la condivisa; un non-membro non vede nulla; il proprietario
-     vede le proprie; un player non scrive `combat_state`; niente auto-promozione a master. **Auto-skip** se lo
-     stack locale non è attivo (non rompe CI/altre macchine). Istruzioni in `Tests.Integration/README.md`.
-     **+5 scenari con `backgrounds` (2026-07-25) → 11 in tutto**, in
-     `Tests.Integration/BackgroundsRlsIntegrationTests.cs`.
-- 🟡 **Refactoring abilitanti**: ✅ interfacce sui repository (sotto-fase A) + estrazione di helper puri
-  testabili dai repository e dai `.razor` (`CharacterNormalizer`, `AccessControl`). **Resta:** per testare interi
-  componenti (rendering/eventi) servirebbe bUnit; per ora si estrae la logica pura man mano.
+- 🟡 **Sweep dei literal su token**: restano `#c8b88a` in 4 file (`CharacterCombatTab`,
+  `SpellListItem`, `SpellPicker`, `StatCard`) e `#e6a373` in 6 (9 occorrenze). **Non** va convertita
+  la decima, in `Party.razor.css`, che è uno stop di gradiente.
+- 🟡 **Trappola: `--gold-muted` (`#c9b88a`) e `--gold-muted-rgb` (`#9a8c6a`) sono colori diversi**, e
+  `--text-body` (`#c8b88a`) differisce da `--gold-muted` di un punto sul canale rosso. Sostituire
+  sempre **sul valore**, mai per somiglianza di nome. Da rinominare in un intervento dedicato.
+- 🟡 **Caselle competenza a 24px** in `CharacterEditForm` (36 punti di markup): per arrivare a 44
+  serve avvolgere ogni casella in una `<label>` che occupi la cella. Da fare quando si rimette mano a
+  quel form — cioè con §3.
+- 🟡 **Consolidare le sfumature quasi-duplicate** (6 rossi, 4 verdi, 6 oro-bronzo): è un cambio di
+  colore, quindi una decisione, non un ritocco.
+- 🟢 **Token dei gradienti**: 9 container di pagina su 10 aprono il gradiente con `var(--text-on-gold)`
+  — nome che mente (significa «testo su fondo oro»). `Characters.razor.css` usa `var(--bg)`: o è
+  l'unico corretto, o è l'unico diverso. Serve un token dedicato e una decisione su quale tinta vale.
+- 🟢 **Il `← Home` di pagina è ridondante** dopo la barra di navigazione: toglierlo libera una riga per
+  pagina ma cambia il flusso di ritorno. Decisione di prodotto.
 
 ---
 
-## 5. Performance
+## 6. Formato e contenuti
 
-- 🟡 **Caricamento intere tabelle filtrate nel client.** La mappatura nickname scarica più del necessario:
-  esporre una view nickname-only (richiede vista DB). **Note (2026-06-24):** tentato il filtro di visibilità
-  server-side nella query (`.Where(... && (IsShared || OwnerId == userId))`) ma **postgrest-csharp 3.5.1 va in
-  NullReferenceException** sul predicato con OR annidato → ripristinata la query per-campagna + filtro client.
-  Non è una perdita: **l'RLS filtra già le note per visibilità lato server**, quindi non si scaricano note
-  private altrui. Resta aperta solo la view nickname-only. (Si lega alla sicurezza, §1.)
-- 🟡 **Virtualizzazione liste — riaperta il 2026-07-29 (Fase 2).** ⛔ **Era stata scartata a questi volumi
-  (2026-06-24)**, decisione confermata dall'utente: i
-  cataloghi restano sotto le ~50 voci, dove `<Virtualize>` non dà beneficio percepibile e la memoizzazione del
-  filtro su 50 elementi è microsecondi (YAGNI). Inoltre le card sono espandibili (altezza variabile), caso ostico
-  per `<Virtualize>`. **Da rivalutare solo se i cataloghi crescono** (es. import massivo / generazione AI, §8).
-  ⚠️ **Rimessa in gioco dal design del 2026-07-25** (§8-bis): un pacchetto SRD completo supera la soglia delle
-  ~50 voci su cui poggiava la decisione — è il trigger di rivalutazione che era stato dichiarato.
-  **Dalla Fase 2 (2026-07-29) non è più un'ipotesi:** l'import di un file esiste in codice, quindi la soglia
-  si supera già oggi con un pacchetto dell'utente, senza attendere il contenuto SRD della Fase 3. È per
-  questo che la voce torna 🟡: il «da rivalutare **a pacchetto pieno**, non prima» del piano di Fase 2 è
-  superato — il pacchetto pieno non serve, basta un file dell'utente.
-  **Aggiornamento (2026-08-01): il caso si è presentato per davvero, e la risposta non è stata
-  `<Virtualize>`.** Aprendo il pannello «Importa mostri» del tracker alle voci di manuale l'elenco
-  sarebbe passato da qualche riga a 331, cioè altrettanti stepper: la soluzione adottata è **ricerca +
-  tetto a 40 voci con il conteggio delle escluse** (`MonsterPicker`). Vale come precedente, non come
-  chiusura: dove l'elenco serve a **scegliere**, filtrare batte virtualizzare; per le pagine di
-  catalogo, che servono a **sfogliare**, la domanda resta aperta — e resta il caso ostico delle card
-  espandibili.
-- 🟡 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
-  **Rialzata da 🟢 a 🟡 il 2026-07-25** (§8-bis). ⚠️ **Motivazione da riscrivere (2026-07-30):** l'argomento
-  originale era «senza barra di navigazione ogni spostamento passa da Home e ricarica tutto». La barra
-  **ora c'è**, ma il punto **resta aperto e alla stessa priorità**: ogni pagina ricarica comunque i propri
-  dati a ogni ingresso, e 4 pagine su 6 rifanno `GetProfilesAsync()`. Anzi, con la navigazione diretta gli
-  ingressi diventano **più frequenti**, non meno.
-- ✅ **Stati di caricamento** — FATTO (2026-06-24). I "Caricamento..." testuali rimasti (Incantesimi, Mostri,
-  Classi, Razze, Note) ora usano `<LoadingSpinner>` a tema (già usato da Combat/inventario). Skeleton non fatto
-  (spinner sufficiente).
+- 🟡 **`PackageSpeed.Value` è `int`**: un decimale (`7.5`) in un file di terzi fa fallire la lettura
+  dell'**intero** pacchetto. Chiuso per il pacchetto dell'app (dichiara i piedi, interi), aperto per
+  quelli di terzi. Passare a `decimal` toccherebbe anche `races.speed` (`integer`) e i punti d'uso.
+- 🟡 **Due voci narranti negli incantesimi**: i livelli 3 e 5 (80 voci) sono in terza persona, gli
+  altri otto (259) in seconda. Solo tono, ma è una scelta editoriale — e una riscrittura di massa
+  passa sopra il testo delle regole.
+- 🟢 **Unificare l'unità di velocità** (razza in piedi, PG in metri): la colonna `speed_unit` esiste,
+  resta da renderla coerente in tutta l'interfaccia.
 
 ---
 
-## 6. UI / UX / Accessibilità
+## 7. Test e infrastruttura
 
-- ✅ **Design token** — FATTO (2026-06-21): palette in `:root` (`app.css`) + **conversione dei literal in tutti
-  i `.razor.css`** (376 sostituzioni 1:1, valori identici → nessun cambiamento visivo). ✅ **Token alpha/rgba
-  (2026-07-23):** aggiunti **19 canali `--X-rgb`** in `:root` e convertiti i ~363 literali `rgba(<tripla>, α)`
-  del CSS di progetto in `rgba(var(--X-rgb), α)` (mapping 1:1, **invariato**; Bootstrap vendored escluso). Spec in
-  `docs/superpowers/specs/2026-07-23-css-alpha-tokens-design.md`. **Resta (idea):** consolidare le sfumature
-  quasi-duplicate (6 rossi / 4 verdi / 6 oro-bronzo) in meno token — è un cambio di colore, decisione separata.
-  Riferimento visivo: `/_showroom`. ✅ **`--author-badge-text` (chiuso il 2026-07-30):** il token
-  (`#b89a80`), introdotto per `Pages/Monsters.razor.css` nella Fase 2, è ora usato anche da
-  `Spells`/`Races`/`Classes.razor.css`, che avevano lo stesso badge col literal — stesso valore esatto,
-  nessun cambio visivo. (`Pages/Notes.razor.css` usa `var(--gold)`, colore diverso: non era nel novero.
-  Lo stesso `#b89a80` resta in `.inv-weight` dell'inventario, che badge non è: lì il literal resta.)
-  🟡 **Due literal ancora da consolidare (aperto il 2026-07-31).** Introdotti in `:root` due token
-  con il valore **esatto** dei literal già in uso, per le regole nuove di quel giorno: `--text-body`
-  (`#c8b88a`, testo di paragrafo nelle card) e `--danger-text` (`#e6a373`, testo delle azioni
-  distruttive). Convertite solo le occorrenze nei due file già aperti dall'intervento; restano
-  literal `#c8b88a` in **4 file** (`CharacterCombatTab`, `SpellListItem`, `SpellPicker`, `StatCard`)
-  e `#e6a373` in **6** (`Classes`×2, `Combat`×2, `Monsters`×2, `Notes`, `Races`, `Spells` = 9
-  occorrenze). La decima occorrenza di `#e6a373`, in `Party.razor.css`, è uno **stop di gradiente**
-  e non un'azione distruttiva: quella non va convertita. Sweep meccanico da 9+4 occorrenze in file
-  non toccati da questo intervento: a parte, come fu per `--author-badge-text`. **Attenzione:** `--text-body` (`#c8b88a`) e `--gold-muted` (`#c9b88a`)
-  differiscono di un punto sul canale rosso — impercettibile a occhio, quindi la sostituzione va
-  fatta sul valore, mai "a somiglianza di nome".
-- 🟡 **Tap target (2026-07-30, lavoro mobile-first).** ✅ Portati a **44px** tutti i pulsanti
-  (`hp-btn` — i ± dei PF, il controllo più toccato dell'app — `qty-btn`, `remove-btn`, `hd-btn`,
-  `header-btn`, `db-error-dismiss`/`db-error-repair`, `inv-eq-toggle`); i pallini
-  tengono il pattern `::after` del progetto. ✅ Corretto un difetto emerso **solo dalla misura a
-  runtime**: i tap target dei pallini **si sovrapponevano** (7 coppie su `sc-dot`; per costruzione
-  anche `ds-dot` e `spell-slot-dot`) — un'area allargata che sconfina sul vicino sposta il bersaglio
-  invece di allargarlo. Regola adottata: l'area non supera mai il passo fra i centri; dove serve è il
-  `gap` ad aumentare. **Resta:** le **36 `.skill-check`** sono a **24px** (minimo
-  WCAG 2.2 AA) e non a 44 — un `<input>` è un elemento rimpiazzato, `::after` non viene reso e a 44px
-  il quadratino nativo si deforma. Per arrivare a 44 bisogna **avvolgere ogni casella in una `<label>`
-  che occupi la cella** (36 punti di markup nel solo `CharacterEditForm`; le 6 `.checkbox-row` hanno già il bersaglio `<label>` da 40px, e resta sotto i 44 solo il quadratino): da fare quando
-  si rimette mano a quel form. Idem `.wiz-step-dot`, fermo a 40px per stare in sei su 320px, e i due
-  pallini isolati `prep-toggle` (38px) e `inspiration-toggle` (36px): sopra il minimo WCAG 2.2 AA,
-  senza sovrapposizioni con nulla, ritocco rimandato.
-  ✅ **Aggiornato il 2026-07-31:** il wizard riscritto come pagina non ha più il passo Competenze,
-  quindi le caselle sotto i 44px restano solo in `CharacterEditForm`; e `.wiz-base-input`, l'unico
-  controllo che a 320px scendeva a 23px, non esiste più (il nuovo campo è `.wiz-simple-input` in una
-  griglia `3rem 1fr auto`, con i pulsanti dello stepper a 2.75rem). Da riverificare a vista su uno
-  schermo da 320px, ma il punto noto è chiuso.
-- 🟡 **Bottom-nav che si distorce allo scroll (Android/Chrome, browser e PWA standalone)** —
-  segnalato dall'utente, corretto il 2026-07-31. Causa: `.bottom-nav` (`position: fixed`,
-  gradiente + `box-shadow` sfocata) non aveva un layer di composizione proprio; la barra URL
-  dinamica di Chrome Android sposta il viewport a ogni frame durante lo scroll (idem la barra di
-  sistema in standalone), e senza `transform`/`will-change` il thread principale ridisegnava
-  gradiente+ombra a ogni ricollocamento — da cui il tremolio. ✅ Aggiunto `transform: translateZ(0)`
-  su `.bottom-nav` (`Shared/BottomNav.razor.css`) per promuoverla a layer GPU. Collaterale scoperto
-  verificando i token: `--bottom-nav-space` (app.css) non includeva il `border-top` di 1px di
-  `.bottom-nav` (che usa `box-sizing: content-box`), lasciando FAB/toast/banner PWA/sticky del
-  Combat 1px sopra il bordo reale della barra — nuovo token `--bottom-nav-border-width` per
-  riallinearli. Verificate e **scartate** come cause: `100vh` (già `dvh` ovunque dal 2026-07-30),
-  `viewport-fit=cover` (già presente in `index.html`), `overscroll-behavior` (già `contain` su
-  `html`). **Resta aperta la verifica a vista su un dispositivo Android reale**: il fix è motivato
-  dal comportamento documentato di Chrome sulla barra URL dinamica, ma l'emulazione mobile di
-  Chrome DevTools non la riproduce, quindi non è stato possibile confermarlo empiricamente in locale.
-- ✅ **Audit mobile-first ulteriore (2026-07-31).** `.form-grid` (Backgrounds/Classes/Combat/
-  Monsters/Races/Spells) passava a 2 colonne anche sotto i 641px (campi da ~137px l'uno a 320px);
-  ora colonna singola di base, 2 colonne solo da 641px in su, stesso pattern già in uso nel resto
-  di ciascun file. `.chip` (filtri CR/tipo in Monsters, livello/classe in Spells) portato a 44px
-  di tap target (era ~38px): non era nell'elenco dei controlli sistemati il 2026-07-30 sopra.
-- 🟢 **Il `← Home` di pagina è ridondante** dopo la barra di navigazione (2026-07-30): toglierlo
-  libererebbe una riga di header su ogni pagina, ma cambia il flusso di ritorno (la barra porta a Home,
-  non "indietro") — decisione di prodotto, non ritocco.
-- 🟢 **Token semanticamente sbagliato nei gradienti di sfondo** (emerso il 2026-07-30): **9 container
-  di pagina su 10** aprono il gradiente con `var(--text-on-gold)` (#1a1410) — un token che significa
-  "testo su fondo oro" usato come **sfondo**. Il valore è quello giusto (conversione 1:1 del
-  2026-06-21, nessun cambio visivo), è il nome a mentire. `Characters.razor.css` usa invece `var(--bg)`
-  (#1a0e1f): o è l'unico corretto, o è l'unico diverso dagli altri. Serve un token dedicato
-  (es. `--bg-page-top`) e una decisione su quale delle due tinte sia quella voluta.
-- 🟡 **Accessibilità** — ✅ avanzato (2026-06-21): resi accessibili da **tastiera** (`role`/`tabindex`/
-  `aria-pressed`/`aria-expanded` + Enter/Space, additivi e senza impatto visivo) i controlli interattivi
-  principali: `StatCard` (pallini TS/skill), `SpellListItem` (prep-toggle + header) e in `Characters.razor`
-  i tiri salvezza morte, l'ispirazione e gli slot incantesimo; `aria-label` sui pulsanti icona-pura di Combat
-  (PF +/−, rimuovi). ✅ `aria-label` sui 6 FAB "+" (Spells/Monsters/Races/Notes/Classes/Characters) — 2026-06-24.
-  ✅ `DbErrorBanner`: chiusura ora con un vero pulsante **✕** (`aria-label="Chiudi"`, da tastiera) al posto del
-  click-sul-testo — 2026-06-24. **Contrasti:** ✅ alzato `--gold-dim` (#8b6f3a → #b08842) per la leggibilità su fondo scuro — da
-  verificare a vista e affinare se serve (cambia i testi/bordi "spenti" ovunque, via token).
-- 🟡 **Feedback azioni** — ✅ fatto (2026-06-21): infrastruttura toast (`ToastService` + `ToastHost` nel
-  layout, auto-dismiss, a tema con i token); conferma "✓ Salvato/Eliminato" sul salvataggio del form PG
-  (`SaveFormAsync`) e su
-  **tutti i CRUD** dei cataloghi (Spell/Monster/Race/Class) e delle Note. **dialog di conferma a tema**
-  (`ConfirmService` + `ConfirmDialog`) al posto di **tutti** i `confirm()` nativi (10 punti in 8 pagine). ✅ fatto.
-  ⚠️ **Precisazione (2026-07-25):** i salvataggi *impliciti* dei tab della scheda (`SaveCharacterAsync`)
-  restano **silenziosi** — segnalano solo gli errori. Punto riaperto in §8-bis.
+- 🟡 **bUnit** per testare interi componenti (rendering, eventi): per ora si estrae la logica pura man
+  mano. Stato attuale: **676 unit test** + 11 scenari d'integrazione RLS (stack Supabase locale,
+  auto-skip se giù).
 
 ---
 
-## 7. Internazionalizzazione
+## 8. Idee aperte (non impegni)
 
-- 🟡 **i18n.** Tutte le stringhe UI sono hardcodate in italiano. Se l'inglese entra in roadmap (Play Store
-  globale), estrarre in risorse `.resx` + `IStringLocalizer`. Altrimenti accettare consapevolmente IT-only.
-
----
-
-## 8. Funzionalità emerse dall'uso (da ingegnerizzare)
-
-> Richieste nate dall'uso reale che **non sono quick-win**: ognuna merita un proprio giro di
-> brainstorming → design prima dello sviluppo.
-
-- ✅ **Combat condiviso + polling** — FATTO e verificato (2026-06-21): tabella
-  `combat_state` creata + model `CombatState`/`Combatant`; `GetCombatStateAsync`/`SaveCombatStateAsync`
-  (upsert) in `SupabaseService`; `Combat.razor` carica/salva lo stato — il Master fa upsert a ogni azione, i
-  giocatori (non-master) leggono con **polling ~4s**. **Da verificare a vista:** serializzazione jsonb dei
-  combattenti, l'upsert, e che il giocatore veda i cambi del Master. Con RLS permissive funziona, andrà
-  protetto (§1). Limite noto: l'iniziativa modificata inline si persiste al successivo salvataggio
-  (es. "Ordina"/"Prossimo turno"), non all'istante.
-- ✅ **Import mostri nel combattimento.** — FATTO (2026-06-24). Pannello inline master-only "Importa mostri"
-  in `Combat.razor` (lazy-load via `IMonsterRepository`, stepper quantità per mostro, "Aggiungi N combattenti"
-  → `SaveCombatStateAsync`). Helper puro `Services/CombatImport.cs` testato (xUnit): `ParseLeadingHp` ricava i PF
-  dal **primo intero** del testo libero (fallback 1); `FromMonster(monster, quantity)` genera la lista di
-  `Combatant` con nomi numerati per le copie, iniziativa 0, `CurrentHp = MaxHp`. Nessuna modifica a DB/RLS.
-- ✅ **Visibilità limitata del player nel tracker** — FATTO (2026-07-23). Il giocatore vede **solo la propria
-  scheda** (PF/iniziativa) e degli altri **solo il nome** (niente statistiche né ordine di turno); riceve il
-  segnale "È il tuo turno!" ma l'indicatore non svela mai di chi sia il turno corrente. Aggancio "riga mia" via
-  `owner_id` marcato all'import (nuovo campo su `Combatant`, `jsonb` → nessuna migrazione); helper puro testato
-  `Services/CombatVisibility.cs`; `Combat.razor` biforca player/master. Redazione **cosmetica lato UI** (i dati
-  grezzi restano nel browser via polling), nessun cambio a DB/RLS. Spec/piano in `docs/superpowers/` (2026-07-23).
-- 🟡 **Aiuto AI alla compilazione (generazione da testo).** Da una descrizione testuale, generare bozze di
-  **personaggi, classi, incantesimi, razze, mostri** (estende in modo strutturale il bisogno dei quick-win C).
-  ⚠️ **Da riordinare dopo il design del 2026-07-25** (§8-bis): precaricare il pacchetto SRD riduce molto ciò
-  che resterebbe da generare — i due filoni vanno pianificati insieme, non separatamente.
-  Requisiti emersi (2026-06-24):
-  - **Accesso riservato (entitlement).** Anche con l'app pubblica la feature resta attiva **solo per un
-    allowlist** (owner + amici). È una scelta di *autorizzazione server-side* (coerente con §1): vive
-    naturalmente nel **proxy/edge function** che custodisce la API key dell'LLM (la anon key è già nel bundle
-    → chiamate dirette dal client escluse). L'allowlist (`user_id`) sta lì → **nessuno schema DB nuovo**,
-    quindi **non blocca né cambia il lavoro RLS** (§1): le policy attuali restano valide quando si aggiunge l'AI.
-  - **Contesto dal manuale ufficiale.** Per ora solo **incollare testo**; in futuro valutare l'ingestione del
-    manuale acquistato. ⚠️ Caveat copyright: il manuale è protetto — uso privato del gruppo, non da caricare a
-    cuor leggero su provider terzi. Per la generazione *base* il modello conosce già lo **SRD 5e** (aperto): il
-    manuale serve solo per contenuti non-SRD/homebrew. Se servirà ingerire molto testo la strada è **RAG**
-    (chunk + embedding + retrieval), non l'intero manuale nel prompt.
-  - **Provider.** Valutare opzioni gratuite: free tier di **Gemini**, **Groq** (inferenza veloce di modelli
-    open — da non confondere con **Grok** di xAI). Da decidere nel brainstorm dedicato: provider, gestione
-    della API key nel proxy, prompt, parsing dell'output nei Model, costi/limiti, UX. **Merita il suo spec
-    separato**, da fare *dopo* le RLS.
-- ✅ **Redesign del flusso scheda / wizard** — FATTO (2026-06-25), **rifatto il 2026-07-31**: il wizard
-  è ora la pagina `Pages/CharacterWizard.razor` (rotta `characters/nuovo`) e pesca dal catalogo
-  unificato `ICatalogService`; l'enum `ViewMode.Wizard` e il componente in `Shared/CharacterTabs/`
-  non esistono più. Quanto segue descrive la versione del 2026-06-25, superata.
-  Wizard di **sola creazione** a 6 step
-  (Identità → Caratteristiche → Vitalità & combattimento → Competenze → Incantesimi → Riepilogo), accessibile
-  via `ViewMode.Wizard` in `Characters.razor`. Automazione intermedia: bonus razza applicati alle
-  caratteristiche e dado vita pre-compilato alla scelta di razza/classe; PF e tiri salvezza suggeriti con un
-  tap. Helper puri testabili in `Services/CharacterWizardLogic.cs` (`FinalAbilityScores`, `BuildHitDice`,
-  `SuggestMaxHp`, `ParseSaveProficiencies`). L'accordion `CharacterEditForm` resta **invariato** per la
-  modifica di PG esistenti. Zero impatto su DB/RLS (nessuna tabella nuova, `SaveFormAsync` riusato). 147 test
-  verdi, build Release 0/0. Verifica manuale end-to-end (scenario spec §9) mai eseguita; il codice è live su
-  `main` dal 2026-06-25.
-- 💡 **Combat in Realtime.** Evoluzione futura del combat condiviso con push istantaneo invece del polling —
-  richiederebbe la reintroduzione di `realtime-csharp` (rimosso in §2); valutare solo se il costo bundle è
-  accettabile.
+- 💡 **Aiuto AI alla compilazione** da testo libero: richiede un proxy che custodisca la chiave e un
+  allowlist per utente. Merita il suo spec, dopo le RLS. Precaricare il manuale ne ha ridotto molto
+  la necessità.
+- 💡 **Offline dei dati read-only** (oggi offline vive solo la shell) · **markdown nelle note** ·
+  **tema chiaro / multi-tema** (sbloccato dai token) · **hosting alternativo** con header di sicurezza
+  e dominio custom · **combat in realtime** (rimetterebbe `realtime-csharp` nel bundle).
+- 💡 **i18n**: tutte le stringhe sono hardcodate in italiano. Se l'inglese entra in roadmap, `.resx` +
+  `IStringLocalizer`; altrimenti IT-only consapevole.
 
 ---
 
-## 8-bis. Attrito d'uso: mappa UX dei flussi (2026-07-25)
+## 9. Ordine consigliato
 
-> Analisi completa dei flussi in
-> [`docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md`](./superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md).
-> Utente di riferimento: **gruppo misto con novizi**. Bersaglio di regole confermato: **D&D 5e 2024**.
-> Il primo punto ha il suo design approvato (2026-07-25); gli altri richiedono ancora il proprio spec.
-
-Cinque attriti strutturali emersi: **A1** modello dati 2014 vs bersaglio 2024 · **A2** ~670 campi da
-digitare prima di poter giocare · **A3** il wizard chiede 70 controlli, ~50 derivabili · **A4** l'app
-chiede risposte al novizio invece di insegnargliele · **A5** unità di velocità incoerenti e due
-modelli di salvataggio opposti.
-
-- 🟠 **Modello 2024 + import dei dati** — 📐 design approvato (2026-07-25),
-  [`specs/2026-07-25-modello-2024-import-dati-design.md`](./superpowers/specs/2026-07-25-modello-2024-import-dati-design.md);
-  piano in tre fasi, **Fasi 1 e 2 fatte, resta la Fase 3**:
-  [`fase 1`](./superpowers/plans/2026-07-25-modello-2024-import-dati-fase-1.md) ·
-  [`fase 2`](./superpowers/plans/2026-07-27-modello-2024-import-dati-fase-2.md).
-  Unisce due punti che l'analisi teneva separati (modello 2024 e cataloghi precaricati): il modello è il
-  prerequisito, il formato di scambio è il veicolo. Decisioni prese: pacchetto **SRD 5.2 in italiano** come
-  **file dell'app** in sola lettura, unito lato client ai cataloghi di campagna; **import/export di file**
-  per i contenuti dell'utente (che restano nel database); PG e cataloghi esistenti **congelati**, nessuna
-  migrazione **di dati**. Sullo schema: **1 tabella nuova + 6 colonne additive su 5 tabelle esistenti +
-  4 vincoli `UNIQUE` additivi** (`source_id` sui quattro cataloghi, `speed_unit` su `races`,
-  `background_ability_choice` su `characters`).
-  Non modifica nessuna policy esistente, ma aggiunge quelle di `backgrounds`, ricalcate su `races`: c'è
-  lavoro RLS, solo confinato al nuovo.
-  ⚠️ Rimette in gioco due voci già decise: la **virtualizzazione liste** (§5, scartata "sotto le ~50
-  voci" — un pacchetto SRD completo supera la soglia dichiarata) e l'**aiuto AI** (§8: precaricare riduce
-  molto ciò che resterebbe da generare — vanno ordinate insieme, non trattate come filoni separati).
-  - ✅ **Fase 1 (leggere un pacchetto) — FATTO (2026-07-25).** Nove task: modelli del pacchetto e parser
-    con validazione; chiave di confronto (`CatalogKey`) con piega accenti scritta a mano — `String.Normalize`
-    **non fa nulla sotto `InvariantGlobalization`** (verificato a runtime), quindi la chiave non lo usa e
-    piega gli accenti con una mappa esplicita, oltre a maiuscole e spazi — e
-    riconoscimento della provenienza dal prefisso `<id pacchetto>/…`; unione fra pacchetto e cataloghi di
-    campagna (righe di database sempre visibili, la chiave decide solo quale oscura la voce di pacchetto);
-    migrazione schema (tabella `backgrounds` + colonne `source_id`/`speed_unit`/`background_ability_choice`
-    + vincoli `UNIQUE`); model/repository/RLS dei background; `CatalogService` per caricare il pacchetto
-    dell'app; esclusione del pacchetto dal precache del service worker (altrimenti un fetch fallito rompeva
-    l'installazione dell'intera PWA); pagina catalogo Background in sola lettura per le voci di pacchetto;
-    **unità di velocità esplicita nel form Razze** (`speed_unit`, limite 0–120 piedi o 0–36 metri, selettore
-    con `aria-label`). Tutto testato (helper puri `static` — per lo più `public static`, es. `CatalogKey`/
-    `CatalogMerge`/`CatalogPackageParser`; `FormValidation` resta `internal static` + `InternalsVisibleTo`
-    + xUnit), 0 warning/0 errori.
-    Le **quattro pagine di catalogo** (Razze, Classi, Incantesimi, Mostri) non marcano ancora le voci di
-    pacchetto né offrono "duplica e modifica": in Fase 1 non ci sono ancora righe con provenienza da
-    marcare (nessun import, nessun pacchetto pubblicato) — la logica (`CatalogMerge`,
-    `CatalogKey.IsFromAppPackage`) è già pronta, il blocco `@code` di Background è il modello da
-    replicare in Fase 2.
-  - ✅ **Fase 2 (import ed export) — FATTO (2026-07-29).** Undici task, **zero migrazioni** (né schema né
-    policy): `PackageImportPlan` col gate dei permessi + `PackageRowMerge`; schermata `/dati` con anteprima,
-    resoconto ed export della campagna; rimozione per provenienza con anteprima dell'impatto; materializzazione
-    degli incantesimi su uso; filtro per classe che riconosce nomi italiani e inglesi (`SpellClassNames`);
-    marcatura e "duplica e modifica" nei quattro cataloghi esistenti. 387 test unitari, build 0/0.
-    Quattro decisioni degne di nota (dettaglio e motivazioni in `DIARIO.md`):
-    **(a) niente `Upsert`** — `postgrest-csharp 3.5.1` serializza la chiave primaria anche con
-    `[PrimaryKey("id", false)]`, quindi manda `"id":""` e prende HTTP 400 su ogni scrittura (misurato
-    intercettando le richieste): creazioni con `Insert` in blocco, aggiornamenti riga per riga,
-    materializzazione con rilettura sul conflitto. Le occorrenze di `Upsert` nello spec §4.4 e §9 sono state
-    corrette di conseguenza. **(b) gli aggiornamenti fondono** invece di sostituire, altrimenti un reimport
-    azzererebbe le colonne che il formato non trasporta senza cambiare il conteggio delle righe.
-    **(c) `SkippedLocalWins`**: a parità di solo nome vince la riga dell'utente, e marcarla `Create` avrebbe
-    creato un doppione (un `source_id` nullo non collide con `UNIQUE`). **(d) nessun `LIKE` con testo
-    digitato** nella rimozione: `_` e `%` sarebbero wildcard e cancellerebbero il manuale — filtro in memoria
-    (`CatalogRemovalPlan`) e `DELETE` per elenco di id.
-    **Conseguenze note:** ~~i mostri di pacchetto non compaiono nel pannello "Importa mostri" del tracker
-    finché non sono duplicati in campagna~~ ✅ **superata il 2026-08-01** (la pagina attinge a
-    `ICatalogService`, con ricerca: v. DIARIO «Mostri al tavolo…»); un file esportato perde la provenienza delle righe materializzate
-    dal manuale (diventano contenuti di campagna — voluto: l'alternativa era iniettare righe intoccabili in
-    campagne che non hanno mai importato nulla di ufficiale).
-    **Resta da fare:** la verifica manuale end-to-end (import di un pacchetto di prova + rimozione con un
-    secondo account non-master), mai eseguita.
-  - ✅ **Fase 3 (contenuto e wizard 2024) — FATTA (2026-07-31).** Consegnati entrambi i pezzi:
-    il **pacchetto completo** `wwwroot/data/srd-2024-it.json` (10 specie, 4 background, 17 talenti,
-    12 classi con 20 livelli, 339 incantesimi, 331 mostri — dal PDF **ufficiale italiano**, con i
-    nomi ufficiali: 339 su 339; **+ 12 sottoclassi**, una per classe, aggiunte il 2026-08-01: erano
-    state saltate dall'estrazione, ed è per questo che «la sottoclasse era solo un campo di testo»)
-    e il **wizard 2024** (`Pages/CharacterWizard.razor` +
-    `BuildBackgroundBonusMap`/`ApplyBackgroundBonuses` con tetto 20 e `ShouldApplyBackgroundBonuses`
-    per la convivenza con le specie 2014). Dettaglio e motivazioni nel DIARIO, sezione
-    «Il manuale SRD 5.2.1 caricato».
-    **Resta aperto:** le due voci narranti delle descrizioni e le verifiche manuali, entrambe in cima
-    al documento nel blocco «Da fare PRIMA del prossimo push».
-    ✅ **Deciso il 2026-07-31 — il nodo qui sotto è chiuso per il pacchetto dell'app:** si dichiarano
-    i **piedi** (`"unit": "ft"`), che sono interi per ogni specie SRD, e la conversione verso i metri
-    del PG la fa `CharacterWizardLogic.SpeedInMeters`. Nessun dato falsificato, nessuna migrazione.
-    Il nodo `int`-vs-`decimal` **resta aperto per i pacchetti di terzi**, che possono contenere un
-    decimale e far fallire la lettura dell'intero file. Il testo originale segue, per memoria.
-    ⚠️ **Da decidere PRIMA di tradurre, limite del formato emerso in Fase 2:** `PackageSpeed.Value` è un
-    `int`, e un decimale nel JSON fa fallire la deserializzazione dell'**intero** pacchetto, non della singola
-    voce. **Il caso si presenta già nel contenuto ufficiale:** la gran parte delle specie 2024 sta a 30 piedi
-    (9 m), ma il **Golia** è a 35 piedi — **10,5 m** — e alla stirpe **Elfo dei boschi** la velocità sale
-    a 35 piedi (verificato sul PHB 2024 in `docs/`). Il caso si estende poi a pacchetti di terzi e a
-    conversioni di contenuto 2014, dove 25/15/5 piedi diventano 7,5/4,5/1,5 m.
-    ⚠️ **Del piano di Fase 2 sono superate entrambe le affermazioni su questo punto:** l'esempio (il Nano a
-    7,5 m è regola 2014 — nel 2024 è a 30 piedi) e la stima di costo, che dava le tre opzioni tutte a costo
-    zero. **Non costano uguale:** arrotondare in traduzione non tocca codice ma **falsifica un dato del
-    manuale** (10,5 → 10 o 11) e risolve **solo il pacchetto dell'app** — un `"value": 7.5` in un file di
-    terzi continuerebbe a far fallire la lettura dell'intero pacchetto; passare a `decimal` significa toccare `PackageSpeed.Value`, `Race.Speed`
-    (`int`), `PackageRowMerge`, `CampaignExport`, i punti d'uso a valle (`FormValidation.ValidateRace`/
-    `InRange`, il record `Entry` di `Pages/Races.razor`) **e** migrare la colonna `races.speed` (`integer`);
-    esprimere in centimetri richiede di estendere `PackageRowMerge.UnitaValida` e il `CHECK`
-    `races_speed_unit_check` (che ammette solo `'m'`/`'ft'`), altrimenti un `"unit":"cm"` finisce nel fallback
-    e 750 cm vengono salvati e mostrati come **750 m**, in silenzio.
-- 🟠 **Motore di derivazione condiviso** (slot, PF, competenze, taglia, velocità) usato da creazione,
-  **modifica e level-up** insieme — oggi wizard e `CharacterEditForm` duplicano il markup e solo il
-  wizard suggerisce qualcosa.
-- 🟠 **Level-up guidato** — oggi inesistente: salire di livello è editare a mano PF, dadi vita, 9 slot
-  e competenze. È l'attrito che si ripresenta a **ogni sessione di gioco**.
-- 🟡 **Aiuto contestuale dal manuale** — nessuna spiegazione di cosa siano tiro salvezza, competenza,
-  CD incantesimo. Indipendente dai punti sopra.
-- ✅/🟡 **Barra di navigazione + cache dei cataloghi** — la **barra è FATTA** (2026-07-30,
-  `Shared/BottomNav.razor`, spec [`2026-07-30-mobile-first-design.md`](./superpowers/specs/2026-07-30-mobile-first-design.md)):
-  sei voci (Home, Personaggi, Party, Iniziativa, Incantesimi, Appunti), visibile solo con una campagna
-  attiva; le altre cinque sezioni (Mostri, Classi, Razze, Background, Dati) restano dalla Home.
-  **Resta la cache** dei cataloghi (v. §5): le pagine ricaricano i propri dati a ogni ingresso e 4 su 6
-  rifanno `GetProfilesAsync()`.
-- 🟡 **Combat: iniziativa precompilata o tirata** — gli import mettono `Initiative = 0` per tutti,
-  benché l'app conosca già il bonus di ogni PG; e i PF si regolano ±1 per click.
-  ℹ️ **2026-08-01:** gli import arrivano ora da **due** sorgenti (righe di campagna e voci del
-  manuale), ma passano entrambe da `CombatImport`, che resta l'unico punto dove mettere mano.
-- 🟢 **Unificare l'unità di velocità** (razza in piedi, PG in metri). Il design del modello 2024 la chiude
-  **senza migrazione di dati**, ma con una colonna additiva `speed_unit` su `races` (`default 'ft'`, così le
-  righe esistenti restano come sono) e l'unità mostrata accanto al campo. Dedurla dalla sorgente non bastava:
-  si sarebbe rotta sulle voci di pacchetto duplicate in campagna e su quelle create a mano dopo il cambio.
-- 🟢 **Conferma visibile sui salvataggi impliciti** dei tab scheda (`SaveCharacterAsync` è muto).
-
----
-
-## 9. Idee aperte (da ragionare)
-
-> Non ancora decise: spunti da valutare, non impegni.
-
-- 💡 **Offline dei dati read-only.** Oggi offline funziona solo la shell; cache dei cataloghi per
-  consultazione senza rete, se diventa una promessa del prodotto.
-- 💡 **Markdown nelle note** (oggi plain text).
-- 💡 **Tema chiaro / multi-tema** (sbloccato dai design token del §6).
-- 💡 **Hosting alternativo** con header di sicurezza (CSP/HSTS) e dominio custom, se GitHub Pages diventa
-  un limite.
-
----
-
-## 10. Ordine consigliato (sintesi)
-
-1. **Quick-win del `/loop`** (sez. 🔜 A·B·C) — basso rischio, valore immediato, sbloccano lavori successivi.
-2. **Sicurezza server-side / RLS** (§1) — *gate* di pubblicazione.
-3. **Integrità DB: FK + cascade** (§1) — prima che il volume pubblico generi incoerenze.
-4. **Primi test su `CharacterCalculations`** (§4) — valore alto, costo basso, in parallelo.
-5. **Combat condiviso** (§8) — feature più sentita dall'uso reale.
-6. ~~**Rimozione Realtime** (§2)~~ ✅ e **design token / refactor `Characters.razor`** (§3, §6) — manutenibilità.
-7. Il resto (AI compilazione, ~~wizard scheda~~ ✅, performance, a11y, i18n, idee) secondo priorità di prodotto.
-8. **Mobile-first** (2026-07-30, seguito 2026-07-31) — ✅ fatto il grosso: barra di navigazione,
-   rimozione di Bootstrap, safe-area/`100dvh`, tap target, manifest. ✅ Corretta la distorsione
-   della barra allo scroll segnalata dall'utente + audit ulteriore (`.form-grid`, `.chip`) — v. §6.
-   Restano i residui elencati in §6 (caselle competenza a 24px, `← Home` ridondante, token dei
-   gradienti) e la **verifica a vista su un Android reale** (l'emulazione desktop non riproduce la
-   barra URL dinamica: il fix va confermato a occhio appena possibile).
-9. **Attrito d'uso / mappa UX** (§8-bis, 2026-07-25) — **modello 2024 + import** (design approvato) viene
-   prima di motore di derivazione e level-up guidato, in quest'ordine: ognuno dipende dal precedente.
-   I punti indipendenti (~~navigazione~~ ✅ + cache dei cataloghi, aiuto contestuale dal manuale,
-   iniziativa nel combat, conferme sui salvataggi impliciti) sono aggredibili **in parallelo**, senza
-   attendere quella catena.
+1. **§1 A+B+C insieme** — sottoclassi con una casa nei dati, round-trip completo del file, chiusura
+   del prefisso spoofabile. Sono gli stessi file: separarli significa ripassarci sopra.
+2. **§2 varco RLS** — una migrazione, gate della pubblicazione.
+3. **§3 motore di derivazione → level-up guidato** — in quest'ordine, il secondo poggia sul primo.
+4. **§3 combattimento consultabile** — indipendente, aggredibile in parallelo.
+5. Il resto (§4-§6) a spizzichi, dove si passa già per altri motivi.

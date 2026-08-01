@@ -1132,3 +1132,43 @@ perdeva comunque una sottoclasse chiamata «Campione» — e la perdeva senza ch
 giusta la poneva già, gli fosse mai stato offerto. Ora `RisolviScelta` riceve anche le righe di
 campagna e chiede la stessa cosa. La regola generale che resta: **il criterio che distrugge non può
 essere il più debole di quelli in campo**.
+
+## La direzione scelta (2026-08-01)
+
+Chiuso il lavoro, la conversazione ha messo a fuoco che i tre feedback dicevano la stessa cosa da tre
+angoli: **l'app è un ottimo archivio e un mediocre aiuto al gioco.** Conserva 331 mostri e 339
+incantesimi, ma non li mette in mano a nessuno al momento giusto. Da qui tre filoni decisi, elencati
+in `DA-FARE.md` §1.
+
+**La sottoclasse deve essere una scelta.** È la richiesta ripetuta più volte, e la consegna di oggi la
+soddisfa solo a metà: il menu compare dove il manuale conosce la classe, ma una classe del tavolo — o
+una importata — non ha **dove tenere** le proprie sottoclassi, perché la tabella `classes` non ha una
+colonna per portarle. Finché è così, il formato le dichiara e l'import le butta, e per quelle classi il
+campo resta il testo libero da cui si voleva uscire. Serve una casa nei dati; poi la scelta va
+alimentata da lì, non dal solo pacchetto, e i privilegi vanno **applicati** e non solo elencati.
+
+**Il file di dati deve portare tutto.** L'export nasce come «backup dei cataloghi» e oggi è anche il
+modello da cui copiare, ma perde ancora dei pezzi: `skillChoices` digitato a mano non ha inversione, le
+sottoclassi escono solo dalle righe di provenienza manuale, i talenti non hanno tabella. Il perimetro
+è stato deciso — **cataloghi al completo, PG e appunti fuori** — e con esso due vincoli espliciti
+dell'utente: **nessun limite di volume** (il formato deve scalare; un tetto al numero di voci era
+stato proposto ed è stato scartato) e il criterio di fatto in forma di test: **export → import →
+export deve dare lo stesso file**.
+
+**E un buco di sicurezza, trovato rispondendo a una sua domanda.** Nulla impedisce a un file scritto a
+mano di dichiarare `"id": "srd-2024-it"`, cioè l'identità del manuale ufficiale. Le righe che ne
+nascono si presentano come ufficiali, l'interfaccia le rende **non modificabili** (le pagine di
+catalogo nascondono la ✎ sulle righe di provenienza SRD, master compreso) e «Rimuovi un import»
+**rifiuta** quel prefisso, per non cancellare il manuale: diventano indelebili, recuperabili solo via
+database. È lo stesso schema del caso «note condivise» già noto — non furto di dati, contenuto
+indelebile. Le RLS invece tengono (si scrive col proprio token, quindi solo dove le policy
+consentono) e non c'è iniezione HTML, perché `MarkupString` non è usato da nessuna parte. Si chiude nel
+parser, e va fatto **insieme** al lavoro sul formato: sono gli stessi file.
+
+**Come si lavora, rivisto.** Il gate a due agenti è costato ~820k token in tre giri e ha trovato
+quattro difetti reali, uno dei quali cancellava dati in silenzio: non si butta, si **calibra**. Da oggi
+non si lancia affatto sui diff di sola documentazione, fa un giro solo su UI e modifiche circoscritte,
+e arriva a tre solo dove il diff tocca dati, RLS, serializzazione o modelli. Nello stesso spirito
+`DA-FARE.md` è passato da 730 righe (29k token a ogni lettura) a un indice di soli punti aperti: la
+storia era già qui nel DIARIO, e il documento la ripeteva. La versione integrale è in
+`docs/archivio/DA-FARE-chiuso.md`, che non si aggiorna più.

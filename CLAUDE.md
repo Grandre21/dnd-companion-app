@@ -4,7 +4,8 @@ PWA per campagne **D&D 5e** (schede PG, cataloghi, tracker combattimento, note).
 Stack: **Blazor WebAssembly / .NET 10** + **Supabase** (PostgreSQL + PostgREST + Gotrue), hosting **GitHub Pages**.
 
 Fonti di verità del progetto (consultale prima di agire):
-- `docs/DA-FARE.md` — backlog aperto, con priorità.
+- `docs/DA-FARE.md` — backlog aperto, con priorità. **Solo punti aperti, 1-3 righe ciascuno**
+  (v. «Forma dei documenti»); i punti chiusi stanno in `docs/archivio/DA-FARE-chiuso.md`.
 - `docs/DIARIO.md` — cosa è stato fatto e *perché*.
 - `docs/superpowers/specs/` e `docs/superpowers/plans/` — spec e piani.
 - Memoria in `~/.claude/projects/.../memory/` (gotchas e decisioni).
@@ -58,23 +59,53 @@ senza approvazioni: *ciò che spingo è già online*. Da qui tutto il resto.
   all'utente. Ciò che il gate automatico non può coprire (una pagina che richiede l'accesso, un
   flusso a due account) va detto **prima**, non dopo.
 
-## Regola obbligatoria: revisione a due agenti (gate a ciclo chiuso)
+## Regola obbligatoria: revisione a due agenti (gate calibrato al rischio)
 
-Dopo **ogni** modifica — codice **o** documentazione — prima di dichiarare un task completato o di proporre un commit:
+Dopo ogni modifica al **codice**, prima di dichiarare un task completato o di proporre un commit,
+**lancia in parallelo** i due subagent `critico` e `conformità` (definiti in `.claude/agents/`) sul
+diff corrente (`git diff HEAD` + file non tracciati). `critico` → bug e regressioni; `conformità` →
+pattern documentati del progetto.
 
-1. **Lancia in parallelo** i due subagent `critico` e `conformità` (definiti in `.claude/agents/`) sul **diff corrente** (`git diff HEAD` + file non tracciati).
-   - `critico` → bug e regressioni.
-   - `conformità` → rispetto dei pattern documentati del progetto.
-2. Se emergono finding: **correggili** — autonomamente quelli certi; per gli ambigui scegli l'interpretazione più sicura e annotala. Poi **rilancia entrambi gli agenti** sul nuovo diff.
-3. **Ripeti** finché entrambi rispondono `NESSUN PROBLEMA` (**uscita pulita**) **oppure** finché scatta la guardia anti-loop (punto 4).
-4. **Guardia anti-loop**: al massimo **3 giri**, poi **fermati sempre**, qualunque sia la gravità residua. In ogni caso **non committare**: riporta all'utente i finding ancora presenti — marcando come **bloccanti** quelli `BLOCCANTE`/`SERIO` — e chiedi come procedere. Prosegui solo dietro sua conferma.
-5. **Solo con l'uscita pulita del punto 3** (entrambi `NESSUN PROBLEMA`) procedo **autonomamente** a dichiarare il lavoro fatto / a committare. Qualunque conclusione dopo l'**uscita via guardia** (punto 4) avviene **senza commit automatico** e richiede la **conferma esplicita** dell'utente. In nessuno dei due casi il **push** è mai automatico: su `main` pubblica, e resta su richiesta esplicita (v. la regola sul ramo unico).
+**Quanti giri dipende da cosa il diff tocca** (calibrazione decisa il 2026-08-01: il gate costa
+centinaia di migliaia di token, e applicarlo uguale a un refuso e a una migrazione è spreco):
+
+| Il diff tocca | Giri |
+|---|---|
+| **Solo documentazione** (`.md`) | **nessuno.** Gli agenti non si lanciano affatto: rileggo io il testo contro il codice, verificando i numeri che cito. |
+| UI, CSS, testo dell'interfaccia, refactor circoscritti | **1 giro**, poi correggo e riporto quel che resta |
+| Dati, RLS, migrazioni, serializzazione, modelli, permessi, formato di scambio | fino a **3 giri** |
+
+1. Se emergono finding: **correggili** — autonomamente quelli certi; per gli ambigui scegli
+   l'interpretazione più sicura e annotala.
+2. Dove sono previsti più giri, **rilancia entrambi gli agenti**; dal secondo giro fai rivedere **solo
+   gli hunk cambiati**, non tutto il diff.
+3. **Ripeti** finché entrambi rispondono `NESSUN PROBLEMA` (**uscita pulita**) o finché finisci i giri
+   previsti dalla tabella.
+4. **Guardia anti-loop**: mai più di **3 giri**, qualunque sia la gravità residua. Esaurita la quota
+   **non committare**: riporta i finding ancora presenti — marcando come **bloccanti** quelli
+   `BLOCCANTE`/`SERIO` — e chiedi come procedere.
+5. **Solo con l'uscita pulita** procedo **autonomamente** a dichiarare il lavoro fatto / a committare.
+   Dopo l'uscita via guardia serve la **conferma esplicita** dell'utente. In nessuno dei due casi il
+   **push** è automatico: su `main` pubblica, e resta su richiesta esplicita.
 
 Note:
+- **Economia del prompt**: agli agenti passa **solo i file rilevanti** e i fatti già verificati
+  («build Release 0/0, N test verdi: non rilanciarli»). Senza questa riga rifanno build e test a ogni
+  giro, per ciascuno.
 - Gli agenti sono in **sola lettura**: le correzioni le applico io tra un giro e l'altro.
-- Se il diff è solo `.md`, gli agenti scalano la revisione a coerenza/accuratezza del testo.
-- Le **definizioni degli agenti** (`.claude/agents/`) stanno in una cartella **git-ignored** (`.gitignore`): non compaiono in `git diff`/`git status`. Se le modifichi, passale **esplicitamente** agli agenti per la revisione.
+- Le **definizioni degli agenti** (`.claude/agents/`) stanno in una cartella **git-ignored**: non
+  compaiono in `git diff`/`git status`. Se le modifichi, passale **esplicitamente** agli agenti.
 - I due agenti sono complementari a `/code-review` e `/security-review`, non li sostituiscono.
+
+## Forma dei documenti (regola del 2026-08-01)
+
+`docs/DA-FARE.md` si legge a ogni sessione: la sua lunghezza è un **costo fisso**. Quindi:
+- **DA-FARE = indice di soli punti aperti**, una voce in 1-3 righe. Niente storia, niente misure,
+  niente alternative scartate: quelle vanno nel `DIARIO`, e la voce rimanda lì.
+- Quando un punto si chiude, **non si annota «✅ FATTO» in DA-FARE**: si toglie da lì e il perché
+  finisce nel `DIARIO`. Il materiale storico sta in `docs/archivio/DA-FARE-chiuso.md`, che è un
+  archivio e non si aggiorna.
+- Il `DIARIO` resta il racconto, e lì la prosa distesa è voluta: è la sola sede del *perché*.
 
 ## Verifica prima di "fatto"
 - Build pulita: `dotnet build` (0 warning / 0 errori atteso in Release).
