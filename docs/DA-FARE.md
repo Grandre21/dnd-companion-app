@@ -44,16 +44,28 @@ Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** ·
   pagina lunga: il tremolio nasceva dalla barra URL dinamica e l'emulazione di DevTools non la simula
   (v. DIARIO 2026-07-31). Con sei voci ora, controllare anche che nessuna etichetta tronchi sullo
   schermo più stretto.
+- 🟠 **Guardare la scheda riorganizzata su telefono** (2026-08-01): barra dei valori e tab sono un
+  unico blocco sticky. Da controllare (a) **la card dei PF a 360, 375 e 412px, su un PG con PF a
+  tre cifre** — è la fascia dove il gate ha trovato il «+» che usciva dalla card e finiva coperto
+  da quella della CA; ora numero e ± sono impilati, ma la misura va vista, non calcolata. I 360px
+  sono il valore in cui il media query attacca e la card deve *ancora* reggere i due pulsanti
+  affiancati (11px di margine, il minimo di tutta la scala); a 359 deve invece passare a riga
+  intera, ed è lì che cambia l'altezza del blocco sticky — cioè il punto (c); (b) che
+  PF/CA/INI/PERC restino leggibili scorrendo una scheda lunga; (c) che fra barra sticky in alto e
+  navigazione in basso resti abbastanza contenuto a vista. È la stessa categoria di verifica del
+  tremolio della barra inferiore: l'emulazione di DevTools non riproduce la barra URL dinamica di
+  Chrome su Android.
 - 🟠 **Provare davvero l'eliminazione di un personaggio** (sessione 2026-07-31, secondo giro): il
-  percorso è Personaggi → apri il PG → ✎ → in fondo, «Elimina». Nessun test automatico può coprirlo,
-  perché il comportamento che conta è del **database**: inventario e incantesimi devono sparire con
-  lui (`ON DELETE CASCADE`). La prova a due account che ha senso è **il master che elimina il PG di
-  un giocatore**, con il giocatore in incognito che lo vede sparire. Il caso opposto — un giocatore
+  percorso è Personaggi → apri il PG → tab «Scheda» → in fondo, «Elimina il personaggio». Nessun
+  test automatico può coprirlo, perché il comportamento che conta è del **database**: inventario e
+  incantesimi devono sparire con lui (`ON DELETE CASCADE`). La prova a due account che ha senso è
+  **il master che elimina il PG di un giocatore**, con il giocatore in incognito che lo vede
+  sparire. Il caso opposto — un giocatore
   che cancella il PG altrui — non è raggiungibile dall'interfaccia (la ✎ è nascosta da
   `AccessControl.CanEdit`, e con la migrazione party_visibility quel PG non gli viene nemmeno
   mostrato): il controllo in `DeleteSelectedAsync` è difesa in profondità, non un percorso da
   riprodurre a mano.
-- 🟡 **Guardare la scheda di un PG di livello ≥ 3 con una classe del manuale**: la scheda Bio ora
+- 🟡 **Guardare la scheda di un PG di livello ≥ 3 con una classe del manuale**: la tab «Scheda» ora
   mostra la tabella dei privilegi fino al suo livello, con la voce di sottoclasse evidenziata e gli
   slot incantesimo. Chi ha importato le classi **prima** di oggi ha righe senza tabella: la scheda
   ripiega sul pacchetto e mostra comunque i privilegi, ma per aggiornare il catalogo di campagna

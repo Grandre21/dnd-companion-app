@@ -959,3 +959,60 @@ casi che i dati reali producono e gli esempi inventati no — i livelli di soli 
 una classe del manuale e una del tavolo. I test scritti sul pacchetto vero li hanno trovati, quelli
 scritti a tavolino no. La seconda: il secondo SERIO l'ha introdotto una correzione del giro
 precedente, il che è l'argomento migliore per non fermare il gate al primo giro pulito.
+
+## La scheda riorganizzata attorno ai valori del turno (2026-08-01)
+
+Tre proposte di disposizione, scelta la seconda. Il difetto che risolve è di posizione, non di
+contenuto: **PF, CA, iniziativa e percezione passiva** — i quattro numeri che al tavolo servono a
+ogni turno — stavano dentro la tab «Scontro», e per leggerli bisognava tornare lì anche mentre si
+guardavano gli incantesimi o l'inventario. Ora stanno in `CharacterVitalsBar`, **sopra le tab**, e
+il gruppo barra + tab è sticky: restano leggibili scorrendo qualunque scheda. I ± dei punti ferita
+sono saliti con loro, perché sono il controllo più premuto dell'app e spostare il numero senza i
+pulsanti avrebbe peggiorato le cose.
+
+Lo sticky è **sul gruppo**, non sulle due parti: impilare due elementi sticky richiede di conoscere
+l'altezza del primo per calcolare il `top` del secondo, e quell'altezza cambia con la larghezza —
+sotto i 360px i punti ferita prendono una riga tutta loro.
+
+Il primo giro del gate ha trovato lì un bloccante, e i due agenti ci sono arrivati con conti
+indipendenti concordi. Nella card dei PF il numero stava **in mezzo ai due pulsanti**: 44 + 44 di
+bersagli che non si rimpiccioliscono, più il numero, fanno una card da almeno 160px, e in una barra
+a quattro riquadri su un telefono da 390px ce ne sono 110. L'eccedenza usciva dalla card e finiva
+sotto quella della CA che, essendo successiva nel DOM, la copriva e ne intercettava i tocchi: il
+«+» diventava in parte impremibile, sul controllo più premuto dell'app e proprio sulle larghezze
+di tutti i telefoni comuni. La soglia di 380px sembrava prudente perché era stata calcolata sul
+caso che funzionava. Ora il numero sta **sopra** i pulsanti: impilati ne bastano 88, e la card ne
+ha 99 già a 360px — il secondo giro del gate ha poi fatto notare che, caduto il vincolo dei 160px,
+tenere la soglia a 380 mandava su due righe proprio gli schermi da 360 e 375px senza alcun
+motivo.
+
+Le tab scendono da cinque a quattro. «Scontro» e «Stat» si fondono in **«Tiri»** — tutto ciò che si
+tira o si spende in un turno: velocità, ispirazione, dadi vita, tiri salvezza contro morte, armi, e
+poi le sei caratteristiche con tiri salvezza e abilità. I due componenti restano due: la pagina li
+compone uno dopo l'altro invece di fonderli in un file solo. **Le difese** (resistenze, immunità,
+vulnerabilità) lasciano il combattimento per la tab «Scheda»: non sono un'azione, sono tratti del
+personaggio e si consultano come i tratti di specie.
+
+**L'eliminazione del personaggio si sposta in superficie**, dal fondo del form di modifica al fondo
+della tab «Scheda». Era stata messa nella modifica per tenerla lontana dal pollice, ma è stata
+richiesta due volte da chi ce l'aveva già a disposizione: chi cerca «come cancello il mio
+personaggio» guarda il personaggio, non pensa di entrare in modifica. Resta dietro la stessa
+conferma e la stessa verifica di permesso.
+
+Lo spostamento del markup si porta dietro il proprio CSS, come impone l'isolamento di Blazor: le
+regole dei punti ferita sono ora in `CharacterVitalsBar.razor.css`, quelle delle difese in
+`CharacterBioTab.razor.css`. Con un'eccezione che vale la pena annotare: `.section-header` **non**
+è stata replicata, perché è globale in `app.css` e raggiunge già i componenti — `CharacterCombatTab`
+la usa così per il titolo «ARMI». Una copia scoped avrebbe la meglio sulla globale (0,2,0 contro
+0,1,0) e da lì in poi le due definizioni divergerebbero alla prima modifica di `app.css`, in
+silenzio.
+
+**Chiusura.** 609 test verdi, build 0 warning / 0 errori — il redesign non tocca logica di dominio,
+quindi la suite resta quella del giro precedente. Il gate a due agenti ha fatto tre giri. Il primo
+ha trovato **lo stesso bloccante da entrambe le parti**, con conti indipendenti che coincidevano: la
+card dei punti ferita traboccava sui telefoni comuni. Vale la pena notare come è nato — non da una
+svista, ma da una misura presa sul ramo sbagliato: la soglia di 380px era stata calcolata verificando
+il caso in cui i PF vanno a capo, che funzionava, invece del caso a quattro riquadri, che era quello
+in uso su ogni telefono reale. Il secondo giro ha poi mostrato il rovescio: caduto il vincolo dei
+160px, quella stessa soglia mandava su due righe schermi che non ne avevano bisogno. Il terzo non ha
+trovato né bloccanti né seri, solo due numeri rimasti indietro nei commenti.

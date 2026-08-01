@@ -40,6 +40,43 @@
             <p class="bio-block-text">@Character.SpeciesTraits</p>
         </div>
     }
+    @* Resistenze, immunità e vulnerabilità stavano nella tab del combattimento, ma non sono
+       un'azione: sono tratti del personaggio, e si consultano come i tratti di specie. *@
+    @if (HasDefenses)
+    {
+        <p class="section-header">DIFESE</p>
+        <div class="defenses-badges">
+            @if (!string.IsNullOrWhiteSpace(Character.DamageResistances))
+            {
+                @foreach (var item in SplitDefenses(Character.DamageResistances))
+                {
+                    <span class="defense-badge resistance">RES @item</span>
+                }
+            }
+            @if (!string.IsNullOrWhiteSpace(Character.DamageImmunities))
+            {
+                @foreach (var item in SplitDefenses(Character.DamageImmunities))
+                {
+                    <span class="defense-badge immunity">IMM @item</span>
+                }
+            }
+            @if (!string.IsNullOrWhiteSpace(Character.DamageVulnerabilities))
+            {
+                @foreach (var item in SplitDefenses(Character.DamageVulnerabilities))
+                {
+                    <span class="defense-badge vulnerability">VUL @item</span>
+                }
+            }
+            @if (!string.IsNullOrWhiteSpace(Character.ConditionImmunities))
+            {
+                @foreach (var item in SplitDefenses(Character.ConditionImmunities))
+                {
+                    <span class="defense-badge condition-immunity">IMM @item</span>
+                }
+            }
+        </div>
+    }
+
     @{
         var raggiunti = ClassProgression.PrivilegiFinoAl(ClassProgressionText, Character.Level);
         var slot = ClassProgression.SlotFinoAl(ClassProgressionText, Character.Level);
@@ -135,6 +172,23 @@
             </button>
         }
     </div>
+
+    @* In fondo alla scheda e non dentro la modifica: chi cerca «come cancello il mio personaggio»
+       non pensa di entrare in modifica per trovarlo. Compare solo a chi può davvero farlo —
+       proprietario o master, come la policy characters_delete. *@
+    @if (CanEdit && OnDelete.HasDelegate)
+    {
+        <div class="danger-zone">
+            <p class="danger-title">Eliminare il personaggio</p>
+            <p class="danger-text">
+                Se ne vanno anche il suo inventario e i suoi incantesimi. L'operazione non si annulla.
+            </p>
+            <button type="button" class="danger-btn" @onclick="@(() => OnDelete.InvokeAsync())"
+                    disabled="@IsBusy">
+                🗑 Elimina il personaggio
+            </button>
+        </div>
+    }
 </div>
 
 @code {
@@ -150,6 +204,31 @@
 
     /// <summary>Il genitore persiste le note (UpdateCharacter + sync della lista) e gestisce gli errori.</summary>
     [Parameter] public EventCallback<string> OnSaveNotes { get; set; }
+
+    /// <summary>Eliminazione del personaggio. La conferma e la chiamata al database restano al
+    /// genitore, come per il salvataggio delle note.</summary>
+    [Parameter] public EventCallback OnDelete { get; set; }
+
+    /// <summary>Un'operazione del genitore è in corso: disabilita l'eliminazione. Da solo non
+    /// basta — fra la conferma e la fine della chiamata il genitore non ri-renderizza, quindi il
+    /// `disabled` non arriva al DOM in tempo: la guardia vera è il rientro in DeleteSelectedAsync.</summary>
+    [Parameter] public bool IsBusy { get; set; }
+
+    private bool HasDefenses =>
+        !string.IsNullOrWhiteSpace(Character.DamageResistances) ||
+        !string.IsNullOrWhiteSpace(Character.DamageImmunities) ||
+        !string.IsNullOrWhiteSpace(Character.DamageVulnerabilities) ||
+        !string.IsNullOrWhiteSpace(Character.ConditionImmunities);
+
+    private static IEnumerable<string> SplitDefenses(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) yield break;
+        foreach (var p in s.Split(new[] { ',', ';', '\n' },
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            yield return p;
+        }
+    }
 
     private string notesDraft = string.Empty;
     private bool isSavingNotes;

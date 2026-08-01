@@ -1,0 +1,140 @@
+/* ===== Barra dei valori del turno (PF / CA / INI / PERC) =====
+   Le regole di .hp-* vengono da CharacterCombatTab.razor.css — lo scope isolato del genitore non
+   raggiunge i figli, quindi il markup spostato qui si porta dietro il proprio stile invece di
+   ereditarlo (v. la nota su Blazor CSS isolation nel DIARIO) — ma sono ADATTATE, non copiate: in
+   una barra sempre a schermo le misure sono più strette (gap, corpo del numero, spaziature). I
+   44px dei pulsanti sono l'unica misura che non si tocca. */
+
+.vitals-bar {
+    display: grid;
+    /* Sotto i 360px la card dei PF non regge i due pulsanti da 44px affiancati, e prende una riga
+       tutta sua. La soglia è calcolata sul layout impilato: servono 88px di contenuto e a 360px la
+       colonna ne offre 99, cioè 11 di margine. Non è un numero tondo scelto a occhio — con i ±
+       ancora ai lati del numero ne servivano 160 e la soglia giusta sarebbe stata oltre i 475px,
+       fuori da qualunque telefono. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.v-hp {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 360px) {
+    .vitals-bar {
+        grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(0, 1fr));
+    }
+
+    .v-hp {
+        grid-column: auto;
+    }
+}
+
+.v-card {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.5rem 0.4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+.v-label {
+    margin: 0 0 0.15rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.v-value {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+/* ---- Punti ferita ---- */
+
+/* I ± ai due lati della card, con il numero sopra: affiancati al numero servirebbero ~160px di
+   card, che su un telefono non ci sono (v. il commento nel .razor).
+   Nessun `gap`: con `space-between` non cambia nulla quando lo spazio avanza, ma allarga il
+   min-content della riga da 88 a 94px, cioè sposta la soglia del media query verso l'alto senza
+   dare niente in cambio. */
+.hp-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 0.25rem;
+}
+
+.hp-circle {
+    /* 44px: la soglia del bersaglio tattile. Vale anche qui, dove lo spazio è minore. */
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    background: linear-gradient(180deg, #3a2a1e 0%, #231710 100%);
+    color: var(--gold-light);
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.12s ease;
+}
+
+.hp-circle:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.hp-circle:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.hp-circle:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.hp-minus {
+    border-color: #c5746b;
+}
+
+.hp-plus {
+    border-color: #7a9a6a;
+}
+
+.hp-value {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.hp-max {
+    font-size: 0.8rem;
+    color: var(--gold-dim);
+    margin-left: 0.1rem;
+}
+
+.temp-hp {
+    margin: 0.3rem 0 0;
+    font-size: 0.72rem;
+    color: #6b9ec5;
+}

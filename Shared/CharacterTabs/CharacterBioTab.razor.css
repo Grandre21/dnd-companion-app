@@ -173,3 +173,81 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ---- Difese (spostate qui da CharacterCombatTab: lo scope isolato non segue il markup) ----
+   `.section-header` fa eccezione e NON si replica: è globale in app.css e raggiunge già i
+   componenti (CharacterCombatTab la usa così per il titolo «ARMI»). Una copia scoped avrebbe la
+   meglio sulla globale — 0,2,0 contro 0,1,0 — e da lì in poi le due definizioni divergerebbero
+   alla prima modifica di app.css, in silenzio. */
+
+.defenses-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.defense-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.defense-badge.resistance        { color: #97c459; border-color: #97c459; background: #1f2818; }
+.defense-badge.immunity          { color: #6b9ec5; border-color: #6b9ec5; background: #1f242a; }
+.defense-badge.vulnerability     { color: #c5746b; border-color: #c5746b; background: #2a1f1f; }
+.defense-badge.condition-immunity { color: #a16bb8; border-color: #a16bb8; background: #221f2a; }
+
+/* ===== Zona pericolosa (eliminazione) — spostata qui dal form di modifica ===== */
+
+.danger-zone {
+    margin-top: 2rem;
+    padding: 1rem;
+    border: 1px solid rgba(var(--danger-rgb), 0.45);
+    border-radius: 10px;
+    background: rgba(var(--danger-rgb), 0.06);
+}
+
+.danger-title {
+    margin: 0 0 0.35rem;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--danger-text);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.danger-text {
+    margin: 0 0 0.75rem;
+    font-size: 13px;
+    color: var(--gold-dim);
+    line-height: 1.45;
+}
+
+.danger-btn {
+    width: 100%;
+    /* 44px: sotto questa soglia il bersaglio non è più raggiungibile col pollice. */
+    min-height: 44px;
+    padding: 0.7rem 1rem;
+    background: rgba(var(--danger-rgb), 0.18);
+    border: 1px solid rgba(var(--danger-rgb), 0.5);
+    color: var(--danger-text);
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.danger-btn:hover:not(:disabled) {
+    background: rgba(var(--danger-rgb), 0.3);
+    color: var(--error-text);
+    border-color: rgba(var(--danger-rgb), 0.8);
+}
+
+.danger-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

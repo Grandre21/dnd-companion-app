@@ -1,0 +1,72 @@
+@using DndCompanion.Models
+@using DndCompanion.Services
+
+@* I quattro numeri che servono a ogni turno, sopra ogni tab invece che dentro una sola: erano in
+   CharacterCombatTab e per leggerli bisognava tornare lì, anche mentre si guardavano gli
+   incantesimi o l'inventario. I ± dei PF restano qui perché sono il controllo più premuto
+   dell'app — spostarli senza portarsi dietro i pulsanti avrebbe peggiorato le cose. *@
+<div class="vitals-bar">
+    @* Numero sopra, ± sotto: in fila orizzontale la card dovrebbe essere larga almeno 160px (44+44
+       di pulsanti, che non si rimpiccioliscono, più il numero a tre cifre), e in una barra a quattro
+       riquadri su un telefono da 390px ne ha 110 — il «+» finirebbe fuori dalla card, sotto quella
+       della CA, che essendo successiva nel DOM lo coprirebbe e ne intercetterebbe i tocchi.
+       Impilati ne bastano 88, e ci stanno da 360px in su. *@
+    <div class="v-card v-hp">
+        <p class="v-label">PF</p>
+        <p class="hp-value">@Character.HitPoints<span class="hp-max">/@Character.MaxHitPoints</span></p>
+        <div class="hp-row">
+            <button class="hp-circle hp-minus" @onclick="DecreaseHp"
+                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints <= 0)"
+                    aria-label="Togli un punto ferita">−</button>
+            <button class="hp-circle hp-plus" @onclick="IncreaseHp"
+                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints >= Character.MaxHitPoints)"
+                    aria-label="Aggiungi un punto ferita">+</button>
+        </div>
+        @if (Character.TempHitPoints > 0)
+        {
+            <p class="temp-hp">+@Character.TempHitPoints temp</p>
+        }
+    </div>
+
+    <div class="v-card">
+        <p class="v-label">CA</p>
+        <p class="v-value">@Character.ArmorClass</p>
+    </div>
+
+    <div class="v-card">
+        <p class="v-label">INI</p>
+        <p class="v-value">@FormatBonus(CharacterCalculations.GetInitiative(Character))</p>
+    </div>
+
+    <div class="v-card">
+        <p class="v-label">PERC</p>
+        <p class="v-value">@CharacterCalculations.GetPassivePerception(Character)</p>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Character Character { get; set; } = default!;
+
+    /// <summary>Abilita i ± dei punti ferita; speculare alle RLS, come nelle altre tab.</summary>
+    [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>Il genitore persiste il personaggio: qui si modifica solo il modello in memoria,
+    /// esattamente come faceva CharacterCombatTab prima dell'estrazione.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool isSavingHp;
+
+    private async Task AdjustHpAsync(int delta)
+    {
+        if (!CanEdit) return;
+        var newHp = Math.Clamp(Character.HitPoints + delta, 0, Character.MaxHitPoints);
+        if (newHp == Character.HitPoints) return;
+        Character.HitPoints = newHp;
+        isSavingHp = true;
+        await OnChanged.InvokeAsync();
+        isSavingHp = false;
+    }
+
+    private Task DecreaseHp() => AdjustHpAsync(-1);
+    private Task IncreaseHp() => AdjustHpAsync(1);
+}

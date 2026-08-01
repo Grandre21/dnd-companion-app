@@ -1,27 +1,8 @@
 @using DndCompanion.Models
 @using DndCompanion.Services
 
-<div class="combat-vitals">
-    <div class="hp-card">
-        <p class="card-label">PUNTI FERITA</p>
-        <div class="hp-row">
-            <button class="hp-circle hp-minus" @onclick="DecreaseHp"
-                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints <= 0)">−</button>
-            <p class="hp-value">@Character.HitPoints<span class="hp-max">/@Character.MaxHitPoints</span></p>
-            <button class="hp-circle hp-plus" @onclick="IncreaseHp"
-                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints >= Character.MaxHitPoints)">+</button>
-        </div>
-        @if (Character.TempHitPoints > 0)
-        {
-            <p class="temp-hp">+@Character.TempHitPoints temp</p>
-        }
-    </div>
-    <div class="ac-card">
-        <p class="card-label">CA</p>
-        <p class="ac-value">@Character.ArmorClass</p>
-    </div>
-</div>
-
+@* PF, CA, INI e PERC sono saliti in CharacterVitalsBar, sopra le tab: servono a ogni turno e
+   stavano dietro un tocco. Qui resta ciò che si consulta quando serve davvero. *@
 <div class="hit-dice-card">
     <p class="card-label">DADI VITA</p>
     <div class="hit-dice-row">
@@ -75,16 +56,8 @@
 
 <div class="secondary-stats">
     <div class="mini-stat">
-        <p class="mini-label">INI</p>
-        <p class="mini-value mini-value-large">@FormatBonus(CharacterCalculations.GetInitiative(Character))</p>
-    </div>
-    <div class="mini-stat">
         <p class="mini-label">VEL</p>
         <p class="mini-value">@Character.Speed<span class="mini-unit">m</span></p>
-    </div>
-    <div class="mini-stat">
-        <p class="mini-label">PERC</p>
-        <p class="mini-value">@CharacterCalculations.GetPassivePerception(Character)</p>
     </div>
     <div class="mini-stat">
         <p class="mini-label">ISPIRAZIONE</p>
@@ -121,83 +94,16 @@ else
     <p class="empty-note">Nessuna arma equipaggiata</p>
 }
 
-@if (HasDefenses)
-{
-    <p class="section-header">DIFESE</p>
-    <div class="defenses-badges">
-        @if (!string.IsNullOrWhiteSpace(Character.DamageResistances))
-        {
-            @foreach (var item in SplitDefenses(Character.DamageResistances))
-            {
-                <span class="defense-badge resistance">RES @item</span>
-            }
-        }
-        @if (!string.IsNullOrWhiteSpace(Character.DamageImmunities))
-        {
-            @foreach (var item in SplitDefenses(Character.DamageImmunities))
-            {
-                <span class="defense-badge immunity">IMM @item</span>
-            }
-        }
-        @if (!string.IsNullOrWhiteSpace(Character.DamageVulnerabilities))
-        {
-            @foreach (var item in SplitDefenses(Character.DamageVulnerabilities))
-            {
-                <span class="defense-badge vulnerability">VUL @item</span>
-            }
-        }
-        @if (!string.IsNullOrWhiteSpace(Character.ConditionImmunities))
-        {
-            @foreach (var item in SplitDefenses(Character.ConditionImmunities))
-            {
-                <span class="defense-badge condition-immunity">IMM @item</span>
-            }
-        }
-    </div>
-}
-
 @code {
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public EventCallback OnChanged { get; set; }
     [Parameter] public IReadOnlyList<InventoryItem> Weapons { get; set; } = Array.Empty<InventoryItem>();
 
-    private bool isSavingHp;
-
     private bool ShowDeathSaves =>
         Character.HitPoints == 0 || Character.DeathSaveSuccesses > 0 || Character.DeathSaveFailures > 0;
 
-    private bool HasDefenses =>
-        !string.IsNullOrWhiteSpace(Character.DamageResistances) ||
-        !string.IsNullOrWhiteSpace(Character.DamageImmunities) ||
-        !string.IsNullOrWhiteSpace(Character.DamageVulnerabilities) ||
-        !string.IsNullOrWhiteSpace(Character.ConditionImmunities);
-
     private int HitDiceTotal() => CharacterCalculations.GetHitDiceTotal(Character.HitDiceMax);
-
-    private static IEnumerable<string> SplitDefenses(string? s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) yield break;
-        foreach (var p in s.Split(new[] { ',', ';', '\n' },
-                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            yield return p;
-        }
-    }
-
-    private async Task AdjustHpAsync(int delta)
-    {
-        if (!CanEdit) return;
-        var newHp = Math.Clamp(Character.HitPoints + delta, 0, Character.MaxHitPoints);
-        if (newHp == Character.HitPoints) return;
-        Character.HitPoints = newHp;
-        isSavingHp = true;
-        await OnChanged.InvokeAsync();
-        isSavingHp = false;
-    }
-
-    private Task DecreaseHp() => AdjustHpAsync(-1);
-    private Task IncreaseHp() => AdjustHpAsync(1);
 
     private async Task SetDeathSaveSuccesses(int value)
     {

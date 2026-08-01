@@ -88,19 +88,22 @@
                     }
                 </div>
 
-                @* ===== Tab bar ===== *@
+                @* ===== Valori del turno + tab: un solo blocco che resta in cima =====
+                   Sticky sul gruppo e non sulle due parti separate: due elementi sticky
+                   impilati richiederebbero di sapere l'altezza del primo per calcolare il `top`
+                   del secondo, e quell'altezza cambia con la larghezza dello schermo (i PF vanno
+                   a capo sotto i 360px). *@
+                <div class="sheet-sticky">
+                <CharacterVitalsBar Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
+
                 <div class="tab-bar">
-                    <button class="tab-item @(activeTab == "combat" ? "active" : "")" @onclick='() => activeTab = "combat"'>
+                    <button class="tab-item @(activeTab == "rolls" ? "active" : "")" @onclick='() => activeTab = "rolls"'>
                         <span class="tab-icon">⚔</span>
-                        <span class="tab-label">Scontro</span>
-                    </button>
-                    <button class="tab-item @(activeTab == "stats" ? "active" : "")" @onclick='() => activeTab = "stats"'>
-                        <span class="tab-icon">📊</span>
-                        <span class="tab-label">Stat</span>
+                        <span class="tab-label">Tiri</span>
                     </button>
                     <button class="tab-item @(activeTab == "bio" ? "active" : "")" @onclick='() => activeTab = "bio"'>
-                        <span class="tab-icon">👤</span>
-                        <span class="tab-label">Bio</span>
+                        <span class="tab-icon">📖</span>
+                        <span class="tab-label">Scheda</span>
                     </button>
                     <button class="tab-item @(activeTab == "items" ? "active" : "")" @onclick='() => activeTab = "items"'>
                         <span class="tab-icon">🎒</span>
@@ -114,30 +117,31 @@
                         </button>
                     }
                 </div>
+                </div>
 
                 <div class="tab-content">
 
-                @* ===================== TAB COMBAT ===================== *@
-                @if (activeTab == "combat")
+                @* ===================== TAB TIRI =====================
+                   Tutto ciò che si tira o si spende in un turno: la fascia con velocità e
+                   ispirazione, i dadi vita, i TS contro morte, le armi, e poi le sei
+                   caratteristiche con tiri salvezza e abilità. Le due metà restano due componenti:
+                   qui si compongono, non si fondono. *@
+                @if (activeTab == "rolls")
                 {
                     <CharacterCombatTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
                                         Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()" />
-                }
-
-                @* ===================== TAB STATS ===================== *@
-                @if (activeTab == "stats")
-                {
                     <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
                 }
 
-                @* ===================== TAB BIO ===================== *@
+                @* ===================== TAB SCHEDA ===================== *@
                 @if (activeTab == "bio")
                 {
                     <CharacterBioTab Character="@selected" CanEdit="@CanEdit" OnSaveNotes="@SaveNotesAsync"
-                                     ClassProgressionText="@ProgressioneClasseSelezionata" />
+                                     ClassProgressionText="@ProgressioneClasseSelezionata"
+                                     OnDelete="@DeleteSelectedAsync" IsBusy="@isBusy" />
                 }
 
-                @* ===================== TAB ITEMS ===================== *@
+                @* ===================== TAB ZAINO ===================== *@
                 @if (activeTab == "items")
                 {
                     <CharacterItemsTab Character="@selected" CanEdit="@CanEdit" Items="@inventoryItems"
@@ -145,7 +149,7 @@
                                        OnInventoryChanged="@ReloadInventoryAsync" OnError="@SetError" />
                 }
 
-                @* ===================== TAB MAGIC ===================== *@
+                @* ===================== TAB MAGIA ===================== *@
                 @if (activeTab == "magic" && !string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
                 {
                     <CharacterMagicTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
@@ -157,9 +161,10 @@
             break;
 
         case ViewMode.Form:
+            @* L'eliminazione sta in fondo alla tab «Scheda», non qui: si cerca guardando il
+               personaggio, non entrando in modifica. *@
             <CharacterEditForm Draft="@editDraft" Classes="@classes" Races="@races"
-                               IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm"
-                               OnDelete="@DeleteSelectedAsync" />
+                               IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm" />
             break;
     }
 
@@ -205,8 +210,8 @@
         => selected is null ? null : ClassProgression.Risolvi(classes, packageClasses, selected.Class);
 
     // ===== Navigazione a tab della vista detail =====
-    // valori: combat | stats | bio | items | magic
-    private string activeTab = "combat";
+    // valori: rolls | bio | items | magic
+    private string activeTab = "rolls";
 
     private bool isBusy;
     private string? errorMessage;
@@ -286,7 +291,7 @@
     {
         selected = c;
         mode = ViewMode.Detail;
-        activeTab = "combat";
+        activeTab = "rolls";
         await LoadInventoryAsync(c.Id);
         await EnsureSpellCatalogAsync();
         await EnsureClassPackageAsync();
@@ -416,12 +421,16 @@
     {
         // Speculare a characters_delete: proprietario o master. Senza il permesso il server non
         // cancella e non protesta, quindi la finta riuscita si eviterebbe solo qui.
-        if (selected is null || !CanEdit) return;
+        if (selected is null || !CanEdit || isBusy) return;
 
         var nome = string.IsNullOrWhiteSpace(selected.Name) ? "questo personaggio" : $"\"{selected.Name}\"";
         var confermato = await Confirm.ShowAsync(
             $"Eliminare {nome}? Spariscono anche il suo inventario e i suoi incantesimi.");
         if (!confermato) return;
+
+        // Ricontrollato dopo la conferma: la finestra di dialogo è asincrona, e nel frattempo una
+        // prima eliminazione può essere arrivata in fondo e aver azzerato `selected`.
+        if (selected is null || isBusy) return;
 
         var id = selected.Id;
         isBusy = true;

@@ -259,16 +259,24 @@
 }
 
 /* ----- Tab bar ----- */
-.tab-bar {
+/* Valori del turno + tab: il gruppo resta in cima allo scorrimento, così PF, CA, iniziativa e
+   percezione sono leggibili anche mentre si guarda l'inventario o gli incantesimi. Lo sfondo pieno
+   è necessario: sotto ci scorre il contenuto. */
+.sheet-sticky {
     position: sticky;
     top: 0;
     z-index: 10;
-    display: flex;
-    gap: 4px;
     margin: 0 -1rem;
     padding: 0 1rem 8px;
     background: var(--bg);
+    /* Il bordo sta qui e non su .tab-bar: è il contenitore ad avere i margini negativi che lo
+       portano da bordo a bordo dello schermo, come faceva la tab bar prima di essere avvolta. */
     border-bottom: 0.5px solid #3a2818;
+}
+
+.tab-bar {
+    display: flex;
+    gap: 4px;
 }
 
 .tab-item {
@@ -339,13 +347,9 @@
         font-size: 0.8rem;
     }
 
-    .hp-circle {
-        width: 48px;
-        height: 48px;
-        font-size: 1.6rem;
-    }
-
-    .hp-value {
-        font-size: 1.7rem;
-    }
+    /* Qui c'erano le regole desktop di .hp-circle/.hp-value, nate insieme al markup quando i punti
+       ferita stavano in questa pagina. Sono rimaste inerti dal 2026-06-24, quando il markup è
+       passato a CharacterCombatTab: lo scope isolato del genitore non raggiunge i figli. Rimosse
+       con lo spostamento in CharacterVitalsBar invece di essere replicate là: la barra è compatta
+       per scelta, e ingrandire i ± proprio dove lo spazio abbonda non serve. */
 }
