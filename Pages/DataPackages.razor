@@ -84,10 +84,9 @@
                     </p>
 
                     <p>
-                        Un'eccezione da conoscere: le <strong>sottoclassi</strong> annidate dentro le
-                        classi (e i <strong>talenti</strong>) l'app le legge solo dal manuale
-                        precaricato, e all'import <strong>non le scrive</strong> — non c'è un catalogo
-                        dove salvarle. L'anteprima lo dice, così non le cerchi dopo.
+                        Un'eccezione da conoscere: i <strong>talenti</strong> l'app li legge solo dal
+                        manuale precaricato, e all'import <strong>non li scrive</strong> — non c'è un
+                        catalogo dove salvarli. L'anteprima lo dice, così non li cerchi dopo.
                     </p>
 
                     <p>
@@ -110,6 +109,29 @@
                         Nel <code>description</code> il testo sta su <strong>una riga sola</strong>: un
                         ritorno a capo vero dentro le virgolette non è JSON valido e farebbe respingere
                         il file: per andare a capo si scrive <code>\n</code>.
+                    </p>
+
+                    <p class="guide-code-label">Le sottoclassi si scrivono annidate dentro la classe:</p>
+<pre class="guide-code">{ "id": "mio-pacchetto/guerriero", "name": "Guerriero", "subclasses": [ { "id": "mio-pacchetto/campione", "name": "Campione", "description": "Sceglie la violenza allo stato puro.", "levels": [ { "level": 3, "features": ["Attacco supremo"] } ] } ] }</pre>
+                    <p>
+                        Anche una sottoclasse ha bisogno solo di <code>id</code> e <code>name</code>, e
+                        finisce a catalogo <strong>insieme alla classe che la dichiara</strong> — non
+                        ha una riga propria nell'anteprima. I privilegi hanno un campo proprio,
+                        <code>levels</code>: scriverli dentro <code>description</code> funziona, ma al
+                        riesporto l'app li sposta lì, ed è meglio saperlo prima. Non c'è
+                        <strong>nessun limite</strong> al numero di voci, qui come in ogni altra
+                        sezione: il formato deve reggere un file con una sola voce quanto uno con
+                        l'intero manuale.
+                    </p>
+                    <p>
+                        Il prefisso <code>srd-2024-it/</code> è riservato al manuale distribuito con
+                        l'app: un file che lo usi — come <code>id</code> del pacchetto o come
+                        <code>id</code> di una voce — viene <strong>rifiutato per intero</strong>, prima
+                        di scrivere qualsiasi cosa. Senza questo controllo le voci nate da quel file si
+                        presenterebbero come ufficiali, e nessuno potrebbe più modificarle né
+                        rimuoverle. Gli <code>id</code> delle sottoclassi fanno eccezione e sono
+                        ammessi: non diventano la provenienza di nessuna riga, e l'app li riscrive
+                        comunque quando esporta.
                     </p>
 
                     <p>

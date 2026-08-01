@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using DndCompanion.Models;
 using DndCompanion.Models.Packages;
 
@@ -62,6 +63,10 @@ public static class PackageRowMerge
         // la classe (e quando si sblocca la sottoclasse): senza questa riga i 20 livelli del file
         // venivano letti dal parser e poi buttati, e ogni classe importata arrivava senza privilegi.
         Features = ClassProgression.Serializza(p.Levels),
+        // Stessa ragione di Features, per le sottoclassi (dal 2026-08-01 hanno una colonna): senza
+        // questa riga il parser le leggeva e SubclassCatalog le avrebbe cercate invano, perché
+        // l'import non le aveva mai scritte da nessuna parte.
+        Subclasses = SubclassText.Serializza(p.Subclasses),
         SourceId = p.Id,
         CampaignId = campaignId,
         AddedBy = userId,
@@ -143,6 +148,17 @@ public static class PackageRowMerge
             Scrivi(ClassProgression.Serializza(p.Levels), v => c.Features = v);
         }
 
+        // Stessa guardia, stessa ragione, sul campo delle sottoclassi: è testo libero quanto
+        // Features, si scrive a mano nella pagina Classi, e un re-import non deve cancellare in
+        // silenzio un elenco scritto da un tavolo — né una nota aggiunta in coda a un elenco
+        // generato da noi (SubclassText.SoloElenco, non SembraElenco, per lo stesso identico
+        // motivo di SoloProgressione qui sopra).
+        if (p.Subclasses.Count > 0
+            && (string.IsNullOrWhiteSpace(c.Subclasses) || SubclassText.SoloElenco(c.Subclasses)))
+        {
+            Scrivi(SubclassText.Serializza(p.Subclasses), v => c.Subclasses = v);
+        }
+
         // c.Description, c.ArmorProficiencies, c.WeaponProficiencies restano.
     }
 
@@ -200,25 +216,33 @@ public static class PackageRowMerge
     public static string? DescriviScelte(PackageSkillChoices? choices)
         => choices is null ? null : $"{choices.Count} fra: {Unisci(choices.From)}";
 
-    /// <summary>Inverte <see cref="DescriviScelte"/>: riconosce ESATTAMENTE il formato che produce
-    /// (<c>"{conteggio} fra: {elenco separato da virgole}"</c>) e restituisce <c>null</c> per
-    /// qualunque altro testo. Non è un parser tollerante di proposito: una classe nata da un
-    /// pacchetto porta sempre il testo che <c>DescriviScelte</c> genera, ma il campo resta testo
-    /// libero modificabile a mano dopo l'import (Pages/Classes.razor) — e per il testo libero non
-    /// esiste un'inversione affidabile, quindi l'export (Task 9) deve poterlo riconoscere come "non
-    /// invertibile" e omettere il campo, non inventare una struttura.</summary>
+    /// <summary>Riconosce il formato che <see cref="DescriviScelte"/> produce
+    /// (<c>"{conteggio} fra: {elenco separato da virgole}"</c>) più le varianti minime che un tavolo
+    /// scrive davvero compilando la pagina Classi a mano: <c>tra:</c> al posto di <c>fra:</c>, spazi
+    /// in eccesso attorno al separatore, un punto finale. Ancorato a inizio e fine stringa, non una
+    /// ricerca ovunque nel testo: il conteggio deve stare all'inizio, non solo "un numero seguito da
+    /// fra/tra: da qualche parte".</summary>
+    private static readonly Regex FormatoScelte = new(
+        @"^\s*(\d+)\s*(?:fra|tra)\s*:\s*(.*?)\s*\.?\s*$", RegexOptions.CultureInvariant);
+
+    /// <summary>Inverte <see cref="DescriviScelte"/>, tollerando le varianti di <see cref="FormatoScelte"/>,
+    /// e restituisce <c>null</c> per qualunque altro testo. Non è un parser tollerante di proposito
+    /// OLTRE quelle varianti elencate: una classe nata da un pacchetto porta sempre il testo che
+    /// <c>DescriviScelte</c> genera, ma il campo resta testo libero modificabile a mano dopo l'import
+    /// (Pages/Classes.razor) — e per la prosa libera non esiste un'inversione affidabile, quindi
+    /// l'export (Task 9) deve poterlo riconoscere come "non invertibile" e omettere il campo, non
+    /// inventare una struttura.</summary>
     public static PackageSkillChoices? LeggiScelte(string? testo)
     {
         if (string.IsNullOrWhiteSpace(testo)) return null;
 
-        const string separatore = " fra: ";
-        var indice = testo.IndexOf(separatore, StringComparison.Ordinal);
-        if (indice < 0) return null;
+        var match = FormatoScelte.Match(testo);
+        if (!match.Success) return null;
 
-        if (!int.TryParse(testo[..indice], NumberStyles.Integer, CultureInfo.InvariantCulture, out var conteggio))
+        if (!int.TryParse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var conteggio))
             return null;
 
-        var elenco = testo[(indice + separatore.Length)..];
+        var elenco = match.Groups[2].Value;
         var voci = elenco.Length == 0
             ? new List<string>()
             : elenco.Split(", ", StringSplitOptions.None)

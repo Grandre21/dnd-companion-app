@@ -155,12 +155,12 @@ public class PackageImportPlanTests
         Assert.Contains("resta nel tuo file", sezione.Note!, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>La guida della pagina Dati invita a partire dall'export «manuale incluso», che
-    /// contiene le sottoclassi: chi ne aggiunge una propria a quel file la vedrebbe sparire senza un
-    /// rigo, perché la tabella `classes` non ha una colonna per portarle. Stessa regola dei talenti:
-    /// una sezione non scritta va dichiarata, non taciuta.</summary>
+    /// <summary>Dal 2026-08-01 l'import scrive le sottoclassi insieme alla classe
+    /// (PackageRowMerge.NuovaClasse/ApplicaClasse): la nota non deve più dire che vengono scartate,
+    /// ma quante il file ne porta — la stessa regola dei talenti (§9), per una sezione che non ha
+    /// una riga propria nell'anteprima.</summary>
     [Fact]
-    public void ForClasses_ConSottoclassiNelFile_DiceCheNonVengonoScritte()
+    public void ForClasses_ConSottoclassiNelFile_DiceQuanteNeArrivano()
     {
         var pacchetto = new CatalogPackage
         {
@@ -182,8 +182,42 @@ public class PackageImportPlanTests
 
         Assert.Equal("Classi", sezione.Title);
         Assert.Equal(1, sezione.CreateCount);
-        Assert.Contains("sottoclassi", sezione.Note!, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("una classe ne porta", sezione.Note!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1 sottoclasse", sezione.Note!);
+        Assert.DoesNotContain("non vengono scritte", sezione.Note!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Il conteggio della nota è sulle SOTTOCLASSI, non sulle classi che ne portano: due
+    /// classi con due e una sottoclasse rispettivamente devono sommare a tre, non a due.</summary>
+    [Fact]
+    public void ForClasses_ConPiuSottoclassiSuPiuClassi_ContaIlTotaleDelleSottoclassi()
+    {
+        var pacchetto = new CatalogPackage
+        {
+            SchemaVersion = 1,
+            Id = "mio-pacchetto",
+            Classes =
+            {
+                new PackageClass
+                {
+                    Id = "mio-pacchetto/guerriero", Name = "Guerriero",
+                    Subclasses =
+                    {
+                        new PackageSubclass { Id = "mio-pacchetto/campione", Name = "Campione" },
+                        new PackageSubclass { Id = "mio-pacchetto/cavaliere", Name = "Cavaliere" },
+                    },
+                },
+                new PackageClass
+                {
+                    Id = "mio-pacchetto/ladro", Name = "Ladro",
+                    Subclasses = { new PackageSubclass { Id = "mio-pacchetto/assassino", Name = "Assassino" } },
+                },
+            },
+        };
+
+        var sezione = PackageImportPlan.ForClasses(
+            pacchetto, new CampaignCatalogs(), isMaster: false, userId: Utente);
+
+        Assert.Contains("3 sottoclassi", sezione.Note!);
     }
 
     /// <summary>Senza sottoclassi nel file la nota non c'è: un'avvertenza che parla di un contenuto

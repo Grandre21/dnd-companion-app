@@ -79,6 +79,96 @@
                     <label>Capacità di Classe</label>
                     <textarea class="input" rows="8" @bind="editDraft.Features"></textarea>
                 </div>
+
+                @* Le sottoclassi vivono in editDraft.Subclasses (colonna "subclasses"), nel formato
+                   testuale di SubclassText: qui restano solo il markup e il richiamo a
+                   SubclassEditor, che tiene la manipolazione dell'elenco. *@
+                <div class="field field-full">
+                    <label>Sottoclassi</label>
+                    @if (!SubclassEditor.PuoModificare(editDraft.Subclasses))
+                    {
+                        @* Il campo contiene testo che SubclassText non saprebbe restituire intatto
+                           (una nota scritta a mano, magari sopra un elenco): la modifica guidata
+                           resta disattivata per non buttarlo via in silenzio al primo salvataggio.
+                           Il testo però si mostra e si corregge a mano, come per «Capacità di
+                           Classe» qui sopra: senza la textarea questo ramo era un vicolo cieco —
+                           contenuto né visibile né modificabile, recuperabile solo via database. *@
+                        <p class="subclass-hint">
+                            Il campo contiene del testo che non riconosciamo come elenco di sottoclassi:
+                            per non perderlo, qui la modifica guidata è disattivata. Puoi correggerlo a
+                            mano — un elenco comincia con <code>## Nome della sottoclasse</code>.
+                        </p>
+                        <textarea class="input" rows="6" @bind="editDraft.Subclasses"></textarea>
+                    }
+                    else
+                    {
+                        var sottoclassi = SubclassText.Leggi(editDraft.Subclasses);
+                        @if (sottoclassi.Count > 0)
+                        {
+                            <ul class="subclass-list">
+                                @foreach (var s in sottoclassi)
+                                {
+                                    <li class="subclass-list-item">
+                                        <span class="subclass-list-name">@s.Name</span>
+                                        <div class="subclass-list-actions">
+                                            <button type="button" class="action-btn edit-action"
+                                                    @onclick="() => OpenSubclassForm(s)"
+                                                    aria-label="Modifica sottoclasse @s.Name">
+                                                ✎
+                                            </button>
+                                            <button type="button" class="action-btn delete-action"
+                                                    @onclick="() => RemoveSubclassAsync(s.Name)"
+                                                    aria-label="Rimuovi sottoclasse @s.Name">
+                                                🗑
+                                            </button>
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p class="subclass-hint">
+                                Nessuna sottoclasse propria: il personaggio può comunque scriverne una a mano.
+                            </p>
+                        }
+
+                        @if (showSubclassForm)
+                        {
+                            <div class="subclass-form">
+                                <div class="field">
+                                    <label>Nome sottoclasse</label>
+                                    <input type="text" class="input" maxlength="60" @bind="subclassName" />
+                                </div>
+                                <div class="field">
+                                    <label>Descrizione</label>
+                                    <textarea class="input" rows="3" @bind="subclassDescription"></textarea>
+                                </div>
+                                <div class="field">
+                                    <label>Privilegi per livello</label>
+                                    <textarea class="input" rows="3" placeholder="es. L3 — Frenesia"
+                                              @bind="subclassLevels"></textarea>
+                                    <p class="subclass-hint">Un privilegio per riga, formato «L&lt;livello&gt; — Nome».</p>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="primary-btn" @onclick="SaveSubclass">
+                                        Salva sottoclasse
+                                    </button>
+                                    <button type="button" class="secondary-btn" @onclick="CancelSubclassForm">
+                                        Annulla
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <button type="button" class="action-btn subclass-add-btn"
+                                    @onclick="() => OpenSubclassForm(null)">
+                                + Aggiungi sottoclasse
+                            </button>
+                        }
+                    }
+                </div>
             </div>
 
             <div class="form-actions">
@@ -191,6 +281,14 @@
                                     <div class="section-block">
                                         <div class="section-title">Capacità di classe</div>
                                         <div class="section-body">@entry.Features</div>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(entry.SubclassNames))
+                                {
+                                    <div class="section-block">
+                                        <div class="section-title">Sottoclassi</div>
+                                        <div class="section-body">@entry.SubclassNames</div>
                                     </div>
                                 }
 
@@ -339,6 +437,10 @@
         // SourceId, oscura per nome la voce di pacchetto (CatalogMerge): la tabella sparirebbe
         // dalla pagina e la scheda del PG mostrerebbe i privilegi SRD di una classe sostituita.
         Features = ClassProgression.Serializza(p.Levels),
+        // Stessa ragione dei livelli: senza le sottoclassi, «Duplica e modifica» da una classe SRD
+        // perderebbe proprio ciò che si voleva modificare — la classe copiata oscura la voce di
+        // pacchetto (nessun SourceId), e con lei sparirebbero anche le sue sottoclassi.
+        Subclasses = SubclassText.Serializza(p.Subclasses),
         SourceId = null,
         CampaignId = CurrentUser.CampaignId ?? string.Empty,
         AddedBy = CurrentUser.UserId,
@@ -361,6 +463,7 @@
         WeaponProficiencies = c.WeaponProficiencies,
         SkillChoices = c.SkillChoices,
         Features = c.Features,
+        Subclasses = c.Subclasses,
         SourceId = null,
         CampaignId = c.CampaignId,
         AddedBy = CurrentUser.UserId,
@@ -382,6 +485,7 @@
         string SavingThrows,
         string SkillChoices,
         string Features,
+        string SubclassNames,
         bool IsPackage,
         bool FromAppPackage,
         CharacterClass? Db,
@@ -389,7 +493,8 @@
 
     private static Entry ToEntry(CharacterClass c) => new(
         "db:" + c.Id, c.Name, c.Description, c.HitDie, c.PrimaryAbility, c.SavingThrows,
-        c.SkillChoices, c.Features, false, CatalogKey.IsFromAppPackage(c.SourceId), c, null);
+        c.SkillChoices, c.Features, NomiSottoclassi(SubclassText.Leggi(c.Subclasses)),
+        false, CatalogKey.IsFromAppPackage(c.SourceId), c, null);
 
     // Le liste del pacchetto diventano testo, come le colonne del Model. `levels` passa da
     // ClassProgression.Serializza, la stessa conversione che usa l'import (2026-07-31): prima
@@ -404,7 +509,16 @@
         "pkg:" + p.Id, p.Name, string.Empty, p.HitDie, p.PrimaryAbility,
         string.Join(", ", p.SavingThrows),
         PackageRowMerge.DescriviScelte(p.SkillChoices) ?? string.Empty,
-        ClassProgression.Serializza(p.Levels), true, true, null, p);
+        ClassProgression.Serializza(p.Levels), NomiSottoclassi(p.Subclasses),
+        true, true, null, p);
+
+    // Solo i nomi, non l'elenco intero: la card è un riepilogo, e i privilegi di ogni sottoclasse
+    // si vedono già nella scheda del personaggio (SubclassCatalog.PrivilegiFinoAl) o, per chi la
+    // sta scrivendo, nel mini-form della modifica.
+    private static string NomiSottoclassi(IEnumerable<PackageSubclass>? sottoclassi)
+        => string.Join(", ", (sottoclassi ?? Enumerable.Empty<PackageSubclass>())
+            .Where(s => s is not null && !string.IsNullOrWhiteSpace(s.Name))
+            .Select(s => s.Name));
 
     private IEnumerable<Entry> FilteredEntries
     {
@@ -448,28 +562,102 @@
             AddedBy = CurrentUser.UserId,
             CampaignId = CurrentUser.CampaignId ?? string.Empty
         };
+        ResetSubclassForm();
         mode = ViewMode.Form;
     }
 
     private void OpenEditForm(CharacterClass cls)
     {
         editDraft = CloneClass(cls);
+        ResetSubclassForm();
         mode = ViewMode.Form;
     }
 
     private void OpenDuplicateForm(PackageClass package)
     {
         editDraft = DuplicaDaPacchetto(package);
+        ResetSubclassForm();
         mode = ViewMode.Form;
     }
 
     private void OpenDuplicateForm(CharacterClass cls)
     {
         editDraft = DuplicaDaRigaImportata(cls);
+        ResetSubclassForm();
         mode = ViewMode.Form;
     }
 
     private void CancelForm() => mode = ViewMode.List;
+
+    // ===== Mini-form "aggiungi/modifica sottoclasse", dentro il form della classe =====
+    // Stato di sola UI: la sottoclasse aggiunta/tolta vive già in editDraft.Subclasses (SubclassEditor
+    // lavora sul testo), qui restano solo i campi del piccolo form e quale voce si sta modificando.
+    private bool showSubclassForm;
+    private string? editingSubclassName;
+    private string subclassName = string.Empty;
+    private string subclassDescription = string.Empty;
+    private string subclassLevels = string.Empty;
+    private string? subclassId;
+
+    // Va richiamato ogni volta che si apre il form della classe (nuova/modifica/duplica): senza,
+    // il mini-form di una sottoclasse lasciato aperto sulla classe precedente sopravviverebbe al
+    // cambio di editDraft.
+    private void ResetSubclassForm()
+    {
+        showSubclassForm = false;
+        editingSubclassName = null;
+        subclassName = string.Empty;
+        subclassDescription = string.Empty;
+        subclassLevels = string.Empty;
+        subclassId = null;
+    }
+
+    private void OpenSubclassForm(PackageSubclass? esistente)
+    {
+        editingSubclassName = esistente?.Name;
+        subclassName = esistente?.Name ?? string.Empty;
+        subclassDescription = esistente?.Description ?? string.Empty;
+        subclassLevels = esistente is null ? string.Empty : ClassProgression.Serializza(esistente.Levels);
+        subclassId = esistente?.Id;
+        showSubclassForm = true;
+    }
+
+    private void CancelSubclassForm() => ResetSubclassForm();
+
+    private void SaveSubclass()
+    {
+        if (string.IsNullOrWhiteSpace(subclassName))
+        {
+            Toasts.ShowError("Il nome della sottoclasse è obbligatorio");
+            return;
+        }
+
+        // Rinominare una sottoclasse col nome di un'altra la sovrascriverebbe: `Aggiungi` sostituisce
+        // per nome normalizzato, e con due voci in corrispondenza ne resta una sola — descrizione e
+        // privilegi dell'altra persi senza un avviso. Meglio dirlo prima che chiederne conferma dopo:
+        // il nome è l'unica chiave che questo elenco ha.
+        if (SubclassEditor.CollideConUnAltra(editDraft.Subclasses, subclassName, editingSubclassName))
+        {
+            Toasts.ShowError($"C'è già una sottoclasse che si chiama \"{subclassName.Trim()}\"");
+            return;
+        }
+
+        var nuova = SubclassEditor.Costruisci(subclassName, subclassDescription, subclassLevels, subclassId);
+        editDraft.Subclasses = SubclassEditor.Aggiungi(editDraft.Subclasses, nuova, editingSubclassName);
+        ResetSubclassForm();
+    }
+
+    private async Task RemoveSubclassAsync(string nome)
+    {
+        var confermato = await Confirm.ShowAsync($"Rimuovere la sottoclasse \"{nome}\"?");
+        if (!confermato) return;
+
+        editDraft.Subclasses = SubclassEditor.Rimuovi(editDraft.Subclasses, nome);
+        // Se si stava modificando proprio questa voce, il mini-form non ha più senso aperto su un
+        // nome che non esiste più.
+        if (CatalogKey.NormalizeName(editingSubclassName) == CatalogKey.NormalizeName(nome))
+            ResetSubclassForm();
+    }
 
     private async Task SaveFormAsync()
     {
@@ -547,6 +735,10 @@
         WeaponProficiencies = c.WeaponProficiencies,
         SkillChoices = c.SkillChoices,
         Features = c.Features,
+        // Senza questa riga, aprire "Modifica" su una classe che ha già sottoclasse proprie le
+        // azzererebbe al primo salvataggio: editDraft partirebbe da un clone senza Subclasses e lo
+        // riscriverebbe vuoto, perdendo ciò che SaveSubclass aveva scritto in una sessione precedente.
+        Subclasses = c.Subclasses,
         SourceId = c.SourceId,
         AddedBy = c.AddedBy,
         CampaignId = c.CampaignId,

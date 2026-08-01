@@ -232,6 +232,152 @@ public class SubclassCatalogTests
         Assert.Empty(SubclassCatalog.PerClasse(sporco, "Mago"));
     }
 
+    // ---- La casa nei dati: le sottoclassi della riga di campagna ----
+
+    private static CharacterClass Riga(string nome, string? sourceId, string sottoclassi, string id = "u1") => new()
+    {
+        Id = id,
+        Name = nome,
+        CampaignId = "c1",
+        SourceId = sourceId,
+        Subclasses = sottoclassi,
+    };
+
+    private const string ElencoDelTavolo = "## Sortilegio del sale\nL3 — Cristalli viventi\nL6 — Salamoia";
+
+    /// <summary>Il difetto che questo chiude: le schermate guardavano il solo pacchetto, quindi una
+    /// classe del tavolo non aveva modo di offrire le proprie sottoclassi — non c'era nemmeno dove
+    /// scriverle.</summary>
+    [Fact]
+    public void Disponibili_preferisce_lelenco_della_riga_di_campagna()
+    {
+        var voci = SubclassCatalog.Disponibili(
+            new[] { Riga("Mago", null, ElencoDelTavolo) }, Manuale, "Mago");
+
+        Assert.Equal(new[] { "Sortilegio del sale" }, voci.Select(s => s.Name));
+    }
+
+    /// <summary>Una riga importata dal manuale e senza elenco è semplicemente vecchia — creata prima
+    /// che l'import portasse le sottoclassi — e il pacchetto ne è la versione aggiornata.</summary>
+    [Fact]
+    public void Disponibili_ripiega_sul_pacchetto_per_una_riga_importata_dal_manuale()
+    {
+        var voci = SubclassCatalog.Disponibili(
+            new[] { Riga("Mago", "srd-2024-it/classe/mago", string.Empty) }, Manuale, "Mago");
+
+        Assert.Equal(new[] { "Invocatore" }, voci.Select(s => s.Name));
+    }
+
+    /// <summary>Una classe *del tavolo* senza sottoclassi proprie non eredita quelle SRD: offrire
+    /// l'Invocatore per una «Mago» che quel tavolo ha deliberatamente sostituito farebbe dire alla
+    /// stessa schermata due cose incoerenti.</summary>
+    [Fact]
+    public void Disponibili_non_presta_le_sottoclassi_del_manuale_a_una_classe_del_tavolo()
+        => Assert.Empty(SubclassCatalog.Disponibili(
+            new[] { Riga("Mago", null, string.Empty) }, Manuale, "Mago"));
+
+    [Theory]
+    [InlineData("Artefice")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void Disponibili_senza_corrispondenza_restituisce_una_lista_vuota(string? nome)
+        => Assert.Empty(SubclassCatalog.Disponibili(null, Manuale, nome));
+
+    [Fact]
+    public void Disponibili_regge_le_collezioni_nulle()
+        => Assert.Empty(SubclassCatalog.Disponibili(null, null, "Mago"));
+
+    /// <summary>La scheda deve trovare i privilegi anche di una sottoclasse che il manuale non
+    /// conosce: senza questo, la sottoclasse del tavolo si vedeva nel menu e poi non portava
+    /// niente.</summary>
+    [Fact]
+    public void Trova_risolta_pesca_la_sottoclasse_del_tavolo_con_i_suoi_privilegi()
+    {
+        var righe = new[] { Riga("Mago", null, ElencoDelTavolo) };
+
+        var voce = SubclassCatalog.Trova(righe, Manuale, "Mago", "sortilegio del sale");
+
+        Assert.NotNull(voce);
+        Assert.Equal("Sortilegio del sale", voce!.Name);
+        Assert.Equal(new[] { 3 }, SubclassCatalog.PrivilegiFinoAl(voce, 5).Select(r => r.Livello));
+        Assert.Equal(3, SubclassCatalog.PrimoLivello(voce));
+    }
+
+    [Fact]
+    public void RisolviScelta_riconosce_nel_menu_la_sottoclasse_di_una_classe_del_tavolo()
+    {
+        var scelta = SubclassCatalog.RisolviScelta(
+            Manuale, "Mago", "  SORTILEGIO DEL SALE ", new[] { Riga("Mago", null, ElencoDelTavolo) });
+
+        Assert.Equal("Sortilegio del sale", scelta.Valore);
+        Assert.False(scelta.ScrittaAMano);
+    }
+
+    /// <summary>Il ramo che cancella vale anche fra classi del tavolo: se la classe offre un elenco e
+    /// il valore è la sottoclasse di un'altra classe, resterebbe altrimenti un valore che il menu non
+    /// mostra e che al salvataggio successivo si risalva comunque.</summary>
+    [Fact]
+    public void RisolviScelta_toglie_la_sottoclasse_di_unaltra_classe_del_tavolo()
+    {
+        var righe = new[]
+        {
+            Riga("Mago", null, ElencoDelTavolo),
+            Riga("Guerriero", null, "## Campione\nL3 — Critico migliorato", "u2"),
+        };
+
+        Assert.Equal(string.Empty,
+            SubclassCatalog.RisolviScelta(Manuale, "Mago", "Campione", righe).Valore);
+    }
+
+    /// <summary>Il residuo di asimmetria che il gate ha trovato al primo giro: la classe del tavolo
+    /// aveva un elenco proprio, quindi il ramo che cancella si attivava, e consultando il <b>manuale</b>
+    /// trovava «Cammino del berserker» fra le sottoclassi del Barbaro — e lo cancellava. Ma se il
+    /// tavolo ha sostituito quella classe con una propria, che quel nome sia del Barbaro SRD non dice
+    /// niente su una sottoclasse inventata per una classe che di SRD non ha più nulla. Curioso e
+    /// rivelatore: con l'elenco proprio <b>vuoto</b> il valore sopravviveva, con l'elenco pieno no.</summary>
+    [Fact]
+    public void RisolviScelta_non_consulta_il_manuale_per_una_classe_del_tavolo_con_elenco_proprio()
+    {
+        var scelta = SubclassCatalog.RisolviScelta(
+            Manuale, "Mago", "Cammino del berserker", new[] { Riga("Mago", null, ElencoDelTavolo) });
+
+        Assert.Equal("Cammino del berserker", scelta.Valore);
+        Assert.True(scelta.ScrittaAMano);
+    }
+
+    /// <summary>La variante del caso precedente che il secondo giro del gate ha trovato: la prova «è
+    /// di un'altra classe» non arrivava dal pacchetto ma da una riga <b>importata</b> dal manuale, che
+    /// da quando l'import scrive la colonna porta lo stesso testo SRD. Guardando solo il pacchetto,
+    /// l'esito dipendeva dal fatto che il tavolo avesse importato le classi: stesso contenuto, due
+    /// risposte diverse — e in una delle due il valore veniva cancellato.</summary>
+    [Fact]
+    public void RisolviScelta_non_usa_una_riga_importata_come_prova_contro_una_classe_del_tavolo()
+    {
+        var righe = new[]
+        {
+            Riga("Mago", null, ElencoDelTavolo),
+            Riga("Guerriero", "srd-2024-it/classe/guerriero", "## Campione\nL3 — Critico", "u2"),
+        };
+
+        var scelta = SubclassCatalog.RisolviScelta(Manuale, "Mago", "Campione", righe);
+
+        Assert.Equal("Campione", scelta.Valore);
+        Assert.True(scelta.ScrittaAMano);
+    }
+
+    /// <summary>Un nome che nessuna classe rivendica si tiene, anche quando la classe un elenco ce
+    /// l'ha: può essere una sottoclasse inventata e non ancora messa a catalogo, e cancellarla
+    /// sarebbe una perdita che si consuma alla sola apertura della modifica.</summary>
+    [Fact]
+    public void RisolviScelta_conserva_un_nome_che_nessuna_classe_rivendica()
+    {
+        var scelta = SubclassCatalog.RisolviScelta(
+            Manuale, "Mago", "Sortilegio del pepe", new[] { Riga("Mago", null, ElencoDelTavolo) });
+
+        Assert.Equal("Sortilegio del pepe", scelta.Valore);
+        Assert.True(scelta.ScrittaAMano);
+    }
+
     [Fact]
     public void PrimoLivello_dice_da_quando_la_sottoclasse_conta()
     {

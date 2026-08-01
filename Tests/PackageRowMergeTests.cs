@@ -211,8 +211,9 @@ public class PackageRowMergeTests
     // Il caso che l'export deve saper riconoscere come "non invertibile": una classe scritta a mano
     // non porta il formato di DescriviScelte, e inventare una struttura sarebbe un dato inventato,
     // non ricostruito. null e stringa vuota sono lo stesso caso di "nessuna scelta dichiarata". Il
-    // separatore presente ma un conteggio non numerico è un ramo distinto (indice trovato, TryParse
-    // che fallisce) e va esercitato a parte: non basta il caso senza separatore.
+    // testo con "fra:" ma un conteggio a lettere ("due") è un caso a parte dalla prosa libera: verifica
+    // che il riconoscimento richieda il conteggio all'INIZIO del testo, non si accontenti di trovare
+    // la parola giusta seguita da due punti da qualche parte nella frase.
     [Theory]
     [InlineData("Due a scelta fra le abilità del manuale")]
     [InlineData("due fra: Arcano, Storia")]
@@ -220,6 +221,24 @@ public class PackageRowMergeTests
     [InlineData(null)]
     public void LeggiScelte_TestoLiberoONonDichiarato_ProduceNull(string? testo)
         => Assert.Null(PackageRowMerge.LeggiScelte(testo));
+
+    // Le varianti che un tavolo scrive davvero compilando la pagina Classi a mano: "tra:" al posto
+    // di "fra:", spazi in eccesso attorno al separatore, un punto finale. Devono invertirsi nella
+    // STESSA struttura di "2 fra: Arcano, Storia": tollerare la forma non deve cambiare l'esito.
+    [Theory]
+    [InlineData("2 tra: Arcano, Storia")]
+    [InlineData("2   fra:   Arcano, Storia")]
+    [InlineData("2 fra : Arcano, Storia")]
+    [InlineData("2 fra: Arcano, Storia.")]
+    [InlineData("  2 fra: Arcano, Storia  ")]
+    public void LeggiScelte_VarianteScrittaAMano_SiInvertNellaStessaStruttura(string testo)
+    {
+        var risultato = PackageRowMerge.LeggiScelte(testo);
+
+        Assert.NotNull(risultato);
+        Assert.Equal(2, risultato!.Count);
+        Assert.Equal(new List<string> { "Arcano", "Storia" }, risultato.From);
+    }
 
     // ---- Tabella dei livelli (v. ClassProgressionTests per il formato) ----
 
@@ -298,6 +317,97 @@ public class PackageRowMergeTests
         PackageRowMerge.ApplicaClasse(ClasseConLivelli(), esistente);
 
         Assert.Equal(misto, esistente.Features);
+    }
+
+    // ---- Sottoclassi (dal 2026-08-01: hanno una colonna propria, l'import le scrive) ----
+
+    private static PackageClass ClasseConSottoclassi(string nome = "Guerriero") => new()
+    {
+        Id = "p/" + nome.ToLowerInvariant(),
+        Name = nome,
+        Subclasses = new List<PackageSubclass> { new() { Id = "p/campione", Name = "Campione" } },
+    };
+
+    [Fact]
+    public void NuovaClasse_PortaLeSottoclassi()
+    {
+        var riga = PackageRowMerge.NuovaClasse(ClasseConSottoclassi(), "c1", "u1");
+
+        Assert.Equal("## Campione\nid: p/campione", riga.Subclasses);
+    }
+
+    [Fact]
+    public void ApplicaClasse_ScriveLeSottoclassiSeIlCampoEVuoto()
+    {
+        var esistente = new CharacterClass { Id = "uuid-1", Name = "Guerriero", CampaignId = "c1" };
+
+        PackageRowMerge.ApplicaClasse(ClasseConSottoclassi(), esistente);
+
+        Assert.Equal("## Campione\nid: p/campione", esistente.Subclasses);
+    }
+
+    [Fact]
+    public void ApplicaClasse_AggiornaUnElencoGiaGenerato()
+    {
+        var esistente = new CharacterClass
+        {
+            Id = "uuid-1", Name = "Guerriero", CampaignId = "c1",
+            Subclasses = "## Vecchia sottoclasse",
+        };
+
+        PackageRowMerge.ApplicaClasse(ClasseConSottoclassi(), esistente);
+
+        Assert.DoesNotContain("Vecchia sottoclasse", esistente.Subclasses);
+        Assert.Contains("Campione", esistente.Subclasses);
+    }
+
+    /// <summary>La guardia che conta: chi ha scritto a mano le proprie sottoclassi non deve vedersele
+    /// cancellare da un re-import — stessa ragione, stessa forma della guardia sulla tabella dei
+    /// livelli (v. ApplicaClasse_NonSovrascriveGliAppuntiScrittiAMano).</summary>
+    [Fact]
+    public void ApplicaClasse_NonSovrascriveUnElencoScrittoAMano()
+    {
+        var esistente = new CharacterClass
+        {
+            Id = "uuid-1", Name = "Guerriero", CampaignId = "c1",
+            Subclasses = "Da noi la sottoclasse si sceglie al 2°, non al 3°.",
+        };
+
+        PackageRowMerge.ApplicaClasse(ClasseConSottoclassi(), esistente);
+
+        Assert.Equal("Da noi la sottoclasse si sceglie al 2°, non al 3°.", esistente.Subclasses);
+    }
+
+    /// <summary>Il caso che SubclassText.SoloElenco distingue da SembraElenco: una nota scritta
+    /// PRIMA del primo blocco (non dopo, che nel formato è normale prosa di descrizione) non deve
+    /// sparire al primo re-import.</summary>
+    [Fact]
+    public void ApplicaClasse_NonSovrascriveUnaNotaScrittaPrimaDelPrimoBlocco()
+    {
+        var misto = "Nota: da noi la sottoclasse si sceglie al 2°, non al 3°.\n## Campione";
+        var esistente = new CharacterClass
+        {
+            Id = "uuid-1", Name = "Guerriero", CampaignId = "c1",
+            Subclasses = misto,
+        };
+
+        PackageRowMerge.ApplicaClasse(ClasseConSottoclassi(), esistente);
+
+        Assert.Equal(misto, esistente.Subclasses);
+    }
+
+    [Fact]
+    public void ApplicaClasse_SenzaSottoclassiNelFile_NonToccaIlCampo()
+    {
+        var esistente = new CharacterClass
+        {
+            Id = "uuid-1", Name = "Guerriero", CampaignId = "c1",
+            Subclasses = "## Campione",
+        };
+
+        PackageRowMerge.ApplicaClasse(new PackageClass { Id = "p/guerriero", Name = "Guerriero" }, esistente);
+
+        Assert.Equal("## Campione", esistente.Subclasses);
     }
 
     [Fact]

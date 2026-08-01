@@ -185,6 +185,9 @@ public class CampaignExportTests
             new PackageMonster { Id = "srd-2024-it/mostro/orco", Name = "Orco", HitPoints = "15 (2d8 + 6)" },
         },
         Backgrounds = { new PackageBackground { Id = "srd-2024-it/background/accolito", Name = "Accolito" } },
+        // Un talento con l'id del manuale: è la sezione su cui l'export copiava gli id verbatim, e
+        // senza una voce qui il difetto restava invisibile a tutta la suite.
+        Feats = { new PackageFeat { Id = "srd-2024-it/talento/attento", Name = "Attento" } },
     };
 
     /// <summary>Il difetto che questo chiude: chi non ha importato nulla esportava un file con le
@@ -314,6 +317,98 @@ public class CampaignExportTests
 
         Assert.Equal("Barbaro", classe.Name);
         Assert.Empty(classe.Subclasses);
+    }
+
+    /// <summary>Il difetto che questo chiude: prima le sottoclassi uscivano solo sulle righe di
+    /// provenienza SRD (<c>IsFromAppPackage</c>), quindi una classe **del tavolo** con le proprie
+    /// sottoclassi — scritte a mano nella sua colonna <c>subclasses</c> — non le vedeva mai nel
+    /// file esportato, pur avendole davvero.</summary>
+    [Fact]
+    public void Build_ClasseDelTavolo_PortaLeProprieSottoclassi()
+    {
+        var sottoclassiScritteATavolo = SubclassText.Serializza(new List<PackageSubclass>
+        {
+            new()
+            {
+                Name = "Ordine del sale",
+                Levels = { new PackageClassLevel { Level = 3, Features = { "Benedizione salina" } } },
+            },
+        });
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes = { new CharacterClass
+            {
+                Id = "u1", Name = "Salinaro", Subclasses = sottoclassiScritteATavolo, CampaignId = "c1",
+            } },
+        };
+
+        var classe = Assert.Single(CampaignExport.Build(cataloghi, "Tavolo").Classes);
+
+        var sottoclasse = Assert.Single(classe.Subclasses);
+        Assert.Equal("Ordine del sale", sottoclasse.Name);
+        Assert.Equal(3, Assert.Single(sottoclasse.Levels).Level);
+    }
+
+    /// <summary>Il rovescio del test precedente: una riga importata dal manuale con la colonna
+    /// <c>subclasses</c> ancora vuota — il caso comune di ogni classe importata prima che l'import
+    /// scrivesse quella colonna — deve continuare a ricevere le sottoclassi dal manuale, esattamente
+    /// come faceva il vecchio controllo su <c>IsFromAppPackage</c>.</summary>
+    [Fact]
+    public void Build_ClasseImportataDalManuale_ContinuaAPortareLeSottoclassiDalManuale()
+    {
+        var manuale = Manuale();
+        manuale.Classes.Add(new PackageClass
+        {
+            Id = "srd-2024-it/classe/chierico",
+            Name = "Chierico",
+            Subclasses = { new PackageSubclass { Id = "srd-2024-it/sottoclasse/ordine-della-vita", Name = "Ordine della vita" } },
+        });
+        var cataloghi = new CampaignCatalogs
+        {
+            // Riga vecchia: importata dal manuale, ma con la colonna subclasses ancora vuota.
+            Classes = { new CharacterClass
+            {
+                Id = "u1", Name = "Chierico", SourceId = "srd-2024-it/classe/chierico", CampaignId = "c1",
+            } },
+        };
+
+        var classe = Assert.Single(CampaignExport.Build(cataloghi, "c", manuale).Classes);
+
+        Assert.Equal("Ordine della vita", Assert.Single(classe.Subclasses).Name);
+    }
+
+    /// <summary>La licenza segue la provenienza delle sottoclassi, non la loro sola presenza nel
+    /// file: una classe del tavolo con sottoclassi proprie non deve dichiarare la licenza SRD (non
+    /// c'è nulla da attribuire), mentre una classe che le eredita ancora dal manuale sì — altrimenti
+    /// un file uscirebbe con testo SRD senza attribuzione, o con un'attribuzione superflua.</summary>
+    [Fact]
+    public void Build_LicenzaSegueLaProvenienzaDelleSottoclassi()
+    {
+        var sottoclassiDelTavolo = SubclassText.Serializza(new List<PackageSubclass> { new() { Name = "Ordine del sale" } });
+        var soloTavolo = new CampaignCatalogs
+        {
+            Classes = { new CharacterClass
+            {
+                Id = "u1", Name = "Salinaro", Subclasses = sottoclassiDelTavolo, CampaignId = "c1",
+            } },
+        };
+        Assert.Null(CampaignExport.Build(soloTavolo, "c", Manuale(), unisciIlManuale: false).License);
+
+        var manuale = Manuale();
+        manuale.Classes.Add(new PackageClass
+        {
+            Id = "srd-2024-it/classe/chierico",
+            Name = "Chierico",
+            Subclasses = { new PackageSubclass { Id = "srd-2024-it/sottoclasse/ordine-della-vita", Name = "Ordine della vita" } },
+        });
+        var importata = new CampaignCatalogs
+        {
+            Classes = { new CharacterClass
+            {
+                Id = "u2", Name = "Chierico", SourceId = "srd-2024-it/classe/chierico", CampaignId = "c1",
+            } },
+        };
+        Assert.NotNull(CampaignExport.Build(importata, "c", manuale).License);
     }
 
     /// <summary>La riga del tavolo vince: se il master ha già il suo «Goblin», la voce di manuale
@@ -459,5 +554,289 @@ public class CampaignExportTests
         Assert.NotNull(mago.SkillChoices);
         Assert.Equal(2, mago.SkillChoices!.Count);
         Assert.Equal(new[] { "Arcano", "Storia" }, mago.SkillChoices.From);
+    }
+
+    // ---- Il criterio di fatto: esporta, reimporta con gli helper puri dell'import, esporta di
+    // nuovo. I due JSON devono essere IDENTICI: è la sola misura che dice "questo giro non perde
+    // più niente", perché un file scritto a mano può legittimamente arrivare in una forma diversa
+    // (es. "4/2" testuale contro [4,2,0,0,0,0,0,0,0] canonico) senza che sia una perdita.
+    //
+    // La classe porta anche le proprie sottoclassi: da quando l'import le scrive nella colonna
+    // (PackageRowMerge.NuovaClasse) il giro le attraversa per intero, e non provarle qui lascerebbe
+    // non verificato proprio il dato nuovo.
+    private static CampaignCatalogs CatalogoPerIlRoundTrip() => new()
+    {
+        Races = { new Race
+        {
+            Id = "u1", Name = "Elfo delle paludi", Description = "Vive nelle paludi del delta.",
+            Speed = 9, SpeedUnit = "m", Traits = "Vista nel buio, Resistenza fatata", CampaignId = "c1",
+        } },
+        Classes = { new CharacterClass
+        {
+            Id = "u2", Name = "Salinaro", HitDie = "d8", PrimaryAbility = "Saggezza",
+            SavingThrows = "Saggezza, Carisma",
+            SkillChoices = "2 fra: Intuizione, Religione",
+            Features = ClassProgression.Serializza(new List<PackageClassLevel>
+            {
+                new() { Level = 1, Features = { "Benedizione salina" }, SpellSlots = { 2, 0, 0, 0, 0, 0, 0, 0, 0 } },
+                new() { Level = 3, Features = { "Scelta dell'ordine" }, SpellSlots = { 4, 2, 0, 0, 0, 0, 0, 0, 0 } },
+            }),
+            // Due sottoclassi del tavolo, una con id e una senza: la seconda è il caso normale di
+            // chi la crea nella pagina Classi, dove nessuno digita un identificatore. Dal primo
+            // export in poi l'id assegnato si conserva, ed è ciò che rende il giro idempotente.
+            Subclasses = SubclassText.Serializza(new List<PackageSubclass>
+            {
+                new()
+                {
+                    Id = "campagna-tavolo-di-prova/ordine-del-sale",
+                    Name = "Ordine del sale",
+                    Description = "Chi giura sul sale non rompe la parola data.",
+                    Levels = { new PackageClassLevel { Level = 3, Features = { "Parola salata" } } },
+                },
+                new()
+                {
+                    Name = "Ordine della salamoia",
+                    Levels = { new PackageClassLevel { Level = 3, Features = { "Conserva" } } },
+                },
+            }),
+            CampaignId = "c1",
+        } },
+        Backgrounds = { new Background
+        {
+            Id = "u3", Name = "Cresciuto fra le saline", Description = "Un'infanzia passata a raccogliere sale.",
+            AbilityScores = "Saggezza, Costituzione, Carisma", OriginFeat = "Iniziato alla magia",
+            SkillProficiencies = "Intuizione, Sopravvivenza", ToolProficiency = "Strumenti del bottaio",
+            Equipment = "Un sacco di sale, 10 mo", CampaignId = "c1",
+        } },
+        Spells = { new Spell
+        {
+            Id = "u4", Name = "Colpo di sale", Level = 1, School = "Trasmutazione",
+            CastingTime = "1 azione", Range = "9 m", Components = "V, S", Duration = "Istantanea",
+            Description = "Un cristallo di sale colpisce il bersaglio.", Classes = "Salinaro, Chierico",
+            CampaignId = "c1",
+        } },
+        Monsters = { new Monster
+        {
+            Id = "u5", Name = "Granchio corazzato", ChallengeRating = "1/2", ArmorClass = 15,
+            HitPoints = "22 (4d8 + 4)", Description = "Un granchio dal carapace durissimo.", CampaignId = "c1",
+        } },
+    };
+
+    /// <summary>Il difetto che chiude: senza questo test una perdita nel giro export→import→export
+    /// si scoprirebbe solo su una campagna vera, dopo che qualcuno ci ha già affidato i propri dati.
+    /// Copre specie, classe (con scelte di abilità, tabella dei livelli/slot e sottoclassi),
+    /// background, incantesimo e mostro — le sezioni che gli helper puri dell'import sanno
+    /// ricostruire per intero. Non copre i talenti, che l'app legge di sola consultazione dal manuale
+    /// e non ha una tabella dove scriverli.</summary>
+    [Fact]
+    public void Build_CicloEsportaReimportaEsporta_ProduceLoStessoJson()
+    {
+        const string nomeCampagna = "Tavolo di prova";
+
+        var primoJson = CampaignExport.ToJson(CampaignExport.Build(CatalogoPerIlRoundTrip(), nomeCampagna));
+
+        var riletto = CatalogPackageParser.Parse(primoJson);
+        Assert.Empty(riletto.Errors);
+        var pacchetto = riletto.Package!;
+
+        // Stessa via che percorre l'import vero: dal pacchetto riletto alle righe di catalogo,
+        // senza toccare il database.
+        var reimportati = new CampaignCatalogs
+        {
+            Races = pacchetto.Species.Select(p => PackageRowMerge.NuovaSpecie(p, "c1", null)).ToList(),
+            Classes = pacchetto.Classes.Select(p => PackageRowMerge.NuovaClasse(p, "c1", null)).ToList(),
+            Backgrounds = pacchetto.Backgrounds.Select(p => PackageRowMerge.NuovoBackground(p, "c1", null)).ToList(),
+            Spells = pacchetto.Spells.Select(p => PackageRowMerge.NuovoIncantesimo(p, "c1", null)).ToList(),
+            Monsters = pacchetto.Monsters.Select(p => PackageRowMerge.NuovoMostro(p, "c1", null)).ToList(),
+        };
+
+        var secondoJson = CampaignExport.ToJson(CampaignExport.Build(reimportati, nomeCampagna));
+
+        Assert.Equal(primoJson, secondoJson);
+    }
+
+    /// <summary>Il difetto che chiude, trovato al confine fra l'export e il parser: il parser esige un
+    /// identificatore su <b>ogni</b> voce, sottoclassi comprese, e una sottoclasse creata nella pagina
+    /// Classi non ne ha — nessuno lo digita. Il file usciva con <c>"id": ""</c> e al reimport veniva
+    /// respinto per intero, senza che nulla lo segnalasse: le prove sull'export non reimportano.
+    /// Verifica anche la regola 1 di <c>AssignIds</c>: un id del manuale non si conserva, perché
+    /// rivendicherebbe una provenienza SRD in un file di un altro tavolo.</summary>
+    [Fact]
+    public void Build_LeSottoclassiRicevonoIdCheIlParserAccetta()
+    {
+        var manuale = Manuale();
+        manuale.Classes.Add(new PackageClass
+        {
+            Id = "srd-2024-it/classe/guerriero",
+            Name = "Guerriero",
+            Subclasses =
+            {
+                new PackageSubclass { Id = "srd-2024-it/sottoclasse/campione", Name = "Campione" },
+            },
+        });
+        var cataloghi = new CampaignCatalogs
+        {
+            // Una sottoclasse creata a mano: nessun id, come la crea la pagina Classi.
+            Classes = { new CharacterClass
+            {
+                Id = "u1", Name = "Salinaro", CampaignId = "c1",
+                Subclasses = SubclassText.Serializza(
+                    new List<PackageSubclass> { new() { Name = "Ordine del sale" } }),
+            } },
+        };
+
+        var json = CampaignExport.ToJson(CampaignExport.Build(cataloghi, "Tavolo di prova", manuale));
+
+        var riletto = CatalogPackageParser.Parse(json);
+        Assert.Empty(riletto.Errors);
+
+        var sottoclassi = riletto.Package!.Classes.SelectMany(c => c.Subclasses).ToList();
+        Assert.Equal(2, sottoclassi.Count);
+        Assert.All(sottoclassi, s =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(s.Id));
+            // Regola 1 di AssignIds: la provenienza del manuale non si conserva. Non è il parser a
+            // pretenderlo — gli id di sottoclasse sono esenti dal divieto sul prefisso — ma questo
+            // file è di un altro tavolo, e quell'id rivendicherebbe una provenienza SRD.
+            Assert.False(CatalogKey.IsFromAppPackage(s.Id));
+        });
+    }
+
+    /// <summary>Il difetto BLOCCANTE che questo chiude: i talenti erano l'unica sezione che l'export
+    /// copiava dal manuale <b>senza</b> passare da <c>AssignIds</c>, quindi il file «tutto, manuale
+    /// incluso» — proprio quello che la guida indica come modello da cui partire — portava 17 id
+    /// <c>srd-2024-it/talento/…</c>, che il parser rifiuta. Esito: esporto, reimporto, e l'import
+    /// muore per intero incolpando il mio file.</summary>
+    [Fact]
+    public void Build_ITalentiDelManualeRicevonoIdCheIlParserAccetta()
+    {
+        var json = CampaignExport.ToJson(
+            CampaignExport.Build(new CampaignCatalogs(), "Tavolo di prova", Manuale()));
+
+        var riletto = CatalogPackageParser.Parse(json);
+        Assert.Empty(riletto.Errors);
+
+        var talento = Assert.Single(riletto.Package!.Feats);
+        Assert.Equal("Attento", talento.Name);
+        Assert.False(CatalogKey.IsFromAppPackage(talento.Id));
+    }
+
+    /// <summary>Come per le sottoclassi: gli oggetti del manuale caricato in memoria non vanno
+    /// modificati, o la sessione continuerebbe con un id che il manuale non ha mai avuto.</summary>
+    [Fact]
+    public void Build_NonModifica_ITalentiDelManuale()
+    {
+        var manuale = Manuale();
+
+        CampaignExport.Build(new CampaignCatalogs(), "Tavolo di prova", manuale);
+
+        Assert.Equal("srd-2024-it/talento/attento", manuale.Feats[0].Id);
+    }
+
+    /// <summary>Le voci del manuale caricato in memoria non vanno modificate: assegnare l'id
+    /// esportabile <b>sopra</b> l'oggetto restituito dal catalogo lo corromperebbe per tutta la
+    /// sessione, e la seconda esportazione — o la scheda aperta dopo — vedrebbe un id che il manuale
+    /// non ha mai avuto.</summary>
+    [Fact]
+    public void Build_NonModifica_LeSottoclassiDelManuale()
+    {
+        var manuale = Manuale();
+        manuale.Classes.Add(new PackageClass
+        {
+            Id = "srd-2024-it/classe/guerriero",
+            Name = "Guerriero",
+            Subclasses =
+            {
+                new PackageSubclass { Id = "srd-2024-it/sottoclasse/campione", Name = "Campione" },
+            },
+        });
+        // Serve una riga importata con la colonna **vuota**: è il solo percorso in cui l'export
+        // maneggia le istanze del manuale invece di oggetti appena letti dal testo. Con i soli
+        // cataloghi vuoti il test passava a vuoto — `ConIlManuale` sintetizza la riga già con la
+        // colonna scritta, e da lì in poi si lavora su copie.
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes = { new CharacterClass
+            {
+                Id = "u1", Name = "Guerriero", SourceId = "srd-2024-it/classe/guerriero",
+                CampaignId = "c1", Subclasses = string.Empty,
+            } },
+        };
+
+        CampaignExport.Build(cataloghi, "Tavolo di prova", manuale);
+
+        Assert.Equal("srd-2024-it/sottoclasse/campione", manuale.Classes[0].Subclasses[0].Id);
+    }
+
+    /// <summary>Il difetto che chiude: l'export emette una voce per **riga**, ma risolveva le
+    /// sottoclassi per **nome** su tutte le righe omonime. Con due «Barbaro» — una importata dal
+    /// manuale e una del tavolo, che «Duplica e modifica» crea per costruzione — la riga del tavolo
+    /// esportava le sottoclassi SRD dell'altra, cioè un contenuto che non è suo; e nel verso opposto
+    /// una riga a cui l'utente le aveva <b>tolte</b> se le ritrovava nel file.</summary>
+    [Fact]
+    public void Build_ConDueRigheOmonime_OgnunaPortaLeProprieSottoclassi()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes =
+            {
+                new CharacterClass
+                {
+                    Id = "u1", Name = "Barbaro", SourceId = "srd-2024-it/classe/barbaro",
+                    CampaignId = "c1",
+                    Subclasses = SubclassText.Serializza(new List<PackageSubclass>
+                    {
+                        new() { Id = "srd-2024-it/sottoclasse/berserker", Name = "Cammino del berserker" },
+                    }),
+                },
+                // La copia del tavolo, con le sottoclassi tolte a mano.
+                new CharacterClass
+                {
+                    Id = "u2", Name = "Barbaro", SourceId = null, CampaignId = "c1",
+                    Subclasses = string.Empty,
+                },
+            },
+        };
+
+        var classi = CampaignExport.Build(cataloghi, "Tavolo di prova", unisciIlManuale: false).Classes;
+
+        // Le righe si riconoscono dall'ordine, non dall'id: `AssignIds` non conserva una provenienza
+        // del manuale — la conserverebbe di sola lettura in una campagna terza — quindi entrambe
+        // ricevono uno slug derivato dal nome.
+        Assert.Equal(2, classi.Count);
+        Assert.Single(classi[0].Subclasses);                 // la riga importata
+        Assert.Empty(classi[1].Subclasses);                  // la copia del tavolo, svuotata a mano
+    }
+
+    /// <summary>Il difetto che chiude: «Duplica e modifica» da una voce di pacchetto copia l'elenco
+    /// delle sottoclassi e <b>azzera</b> la provenienza della riga. La prosa SRD di una sottoclasse —
+    /// che è descrizione intera, non un elenco di nomi — viaggiava quindi in una riga con
+    /// <c>source_id</c> nullo, e l'export della sola campagna produceva un file con quel testo e
+    /// <c>License = null</c>: fuori dalla licenza con cui lo SRD è ridistribuibile.</summary>
+    [Fact]
+    public void Build_RigaDuplicataConSottoclassiSRD_PortaComunqueLaLicenza()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Classes = { new CharacterClass
+            {
+                // Nessuna provenienza: è la copia creata da «Duplica e modifica».
+                Id = "u1", Name = "Barbaro del sale", SourceId = null, CampaignId = "c1",
+                Subclasses = SubclassText.Serializza(new List<PackageSubclass>
+                {
+                    new()
+                    {
+                        Id = "srd-2024-it/sottoclasse/berserker",
+                        Name = "Cammino del berserker",
+                        Description = "Testo SRD copiato per intero.",
+                    },
+                }),
+            } },
+        };
+
+        var pacchetto = CampaignExport.Build(
+            cataloghi, "Tavolo di prova", Manuale(), unisciIlManuale: false);
+
+        Assert.NotNull(pacchetto.License);
     }
 }

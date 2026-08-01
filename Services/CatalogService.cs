@@ -119,7 +119,7 @@ public class CatalogService : ICatalogService
             // pacchetto MALFORMATO diventa indistinguibile da uno ASSENTE, e in Fase 3 un errore
             // di traduzione si manifesterebbe come "cataloghi senza voci di manuale", senza un
             // appiglio per capire perché. La schermata di import di Fase 2 li mostrerà.
-            LastParse = CatalogPackageParser.Parse(json);
+            LastParse = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
             _package = LastParse.Package;
             _loaded = true;
         }

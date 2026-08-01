@@ -1172,3 +1172,117 @@ e arriva a tre solo dove il diff tocca dati, RLS, serializzazione o modelli. Nel
 `DA-FARE.md` è passato da 730 righe (29k token a ogni lettura) a un indice di soli punti aperti: la
 storia era già qui nel DIARIO, e il documento la ripeteva. La versione integrale è in
 `docs/archivio/DA-FARE-chiuso.md`, che non si aggiorna più.
+
+---
+
+## Le sottoclassi hanno una casa nei dati (2026-08-01)
+
+Prima di oggi la sottoclasse era una **scelta a metà**. Il manuale precaricato ne conosceva una per
+classe e la scheda la offriva in un menu, ma solo per le dodici classi SRD: per una classe inventata
+dal tavolo, o per una importata da un file, il campo tornava a essere testo libero — e non perché
+qualcuno l'avesse deciso, ma perché non esisteva un posto dove tenere le sottoclassi di una classe che
+il manuale non conosce. Il formato di scambio le portava già, `subclasses` annidato dentro la classe;
+il parser le leggeva e le validava; e poi l'import **le buttava via**, perché la tabella `classes` non
+aveva una colonna per riceverle.
+
+### La casa: una colonna, non una tabella
+
+La scelta era fra una colonna testuale su `classes` e una tabella `subclasses` con la sua RLS. Ha
+vinto la colonna, per tre ragioni che vale la pena scrivere perché la seconda non è ovvia.
+
+La prima è che il precedente esiste già ed è recente: la tabella dei livelli di classe vive dentro
+`classes.features`, in un formato di righe `L3 — Frenesia` che una persona legge a occhio e il codice
+rilegge senza ambiguità (`ClassProgression`). Un secondo campo testuale accanto al primo è coerente, e
+riusa la stessa sintassi per i privilegi — che così resta **una sola**.
+
+La seconda è che una tabella nuova avrebbe aggiunto quattro policy su una superficie RLS che ha ancora
+aperto il varco «campaign hopping» (DA-FARE §2), e avrebbe portato con sé un aggregato intero da
+attraversare: repository, piano di import, piano di rimozione, merge dei cataloghi. La colonna eredita
+le policy di `classes` così come sono, e tiene la sottoclasse **dentro la riga della classe**, che è
+dove la provenienza (`source_id`) vive già: una sottoclasse importata dal manuale e la classe che la
+porta si rimuovono insieme, senza una riga di codice in più.
+
+La terza è la compatibilità col client già online, che il service worker lascia in vita finché
+l'utente non preme «Aggiorna». In lettura Newtonsoft ignora le colonne che il modello non dichiara; in
+scrittura `Update` serializza solo le colonne mappate, quindi il client vecchio non può azzerare una
+colonna che non conosce. Nell'ordine inverso, però, la migrazione è un **prerequisito duro**: il
+client nuovo mappa `subclasses` e la manda su ogni scrittura, quindi senza `ALTER TABLE` fallirebbero
+con 400 anche «salva classe» e l'import — non le sole sottoclassi. È in DA-FARE fra le verifiche
+manuali, in cima.
+
+Il formato tiene un `id:` facoltativo in testa a ogni blocco. Non serve a niente dentro l'app —
+nessun ramo decisionale consulta l'id di una sottoclasse — e serve a due cose fuori: la fedeltà del
+giro export → import → export, e (scoperta durante il gate) riconoscere la prosa SRD sopravvissuta a
+un «duplica e modifica» che ne ha azzerato la provenienza, per non emettere un file senza attribuzione.
+
+### Tre agenti in parallelo, e i difetti stanno sulle giunture
+
+Il lavoro è stato scritto da tre subagent in parallelo su insiemi di file **disgiunti**: import
+(parser, merge, piano), export (round-trip), interfaccia (CRUD nella pagina Classi e le tre schermate
+del personaggio). Ha funzionato: nessun conflitto, e ciascuno ha prodotto helper puri con i loro test.
+
+Ma tutti e tre i difetti gravi che il gate ha trovato stavano **esattamente sulle giunture**, dove per
+costruzione nessuno dei tre poteva guardare:
+
+- l'export «tutto, manuale incluso» — il file che la guida indica come modello da cui partire —
+  produceva un JSON che il parser nuovo **rifiutava per intero**: 17 talenti con l'id del manuale,
+  copiati verbatim perché i talenti erano la sola sezione che non passava da `AssignIds`. Chi
+  esportava e reimportava si vedeva incolpare il proprio file;
+- la rilettura del formato scartava le righe vuote **dentro** le descrizioni. Tutte e dodici le
+  descrizioni di sottoclasse del manuale hanno da cinque a sette capoversi, e quattromila caratteri
+  diventavano un blocco unico — nel file esportato e nella scheda, che li rende con `pre-wrap`. Peggio
+  del difetto: la stessa sottoclasse si leggeva in due modi diversi a seconda che il master avesse
+  importato le classi o no;
+- il divieto sul prefisso `srd-2024-it/`, nato per chiudere un buco di sicurezza vero, colpiva anche
+  gli id di **sottoclassi e talenti** — e lì rompeva i file già esportati dal client online senza
+  comprare niente. Il criterio giusto è uno: l'immunità nasce dal `source_id`, quindi il divieto vale
+  dove l'id *diventa* un `source_id`. Un id di sottoclasse non lo diventa mai; un talento non ha
+  nemmeno una tabella. Il giorno in cui i talenti l'avranno, il divieto tornerà su quella sezione
+  insieme alla tabella.
+
+Due difetti erano invece **miei**, introdotti dalle correzioni del primo giro, e sono lo stesso
+errore: usare un risolutore per **nome** dove il dato è per **riga**. L'export emette una voce per
+riga di catalogo, e io gli avevo dato in mano la funzione che le schermate usano a ragione, quella che
+risolve su tutte le righe omonime. Con due «Barbaro» — una importata e una creata da «duplica e
+modifica», che è una collisione per costruzione — la copia del tavolo esportava le sottoclassi SRD
+dell'altra, e una riga a cui l'utente le aveva *tolte* se le ritrovava nel file.
+
+### La regola che continua a costare, formulata meglio
+
+Il campo Sottoclasse si «scollega» quando il valore salvato appartiene a un'altra classe. È la stessa
+regola che a fine luglio è costata tre giri di gate, e ne ha chiesti altri due adesso, ogni volta per
+la stessa ragione: **scollegare è distruttivo quanto conservare**, quindi il criterio che cancella non
+può essere più forte di quello che offre il menu. Le due formulazioni sbagliate di questo giro:
+
+1. il ramo che cancella si attivava quando la classe offriva un elenco, e consultava il manuale anche
+   per una classe che il tavolo aveva sostituito con una propria. Rivelatore: con l'elenco proprio
+   *vuoto* il valore sopravviveva, con l'elenco pieno no;
+2. corretto quello, la prova «è di un'altra classe» poteva ancora arrivare da una riga **importata**
+   dal manuale — che da oggi porta lo stesso testo SRD del pacchetto. Così l'esito dipendeva dal fatto
+   che il tavolo avesse importato le classi: stesso contenuto, due risposte diverse, e in una delle
+   due il valore veniva cancellato.
+
+La forma che regge distingue la **provenienza della prova**, non la sua sede: le classi che il tavolo
+ha scritto valgono sempre; il materiale del manuale — pacchetto *o* riga importata — vale solo se la
+classe corrente è ancora quella del manuale.
+
+### Che cosa è chiuso, e a che prezzo
+
+Chiusi: la sottoclasse è una scelta per ogni classe, di qualunque provenienza
+(`SubclassCatalog.Disponibili`); l'import la scrive, con la guardia che impedisce a un re-import di
+cancellare un elenco scritto a mano; la pagina Classi la crea, la modifica e la rimuove; l'export la
+porta su ogni riga; e il prefisso del manuale non è più spoofabile dove conta. Il criterio di fatto
+sull'export non è «lo stesso file di partenza» ma l'**idempotenza del ciclo**: export → import →
+export dà due file identici, perché un file scritto a mano può legittimamente arrivare in una forma
+che l'app conserva in modo canonico. La suite è passata da 676 a 755 test.
+
+Resta aperto ciò che il formato non ha: `languages` e i bonus di caratteristica delle specie, la
+descrizione e le competenze delle classi, taglia/tipo/statistiche dei mostri. Sono buchi preesistenti
+che chiedono campi nuovi, non correzioni — e la voce in DA-FARE dice di aggiungerli quando si passa da
+quei modelli per altri motivi. Resta aperto anche il pezzo che rende la sottoclasse davvero utile: i
+suoi privilegi vanno **applicati**, non solo elencati, e quello passa dal motore di derivazione (§3).
+
+Sul costo del gate calibrato: il diff toccava dati, serializzazione, modelli e formato di scambio,
+quindi tre giri pieni. Hanno trovato un BLOCCANTE, quattro SERIO e undici minori — e il BLOCCANTE
+avrebbe rotto in produzione proprio la funzione che la guida dell'app indica per prima. Qui i tre giri
+si sono pagati.

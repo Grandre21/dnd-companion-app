@@ -30,7 +30,13 @@ public static class CatalogPackageParser
     /// <summary>Prefisso degli identificatori del pacchetto distribuito con l'app (§6).</summary>
     public const string AppPackageId = "srd-2024-it";
 
-    public static ParseResult Parse(string? json)
+    /// <summary>Legge e valida un pacchetto di dati dal suo JSON.</summary>
+    /// <param name="json">Il testo del file.</param>
+    /// <param name="èIlManualeDellApp">Vero solo per il caricamento di <c>wwwroot/data/srd-2024-it.json</c>
+    /// (<see cref="CatalogService"/>). È l'unico proprietario legittimo del prefisso
+    /// <see cref="AppPackageId"/>: con il default <c>false</c>, un file scritto a mano che dichiari
+    /// quell'id — o un id di voce che ci comincia — viene respinto invece di essere accettato.</param>
+    public static ParseResult Parse(string? json, bool èIlManualeDellApp = false)
     {
         var errors = new List<string>();
         var warnings = new List<string>();
@@ -53,6 +59,16 @@ public static class CatalogPackageParser
 
         NormalizeLists(package);
         TrimIdsAndNames(package);
+
+        // Buco di sicurezza chiuso qui, non a valle: un file che si spaccia per il manuale produce
+        // righe indistinguibili da quelle ufficiali — CatalogKey.IsFromAppPackage le riconosce dal
+        // solo prefisso, non da chi le ha scritte — quindi l'interfaccia le rende di sola lettura
+        // (nemmeno il master può modificarle) e CatalogRemovalPlan.IsRemovablePrefix rifiuta proprio
+        // quel prefisso in blocco: senza questo controllo restano indelebili, recuperabili solo dal
+        // database. Deve girare DOPO TrimIdsAndNames: un id con spazi ai margini deve essere
+        // riconosciuto lo stesso, non sfuggire per un dettaglio di battitura.
+        if (!èIlManualeDellApp)
+            CheckNonImpersonaIlManuale(package, errors);
 
         if (package.SchemaVersion != SupportedSchemaVersion)
         {
@@ -239,5 +255,64 @@ public static class CatalogPackageParser
                 errors.Add($"Sezione '{section}': la voce in posizione {index + 1} non ha un nome.");
             index++;
         }
+    }
+
+    // Il prefisso del manuale è "<AppPackageId>/": un file di terze parti che lo usi produrrebbe
+    // righe indistinguibili, per CatalogKey.IsFromAppPackage, da quelle davvero importate dal
+    // manuale — e quelle righe sono di sola lettura anche per il master (§6) e immuni a "Rimuovi un
+    // import" (CatalogRemovalPlan.IsRemovablePrefix rifiuta proprio quel prefisso).
+    //
+    // Il divieto copre le sole sezioni che l'import **scrive**: specie, background, incantesimi,
+    // mostri, classi. Ne restano fuori le sottoclassi e i talenti, e l'asimmetria è voluta.
+    //
+    // Il criterio è uno: l'immunità nasce dal `source_id`, quindi il divieto vale dove l'id *diventa*
+    // un `source_id` (PackageRowMerge.NuovaClasse e sorelle). Un id di sottoclasse non lo diventa mai
+    // — vive dentro il testo della colonna `subclasses` — e un talento non ha nemmeno una tabella:
+    // PackageImportPlan.ForFeats lo marca NotImportable e nessun PackageRowMerge lo tocca. Per
+    // entrambi, dunque, né righe di sola lettura né immunità a "Rimuovi un import".
+    //
+    // Vietarli costava invece la compatibilità con i file già esportati dal client **online**, che
+    // porta gli id SRD di sottoclassi e talenti verbatim: sarebbero stati respinti per intero, con un
+    // errore che incolpa il file dell'utente — e il service worker non fa skipWaiting, quindi quei
+    // file continueranno a nascere anche dopo il rilascio. Il divieto non comprava niente: CampaignExport
+    // non conserva comunque quel prefisso al primo riesporto (AssignIds, regola 1).
+    //
+    // Il giorno in cui i talenti avranno una tabella, il divieto va rimesso su quella sezione insieme
+    // alla tabella: è quel giorno che il loro id comincerà a diventare un `source_id`.
+    //
+    // Un solo consumatore legge l'id di sottoclasse per decidere qualcosa:
+    // CampaignExport.ContieneMaterialeDiManuale, che ci riconosce la prosa SRD sopravvissuta a
+    // «Duplica e modifica» per non emettere un file senza attribuzione. Sbaglia solo per eccesso —
+    // un file di terzi che dichiari quel prefisso si porta dietro una licenza di troppo — e fra i due
+    // errori è quello innocuo.
+    private static void CheckNonImpersonaIlManuale(CatalogPackage p, List<string> errors)
+    {
+        const string prefisso = AppPackageId + "/";
+
+        // Uguaglianza **e** prefisso: `IsFromAppPackage` confronta il prefisso, quindi un pacchetto
+        // che si chiami «srd-2024-it/mio» supererebbe un controllo di sola uguaglianza e poi
+        // `PackageImportPlan.Build` — che interroga `IsFromAppPackage(package.Id + "/")` — lo
+        // tratterebbe come il manuale, etichettando le sue voci «solo consultazione». Le due domande
+        // vanno poste nello stesso modo, o il divieto e la conseguenza divergono.
+        if (p.Id == AppPackageId || (p.Id?.StartsWith(prefisso, StringComparison.Ordinal) ?? false))
+        {
+            errors.Add($"L'id del pacchetto non può essere '{AppPackageId}' né cominciare per " +
+                       $"'{prefisso}': è riservato al manuale distribuito con l'app. Scegli un id " +
+                       "diverso per il tuo pacchetto.");
+        }
+
+        void Vieta(string? id, string sezione)
+        {
+            if (id is not null && id.StartsWith(prefisso, StringComparison.Ordinal))
+                errors.Add($"Sezione '{sezione}': l'identificatore '{id}' usa il prefisso '{prefisso}', " +
+                           "riservato al manuale dell'app. Scegline uno tuo.");
+        }
+
+        foreach (var x in p.Species) if (x is not null) Vieta(x.Id, "specie");
+        foreach (var x in p.Backgrounds) if (x is not null) Vieta(x.Id, "background");
+        foreach (var x in p.Spells) if (x is not null) Vieta(x.Id, "incantesimi");
+        foreach (var x in p.Monsters) if (x is not null) Vieta(x.Id, "mostri");
+
+        foreach (var c in p.Classes) if (c is not null) Vieta(c.Id, "classi");
     }
 }

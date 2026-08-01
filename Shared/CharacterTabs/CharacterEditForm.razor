@@ -597,8 +597,9 @@
     [Parameter, EditorRequired] public Character Draft { get; set; } = default!;
     [Parameter] public List<CharacterClass> Classes { get; set; } = new();
 
-    /// <summary>Classi del manuale: le sottoclassi stanno solo lì, perché la tabella `classes` non
-    /// ha una colonna per portarle. Vuota = campo di testo libero, come prima.</summary>
+    /// <summary>Classi del manuale: ripiego per le sottoclassi quando la riga di campagna non ne
+    /// dichiara (v. <see cref="SubclassCatalog.Disponibili"/>). Vuota + nessuna riga con un elenco =
+    /// campo di testo libero, come prima.</summary>
     [Parameter] public List<PackageClass> ClassPackages { get; set; } = new();
     [Parameter] public List<Race> Races { get; set; } = new();
     [Parameter] public bool IsBusy { get; set; }
@@ -609,13 +610,13 @@
 
     private bool isSubclassCustom;
 
-    /// <summary>Come nel wizard: il menu si offre solo se la classe è ancora quella del manuale. Se
-    /// il tavolo ha la propria «Mago», le sue sottoclassi il manuale non le conosce e resta il testo
-    /// libero — la stessa domanda che si pone la tab «Scheda» prima di mostrarne i privilegi.</summary>
+    /// <summary>Come nel wizard e nella tab «Scheda»: il menu compare ogni volta che la classe
+    /// offre davvero un elenco, qualunque sia la sua provenienza — non più solo quando è ancora
+    /// quella del manuale. Un tavolo con la propria «Mago» che ha scritto le proprie sottoclassi
+    /// nella riga di campagna deve vedere lo stesso menu di chi gioca con l'Invocatore del
+    /// manuale.</summary>
     private IReadOnlyList<PackageSubclass> SottoclassiDisponibili
-        => ClassProgression.ClasseDelManuale(Classes, Draft.Class)
-            ? SubclassCatalog.PerClasse(ClassPackages, Draft.Class)
-            : Array.Empty<PackageSubclass>();
+        => SubclassCatalog.Disponibili(Classes, ClassPackages, Draft.Class);
 
     private string CurrentSubclassSelection
         => isSubclassCustom ? CustomOptionValue : (Draft.Subclass ?? string.Empty);

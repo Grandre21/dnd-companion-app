@@ -21,9 +21,21 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
 > ogni push e da segnalare all'utente.
 
+- 🔴 **Migrazione `20260801000000_class_subclasses.sql` da applicare all'hosted PRIMA del push.** Non è
+  la solita raccomandazione: il client nuovo mappa `classes.subclasses`, quindi `postgrest` la manda su
+  **ogni** scrittura. Senza l'`ALTER TABLE` non si rompono le sole sottoclassi — falliscono con 400
+  anche «salva classe», «duplica e modifica» e l'import delle classi. Verifica:
+  `SELECT column_name FROM information_schema.columns WHERE table_name='classes' AND column_name='subclasses';`
 - 🔴 **Migrazione `20260731000000_party_visibility.sql`** applicata a mano al Supabase hosted, se non
   già fatto: finché non gira, la pagina Party mostra il banner d'errore. Verifica:
   `SELECT proname FROM pg_proc WHERE proname = 'get_party_overview';`
+- 🟠 **Sottoclassi nella pagina Classi**: aggiungere, modificare (il nome resta al suo posto nell'elenco),
+  rimuovere; «duplica e modifica» da una voce SRD deve portarsele dietro; le righe del manuale restano
+  di sola lettura. E il menu della sottoclasse deve comparire nella scheda anche per una classe **del
+  tavolo** o importata, non solo per quelle del manuale.
+- 🟠 **File esportato dal client precedente**: prendere un export «tutto, manuale incluso» fatto *prima*
+  di questo rilascio e reimportarlo. Deve entrare senza errori — è la compatibilità che ha fatto
+  esentare gli id di sottoclassi e talenti dal divieto del prefisso.
 - 🔴 **Prova a due account** (master + giocatore in incognito): il giocatore vede solo i propri PG, il
   master tutti; entrambi vedono il gruppo in Party con le sole stat sintetiche.
 - 🟠 **Publish Release trimmato**: `dotnet publish DndCompanion.csproj -c Release -o publish`, servire
@@ -38,47 +50,39 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
   licenza.
 - 🟠 **Eliminazione di un PG** (Scheda → in fondo): inventario e incantesimi devono sparire con lui
   (`ON DELETE CASCADE`). La prova che conta è il master che elimina il PG di un giocatore.
-- 🟡 **Scelta della sottoclasse** in creazione e modifica: menu con una classe del manuale, testo
-  libero con una classe propria; cambiando classe quella dell'altra sparisce, una scritta a mano resta.
+- 🟡 **Scelta della sottoclasse** in creazione e modifica, cambiando classe: quella di un'altra classe
+  sparisce, una scritta a mano resta. È il punto su cui il gate ha trovato sei perdite silenziose in
+  tre giri: vale una prova a mano.
 - 🟡 **PG di livello ≥ 3 con classe importata prima del 2026-07-31**: la scheda ripiega sul pacchetto,
   ma per aggiornare il catalogo di campagna serve un re-import dalla pagina Dati.
 
 ---
 
-## 1. La direzione scelta il 2026-08-01
+## 1. Quel che resta della direzione scelta il 2026-08-01
 
-> Tre filoni decisi con l'utente, in un solo blocco perché toccano gli stessi file. Motivazioni in
-> [DIARIO.md](./DIARIO.md), sezione «La direzione scelta».
+> I punti A (sottoclassi con una casa nei dati) e C (prefisso del manuale spoofabile) sono **chiusi**:
+> il racconto e le decisioni in [DIARIO.md](./DIARIO.md), sezione «Le sottoclassi hanno una casa nei
+> dati». Di B resta la parte qui sotto.
 
-### A. 🟠 La sottoclasse è una **scelta**, non un campo di testo
-Richiesta ripetuta più volte: nel manuale la sottoclasse porta privilegi e abilità uniche, quindi
-ogni classe deve contenere le sue e il personaggio deve scegliere fra quelle.
-- Oggi funziona **solo** per le classi che il manuale conosce: una classe del tavolo, o una importata,
-  non ha dove tenere le proprie sottoclassi.
-- Serve una **casa nei dati**: colonna testuale su `classes` (come già per la tabella dei livelli) o
-  tabella dedicata — decisione da prendere, la seconda costa una migrazione e una RLS.
-- L'import deve **scriverle** (oggi le legge e le scarta); la pagina Classi deve permettere di
-  aggiungerle e modificarle; scheda e wizard le pescano da lì, non solo dal manuale.
-- I privilegi della sottoclasse vanno **applicati**, non solo elencati: è il ponte verso §3.
+### B. 🟠 Il file di dati non porta ancora **tutto**
+Il perimetro deciso è «cataloghi al completo», e il giro export → import → export è ora idempotente
+sui campi che il formato dichiara (test di round-trip). Restano fuori dei **campi che il formato non
+ha**, quindi il giro li perde in silenzio:
+- **Specie**: `languages` e i sei bonus di caratteristica.
+- **Classi**: `description`, competenze in armature e armi.
+- **Mostri**: taglia, tipo, allineamento, velocità, le sei caratteristiche, `abilities`.
+- **Talenti**: non hanno tabella, quindi escono solo dal manuale e un tavolo non può averne di propri
+  — da decidere se dargliela (è una migrazione, e allora il divieto del prefisso torna a valere anche
+  su quella sezione: v. il commento in `CatalogPackageParser`).
+- **`skillChoices`** scritto in prosa libera resta non invertibile e viene omesso: le varianti vicine
+  al formato generato ora si invertono, la prosa no. Se serve trasportarla, servirebbe un campo
+  gemello di solo testo nel formato.
 
-### B. 🟠 Il file di dati porta **tutto**
-Tutto ciò che l'app sa deve uscire in JSON, essere editabile e rientrare senza perdite: sono i
-giocatori a portarsi dentro i contenuti.
-- **Perimetro (deciso):** cataloghi al completo — specie, classi *con sottoclassi e livelli*,
-  background, talenti, incantesimi, mostri. PG, appunti e stato del combattimento restano fuori.
-- Da chiudere le perdite attuali: `skillChoices` digitato a mano non ha inversione; le sottoclassi
-  escono solo sulle righe di provenienza manuale; i talenti non hanno tabella (decidere se dargliela).
-- **Nessun limite di volume** (deciso): il formato deve scalare. Niente tetti al numero di voci.
-- Criterio di fatto: un test di **round-trip** — export → import → export produce lo stesso file.
+**Nessun limite di volume** (deciso): niente tetti al numero di voci.
 
-### C. 🔴 Sicurezza dell'import (nello stesso lavoro di B)
-Un file scritto a mano può dichiarare `"id": "srd-2024-it"` e **spacciarsi per il manuale**: le righe
-che ne nascono si presentano come ufficiali, non sono modificabili dall'interfaccia (nemmeno dal
-master) e «Rimuovi un import» rifiuta quel prefisso — restano indelebili, recuperabili solo via
-database. Il parser deve rifiutare o rinominare gli id che rivendicano il prefisso del manuale.
-Verificato il 2026-08-01: nessuna escalation (le RLS tengono) e nessuna iniezione HTML
-(`MarkupString` non è usato). Minore: nomi con caratteri simili possono oscurare una voce ufficiale
-sfruttando «a parità di nome vince la riga locale».
+### 🟡 Nomi con caratteri simili
+Restano capaci di oscurare una voce ufficiale sfruttando «a parità di nome vince la riga locale».
+Residuo minore di C.
 
 ---
 
@@ -88,7 +92,6 @@ sfruttando «a parità di nome vince la riga locale».
   riga in una campagna di cui non è membro. Il caso peggiore è `notes` condivise, che **nessuno** può
   rimuovere. Caso gemello: l'ex-membro conserva scrittura sulle proprie righe rimaste in campagna.
   Una migrazione autonoma col suo giro di test RLS. Dettaglio nell'archivio, §1.
-- 🔴 **Prefisso del manuale spoofabile** all'import → §1.C.
 - 🟡 **Vincoli DB residui**: `NOT NULL`, lunghezze e `CHECK` sui range numerici (caratteristiche, CA,
   velocità). Oggi validati solo lato client (`FormValidation`).
 - 🟡 **Header di sicurezza**: `frame-ancestors`/HSTS/`report-uri` non ottenibili via `<meta>`; GitHub
@@ -167,7 +170,7 @@ sfruttando «a parità di nome vince la riga locale».
 ## 7. Test e infrastruttura
 
 - 🟡 **bUnit** per testare interi componenti (rendering, eventi): per ora si estrae la logica pura man
-  mano. Stato attuale: **676 unit test** + 11 scenari d'integrazione RLS (stack Supabase locale,
+  mano. Stato attuale: **755 unit test** + 11 scenari d'integrazione RLS (stack Supabase locale,
   auto-skip se giù).
 
 ---
@@ -187,9 +190,11 @@ sfruttando «a parità di nome vince la riga locale».
 
 ## 9. Ordine consigliato
 
-1. **§1 A+B+C insieme** — sottoclassi con una casa nei dati, round-trip completo del file, chiusura
-   del prefisso spoofabile. Sono gli stessi file: separarli significa ripassarci sopra.
-2. **§2 varco RLS** — una migrazione, gate della pubblicazione.
-3. **§3 motore di derivazione → level-up guidato** — in quest'ordine, il secondo poggia sul primo.
-4. **§3 combattimento consultabile** — indipendente, aggredibile in parallelo.
+1. **§2 varco RLS** — una migrazione, gate della pubblicazione. È il solo 🔴 di codice che resta.
+2. **§3 motore di derivazione → level-up guidato** — in quest'ordine, il secondo poggia sul primo. Da
+   qui passa anche l'ultimo pezzo delle sottoclassi: i loro privilegi vanno **applicati**, non solo
+   elencati.
+3. **§3 combattimento consultabile** — indipendente, aggredibile in parallelo.
+4. **§1.B campi mancanti nel formato** — quando si tocca un modello per altri motivi: aggiungere un
+   campo al formato costa poco lì, e da solo non vale un intervento.
 5. Il resto (§4-§6) a spizzichi, dove si passa già per altri motivi.

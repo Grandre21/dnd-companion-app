@@ -336,6 +336,76 @@
     border-color: #c45638;
 }
 
+/* ===== Sottoclassi (dentro il form della classe) ===== */
+.subclass-hint {
+    margin: 0;
+    font-size: 0.85rem;
+    font-style: italic;
+    /* #9a8c6a è esattamente --gold-muted-rgb. Attenzione: --gold-muted (#c9b88a) è un colore
+       DIVERSO, ed è la trappola annotata in DA-FARE §5 — qui va sostituito sul valore. */
+    color: rgb(var(--gold-muted-rgb));
+    line-height: 1.4;
+}
+
+.subclass-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.subclass-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+}
+
+/* Nessun `color`: il colore lo eredita da .classes-container, e ridichiararlo con un literal
+   avrebbe aggiunto una sfumatura in più a quelle che DA-FARE §5 vuole consolidare. */
+.subclass-list-name {
+    font-weight: 600;
+}
+
+.subclass-list-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* Bersagli tattili >= 44px: qui sono icone sole, senza testo che le allarghi. */
+.subclass-list-actions .action-btn {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    font-size: 1rem;
+}
+
+.subclass-add-btn {
+    flex: none;
+    align-self: flex-start;
+    min-height: 44px;
+    padding: 0.6rem 1.1rem;
+}
+
+.subclass-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    margin-top: 0.25rem;
+    border: 1px dashed rgba(var(--gold-rgb), 0.4);
+    border-radius: 8px;
+    background: rgba(var(--black-rgb), 0.2);
+}
+
 /* ===== Form view ===== */
 .form-view {
     display: flex;

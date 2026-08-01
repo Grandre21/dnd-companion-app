@@ -48,7 +48,12 @@ public class SrdPackageContentTests
         var percorso = PercorsoPacchetto();
         Assert.True(File.Exists(percorso), $"Pacchetto SRD assente: {percorso}");
 
-        var esito = CatalogPackageParser.Parse(File.ReadAllText(percorso));
+        // `èIlManualeDellApp: true` come fa CatalogService: dal 2026-08-01 il parser rifiuta gli id
+        // che cominciano per «srd-2024-it/» in un file qualunque — è la chiusura del buco per cui un
+        // file scritto a mano poteva spacciarsi per il manuale — e il manuale dell'app è l'unico
+        // legittimo proprietario di quel prefisso. Senza il flag, questi test verificherebbero il
+        // divieto invece del contenuto.
+        var esito = CatalogPackageParser.Parse(File.ReadAllText(percorso), èIlManualeDellApp: true);
 
         // Gli errori si mostrano tutti: con uno solo per volta servirebbe un giro di test per voce.
         Assert.True(esito.Errors.Count == 0,

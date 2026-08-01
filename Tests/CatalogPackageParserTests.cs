@@ -23,7 +23,7 @@ public class CatalogPackageParserTests
     [Fact]
     public void Parse_PacchettoValido_RestituisceIlPacchettoSenzaErrori()
     {
-        var result = CatalogPackageParser.Parse(ValidJson);
+        var result = CatalogPackageParser.Parse(ValidJson, èIlManualeDellApp: true);
 
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Package);
@@ -48,7 +48,7 @@ public class CatalogPackageParserTests
     {
         var json = ValidJson.Replace("\"schemaVersion\": 1", "\"schemaVersion\": 99");
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("99"));
@@ -59,7 +59,7 @@ public class CatalogPackageParserTests
     {
         var json = ValidJson.Replace("\"id\": \"srd-2024-it/elfo\",", "");
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("Elfo"));
@@ -70,7 +70,7 @@ public class CatalogPackageParserTests
     {
         var json = ValidJson.Replace("\"language\": \"it\"", "\"language\": \"en\"");
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.NotNull(result.Package);
         Assert.Contains(result.Warnings, w => w.Contains("lingua"));
@@ -90,7 +90,7 @@ public class CatalogPackageParserTests
     {
         var json = ValidJson.Replace("\"id\": \"srd-2024-it\",", "");
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("identificatore"));
@@ -123,7 +123,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Package);
@@ -147,7 +147,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("specie"));
@@ -174,7 +174,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Package);
@@ -203,7 +203,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Package);
@@ -231,7 +231,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Package);
@@ -256,7 +256,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Empty(result.Errors);
         Assert.NotNull(result.Package);
@@ -283,7 +283,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.NotNull(result.Package);
         Assert.Equal("srd-2024-it", result.Package!.Id);
@@ -314,7 +314,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("srd-2024-it/elfo") && e.Contains("Elfo Alto"));
@@ -342,7 +342,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.NotNull(result.Package);
         var sottoclasse = result.Package!.Classes[0].Subclasses[0];
@@ -368,7 +368,7 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("sottoclassi di Guerriero") && e.Contains("Campione"));
@@ -398,10 +398,115 @@ public class CatalogPackageParserTests
         }
         """;
 
-        var result = CatalogPackageParser.Parse(json);
+        var result = CatalogPackageParser.Parse(json, èIlManualeDellApp: true);
 
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("sottoclassi di Guerriero") && e.Contains("Campionessa"));
         Assert.DoesNotContain(result.Errors, e => e.Contains("sottoclassi di Ladro"));
+    }
+
+    // ---- Buco di sicurezza: un file di terze parti non può spacciarsi per il manuale (§6) ----
+
+    [Fact]
+    public void Parse_IdDelPacchettoComeIlManuale_RestituisceErrore()
+    {
+        const string json = """
+        {
+          "schemaVersion": 1,
+          "id": "srd-2024-it",
+          "name": "Finto manuale"
+        }
+        """;
+
+        var result = CatalogPackageParser.Parse(json);
+
+        Assert.Null(result.Package);
+        Assert.Contains(result.Errors, e => e.Contains(CatalogPackageParser.AppPackageId));
+    }
+
+    /// <summary>Il controllo copre tutte le sezioni di primo livello: una voce con l'id del manuale
+    /// dentro un file altrimenti innocuo (id proprio, "mio-pacchetto") deve comunque far respingere
+    /// l'intero file, non solo quella voce.</summary>
+    [Theory]
+    [InlineData("species")]
+    [InlineData("classes")]
+    [InlineData("backgrounds")]
+    [InlineData("spells")]
+    [InlineData("monsters")]
+    public void Parse_VoceConPrefissoDelManuale_RestituisceErrore(string sezione)
+    {
+        const string template = """
+        {
+          "schemaVersion": 1,
+          "id": "mio-pacchetto",
+          "__SEZIONE__": [ { "id": "srd-2024-it/voce", "name": "Voce" } ]
+        }
+        """;
+        var json = template.Replace("__SEZIONE__", sezione);
+
+        var result = CatalogPackageParser.Parse(json);
+
+        Assert.Null(result.Package);
+        Assert.Contains(result.Errors, e => e.Contains("srd-2024-it/voce"));
+    }
+
+    /// <summary>Il difetto che chiude: il divieto sull'id del pacchetto era per uguaglianza, mentre
+    /// <c>CatalogKey.IsFromAppPackage</c> confronta il <b>prefisso</b>. Un pacchetto chiamato
+    /// «srd-2024-it/mio» passava, e poi <c>PackageImportPlan</c> — che interroga
+    /// <c>IsFromAppPackage(package.Id + "/")</c> — lo trattava come il manuale, etichettando le sue
+    /// voci «solo consultazione». Le due domande vanno poste nello stesso modo.</summary>
+    [Fact]
+    public void Parse_IdDelPacchettoConIlPrefissoDelManuale_RestituisceErrore()
+    {
+        var json = ValidJson.Replace("\"id\": \"srd-2024-it\"", "\"id\": \"srd-2024-it/mio\"")
+                            .Replace("srd-2024-it/elfo", "mio/elfo");
+
+        var result = CatalogPackageParser.Parse(json);
+
+        Assert.Null(result.Package);
+        Assert.Contains(result.Errors, e => e.Contains("srd-2024-it/"));
+    }
+
+    /// <summary>L'asimmetria voluta, e il criterio che la regge: il divieto vale dove l'id
+    /// <b>diventa</b> il <c>source_id</c> della riga — è da lì che nasce l'immunità che il controllo
+    /// esiste per impedire — e non vale per sottoclassi e talenti, che un <c>source_id</c> non lo
+    /// producono mai (la prima vive dentro il testo della colonna <c>subclasses</c>, il secondo non ha
+    /// nemmeno una tabella: <c>PackageImportPlan.ForFeats</c> lo marca <c>NotImportable</c>).
+    ///
+    /// Vietarli sarebbe costato la compatibilità con i file già esportati dal client <b>online</b>,
+    /// che porta gli id SRD di sottoclassi e talenti verbatim: sarebbero stati respinti per intero,
+    /// con un errore che incolpa il file dell'utente — e il service worker non fa
+    /// <c>skipWaiting</c>, quindi quei file continueranno a nascere anche dopo il rilascio. Senza
+    /// comprare niente, perché <c>CampaignExport</c> non conserva comunque quel prefisso al
+    /// riesporto.</summary>
+    [Theory]
+    [InlineData("""
+        { "schemaVersion": 1, "id": "mio-pacchetto",
+          "classes": [ { "id": "mio-pacchetto/guerriero", "name": "Guerriero",
+            "subclasses": [ { "id": "srd-2024-it/campione", "name": "Campione" } ] } ] }
+        """)]
+    [InlineData("""
+        { "schemaVersion": 1, "id": "mio-pacchetto",
+          "feats": [ { "id": "srd-2024-it/talento/attento", "name": "Attento" } ] }
+        """)]
+    public void Parse_SottoclasseOTalentoConPrefissoDelManuale_SonoAmmessi(string json)
+    {
+        var result = CatalogPackageParser.Parse(json);
+
+        Assert.Empty(result.Errors);
+        Assert.NotNull(result.Package);
+    }
+
+    /// <summary>Il solo caricamento legittimo del prefisso: CatalogService lo passa quando legge
+    /// wwwroot/data/srd-2024-it.json. Senza questo test, un domani qualcuno potrebbe "risolvere" gli
+    /// errori sopra stringendo il controllo fino a rompere il caricamento del manuale vero.</summary>
+    [Fact]
+    public void Parse_ÈIlManualeDellAppTrue_AccettaIlPrefissoRiservato()
+    {
+        var result = CatalogPackageParser.Parse(ValidJson, èIlManualeDellApp: true);
+
+        Assert.Empty(result.Errors);
+        Assert.NotNull(result.Package);
+        Assert.Equal("srd-2024-it", result.Package!.Id);
     }
 }

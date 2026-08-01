@@ -112,9 +112,10 @@ public sealed class PackageClass
     [JsonPropertyName("levels")] public List<PackageClassLevel> Levels { get; set; } = new();
 
     /// <summary>Le sottoclassi della classe. Lo SRD ne concede una ciascuna; un file può dichiararne
-    /// quante vuole, ma l'import <b>non le scrive</b> — la tabella <c>classes</c> non ha una colonna
-    /// per portarle, e l'unico consumatore è <see cref="T:DndCompanion.Services.SubclassCatalog"/>
-    /// sul manuale dell'app. L'anteprima dell'import lo dichiara, come per i talenti.</summary>
+    /// quante vuole — nessun limite di numero. Dal 2026-08-01 l'import <b>le scrive</b> nella colonna
+    /// <c>classes.subclasses</c>, nel formato di
+    /// <see cref="T:DndCompanion.Services.SubclassText"/>: prima le leggeva e le buttava, perché la
+    /// tabella non aveva dove tenerle.</summary>
     [JsonPropertyName("subclasses")] public List<PackageSubclass> Subclasses { get; set; } = new();
 }
 

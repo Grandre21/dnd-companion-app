@@ -865,22 +865,17 @@
     private PackageSpecies? SelectedRacePackage =>
         SelectedRaceDb is null ? racePackages.FirstOrDefault(p => p.Name == draft.Race) : null;
 
-    /// <summary>Le sottoclassi che il manuale offre per la classe scelta. Si guarda il pacchetto
-    /// anche quando la classe è una riga importata — la tabella `classes` non ha una colonna per le
-    /// sottoclassi, quindi il manuale è l'unica sorgente che le conosce — ma non quando il tavolo ha
-    /// una **propria** classe con quel nome: le sue sottoclassi il manuale non le conosce, e offrire
-    /// l'Invocatore prometterebbe privilegi che la scheda poi non mostra (la tab «Scheda» pone la
-    /// stessa domanda, v. <see cref="ClassProgression.ClasseDelManuale"/>). Lì resta il testo
-    /// libero, che è il modo di usare una sottoclasse propria.</summary>
+    /// <summary>Le sottoclassi disponibili per la classe scelta, da qualunque sorgente: la colonna
+    /// della riga di campagna se c'è, altrimenti il manuale (e solo per una riga importata dal
+    /// manuale — una classe del tavolo non eredita quelle SRD). Dal 2026-08-01 il menu compare
+    /// anche per una classe del tavolo o importata, non più solo per «la classe è ancora quella del
+    /// manuale»: prima di allora chi creava un personaggio per una classe fuori catalogo non aveva
+    /// mai un menu, nemmeno quando quella classe aveva ormai le proprie sottoclassi.</summary>
     private IReadOnlyList<PackageSubclass> SottoclassiDisponibili
-        => ClassProgression.ClasseDelManuale(classes, draft.Class)
-            ? SubclassCatalog.PerClasse(classiDiManuale, draft.Class)
-            : Array.Empty<PackageSubclass>();
+        => SubclassCatalog.Disponibili(classes, classiDiManuale, draft.Class);
 
     private PackageSubclass? SottoclasseScelta
-        => ClassProgression.ClasseDelManuale(classes, draft.Class)
-            ? SubclassCatalog.Trova(classiDiManuale, draft.Class, draft.Subclass)
-            : null;
+        => SubclassCatalog.Trova(classes, classiDiManuale, draft.Class, draft.Subclass);
 
     private string CurrentSubclassSelection
         => isSubclassCustom ? CustomOptionValue : (draft.Subclass ?? string.Empty);

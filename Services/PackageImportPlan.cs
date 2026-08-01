@@ -146,13 +146,15 @@ public static class PackageImportPlan
         return new ImportSection("Talenti", items, nota);
     }
 
-    /// <summary>Le classi, con l'avvertenza sulle sottoclassi quando il file ne porta.
+    /// <summary>Le classi, con l'avviso su quante sottoclassi il file porta.
     ///
-    /// Le sottoclassi non vengono scritte da nessuna parte — la tabella <c>classes</c> non ha una
-    /// colonna per portarle, e l'unico consumatore è <see cref="SubclassCatalog"/> sul manuale
-    /// dell'app — e questo va **detto**, per la stessa regola dei talenti (§9): la guida della
-    /// pagina Dati invita a partire dall'export «manuale incluso», che le contiene, quindi chi
-    /// aggiunge la propria sottoclasse a quel file la vedrebbe sparire senza un rigo.</summary>
+    /// Dal 2026-08-01 le sottoclassi non sono più scartate: <c>PackageRowMerge.NuovaClasse</c> e
+    /// <c>ApplicaClasse</c> le scrivono nella colonna <c>classes.subclasses</c> (v.
+    /// <see cref="SubclassText"/>) insieme al resto della classe, e non hanno una riga propria
+    /// nell'anteprima — un conteggio a parte le farebbe sembrare una sezione distinta, mentre non
+    /// lo sono. L'avviso resta comunque, per la stessa regola dei talenti (§9): senza, chi ha
+    /// scritto una sottoclasse propria non avrebbe modo di sapere, guardando l'anteprima, che verrà
+    /// letta e portata a catalogo.</summary>
     public static ImportSection ForClasses(
         CatalogPackage package, CampaignCatalogs existing, bool isMaster, string? userId)
     {
@@ -160,14 +162,16 @@ public static class PackageImportPlan
             existing.Classes, r => r.SourceId, r => r.Name, r => r.Id, r => r.AddedBy,
             isMaster, userId);
 
-        var conSottoclassi = package.Classes.Count(c => c is not null && c.Subclasses.Count > 0);
-        if (conSottoclassi == 0) return sezione;
+        var numeroSottoclassi = package.Classes
+            .Where(c => c is not null)
+            .Sum(c => c.Subclasses.Count);
+        if (numeroSottoclassi == 0) return sezione;
 
-        var quante = conSottoclassi == 1 ? "una classe ne porta" : $"{conSottoclassi} classi ne portano";
+        var quante = numeroSottoclassi == 1 ? "1 sottoclasse" : $"{numeroSottoclassi} sottoclassi";
         return sezione with
         {
-            Note = $"Le sottoclassi dichiarate nel file non vengono scritte nel catalogo ({quante}): "
-                   + "l'app le legge solo dal manuale precaricato. Se sono tue, restano nel tuo file.",
+            Note = $"Il file porta {quante}: finiscono nel catalogo insieme alla classe che le "
+                   + "dichiara, non in una riga propria.",
         };
     }
 

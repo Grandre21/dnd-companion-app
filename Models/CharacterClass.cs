@@ -36,6 +36,17 @@ public class CharacterClass : BaseModel
     [Column("features")]
     public string Features { get; set; } = string.Empty;
 
+    /// <summary>Le sottoclassi di questa classe, nel formato testuale di
+    /// <see cref="T:DndCompanion.Services.SubclassText"/>. Vuoto quando la classe non ne dichiara:
+    /// per una riga importata dal manuale vale il ripiego sul pacchetto
+    /// (<c>SubclassCatalog.Disponibili</c>), per una classe del tavolo significa «non ne ha».
+    ///
+    /// Testo e non tabella per la ragione scritta nella migrazione
+    /// <c>20260801000000_class_subclasses.sql</c>. La colonna è nullable sul database: qui il
+    /// valore di default vale solo per le righe nuove, e chi legge deve reggere il null.</summary>
+    [Column("subclasses")]
+    public string Subclasses { get; set; } = string.Empty;
+
     [Column("source_id")]
     public string? SourceId { get; set; }
 

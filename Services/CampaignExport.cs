@@ -97,6 +97,96 @@ public static class CampaignExport
         return risultato;
     }
 
+    /// <summary>Le sottoclassi di <b>questa riga</b>: la sua colonna se le dichiara, altrimenti il
+    /// manuale — ma solo se è la riga a venire dal manuale.
+    ///
+    /// Deliberatamente <b>non</b> <see cref="SubclassCatalog.Disponibili"/>, che le schermate usano a
+    /// ragione: quella risolve per <i>nome</i> su tutte le righe omonime, e qui si emette una voce per
+    /// <i>riga</i>. Con due «Barbaro» — una importata dal manuale e una del tavolo, che «Duplica e
+    /// modifica» crea per costruzione — il risolutore per nome dava a entrambe l'elenco della
+    /// rappresentativa: la riga del tavolo esportava le sottoclassi SRD dell'altra (contenuto che non
+    /// è suo), e una riga a cui l'utente le aveva <b>tolte</b> se le ritrovava nel file.</summary>
+    private static IReadOnlyList<PackageSubclass> SottoclassiDellaRiga(CharacterClass c, CatalogPackage? manuale)
+        => SubclassText.SembraElenco(c.Subclasses)
+            ? SubclassText.Leggi(c.Subclasses)
+            : CatalogKey.IsFromAppPackage(c.SourceId)
+                // Riga importata prima che l'import scrivesse la colonna: è solo vecchia, e il
+                // manuale ne è la versione aggiornata.
+                ? SubclassCatalog.PerClasse(manuale?.Classes, c.Name)
+                : Array.Empty<PackageSubclass>();
+
+    /// <summary>Le sottoclassi con identificatori esportabili. Esiste per la stessa ragione di
+    /// <see cref="AssignIds"/>, e applica le stesse regole riusandolo. Due motivi, entrambi
+    /// necessari:
+    ///
+    /// <list type="bullet">
+    /// <item>il parser esige un id su <b>ogni</b> voce, sottoclassi comprese, e una sottoclasse creata
+    /// nella pagina Classi non ne ha — nessuno lo digita. Il file usciva con <c>"id": ""</c> e al
+    /// reimport veniva respinto per intero;</item>
+    /// <item>un id del manuale non va conservato: è la regola 1 di <see cref="AssignIds"/> —
+    /// rivendicherebbe una provenienza SRD in un file che è di un altro tavolo.</item>
+    /// </list>
+    ///
+    /// Il difetto non si vedeva in nessun test perché le prove sull'export non reimportano, e quella
+    /// sul giro completo non aveva ancora una classe con sottoclassi.
+    ///
+    /// Le voci si ricostruiscono, non si modificano: <see cref="SottoclassiDellaRiga"/> ripiega su
+    /// <see cref="SubclassCatalog.PerClasse"/>, che restituisce gli oggetti del manuale caricato in
+    /// memoria, e riscriverne l'id lo corromperebbe per tutta la sessione.</summary>
+    private static List<PackageSubclass> SottoclassiEsportabili(
+        string packageId, IReadOnlyList<PackageSubclass> sottoclassi)
+    {
+        var ids = AssignIds(packageId, sottoclassi, s => s.Id, s => s.Name);
+
+        return sottoclassi
+            .Select((s, i) => new PackageSubclass
+            {
+                Id = ids[i],
+                Name = s.Name,
+                Description = s.Description,
+                Levels = ConNoveSlot(s.Levels),
+            })
+            .ToList();
+    }
+
+    /// <summary>I talenti del manuale con identificatori esportabili. Stessa ragione e stesse regole
+    /// di <see cref="SottoclassiEsportabili"/>: gli id del manuale sono riservati, e copiarli verbatim
+    /// produceva un file che il parser rifiuta per intero.</summary>
+    private static List<PackageFeat> TalentiEsportabili(string packageId, IReadOnlyList<PackageFeat>? talenti)
+    {
+        var voci = (talenti ?? Array.Empty<PackageFeat>()).Where(f => f is not null).ToList();
+        var ids = AssignIds(packageId, voci, f => f.Id, f => f.Name);
+
+        return voci
+            .Select((f, i) => new PackageFeat
+            {
+                Id = ids[i],
+                Name = f.Name,
+                Category = f.Category,
+                Description = f.Description,
+            })
+            .ToList();
+    }
+
+    /// <summary>I livelli con i nove slot che il formato dichiara. Unica sede della regola: nel testo
+    /// gli zeri finali sono omessi (<see cref="ClassProgression"/>), nel formato di scambio no
+    /// (<see cref="PackageClassLevel"/>). Scritta due volte era già divergente — la tabella di classe
+    /// ne emetteva nove e le sottoclassi la lista tagliata, cioè una seconda variante del formato nata
+    /// per distrazione. Ricostruisce anche le liste, così l'export non condivide mai un riferimento
+    /// con il manuale in memoria.</summary>
+    private static List<PackageClassLevel> ConNoveSlot(IEnumerable<PackageClassLevel>? livelli)
+        => (livelli ?? Enumerable.Empty<PackageClassLevel>())
+            .Where(l => l is not null)
+            .Select(l => new PackageClassLevel
+            {
+                Level = l.Level,
+                Features = (l.Features ?? new List<string>()).ToList(),
+                SpellSlots = Enumerable.Range(0, 9)
+                    .Select(i => i < (l.SpellSlots?.Count ?? 0) ? l.SpellSlots![i] : 0)
+                    .ToList(),
+            })
+            .ToList();
+
     /// <summary>Unisce ai cataloghi della campagna le voci del manuale che nessuna riga già copre.
     ///
     /// Serve perché il manuale non è nel database: le sue voci si vedono nei cataloghi solo perché
@@ -149,6 +239,15 @@ public static class CampaignExport
     public static bool ContieneMaterialeDiManuale(CampaignCatalogs c)
         => c.Races.Any(r => CatalogKey.IsFromAppPackage(r.SourceId))
            || c.Classes.Any(x => CatalogKey.IsFromAppPackage(x.SourceId))
+           // Anche dentro la colonna `subclasses`, e non è una rifinitura: «Duplica e modifica» da
+           // una voce di pacchetto copia l'elenco delle sottoclassi e **azzera** la provenienza
+           // della riga (Pages/Classes.razor), quindi la prosa SRD di una sottoclasse — che è
+           // descrizione intera, non un elenco di nomi — viaggia in una riga con `source_id` nullo.
+           // Guardando i soli `source_id`, l'export della sola campagna produceva un file con quel
+           // testo e `License = null`. L'`id:` dentro la colonna è l'ultimo segnale che resta: è
+           // proprio per questo che il formato testuale lo conserva.
+           || c.Classes.Any(x => SubclassText.Leggi(x.Subclasses)
+                                     .Any(s => CatalogKey.IsFromAppPackage(s.Id)))
            || c.Backgrounds.Any(b => CatalogKey.IsFromAppPackage(b.SourceId))
            || c.Spells.Any(s => CatalogKey.IsFromAppPackage(s.SourceId))
            || c.Monsters.Any(m => CatalogKey.IsFromAppPackage(m.SourceId));
@@ -240,34 +339,20 @@ public static class CampaignExport
                 PrimaryAbility = c.PrimaryAbility,
                 SavingThrows = SplitList(c.SavingThrows),
                 SkillChoices = PackageRowMerge.LeggiScelte(c.SkillChoices),
-                // Le sottoclassi non passano dalla riga di database — la tabella `classes` non ha
-                // una colonna per portarle — quindi si riprendono dal manuale accostandole per
-                // nome. Senza, l'export "manuale incluso" restituirebbe classi senza sottoclassi:
-                // proprio il dato che chi esporta per farne un modello vuole vedere.
-                //
-                // Solo per le righe che dal manuale vengono, però: su una classe **del tavolo** che
-                // porti per caso lo stesso nome, innestare le sottoclassi SRD attribuirebbe al
-                // tavolo un contenuto che non è suo. È la stessa domanda che si pongono la scheda e
-                // il wizard, qui posta sulla provenienza della riga perché è ciò che si ha in mano.
-                Subclasses = CatalogKey.IsFromAppPackage(c.SourceId)
-                    ? SubclassCatalog.PerClasse(manuale?.Classes, c.Name).ToList()
-                    : new List<PackageSubclass>(),
+                Subclasses = SottoclassiEsportabili(id, SottoclassiDellaRiga(c, manuale)),
                 // `features` ha un'inversione da quando l'import ci scrive la tabella dei livelli
                 // (2026-07-31): senza questa riga una campagna esportata e reimportata altrove
                 // perderebbe la progressione, e le schede tornerebbero senza privilegi. Il testo
                 // che tabella non è produce una lista vuota, cioè il comportamento di prima.
-                Levels = ClassProgression.Leggi(c.Features)
+                // I nove slot che il formato dichiara li mette ConNoveSlot, sede unica della regola:
+                // vale identica per le sottoclassi qui sopra.
+                Levels = ConNoveSlot(ClassProgression.Leggi(c.Features)
                     .Select(r => new PackageClassLevel
                     {
                         Level = r.Livello,
                         Features = r.Privilegi.ToList(),
-                        // Nove esatti: il formato dichiara «nove slot, dal livello 1 al 9»
-                        // (PackageClassLevel), mentre nel testo gli zeri finali sono omessi.
-                        SpellSlots = Enumerable.Range(0, 9)
-                            .Select(i => i < r.Slot.Count ? r.Slot[i] : 0)
-                            .ToList(),
-                    })
-                    .ToList(),
+                        SpellSlots = r.Slot.ToList(),
+                    })),
             }).ToList(),
 
             Spells = incantesimi.Select((s, i) => new PackageSpell
@@ -297,7 +382,14 @@ public static class CampaignExport
             // Dal database non arriva alcun talento: non hanno tabella (§5). Con il manuale incluso
             // però ci sono, e vanno riportati: chi esporta «tutto» se li aspetta, e sono la sola
             // sezione del formato che altrimenti non avrebbe mai un esempio da cui copiare.
-            Feats = manuale?.Feats.ToList() ?? new List<PackageFeat>(),
+            //
+            // Passano da AssignIds come ogni altra sezione, e non è una rifinitura: i loro id sono
+            // «srd-2024-it/talento/…», che il parser rifiuta in un file che manuale non è (§6). Copiarli
+            // verbatim rendeva l'export «tutto, manuale incluso» — proprio quello che la guida indica
+            // come modello da cui partire — irricevibile al reimport, con 17 errori e nessuna voce
+            // importata. Le voci si ricostruiscono invece di essere modificate: sono gli oggetti del
+            // manuale caricato in memoria, e riscriverne l'id lo corromperebbe per tutta la sessione.
+            Feats = TalentiEsportabili(id, manuale?.Feats),
         };
     }
 

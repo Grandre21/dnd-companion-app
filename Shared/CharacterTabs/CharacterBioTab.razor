@@ -244,8 +244,10 @@
     /// <summary>Il genitore persiste le note (UpdateCharacter + sync della lista) e gestisce gli errori.</summary>
     [Parameter] public EventCallback<string> OnSaveNotes { get; set; }
 
-    /// <summary>La sottoclasse come la conosce il manuale, null se il nome è scritto a mano o se la
-    /// classe non ne ha. Il genitore la risolve, perché è lui ad avere il pacchetto caricato.</summary>
+    /// <summary>La sottoclasse risolta, da qualunque sorgente (v.
+    /// <see cref="SubclassCatalog.Disponibili"/>): null se il nome è scritto a mano o se la classe
+    /// non ne offre nessuna. Il genitore la risolve, perché è lui ad avere sia le righe di classe
+    /// della campagna sia il pacchetto già caricati.</summary>
     [Parameter] public PackageSubclass? Subclass { get; set; }
 
     /// <summary>Eliminazione del personaggio. La conferma e la chiamata al database restano al
