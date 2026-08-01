@@ -174,15 +174,60 @@
                                 </select>
                                 @if (isClassCustom)
                                 {
+                                    @* Anche il testo libero rivaluta la sottoclasse: scrivendo il nome di
+                                       una classe del manuale il campo sottoclasse diventa un menu, e senza
+                                       questo resterebbe dentro il valore di prima — invisibile e salvabile. *@
                                     <input type="text" class="input custom-input" maxlength="60"
-                                           placeholder="Scrivi la classe" @bind="draft.Class" @bind:event="oninput" />
+                                           placeholder="Scrivi la classe" @bind="draft.Class" @bind:event="oninput"
+                                           @bind:after="ScollegaSottoclasseNonPiuValida" />
                                 }
                             </div>
 
                             <div class="field">
                                 <label>Sottoclasse <span class="wiz-optional">(facoltativa)</span></label>
-                                <input type="text" class="input" maxlength="60"
-                                       placeholder="es. Berserker, Campione..." @bind="draft.Subclass" />
+                                @if (SottoclassiDisponibili.Count > 0)
+                                {
+                                    <select class="input" value="@CurrentSubclassSelection" @onchange="OnSubclassSelectionChanged">
+                                        <option value="">-- Nessuna --</option>
+                                        @foreach (var s in SottoclassiDisponibili)
+                                        {
+                                            <option value="@s.Name">@s.Name</option>
+                                        }
+                                        <option value="@CustomOptionValue">Altro (scrivi a mano)</option>
+                                    </select>
+                                    @if (isSubclassCustom)
+                                    {
+                                        <input type="text" class="input custom-input" maxlength="60"
+                                               placeholder="Scrivi la sottoclasse"
+                                               @bind="draft.Subclass" @bind:event="oninput" />
+                                    }
+
+                                    @if (SottoclasseScelta is not null)
+                                    {
+                                        var primo = SubclassCatalog.PrimoLivello(SottoclasseScelta);
+                                        var acquisiti = SubclassCatalog.PrivilegiFinoAl(SottoclasseScelta, draft.Level);
+                                        <div class="info-summary">
+                                            @if (acquisiti.Count > 0)
+                                            {
+                                                <p>
+                                                    <strong>Al livello @draft.Level dà:</strong>
+                                                    @string.Join(", ", acquisiti.SelectMany(r => r.Privilegi))
+                                                </p>
+                                            }
+                                            else if (primo is not null)
+                                            {
+                                                <p>Comincia a dare privilegi al <strong>livello @primo</strong>.</p>
+                                            }
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    @* Nessuna sottoclasse a catalogo per questa classe: resta il testo libero,
+                                       che è anche il modo di usarne una scritta dal proprio tavolo. *@
+                                    <input type="text" class="input" maxlength="60"
+                                           placeholder="es. Cammino del berserker, Campione..." @bind="draft.Subclass" />
+                                }
                             </div>
 
                             @if (SelectedClassDb is not null)
@@ -719,6 +764,10 @@
     private List<PackageSpecies> racePackages = new();
     private List<CharacterClass> classes = new();
     private List<PackageClass> classPackages = new();
+
+    /// <summary>Le classi del manuale, tutte: sorgente delle sottoclassi. Diversa da
+    /// <c>classPackages</c>, che è la vista unita e nasconde ciò che la campagna già copre.</summary>
+    private List<PackageClass> classiDiManuale = new();
     private List<Background> backgrounds = new();
     private List<PackageBackground> backgroundPackages = new();
 
@@ -727,6 +776,7 @@
 
     private bool isRaceCustom;
     private bool isClassCustom;
+    private bool isSubclassCustom;
     private bool isBackgroundCustom;
 
     private CharacterWizardLogic.AbilityScoreMethod abilityMethod = CharacterWizardLogic.AbilityScoreMethod.StandardArray;
@@ -772,6 +822,14 @@
             backgrounds = backgroundTask.Result.DbRows.ToList();
             backgroundPackages = backgroundTask.Result.PackageEntries.ToList();
 
+            // Le sottoclassi si leggono dal pacchetto INTERO, non da PackageEntries: quella è la
+            // vista unita, dove una voce di manuale coperta da una riga di campagna omonima è
+            // nascosta. Chi ha importato le classi dalla pagina Dati ha dodici righe omonime,
+            // quindi la vista unita non ne offre nessuna e il campo sarebbe tornato testo libero
+            // proprio per chi ha fatto tutto per bene. La tabella `classes` non porta le
+            // sottoclassi: il manuale è l'unica sorgente che le conosce.
+            classiDiManuale = (await Catalog.GetPackageAsync())?.Classes ?? new();
+
             // Catalogo vuoto (nessuna riga di campagna, nessun pacchetto ancora disponibile):
             // si parte già in modalità testo libero, niente vicolo cieco (§ requisito wizard).
             isRaceCustom = AllRaceNames.Count == 0;
@@ -807,6 +865,26 @@
     private PackageSpecies? SelectedRacePackage =>
         SelectedRaceDb is null ? racePackages.FirstOrDefault(p => p.Name == draft.Race) : null;
 
+    /// <summary>Le sottoclassi che il manuale offre per la classe scelta. Si guarda il pacchetto
+    /// anche quando la classe è una riga importata — la tabella `classes` non ha una colonna per le
+    /// sottoclassi, quindi il manuale è l'unica sorgente che le conosce — ma non quando il tavolo ha
+    /// una **propria** classe con quel nome: le sue sottoclassi il manuale non le conosce, e offrire
+    /// l'Invocatore prometterebbe privilegi che la scheda poi non mostra (la tab «Scheda» pone la
+    /// stessa domanda, v. <see cref="ClassProgression.ClasseDelManuale"/>). Lì resta il testo
+    /// libero, che è il modo di usare una sottoclasse propria.</summary>
+    private IReadOnlyList<PackageSubclass> SottoclassiDisponibili
+        => ClassProgression.ClasseDelManuale(classes, draft.Class)
+            ? SubclassCatalog.PerClasse(classiDiManuale, draft.Class)
+            : Array.Empty<PackageSubclass>();
+
+    private PackageSubclass? SottoclasseScelta
+        => ClassProgression.ClasseDelManuale(classes, draft.Class)
+            ? SubclassCatalog.Trova(classiDiManuale, draft.Class, draft.Subclass)
+            : null;
+
+    private string CurrentSubclassSelection
+        => isSubclassCustom ? CustomOptionValue : (draft.Subclass ?? string.Empty);
+
     private CharacterClass? SelectedClassDb => classes.FirstOrDefault(c => c.Name == draft.Class);
     private PackageClass? SelectedClassPackage =>
         SelectedClassDb is null ? classPackages.FirstOrDefault(p => p.Name == draft.Class) : null;
@@ -831,6 +909,26 @@
         var val = e.Value?.ToString() ?? string.Empty;
         if (val == CustomOptionValue) { isClassCustom = true; draft.Class = string.Empty; }
         else { isClassCustom = false; draft.Class = val; }
+
+        ScollegaSottoclasseNonPiuValida();
+    }
+
+    /// <summary>Cambiata la classe, la sottoclasse dell'altra non ha più senso: il menu non la
+    /// contiene più e mostrerebbe «Nessuna» mentre il campo conserva il valore — si salverebbe un
+    /// Mago col Cammino del berserker. Una sottoclasse inventata dal tavolo, invece, resta.</summary>
+    private void ScollegaSottoclasseNonPiuValida()
+    {
+        var scelta = SubclassCatalog.RisolviScelta(
+            classiDiManuale, draft.Class, draft.Subclass, classes);
+        draft.Subclass = scelta.Valore;
+        isSubclassCustom = scelta.ScrittaAMano;
+    }
+
+    private void OnSubclassSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue) { isSubclassCustom = true; draft.Subclass = string.Empty; }
+        else { isSubclassCustom = false; draft.Subclass = val; }
     }
 
     private void OnBackgroundSelectionChanged(ChangeEventArgs e)

@@ -146,6 +146,31 @@ public static class PackageImportPlan
         return new ImportSection("Talenti", items, nota);
     }
 
+    /// <summary>Le classi, con l'avvertenza sulle sottoclassi quando il file ne porta.
+    ///
+    /// Le sottoclassi non vengono scritte da nessuna parte — la tabella <c>classes</c> non ha una
+    /// colonna per portarle, e l'unico consumatore è <see cref="SubclassCatalog"/> sul manuale
+    /// dell'app — e questo va **detto**, per la stessa regola dei talenti (§9): la guida della
+    /// pagina Dati invita a partire dall'export «manuale incluso», che le contiene, quindi chi
+    /// aggiunge la propria sottoclasse a quel file la vedrebbe sparire senza un rigo.</summary>
+    public static ImportSection ForClasses(
+        CatalogPackage package, CampaignCatalogs existing, bool isMaster, string? userId)
+    {
+        var sezione = ForSection("Classi", package.Classes, p => p.Id, p => p.Name,
+            existing.Classes, r => r.SourceId, r => r.Name, r => r.Id, r => r.AddedBy,
+            isMaster, userId);
+
+        var conSottoclassi = package.Classes.Count(c => c is not null && c.Subclasses.Count > 0);
+        if (conSottoclassi == 0) return sezione;
+
+        var quante = conSottoclassi == 1 ? "una classe ne porta" : $"{conSottoclassi} classi ne portano";
+        return sezione with
+        {
+            Note = $"Le sottoclassi dichiarate nel file non vengono scritte nel catalogo ({quante}): "
+                   + "l'app le legge solo dal manuale precaricato. Se sono tue, restano nel tuo file.",
+        };
+    }
+
     /// <summary>L'anteprima completa. Le sezioni ci sono tutte anche quando sono vuote: chi
     /// importa deve poter constatare che il file non conteneva mostri, non dedurlo da un'assenza.</summary>
     public static ImportPlanResult Build(
@@ -160,9 +185,7 @@ public static class PackageImportPlan
                 existing.Races, r => r.SourceId, r => r.Name, r => r.Id, r => r.AddedBy,
                 isMaster, userId),
 
-            ForSection("Classi", package.Classes, p => p.Id, p => p.Name,
-                existing.Classes, r => r.SourceId, r => r.Name, r => r.Id, r => r.AddedBy,
-                isMaster, userId),
+            ForClasses(package, existing, isMaster, userId),
 
             ForSection("Background", package.Backgrounds, p => p.Id, p => p.Name,
                 existing.Backgrounds, r => r.SourceId, r => r.Name, r => r.Id, r => r.AddedBy,

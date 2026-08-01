@@ -319,4 +319,89 @@ public class CatalogPackageParserTests
         Assert.Null(result.Package);
         Assert.Contains(result.Errors, e => e.Contains("srd-2024-it/elfo") && e.Contains("Elfo Alto"));
     }
+
+    // Le sottoclassi sono una sezione a tutti gli effetti — hanno id e nome, l'export le riporta —
+    // e passano dagli stessi controlli delle altre. Il nome, in più, finisce dentro un
+    // `<option value>` che il menu della scheda confronta per stringa esatta: senza trim un
+    // « Campione » si salverebbe così e poi non combacerebbe più con la propria opzione.
+    [Fact]
+    public void Parse_SottoclasseConSpaziAiMargini_VieneTrimmata()
+    {
+        const string json = """
+        {
+          "schemaVersion": 1,
+          "id": "srd-2024-it",
+          "name": "SRD 5.2 — Italiano",
+          "edition": "2024",
+          "language": "it",
+          "version": "1.0.0",
+          "classes": [
+            { "id": "srd-2024-it/guerriero", "name": "Guerriero",
+              "subclasses": [ { "id": "  srd-2024-it/campione  ", "name": "  Campione  " } ] }
+          ]
+        }
+        """;
+
+        var result = CatalogPackageParser.Parse(json);
+
+        Assert.NotNull(result.Package);
+        var sottoclasse = result.Package!.Classes[0].Subclasses[0];
+        Assert.Equal("srd-2024-it/campione", sottoclasse.Id);
+        Assert.Equal("Campione", sottoclasse.Name);
+    }
+
+    [Fact]
+    public void Parse_SottoclasseSenzaIdONome_SegnalaLaClasseColpevole()
+    {
+        const string json = """
+        {
+          "schemaVersion": 1,
+          "id": "srd-2024-it",
+          "name": "SRD 5.2 — Italiano",
+          "edition": "2024",
+          "language": "it",
+          "version": "1.0.0",
+          "classes": [
+            { "id": "srd-2024-it/guerriero", "name": "Guerriero",
+              "subclasses": [ { "name": "Campione" }, { "id": "srd-2024-it/senza-nome" } ] }
+          ]
+        }
+        """;
+
+        var result = CatalogPackageParser.Parse(json);
+
+        Assert.Null(result.Package);
+        Assert.Contains(result.Errors, e => e.Contains("sottoclassi di Guerriero") && e.Contains("Campione"));
+        Assert.Contains(result.Errors, e => e.Contains("sottoclassi di Guerriero") && e.Contains("non ha un nome"));
+    }
+
+    /// <summary>L'unicità vale dentro la classe: non c'è tabella dove due sottoclassi di classi
+    /// diverse potrebbero collidere.</summary>
+    [Fact]
+    public void Parse_SottoclassiConLoStessoIdNellaStessaClasse_RestituisceErrore()
+    {
+        const string json = """
+        {
+          "schemaVersion": 1,
+          "id": "srd-2024-it",
+          "name": "SRD 5.2 — Italiano",
+          "edition": "2024",
+          "language": "it",
+          "version": "1.0.0",
+          "classes": [
+            { "id": "srd-2024-it/guerriero", "name": "Guerriero",
+              "subclasses": [ { "id": "srd-2024-it/campione", "name": "Campione" },
+                              { "id": "srd-2024-it/campione", "name": "Campionessa" } ] },
+            { "id": "srd-2024-it/ladro", "name": "Ladro",
+              "subclasses": [ { "id": "srd-2024-it/campione", "name": "Omonima di un'altra classe" } ] }
+          ]
+        }
+        """;
+
+        var result = CatalogPackageParser.Parse(json);
+
+        Assert.Null(result.Package);
+        Assert.Contains(result.Errors, e => e.Contains("sottoclassi di Guerriero") && e.Contains("Campionessa"));
+        Assert.DoesNotContain(result.Errors, e => e.Contains("sottoclassi di Ladro"));
+    }
 }

@@ -1,4 +1,5 @@
 using DndCompanion.Models;
+using DndCompanion.Models.Packages;
 using DndCompanion.Services;
 
 namespace DndCompanion.Tests;
@@ -168,6 +169,181 @@ public class CampaignExportTests
         Assert.NotNull(mago.SkillChoices);
         Assert.Equal(2, mago.SkillChoices!.Count);
         Assert.Equal(new[] { "Arcano", "Storia" }, mago.SkillChoices.From);
+    }
+
+    // ---- Export completo, manuale incluso ----
+
+    private static CatalogPackage Manuale() => new()
+    {
+        SchemaVersion = 1,
+        Id = "srd-2024-it",
+        Name = "Manuale",
+        License = new PackageLicense { Name = "CC BY 4.0", Attribution = "Quest'opera include materiale…" },
+        Monsters =
+        {
+            new PackageMonster { Id = "srd-2024-it/mostro/goblin", Name = "Goblin", HitPoints = "7 (2d6)" },
+            new PackageMonster { Id = "srd-2024-it/mostro/orco", Name = "Orco", HitPoints = "15 (2d8 + 6)" },
+        },
+        Backgrounds = { new PackageBackground { Id = "srd-2024-it/background/accolito", Name = "Accolito" } },
+    };
+
+    /// <summary>Il difetto che questo chiude: chi non ha importato nulla esportava un file con le
+    /// sezioni vuote — nessun mostro, e nessun esempio da cui capire come si scrive una voce.</summary>
+    [Fact]
+    public void Build_ConIlManuale_PortaAncheLeVociDiManuale()
+    {
+        var pacchetto = CampaignExport.Build(new CampaignCatalogs(), "La Città Perduta", Manuale());
+
+        Assert.Equal(new[] { "Goblin", "Orco" }, pacchetto.Monsters.Select(m => m.Name).OrderBy(n => n));
+        Assert.Single(pacchetto.Backgrounds);
+    }
+
+    /// <summary>Lo SRD è ridistribuibile **a condizione** che l'attribuzione lo accompagni: un
+    /// export che porta il materiale senza la licenza non sarebbe conforme.</summary>
+    [Fact]
+    public void Build_ConIlManuale_RiportaLAttribuzione()
+    {
+        var pacchetto = CampaignExport.Build(new CampaignCatalogs(), "c", Manuale());
+
+        Assert.NotNull(pacchetto.License);
+        Assert.Equal("CC BY 4.0", pacchetto.License!.Name);
+        Assert.False(string.IsNullOrWhiteSpace(pacchetto.License.Attribution));
+    }
+
+    [Fact]
+    public void Build_SenzaManuale_NonDichiaraAlcunaLicenza()
+        => Assert.Null(CampaignExport.Build(new CampaignCatalogs(), "c").License);
+
+    /// <summary>L'attribuzione non dipende dal pulsante premuto ma dal contenuto del file. Anche
+    /// l'export della sola campagna può portare materiale SRD: <c>SpellMaterialization</c> crea una
+    /// riga di database con la provenienza del manuale — descrizione compresa — ogni volta che un
+    /// giocatore aggiunge alla scheda un incantesimo che vive solo lì.</summary>
+    [Fact]
+    public void Build_SoloCampagna_ConRigheDiProvenienzaSrd_RiportaComunqueLAttribuzione()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Spells =
+            {
+                new Spell
+                {
+                    Id = "u1", Name = "Palla di fuoco", CampaignId = "c1",
+                    SourceId = "srd-2024-it/incantesimo/palla-di-fuoco",
+                },
+            },
+        };
+
+        var pacchetto = CampaignExport.Build(cataloghi, "c", Manuale(), unisciIlManuale: false);
+
+        Assert.NotNull(pacchetto.License);
+        Assert.Equal("CC BY 4.0", pacchetto.License!.Name);
+        // Le voci del manuale però NON entrano: il pulsante premuto era «solo campagna».
+        Assert.Empty(pacchetto.Monsters);
+    }
+
+    [Fact]
+    public void Build_SoloCampagna_SenzaMaterialeSrd_NonDichiaraLicenza()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Spells = { new Spell { Id = "u1", Name = "Dardo del tavolo", CampaignId = "c1" } },
+        };
+
+        Assert.Null(CampaignExport.Build(cataloghi, "c", Manuale(), unisciIlManuale: false).License);
+    }
+
+    /// <summary>Le sottoclassi non passano dalla riga di database: senza recuperarle dal manuale,
+    /// l'export «tutto incluso» darebbe classi senza sottoclassi — cioè senza il dato che chi
+    /// esporta per farsene un modello sta cercando.</summary>
+    [Fact]
+    public void Build_ConIlManuale_PortaAncheLeSottoclassi()
+    {
+        var manuale = Manuale();
+        manuale.Classes.Add(new PackageClass
+        {
+            Id = "srd-2024-it/classe/barbaro",
+            Name = "Barbaro",
+            Subclasses =
+            {
+                new PackageSubclass
+                {
+                    Id = "srd-2024-it/sottoclasse/cammino-del-berserker",
+                    Name = "Cammino del berserker",
+                    Levels = { new PackageClassLevel { Level = 3, Features = { "Frenesia" } } },
+                },
+            },
+        });
+
+        var classe = Assert.Single(CampaignExport.Build(new CampaignCatalogs(), "c", manuale).Classes);
+
+        var sottoclasse = Assert.Single(classe.Subclasses);
+        Assert.Equal("Cammino del berserker", sottoclasse.Name);
+        Assert.Equal(3, Assert.Single(sottoclasse.Levels).Level);
+    }
+
+    /// <summary>Il rovescio: su una classe **del tavolo** che porti per caso il nome di una classe
+    /// del manuale, le sottoclassi SRD non si innestano. Sarebbe attribuire al tavolo un contenuto
+    /// che non è suo — e la stessa domanda se la pongono già la scheda e il wizard, che per una
+    /// classe di campagna non offrono né mostrano le sottoclassi del manuale.</summary>
+    [Fact]
+    public void Build_ConIlManuale_NonInnestaLeSottoclassiSuUnaClasseDelTavolo()
+    {
+        var manuale = Manuale();
+        manuale.Classes.Add(new PackageClass
+        {
+            Id = "srd-2024-it/classe/barbaro",
+            Name = "Barbaro",
+            Subclasses =
+            {
+                new PackageSubclass
+                {
+                    Id = "srd-2024-it/sottoclasse/cammino-del-berserker",
+                    Name = "Cammino del berserker",
+                },
+            },
+        });
+
+        var cataloghi = new CampaignCatalogs
+        {
+            // Stesso nome, provenienza nulla: è la classe di questo tavolo, e oscura quella di
+            // manuale anche nella pagina Classi.
+            Classes = { new CharacterClass { Id = "u1", Name = "Barbaro", CampaignId = "c1" } },
+        };
+
+        var classe = Assert.Single(CampaignExport.Build(cataloghi, "c", manuale).Classes);
+
+        Assert.Equal("Barbaro", classe.Name);
+        Assert.Empty(classe.Subclasses);
+    }
+
+    /// <summary>La riga del tavolo vince: se il master ha già il suo «Goblin», la voce di manuale
+    /// non si aggiunge — altrimenti il file conterrebbe due mostri con lo stesso nome, e al
+    /// reimport il tavolo di destinazione si troverebbe un doppione.</summary>
+    [Fact]
+    public void Build_ConIlManuale_NonDuplicaCioCheLaCampagnaHaGia()
+    {
+        var cataloghi = new CampaignCatalogs
+        {
+            Monsters = { new Monster { Id = "u1", Name = "goblin", HitPoints = "9", CampaignId = "c1" } },
+        };
+
+        var pacchetto = CampaignExport.Build(cataloghi, "c", Manuale());
+
+        var goblin = Assert.Single(pacchetto.Monsters,
+            m => string.Equals(m.Name, "goblin", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("9", goblin.HitPoints);
+    }
+
+    /// <summary>Le voci incluse non conservano la provenienza del manuale: nel tavolo che le
+    /// reimporta devono essere righe proprie, modificabili e rimovibili, non voci di sola
+    /// lettura (§6).</summary>
+    [Fact]
+    public void Build_ConIlManuale_NonConservaLaProvenienzaDelPacchettoDellApp()
+    {
+        var pacchetto = CampaignExport.Build(new CampaignCatalogs(), "La Città Perduta", Manuale());
+
+        Assert.All(pacchetto.Monsters, m =>
+            Assert.StartsWith("campagna-la-citta-perduta/", m.Id, StringComparison.Ordinal));
     }
 
     // La tabella dei livelli, da quando l'import la scrive in `features`, ha un'inversione: senza

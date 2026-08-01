@@ -86,6 +86,21 @@ public sealed class PackageClassLevel
     [JsonPropertyName("spellSlots")] public List<int> SpellSlots { get; set; } = new();
 }
 
+/// <summary>Una sottoclasse: il nome che il personaggio sceglie al 3° livello, il testo delle sue
+/// regole e i livelli in cui gli dà qualcosa.
+///
+/// Sezione <b>annidata</b> dentro la classe e non di primo livello, per una ragione di
+/// compatibilità: il campo è nuovo e i client già installati leggono lo stesso file: ignorano ciò
+/// che non conoscono (<c>JsonSerializerOptions</c> non ha <c>UnmappedMemberHandling.Disallow</c>),
+/// mentre un incremento di <c>schemaVersion</c> glielo farebbe rifiutare per intero.</summary>
+public sealed class PackageSubclass
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+    [JsonPropertyName("levels")] public List<PackageClassLevel> Levels { get; set; } = new();
+}
+
 public sealed class PackageClass
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
@@ -95,6 +110,12 @@ public sealed class PackageClass
     [JsonPropertyName("savingThrows")] public List<string> SavingThrows { get; set; } = new();
     [JsonPropertyName("skillChoices")] public PackageSkillChoices? SkillChoices { get; set; }
     [JsonPropertyName("levels")] public List<PackageClassLevel> Levels { get; set; } = new();
+
+    /// <summary>Le sottoclassi della classe. Lo SRD ne concede una ciascuna; un file può dichiararne
+    /// quante vuole, ma l'import <b>non le scrive</b> — la tabella <c>classes</c> non ha una colonna
+    /// per portarle, e l'unico consumatore è <see cref="T:DndCompanion.Services.SubclassCatalog"/>
+    /// sul manuale dell'app. L'anteprima dell'import lo dichiara, come per i talenti.</summary>
+    [JsonPropertyName("subclasses")] public List<PackageSubclass> Subclasses { get; set; } = new();
 }
 
 public sealed class PackageSpell

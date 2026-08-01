@@ -273,6 +273,111 @@ public class SrdPackageContentTests
         }
     }
 
+    /// <summary>Ogni classe deve portare la propria sottoclasse: senza, il campo del personaggio
+    /// torna a essere testo libero senza alcun beneficio — il difetto che l'estrazione chiude.
+    /// Lo SRD ne concede esattamente una per classe.</summary>
+    [Fact]
+    public void Ogni_classe_porta_la_propria_sottoclasse()
+    {
+        var p = CaricaPacchetto();
+
+        foreach (var c in p.Classes)
+        {
+            var sub = Assert.Single(c.Subclasses);
+            Assert.False(string.IsNullOrWhiteSpace(sub.Name), $"Classe «{c.Name}»: sottoclasse senza nome.");
+            Assert.StartsWith("srd-2024-it/", sub.Id, StringComparison.Ordinal);
+            Assert.False(string.IsNullOrWhiteSpace(sub.Description),
+                $"Sottoclasse «{sub.Name}»: nessun testo di regole.");
+        }
+    }
+
+    /// <summary>La verifica che conta, perché incrocia due estrazioni indipendenti: i livelli in
+    /// cui la <b>tabella della classe</b> promette un privilegio di sottoclasse devono essere
+    /// esattamente quelli che la <b>sottoclasse</b> dichiara. Se una delle due estrazioni sbaglia
+    /// un livello, la scheda promette al giocatore qualcosa che non arriva — o tace su qualcosa
+    /// che gli spetta.</summary>
+    [Fact]
+    public void I_livelli_delle_sottoclassi_combaciano_con_le_tabelle_di_classe()
+    {
+        var p = CaricaPacchetto();
+
+        foreach (var c in p.Classes)
+        {
+            var promessi = c.Levels
+                .Where(l => l.Features.Any(ClassProgression.RiguardaSottoclasse))
+                .Select(l => l.Level)
+                .OrderBy(n => n)
+                .ToList();
+
+            var offerti = c.Subclasses
+                .SelectMany(s => s.Levels.Where(l => l.Features.Count > 0).Select(l => l.Level))
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
+
+            Assert.True(promessi.SequenceEqual(offerti),
+                $"Classe «{c.Name}»: la tabella promette privilegi di sottoclasse ai livelli "
+                + $"[{string.Join(", ", promessi)}], la sottoclasse ne dichiara ai livelli "
+                + $"[{string.Join(", ", offerti)}].");
+        }
+    }
+
+    /// <summary>Nessun nome di privilegio deve essersi troncato nell'estrazione dal PDF a due
+    /// colonne. Due controlli, perché il troncamento si presenta in due forme e la prima versione
+    /// del test vedeva solo l'una:
+    ///
+    /// <list type="number">
+    /// <item>il titolo finisce con una preposizione — «Incantesimi del Dominio della»;</item>
+    /// <item>il testo che segue il titolo riprende in minuscola, perché la coda del nome è finita
+    /// lì — «Stile di combattimento.» seguito da «aggiuntivo Il guerriero può…». Questo secondo
+    /// caso era passato indenne, e la scheda mostrava due privilegi con lo stesso nome.</item>
+    /// </list>
+    /// </summary>
+    [Fact]
+    public void I_nomi_dei_privilegi_di_sottoclasse_non_sono_troncati()
+    {
+        var p = CaricaPacchetto();
+        string[] tronchi = { "di", "del", "dello", "della", "dei", "degli", "delle", "e", "o", "in", "con", "da", "il", "lo", "la", "i", "gli", "le" };
+
+        foreach (var c in p.Classes)
+        foreach (var s in c.Subclasses)
+        foreach (var lv in s.Levels)
+        foreach (var f in lv.Features)
+        {
+            var ultima = f.Split(' ').LastOrDefault() ?? string.Empty;
+            Assert.False(tronchi.Contains(ultima, StringComparer.OrdinalIgnoreCase),
+                $"«{s.Name}» livello {lv.Level}: il privilegio «{f}» finisce con una preposizione.");
+
+            // Il testo del privilegio, dentro la descrizione, comincia subito dopo «Livello N — Nome:».
+            var marcatore = $"Livello {lv.Level} — {f}:";
+            var i = s.Description.IndexOf(marcatore, StringComparison.Ordinal);
+            if (i < 0) continue;
+
+            var seguito = s.Description[(i + marcatore.Length)..].TrimStart();
+            Assert.False(seguito.Length > 0 && char.IsLower(seguito[0]),
+                $"«{s.Name}» livello {lv.Level}: il privilegio «{f}» sembra troncato — "
+                + $"il testo riprende con «{seguito[..Math.Min(30, seguito.Length)]}».");
+        }
+    }
+
+    /// <summary>Il progetto non ha un renderer Markdown: un marcatore nel testo si legge a video
+    /// così com'è. La convenzione del pacchetto è il testo piano, e le descrizioni di sottoclasse
+    /// — che la scheda mostra per intero — devono rispettarla.</summary>
+    [Fact]
+    public void Le_descrizioni_delle_sottoclassi_sono_testo_piano()
+    {
+        var p = CaricaPacchetto();
+
+        foreach (var c in p.Classes)
+        foreach (var s in c.Subclasses)
+        {
+            Assert.DoesNotContain("**", s.Description, StringComparison.Ordinal);
+            Assert.True(char.IsUpper(s.Description[0]),
+                $"«{s.Name}»: la descrizione comincia con «{s.Description[..Math.Min(40, s.Description.Length)]}», "
+                + "cioè a metà frase.");
+        }
+    }
+
     [Fact]
     public void I_tiri_salvezza_delle_classi_sono_riconosciuti_dal_wizard()
     {

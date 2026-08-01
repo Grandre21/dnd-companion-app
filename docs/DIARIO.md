@@ -1016,3 +1016,119 @@ il caso in cui i PF vanno a capo, che funzionava, invece del caso a quattro riqu
 in uso su ogni telefono reale. Il secondo giro ha poi mostrato il rovescio: caduto il vincolo dei
 160px, quella stessa soglia mandava su due righe schermi che non ne avevano bisogno. Il terzo non ha
 trovato né bloccanti né seri, solo due numeri rimasti indietro nei commenti.
+
+## Mostri al tavolo, sottoclassi vere, export che serve a qualcosa (2026-08-01)
+
+Tre segnalazioni dall'uso, tutte e tre difetti reali — e con una radice comune: **il manuale era
+visibile ma non utilizzabile**. Le sue voci comparivano nei cataloghi perché la UI le sovrappone a
+quelle di campagna, ma nulla, oltre a quelle schermate, sapeva della loro esistenza.
+
+**«I dati non posso usarli in combattimento.»** Il tracker iniziativa interrogava solo
+`IMonsterRepository`, cioè le righe della campagna: i 331 mostri del pacchetto non erano
+utilizzabili al tavolo senza prima importarli a mano. Non serviva alcuna migrazione — `Combatant`
+è un POCO dentro il jsonb di `combat_state`, senza chiave esterna verso `monsters` — quindi è
+bastato far attingere la pagina a `ICatalogService`. Con una condizione: 331 voci in un elenco
+piatto sono inservibili su un telefono, e renderebbero altrettanti stepper, per cui la **ricerca è
+parte del meccanismo**, non un ornamento. A ricerca vuota si vedono le sole righe di campagna —
+il comportamento che il tracker ha sempre avuto — e il manuale entra quando lo si cerca.
+
+**«La sottoclasse non dà benefici, è solo un campo di testo.»** Vero, e stavolta il difetto era nei
+dati: lo SRD contiene **una sottoclasse per classe** con i propri privilegi (Cammino del berserker,
+Dominio della Vita, Campione…), ma l'estrazione del 2026-07-31 le aveva saltate. Sono state
+estratte dal PDF italiano ufficiale, e la storia dell'estrazione vale più del risultato. Il primo
+tentativo cercava i titoli nel testo corrente e sforava: i «Livello N:» di una sottoclasse
+finivano mescolati a quelli della classe seguente, e il Warlock inglobava una sezione intera
+(10 924 caratteri contro i 2 500 tipici). I confini corretti li danno le **pagine**, che il testo
+estratto conserva. Il secondo difetto era più insidioso: nel documento il titolo «Livello 3:
+Frenesia» non è separato dal proprio corpo da alcuna riga vuota, quindi ragionare per paragrafi
+incollava l'intera descrizione dentro il nome del privilegio. E un terzo, ancora più silenzioso:
+l'impaginazione a due colonne spezzava i titoli, producendo «Incantesimi del Dominio della» —
+un nome plausibile, troncato.
+
+La verifica che ha chiuso la questione **non è stata una rilettura**: i livelli in cui la tabella
+di ogni classe promette un privilegio di sottoclasse sono stati confrontati con quelli che la
+sottoclasse dichiara. Due estrazioni indipendenti, fatte in sessioni diverse per percorsi diversi,
+concordano su tutte e dodici le classi.
+
+Non è bastata. Il gate ha trovato **due nomi ancora troncati** che quel confronto non poteva
+vedere, perché il livello era giusto e sbagliato era il nome: «Stile di combattimento» invece di
+«Stile di combattimento aggiuntivo» — e il Guerriero ha già un privilegio di classe con quel nome
+al 1° livello, quindi la scheda di un Campione ne mostrava due identici — e «Incantesimi del
+Giuramento» invece di «Incantesimi del Giuramento di devozione». Il test che avevo scritto cercava
+i titoli che finiscono con una preposizione e per costruzione non poteva prenderli entrambi: il
+troncamento ha **due** forme, e la seconda si riconosce dall'altro capo — il testo che segue il
+titolo riprende in minuscola, perché la coda del nome è finita lì. Ora il test guarda entrambi i
+lati, e un terzo controlla che le descrizioni comincino con la maiuscola: tre di esse si aprivano
+a metà frase, perché il riconoscimento del titolo provava le finestre di righe dalla più lunga e
+si portava via anche il sottotitolo.
+
+Le descrizioni sono **testo piano**: la prima versione marcava i titoli dei privilegi con gli
+asterischi di Markdown, che il progetto non rende da nessuna parte — sulla scheda si sarebbero letti
+così com'erano.
+
+Il formato porta le sottoclassi **annidate dentro le classi** e non come sezione di primo livello,
+per compatibilità: i client già installati leggono lo stesso file e ignorano i campi che non
+conoscono, mentre un incremento di `schemaVersion` glielo farebbe rifiutare per intero. Nel wizard
+e nella modifica il campo diventa una scelta guidata quando il manuale conosce la classe, e resta
+testo libero altrimenti — un tavolo può inventarsi la propria sottoclasse.
+
+**«Se volessi implementare i dati della sessione non so come fare.»** La più giusta delle tre.
+L'export costruiva il file dai soli cataloghi di campagna, quindi chi non aveva importato nulla
+scaricava un file con le sezioni vuote: senza i mostri, e — cosa peggiore — senza una sola voce
+compilata da cui capire come si scrive. Ora accanto a «Esporta la campagna» c'è **«Esporta tutto,
+manuale incluso»**, che unisce le voci del manuale non già coperte da una riga di campagna e
+riporta l'attribuzione CC BY, che di quel materiale è condizione di ridistribuzione e non un
+ornamento. L'attribuzione, va detto, non dipende dal pulsante premuto ma dal contenuto: anche
+l'export della *sola* campagna può portare materiale SRD, perché `SpellMaterialization` scrive una
+riga di database con quella provenienza — descrizione inclusa — ogni volta che un giocatore aggiunge
+alla scheda un incantesimo che vive solo nel manuale. Senza il controllo, sarebbe uscito un file con
+testo SRD, senza attribuzione e per giunta senza traccia dell'origine, che `AssignIds` cancella. Le voci incluse perdono la provenienza `srd-2024-it/`: nel tavolo che le reimporta
+devono essere righe proprie, modificabili, non voci di sola lettura. Alla pagina Dati si aggiunge
+una **guida al formato** richiudibile: la struttura, i due soli campi obbligatori (`id` e `name`),
+il fatto che un campo assente significa «non lo so» e non «cancellalo», e perché conviene dare agli
+id un prefisso proprio — è da quello che «Rimuovi un import» li riconosce.
+
+Due precisazioni che il gate ha imposto di mettere per iscritto, perché **superano lo spec del
+formato**. La prima: l'export «manuale incluso» emette anche `feats`, mentre lo spec §5 afferma che
+un export non ne produce mai — affermazione vera fintanto che il file si costruiva dalle sole righe
+di database, dove talenti non ce ne sono. Al reimport restano marcati non importabili, quindi il giro
+resta coerente: escono per essere letti e copiati, non per rientrare. La seconda è dello stesso
+genere e più insidiosa: la guida invita a partire dal file esportato, che ora contiene le
+sottoclassi, ma l'import **non le scrive da nessuna parte** — la tabella `classes` non ha una colonna
+per portarle. Taciuto, avrebbe fatto perdere il lavoro a chi ne aggiunge una propria; l'anteprima ora
+lo dichiara nella sezione Classi con la stessa formula dei talenti, e la guida lo dice prima. Nello
+stesso giro le sottoclassi sono entrate nei due controlli che il parser applica a ogni altra sezione
+(trim di id e nome, id presente e non ripetuto): sono una sezione a tutti gli effetti, e il nome
+finisce dentro un `<option value>` che il menu confronta per stringa esatta.
+
+Il resto della revisione ha corretto un difetto che nessuna delle tre segnalazioni prevedeva:
+all'apertura della modifica il form applicava **metà** del risultato di `RisolviScelta` — sapeva che
+una sottoclasse scritta a mano va mostrata nel campo libero, ma non che quella di un'**altra** classe
+va togliersi. Un PG creato prima di oggi con «Mago» e «Cammino del berserker» (dato legittimo: il
+campo era testo libero e il cambio di classe non lo ripuliva) apriva il menu senza selezione mentre
+il valore restava lì, e il primo salvataggio lo riscriveva nel database. Lo stesso vale per la classe
+digitata a mano: ora anche quel campo rivaluta la sottoclasse a ogni carattere, perché appena il
+testo diventa il nome di una classe del manuale il controllo passa da input libero a menu. E
+`RisolviScelta` restituisce il nome **come lo scrive il manuale**: il confronto normalizza accenti e
+maiuscole, il `<select>` no, quindi un «invocatore» salvato a mano lasciava il menu vuoto pur essendo
+la scelta giusta.
+
+Il secondo giro ha poi trovato il rovescio di quella stessa correzione, ed è la lezione del giorno:
+**scollegare è distruttivo come conservare**. Applicando il record intero, un PG con una classe che
+il manuale non ha — il «Guerriero del sale» di un tavolo — e una sottoclasse chiamata «Campione»
+perdeva il valore alla sola apertura della modifica, perché «Campione» nel manuale è del Guerriero.
+La domanda «è di un'altra classe?» ha senso solo se la classe corrente sta essa stessa nel manuale:
+altrimenti non c'è nessun confronto da fare. Nello stesso giro è emersa un'**asimmetria fra le tre
+schermate**: la scheda si chiedeva se la classe fosse ancora quella del manuale prima di mostrare i
+privilegi di sottoclasse, mentre wizard e modifica offrivano comunque il menu — così il wizard
+prometteva «al livello 3 dà Frenesia» e la scheda poi non mostrava nulla. Ora le tre pongono la
+stessa domanda (`ClassProgression.ClasseDelManuale`), e l'export la pone sulla provenienza della
+riga: su una classe del tavolo non innesta le sottoclassi SRD, che le attribuirebbero un contenuto
+non suo.
+
+Il terzo giro ha mostrato che il criterio non era ancora **uno**: il punto che *cancella* si
+accontentava di trovare il nome della classe nel manuale, quindi un tavolo con la propria «Mago»
+perdeva comunque una sottoclasse chiamata «Campione» — e la perdeva senza che il menu, che la domanda
+giusta la poneva già, gli fosse mai stato offerto. Ora `RisolviScelta` riceve anche le righe di
+campagna e chiede la stessa cosa. La regola generale che resta: **il criterio che distrugge non può
+essere il più debole di quelli in campo**.

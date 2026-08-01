@@ -105,12 +105,24 @@ public static class CatalogPackageParser
             if (c is null) continue;
             c.SavingThrows ??= new();
             c.Levels ??= new();
+            c.Subclasses ??= new();
             if (c.SkillChoices is not null) c.SkillChoices.From ??= new();
             foreach (var lvl in c.Levels)
             {
                 if (lvl is null) continue;
                 lvl.Features ??= new();
                 lvl.SpellSlots ??= new();
+            }
+            foreach (var sub in c.Subclasses)
+            {
+                if (sub is null) continue;
+                sub.Levels ??= new();
+                foreach (var lvl in sub.Levels)
+                {
+                    if (lvl is null) continue;
+                    lvl.Features ??= new();
+                    lvl.SpellSlots ??= new();
+                }
             }
         }
 
@@ -155,6 +167,16 @@ public static class CatalogPackageParser
             if (x is null) continue;
             x.Id = Trimmed(x.Id);
             x.Name = Trimmed(x.Name);
+            // Le sottoclassi passano dallo stesso trim: sono una sezione a tutti gli effetti (id e
+            // nome, e l'export le riporta). Il nome, in più, finisce dentro un `<option value>` che
+            // il `<select>` confronta per stringa esatta con `Draft.Subclass`: un « Campione » con
+            // gli spazi si salverebbe così e poi non combacerebbe più con la propria opzione.
+            foreach (var s in x.Subclasses)
+            {
+                if (s is null) continue;
+                s.Id = Trimmed(s.Id);
+                s.Name = Trimmed(s.Name);
+            }
         }
         foreach (var x in p.Spells)
         {
@@ -184,6 +206,19 @@ public static class CatalogPackageParser
         Check(p.Classes.Select(x => x is null ? ("", "") : (x.Id, x.Name)), "classi", errors);
         Check(p.Spells.Select(x => x is null ? ("", "") : (x.Id, x.Name)), "incantesimi", errors);
         Check(p.Monsters.Select(x => x is null ? ("", "") : (x.Id, x.Name)), "mostri", errors);
+
+        // Le sottoclassi vivono annidate, quindi si controllano una classe per volta: l'unicità
+        // dell'id vale dentro la classe, perché non c'è tabella dove due sottoclassi di classi
+        // diverse potrebbero collidere. Il controllo c'è per la stessa ragione delle altre sezioni:
+        // senza nome la voce non è confrontabile con quella scelta sulla scheda.
+        foreach (var c in p.Classes)
+        {
+            if (c is null || c.Subclasses.Count == 0) continue;
+            var sezione = string.IsNullOrWhiteSpace(c.Name)
+                ? "sottoclassi"
+                : $"sottoclassi di {c.Name}";
+            Check(c.Subclasses.Select(s => s is null ? ("", "") : (s.Id, s.Name)), sezione, errors);
+        }
     }
 
     // Il database impone UNIQUE (campaign_id, source_id): due voci con lo stesso id nello stesso

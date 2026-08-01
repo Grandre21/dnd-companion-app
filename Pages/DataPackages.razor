@@ -43,6 +43,85 @@
     {
         <p class="campaign-name">Campagna attiva: <strong>@campaignName</strong></p>
 
+        @* La guida sta qui, in cima e richiudibile: senza, il formato del file si può solo
+           indovinare, e chi vuole scrivere le proprie voci non sa da dove cominciare. *@
+        <section class="data-section">
+            <button type="button" class="guide-toggle" @onclick="() => showGuide = !showGuide"
+                    aria-expanded="@(showGuide ? "true" : "false")">
+                <span class="guide-chevron">@(showGuide ? "▾" : "▸")</span>
+                Come si scrive un file di dati
+            </button>
+
+            @if (showGuide)
+            {
+                <div class="guide-body">
+                    <p>
+                        Il modo più rapido è <strong>non partire da zero</strong>: usa
+                        «Esporta tutto, manuale incluso» qui sotto e modifica quel file. Contiene già
+                        una voce compilata per ogni sezione, ed è la stessa forma che l'import si
+                        aspetta.
+                    </p>
+
+                    <p class="guide-code-label">La struttura è questa:</p>
+<pre class="guide-code">{
+  "schemaVersion": 1,
+  "id": "mio-pacchetto",
+  "name": "Il mio materiale",
+  "edition": "2024",
+  "language": "it",
+  "species": [ ... ],
+  "classes": [ ... ],
+  "backgrounds": [ ... ],
+  "spells": [ ... ],
+  "monsters": [ ... ]
+}</pre>
+
+                    <p>
+                        Ogni voce, in ogni sezione, ha bisogno di <strong>due soli campi</strong>:
+                        <code>id</code> e <code>name</code>. Tutto il resto è facoltativo, e un campo
+                        assente significa «non lo so», non «cancellalo»: un reimport lascia intatto
+                        ciò che il file non nomina.
+                    </p>
+
+                    <p>
+                        Un'eccezione da conoscere: le <strong>sottoclassi</strong> annidate dentro le
+                        classi (e i <strong>talenti</strong>) l'app le legge solo dal manuale
+                        precaricato, e all'import <strong>non le scrive</strong> — non c'è un catalogo
+                        dove salvarle. L'anteprima lo dice, così non le cerchi dopo.
+                    </p>
+
+                    <p>
+                        L'<code>id</code> è la memoria del file: se reimporti un pacchetto con gli
+                        stessi id, le voci vengono <strong>aggiornate</strong> invece che duplicate.
+                        Conviene costruirli come <code>tuo-pacchetto/soldato</code>, perché è da quel
+                        prefisso che «Rimuovi un import» riconosce le voci da togliere.
+                    </p>
+
+                    <p class="guide-code-label">Un mostro completo, per esempio:</p>
+<pre class="guide-code">{
+  "id": "mio-pacchetto/mostro/lupo-invernale",
+  "name": "Lupo invernale",
+  "challengeRating": "3",
+  "armorClass": 13,
+  "hitPoints": "75 (10d10 + 20)",
+  "description": "Bestia Grande, neutrale malvagio. Tratti e azioni vanno tutti qui, con \n dove serve andare a capo."
+}</pre>
+                    <p>
+                        Nel <code>description</code> il testo sta su <strong>una riga sola</strong>: un
+                        ritorno a capo vero dentro le virgolette non è JSON valido e farebbe respingere
+                        il file: per andare a capo si scrive <code>\n</code>.
+                    </p>
+
+                    <p>
+                        Le velocità vogliono un numero <strong>intero</strong> e l'unità
+                        (<code>"m"</code> o <code>"ft"</code>): un decimale fa rifiutare l'intero
+                        file, non la singola voce. Lo stesso vale per un <code>id</code> mancante o
+                        ripetuto — l'anteprima dell'import lo dice prima di scrivere qualsiasi cosa.
+                    </p>
+                </div>
+            }
+        </section>
+
         <section class="data-section">
             <h2 class="section-heading">Importa</h2>
             <p class="section-hint">
@@ -184,13 +263,22 @@
         <section class="data-section">
             <h2 class="section-heading">Esporta</h2>
             <p class="section-hint">
-                Scarica un file con tutti i cataloghi di questa campagna: razze, classi, background,
+                Scarica un file con i cataloghi di questa campagna: specie, classi, background,
                 incantesimi e mostri. Utile per un backup o per portare i dati a un altro tavolo.
+                <strong>Manuale incluso</strong> aggiunge anche le voci del manuale precaricato:
+                serve se vuoi portarti via tutto, e serve soprattutto se vuoi scrivere voci tue —
+                il file diventa un modello già compilato da cui copiare la forma di ogni sezione.
             </p>
-            <button type="button" class="primary-btn" @onclick="EsportaAsync" disabled="@isBusy"
-                    aria-label="Esporta i cataloghi della campagna">
-                ⬇ Esporta la campagna
-            </button>
+            <div class="export-actions">
+                <button type="button" class="primary-btn" @onclick="() => EsportaAsync(false)" disabled="@isBusy"
+                        aria-label="Esporta i cataloghi della campagna">
+                    ⬇ Esporta la campagna
+                </button>
+                <button type="button" class="secondary-btn" @onclick="() => EsportaAsync(true)" disabled="@isBusy"
+                        aria-label="Esporta la campagna insieme al manuale">
+                    ⬇ Esporta tutto, manuale incluso
+                </button>
+            </div>
         </section>
 
         <section class="data-section">
@@ -312,6 +400,9 @@
     private CatalogPackage? loadedPackage;
     private ImportPlanResult? plan;
     private IReadOnlyList<string> warnings = Array.Empty<string>();
+    /// <summary>La guida al formato è chiusa all'apertura: serve la prima volta, poi è rumore.</summary>
+    private bool showGuide;
+
     private string? importReport;
 
     // Avviso sullo stato dell'anteprima, distinto dal resoconto di ciò che è stato scritto:
@@ -575,7 +666,11 @@
             : $"{titoloSezione}: {scritte} di {attese} (il server ne ha rifiutate {attese - scritte})");
     }
 
-    private async Task EsportaAsync()
+    /// <param name="conIlManuale">Include anche le voci del manuale dell'app. Serve a due cose che
+    /// l'export della sola campagna non copre: portarsi via davvero tutto, e avere un file già
+    /// popolato da cui capire come si scrive una voce — chi non ha mai importato nulla, altrimenti,
+    /// scarica un file con le sezioni vuote.</param>
+    private async Task EsportaAsync(bool conIlManuale)
     {
         if (string.IsNullOrEmpty(CurrentUser.CampaignId)) return;
 
@@ -584,11 +679,42 @@
         try
         {
             var cataloghi = await Catalog.GetCampaignCatalogsAsync(CurrentUser.CampaignId);
-            var pacchetto = CampaignExport.Build(cataloghi, campaignName);
+            // Il manuale si carica SEMPRE, anche per l'export della sola campagna: se fra le righe
+            // ce n'è qualcuna di provenienza SRD — le crea SpellMaterialization — il file deve
+            // portarne l'attribuzione, e la licenza sta lì.
+            var manuale = await Catalog.GetPackageAsync();
+            var pacchetto = CampaignExport.Build(cataloghi, campaignName, manuale, conIlManuale);
+
+            // Il manuale può mancare (assente o illeggibile: GetPackageAsync torna null). Senza
+            // dirlo, il file scaricato sarebbe quello della sola campagna e il toast direbbe
+            // «Esportato» — l'utente crederebbe di avere tutto. Due casi distinti, e il secondo
+            // riguarda anche l'export della sola campagna: se fra le righe c'è materiale SRD
+            // (SpellMaterialization) la licenza sta nel manuale, quindi senza manuale il file esce
+            // con testo SRD e senza attribuzione. Va detto, non taciuto.
+            // I due avvisi sono cumulabili, non alternativi: con «manuale incluso» e una campagna che
+            // contiene già righe materializzate valgono entrambi, e tenerli in `else if` avrebbe
+            // taciuto proprio quello sull'attribuzione — il motivo per cui il controllo esiste.
+            if (manuale is null)
+            {
+                var avvisi = new List<string>();
+                if (conIlManuale)
+                    avvisi.Add("Il manuale non era disponibile: il file contiene le sole voci di "
+                        + "questa campagna.");
+                if (CampaignExport.ContieneMaterialeDiManuale(cataloghi))
+                    avvisi.Add("Il file contiene voci di provenienza SRD ma esce senza "
+                        + "l'attribuzione della licenza, che sta nel manuale: non condividerlo così.");
+
+                if (avvisi.Count > 0)
+                    systemError = string.Join(" ", avvisi)
+                        + " Riesporta quando l'app è di nuovo in linea.";
+            }
+
             var json = CampaignExport.ToJson(pacchetto);
 
             await JS.InvokeVoidAsync("downloadTextFile", pacchetto.Id + ".json", json);
-            Toasts.ShowSuccess("Esportato");
+            // Il toast dice cosa è uscito davvero: con il banner sopra, un «Esportato» secco
+            // sarebbe la conferma che si voleva evitare.
+            Toasts.ShowSuccess(systemError is null ? "Esportato" : "Esportato, ma incompleto");
         }
         catch (Exception ex)
         {

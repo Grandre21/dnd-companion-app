@@ -625,6 +625,45 @@
     padding: 0.5rem 0;
 }
 
+/* La ricerca non è un ornamento: senza, i 331 mostri del manuale sarebbero inservibili. */
+.mi-search {
+    width: 100%;
+    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus e non la rimpicciolisce più. */
+    font-size: 1rem;
+    font-family: inherit;
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--text);
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    box-sizing: border-box;
+    margin-bottom: 0.6rem;
+}
+
+.mi-search:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.2);
+}
+
+/* Distingue una voce del manuale da una preparata per questo tavolo. Le dichiarazioni sono la
+   replica di `.package-badge`, che le cinque pagine di catalogo usano per la stessa cosa: lo scope
+   isolato non attraversa i file, quindi si copia invece di ridisegnare — un secondo aspetto per lo
+   stesso significato è la strada per non riconoscerlo più. */
+.mi-source {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.5rem;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold-dim);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
 /* ===== Vista player: segnale di turno e sezioni ===== */
 .current-turn.your-turn {
     color: var(--gold-light);

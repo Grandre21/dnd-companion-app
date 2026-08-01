@@ -222,6 +222,27 @@ public static class ClassProgression
         return daPacchetto is null ? null : Serializza(daPacchetto.Levels);
     }
 
+    /// <summary>Vero se la classe che porta quel nome è ancora quella del manuale: nessuna riga
+    /// scritta da questo tavolo la sostituisce (le righe *importate* dal manuale non contano, sono
+    /// la stessa classe).
+    ///
+    /// È la condizione per accostare alla scheda altro materiale SRD della stessa classe — i
+    /// privilegi di sottoclasse, per esempio: se il tavolo ha la propria «Mago», mostrare lì sotto
+    /// l'Invocatore farebbe dire alla stessa schermata due cose incoerenti, per una classe che quel
+    /// tavolo ha deliberatamente sostituito. Non basta guardare l'esito di <see cref="Risolvi"/>:
+    /// una riga del tavolo che una tabella *ce l'ha* lo fa rispondere, e quella tabella è la sua,
+    /// non quella del manuale.</summary>
+    public static bool ClasseDelManuale(IEnumerable<CharacterClass>? righeDiCampagna, string? nomeClasse)
+    {
+        if (string.IsNullOrWhiteSpace(nomeClasse)) return false;
+        var chiave = CatalogKey.NormalizeName(nomeClasse);
+
+        return !(righeDiCampagna ?? Enumerable.Empty<CharacterClass>())
+            .Any(c => c is not null
+                      && CatalogKey.NormalizeName(c.Name) == chiave
+                      && !CatalogKey.IsFromAppPackage(c.SourceId));
+    }
+
     /// <summary>Toglie gli zeri finali: <c>[4,2,0,0,0,0,0,0,0]</c> diventa <c>[4,2]</c>. Gli zeri
     /// interni restano — una tabella con un buco è comunque quello che dice il manuale.</summary>
     private static List<int> TagliaSlot(List<int>? slot)

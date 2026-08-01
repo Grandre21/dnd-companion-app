@@ -97,8 +97,79 @@ public static class CampaignExport
         return risultato;
     }
 
-    public static CatalogPackage Build(CampaignCatalogs catalogs, string campaignName)
+    /// <summary>Unisce ai cataloghi della campagna le voci del manuale che nessuna riga già copre.
+    ///
+    /// Serve perché il manuale non è nel database: le sue voci si vedono nei cataloghi solo perché
+    /// la UI le sovrappone a quelle di campagna, quindi un export "della campagna" di chi non ha
+    /// importato nulla è un file quasi vuoto — senza i 331 mostri, e senza un solo esempio da cui
+    /// capire come si scrive una voce. È il motivo per cui esiste anche l'export completo.
+    ///
+    /// Il confronto è per nome normalizzato, come nel resto dei cataloghi: se il tavolo ha già il
+    /// suo «Goblin», vince quello e la voce di manuale non si aggiunge.</summary>
+    public static CampaignCatalogs ConIlManuale(CampaignCatalogs catalogs, CatalogPackage? manuale)
     {
+        if (manuale is null) return catalogs;
+
+        static HashSet<string> Nomi<T>(IEnumerable<T> righe, Func<T, string> nomeDi)
+            => righe.Select(r => CatalogKey.NormalizeName(nomeDi(r))).ToHashSet(StringComparer.Ordinal);
+
+        static List<TRiga> Unisci<TRiga, TVoce>(
+            List<TRiga> esistenti, IEnumerable<TVoce> voci,
+            Func<TRiga, string> nomeRiga, Func<TVoce, string> nomeVoce, Func<TVoce, TRiga> converti)
+        {
+            var presenti = Nomi(esistenti, nomeRiga);
+            var aggiunte = voci
+                .Where(v => !string.IsNullOrWhiteSpace(nomeVoce(v)))
+                .Where(v => presenti.Add(CatalogKey.NormalizeName(nomeVoce(v))))
+                .Select(converti);
+            return esistenti.Concat(aggiunte).ToList();
+        }
+
+        // campaignId e userId restano vuoti: le righe prodotte qui non vengono mai scritte nel
+        // database, servono solo a passare per la stessa conversione dell'export normale.
+        return new CampaignCatalogs
+        {
+            Races = Unisci(catalogs.Races, manuale.Species, r => r.Name, v => v.Name,
+                v => PackageRowMerge.NuovaSpecie(v, string.Empty, null)),
+            Classes = Unisci(catalogs.Classes, manuale.Classes, c => c.Name, v => v.Name,
+                v => PackageRowMerge.NuovaClasse(v, string.Empty, null)),
+            Backgrounds = Unisci(catalogs.Backgrounds, manuale.Backgrounds, b => b.Name, v => v.Name,
+                v => PackageRowMerge.NuovoBackground(v, string.Empty, null)),
+            Spells = Unisci(catalogs.Spells, manuale.Spells, s => s.Name, v => v.Name,
+                v => PackageRowMerge.NuovoIncantesimo(v, string.Empty, null)),
+            Monsters = Unisci(catalogs.Monsters, manuale.Monsters, m => m.Name, v => v.Name,
+                v => PackageRowMerge.NuovoMostro(v, string.Empty, null)),
+        };
+    }
+
+    /// <summary>Vero se fra le righe della campagna ce n'è almeno una arrivata dal manuale
+    /// dell'app. Non è il caso raro che sembra: <see cref="SpellMaterialization"/> crea una riga
+    /// con quella provenienza — descrizione SRD inclusa — ogni volta che un giocatore aggiunge alla
+    /// scheda un incantesimo che vive solo nel manuale.</summary>
+    public static bool ContieneMaterialeDiManuale(CampaignCatalogs c)
+        => c.Races.Any(r => CatalogKey.IsFromAppPackage(r.SourceId))
+           || c.Classes.Any(x => CatalogKey.IsFromAppPackage(x.SourceId))
+           || c.Backgrounds.Any(b => CatalogKey.IsFromAppPackage(b.SourceId))
+           || c.Spells.Any(s => CatalogKey.IsFromAppPackage(s.SourceId))
+           || c.Monsters.Any(m => CatalogKey.IsFromAppPackage(m.SourceId));
+
+    /// <param name="manuale">Il manuale dell'app, se disponibile. Serve a due cose distinte: se
+    /// <paramref name="unisciIlManuale"/> è vero le sue voci entrano nell'export, e in ogni caso la
+    /// sua licenza è quella da riportare quando il file contiene materiale SRD.</param>
+    /// <param name="unisciIlManuale">Falso per l'export della sola campagna.</param>
+    public static CatalogPackage Build(
+        CampaignCatalogs catalogs, string campaignName,
+        CatalogPackage? manuale = null, bool unisciIlManuale = true)
+    {
+        // L'attribuzione si decide sui cataloghi ORIGINALI: dopo l'unione ogni voce di manuale
+        // sarebbe materiale SRD, e la domanda «ne contiene?» risponderebbe sempre sì.
+        var attribuzioneDovuta = (unisciIlManuale && manuale is not null)
+                                 || ContieneMaterialeDiManuale(catalogs);
+        var licenzaDaRiportare = manuale?.License;
+
+        if (unisciIlManuale) catalogs = ConIlManuale(catalogs, manuale);
+        else manuale = null;   // le voci non entrano; la licenza è già stata messa da parte
+
         var id = PackageIdFor(campaignName);
 
         // Le righe senza nome non sono esportabili: il parser esige nome E identificatore, e uno
@@ -123,6 +194,17 @@ public static class CampaignExport
             Edition = "2024",
             Language = "it",
             Version = "1.0.0",
+
+            // L'attribuzione viaggia col materiale: senza, la copia esportata non sarebbe più
+            // conforme alla licenza con cui lo SRD è ridistribuibile.
+            //
+            // Non basta guardare se il manuale è incluso. Anche l'export della sola campagna può
+            // contenere materiale SRD: SpellMaterialization scrive righe di database con
+            // `source_id` del pacchetto ogni volta che un giocatore aggiunge alla scheda un
+            // incantesimo che vive solo nel manuale — descrizione compresa. Quelle righe finiscono
+            // nell'export, e AssignIds ne cancella pure la provenienza: senza questo controllo,
+            // un file con testo SRD uscirebbe senza attribuzione e senza traccia dell'origine.
+            License = attribuzioneDovuta ? licenzaDaRiportare : null,
 
             Species = razze.Select((r, i) => new PackageSpecies
             {
@@ -158,6 +240,18 @@ public static class CampaignExport
                 PrimaryAbility = c.PrimaryAbility,
                 SavingThrows = SplitList(c.SavingThrows),
                 SkillChoices = PackageRowMerge.LeggiScelte(c.SkillChoices),
+                // Le sottoclassi non passano dalla riga di database — la tabella `classes` non ha
+                // una colonna per portarle — quindi si riprendono dal manuale accostandole per
+                // nome. Senza, l'export "manuale incluso" restituirebbe classi senza sottoclassi:
+                // proprio il dato che chi esporta per farne un modello vuole vedere.
+                //
+                // Solo per le righe che dal manuale vengono, però: su una classe **del tavolo** che
+                // porti per caso lo stesso nome, innestare le sottoclassi SRD attribuirebbe al
+                // tavolo un contenuto che non è suo. È la stessa domanda che si pongono la scheda e
+                // il wizard, qui posta sulla provenienza della riga perché è ciò che si ha in mano.
+                Subclasses = CatalogKey.IsFromAppPackage(c.SourceId)
+                    ? SubclassCatalog.PerClasse(manuale?.Classes, c.Name).ToList()
+                    : new List<PackageSubclass>(),
                 // `features` ha un'inversione da quando l'import ci scrive la tabella dei livelli
                 // (2026-07-31): senza questa riga una campagna esportata e reimportata altrove
                 // perderebbe la progressione, e le schede tornerebbero senza privilegi. Il testo
@@ -200,8 +294,10 @@ public static class CampaignExport
                 Description = m.Description,
             }).ToList(),
 
-            // Mai talenti: non hanno tabella, quindi nel database non ce ne sono (§5).
-            Feats = new List<PackageFeat>(),
+            // Dal database non arriva alcun talento: non hanno tabella (§5). Con il manuale incluso
+            // però ci sono, e vanno riportati: chi esporta «tutto» se li aspetta, e sono la sola
+            // sezione del formato che altrimenti non avrebbe mai un esempio da cui copiare.
+            Feats = manuale?.Feats.ToList() ?? new List<PackageFeat>(),
         };
     }
 

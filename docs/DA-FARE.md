@@ -6,7 +6,7 @@
 > Sintetizza analisi pregresse (audit sicurezza/architettura e diagnosi dipendenze) ormai integrate qui;
 > riporta solo ciò che resta effettivamente aperto dopo la migrazione a Supabase Auth.
 >
-> Ultimo aggiornamento: **2026-07-31**
+> Ultimo aggiornamento: **2026-08-01**
 >
 > I punti legati alla **monetizzazione** (entitlement/Play Billing, modello free-vs-pagamento) sono accantonati
 > in [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md): da affrontare solo quando si deciderà di aprire
@@ -16,7 +16,7 @@ Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** ·
 
 ---
 
-## ⛔ Da fare PRIMA del prossimo push (sessione 2026-07-31)
+## ⛔ Da fare PRIMA del prossimo push (sessioni 2026-07-31 e 2026-08-01)
 
 > Il gate automatico non copre nulla di ciò che segue. `main` pubblica: quanto è qui va risolto
 > **prima**, non dopo.
@@ -40,6 +40,10 @@ Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** ·
   dentro `Rpc<T>`): è esattamente la forma del difetto tipico del repo. L'assembly dell'app è coperto
   da `TrimmerRootAssembly Include="DndCompanion"`, quindi in teoria è al sicuro — ma «in teoria» qui
   si verifica, perché il difetto si vede **solo** sul sito pubblicato.
+  **Aggiornato il 2026-08-01:** il diff aggiunge un secondo modello nuovo, `PackageSubclass`
+  (annidato in `PackageClass`, letto da System.Text.Json col contesto generato). Non basta quindi
+  aprire la pagina Party: nel publish trimmato va aperta anche una **scheda o il wizard su una classe
+  del manuale**, che è dove le sottoclassi si deserializzano davvero.
 - 🟠 **Verifica a vista della barra inferiore su Android/Chrome e in PWA installata**, scorrendo una
   pagina lunga: il tremolio nasceva dalla barra URL dinamica e l'emulazione di DevTools non la simula
   (v. DIARIO 2026-07-31). Con sei voci ora, controllare anche che nessuna etichetta tronchi sullo
@@ -55,6 +59,25 @@ Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** ·
   navigazione in basso resti abbastanza contenuto a vista. È la stessa categoria di verifica del
   tremolio della barra inferiore: l'emulazione di DevTools non riproduce la barra URL dinamica di
   Chrome su Android.
+- 🟠 **Provare il pannello «Importa mostri» del tracker** (2026-08-01, la pagina ora attinge a due
+  sorgenti): a ricerca vuota deve mostrare **le sole righe di campagna** — il comportamento che il
+  tracker ha sempre avuto — e scrivendo un nome devono comparire anche le voci del manuale, marcate
+  «Dal manuale», al massimo 40 con il conteggio delle altre. Due cose che nessun test di unità
+  copre, perché stanno nell'attraversamento fra picker e pagina: che le quantità scelte
+  **sopravvivano al cambio di ricerca** (si sceglie un mostro, si cerca il successivo, il primo deve
+  restare nel conteggio) e che i combattenti aggiunti arrivino nel tracker con i PF giusti.
+- 🟠 **Provare «Esporta tutto, manuale incluso»** (2026-08-01): il file scaricato deve avere tutte le
+  sezioni piene — specie, classi **con le sottoclassi**, background, incantesimi, mostri, talenti —
+  e il campo `license` con l'attribuzione CC BY; poi **reimportarlo** in una campagna di prova, che è
+  la sola verifica del giro completo. Da guardare anche il caso opposto, che è quello sottile:
+  l'export della **sola** campagna, in un tavolo dove un giocatore ha aggiunto alla scheda un
+  incantesimo del manuale (`SpellMaterialization` scrive una riga con testo SRD), deve **comunque**
+  riportare la licenza.
+- 🟡 **Guardare la scelta di sottoclasse** (2026-08-01) in creazione (wizard) e in modifica: con una
+  classe del manuale è un menu, con una classe propria del tavolo resta testo libero. Cambiando
+  classe, la sottoclasse dell'altra classe deve **sparire**, mentre una scritta a mano deve
+  **restare** (nel campo libero). Sulla tab «Scheda» di un PG di livello ≥ 3 devono comparire i
+  privilegi della sottoclasse e il testo delle sue regole.
 - 🟠 **Provare davvero l'eliminazione di un personaggio** (sessione 2026-07-31, secondo giro): il
   percorso è Personaggi → apri il PG → tab «Scheda» → in fondo, «Elimina il personaggio». Nessun
   test automatico può coprirlo, perché il comportamento che conta è del **database**: inventario e
@@ -87,9 +110,10 @@ Legenda priorità: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** ·
   (c) lasciare com'è. Qualunque riscrittura di massa passa sopra il testo delle regole, quindi va
   fatta a fonte aperta e verificata, non con una sostituzione automatica.
 - 🟡 **Peso del pacchetto dati.** `wwwroot/data/srd-2024-it.json` è il primo file davvero grande
-  dell'app: **903 KB grezzi, 165 KB compressi** (misurati, non stimati — GitHub Pages serve i JSON
-  con compressione). È **escluso dal precache** del service worker (`offlineAssetsExclude`, già
-  previsto) e viene scaricato al primo uso: il costo reale è quindi un download da 165 KB alla prima
+  dell'app: **943 KB grezzi, 176 KB compressi** (misurati, non stimati — GitHub Pages serve i JSON
+  con compressione). Erano 903 e 165 KB fino al 2026-08-01: i 40 KB in più sono le 12 sottoclassi
+  con il testo delle loro regole. È **escluso dal precache** del service worker (`offlineAssetsExclude`, già
+  previsto) e viene scaricato al primo uso: il costo reale è quindi un download da 176 KB alla prima
   apertura di un catalogo, non un rallentamento dell'avvio. Da guardare comunque su rete lenta.
   Si lega alla **virtualizzazione delle liste** (§5): con il manuale caricato i cataloghi superano di
   molto le ~50 voci su cui poggiava la decisione di scartarla — il trigger di rivalutazione dichiarato
@@ -336,8 +360,10 @@ mega-componente (quello resta in §3).
 
 ## 4. Test
 
-- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **400 unit test** (220 → 285 con la Fase 1 del
-  modello 2024, 285 → 387 con la Fase 2) + **suite d'integrazione RLS** (`Tests.Integration/`, 11 scenari verdi
+- ✅ **Suite di test** — progetto `DndCompanion.Tests` (xUnit), **676 unit test** (220 → 285 con la Fase 1 del
+  modello 2024, 285 → 387 con la Fase 2, 387 → 676 col contenuto del manuale e i lavori del 2026-07-31/08-01:
+  i controlli sul pacchetto SRD sono la parte più grossa dell'aumento, perché lì il test *è* la verifica del
+  dato) + **suite d'integrazione RLS** (`Tests.Integration/`, 11 scenari verdi
   su stack locale, vedi voce 5 — restano 11: la Fase 2 non tocca le policy). Coperti: `CharacterCalculations`
   (modificatori, competenza, TS/skill, iniziativa, percezione passiva, spellcasting, dadi vita incl. parsing
   `HitDiceMax`); la **logica pura dei repository** (estratta in helper `internal static`, esposti via
@@ -356,6 +382,13 @@ mega-componente (quello resta in §3).
   `SpellClassNames`. Col **mobile-first** (2026-07-30) si aggiunge `BottomNavRoutes.IsActive` (13 test:
   query string, frammento, slash, rotta vuota della Home, sotto-rotte), estratto dalla barra di
   navigazione perché la logica con rami non stia nel `.razor`.
+  Col lavoro del **2026-08-01** si aggiungono `MonsterPicker` (unione delle due sorgenti, ordine,
+  troncamento e chiavi prefissate — gli uuid del database e gli id del pacchetto vivono in spazi
+  diversi), `SubclassCatalog` (in particolare `RisolviScelta`: la sottoclasse di un'**altra** classe
+  va scollegata, quella inventata dal tavolo no) e i controlli su `CampaignExport` con il manuale
+  incluso (unione per nome normalizzato, licenza dovuta anche senza il manuale quando fra le righe
+  c'è materiale materializzato). `Tests/SrdPackageContentTests.cs` è un caso a sé: non prova codice
+  ma **il dato**, ed è ciò che ha trovato i nomi di privilegio troncati dall'estrazione dal PDF.
   Restano da coprire:
   1. ~~`CharacterCalculations`~~ ✅ · ~~Parsing `HitDiceMax`~~ ✅ · ~~Logica pura repository (note/inventario/invito)~~ ✅
   2. ~~Normalizzazione/clamp dei form PG (`NormalizeDraft`)~~ ✅ (`CharacterNormalizer`)
@@ -396,6 +429,13 @@ mega-componente (quello resta in §3).
   si supera già oggi con un pacchetto dell'utente, senza attendere il contenuto SRD della Fase 3. È per
   questo che la voce torna 🟡: il «da rivalutare **a pacchetto pieno**, non prima» del piano di Fase 2 è
   superato — il pacchetto pieno non serve, basta un file dell'utente.
+  **Aggiornamento (2026-08-01): il caso si è presentato per davvero, e la risposta non è stata
+  `<Virtualize>`.** Aprendo il pannello «Importa mostri» del tracker alle voci di manuale l'elenco
+  sarebbe passato da qualche riga a 331, cioè altrettanti stepper: la soluzione adottata è **ricerca +
+  tetto a 40 voci con il conteggio delle escluse** (`MonsterPicker`). Vale come precedente, non come
+  chiusura: dove l'elenco serve a **scegliere**, filtrare batte virtualizzare; per le pagine di
+  catalogo, che servono a **sfogliare**, la domanda resta aperta — e resta il caso ostico delle card
+  espandibili.
 - 🟡 **Cache dati semi-statici** (razze/classi/catalogo spell) in memoria con invalidazione esplicita.
   **Rialzata da 🟢 a 🟡 il 2026-07-25** (§8-bis). ⚠️ **Motivazione da riscrivere (2026-07-30):** l'argomento
   originale era «senza barra di navigazione ogni spostamento passa da Home e ricarica tutto». La barra
@@ -630,8 +670,9 @@ modelli di salvataggio opposti.
     creato un doppione (un `source_id` nullo non collide con `UNIQUE`). **(d) nessun `LIKE` con testo
     digitato** nella rimozione: `_` e `%` sarebbero wildcard e cancellerebbero il manuale — filtro in memoria
     (`CatalogRemovalPlan`) e `DELETE` per elenco di id.
-    **Conseguenze note:** i mostri di pacchetto non compaiono nel pannello "Importa mostri" del tracker
-    finché non sono duplicati in campagna; un file esportato perde la provenienza delle righe materializzate
+    **Conseguenze note:** ~~i mostri di pacchetto non compaiono nel pannello "Importa mostri" del tracker
+    finché non sono duplicati in campagna~~ ✅ **superata il 2026-08-01** (la pagina attinge a
+    `ICatalogService`, con ricerca: v. DIARIO «Mostri al tavolo…»); un file esportato perde la provenienza delle righe materializzate
     dal manuale (diventano contenuti di campagna — voluto: l'alternativa era iniettare righe intoccabili in
     campagne che non hanno mai importato nulla di ufficiale).
     **Resta da fare:** la verifica manuale end-to-end (import di un pacchetto di prova + rimozione con un
@@ -639,7 +680,9 @@ modelli di salvataggio opposti.
   - ✅ **Fase 3 (contenuto e wizard 2024) — FATTA (2026-07-31).** Consegnati entrambi i pezzi:
     il **pacchetto completo** `wwwroot/data/srd-2024-it.json` (10 specie, 4 background, 17 talenti,
     12 classi con 20 livelli, 339 incantesimi, 331 mostri — dal PDF **ufficiale italiano**, con i
-    nomi ufficiali: 339 su 339) e il **wizard 2024** (`Pages/CharacterWizard.razor` +
+    nomi ufficiali: 339 su 339; **+ 12 sottoclassi**, una per classe, aggiunte il 2026-08-01: erano
+    state saltate dall'estrazione, ed è per questo che «la sottoclasse era solo un campo di testo»)
+    e il **wizard 2024** (`Pages/CharacterWizard.razor` +
     `BuildBackgroundBonusMap`/`ApplyBackgroundBonuses` con tetto 20 e `ShouldApplyBackgroundBonuses`
     per la convivenza con le specie 2014). Dettaglio e motivazioni nel DIARIO, sezione
     «Il manuale SRD 5.2.1 caricato».
@@ -681,6 +724,8 @@ modelli di salvataggio opposti.
   rifanno `GetProfilesAsync()`.
 - 🟡 **Combat: iniziativa precompilata o tirata** — gli import mettono `Initiative = 0` per tutti,
   benché l'app conosca già il bonus di ogni PG; e i PF si regolano ±1 per click.
+  ℹ️ **2026-08-01:** gli import arrivano ora da **due** sorgenti (righe di campagna e voci del
+  manuale), ma passano entrambe da `CombatImport`, che resta l'unico punto dove mettere mano.
 - 🟢 **Unificare l'unità di velocità** (razza in piedi, PG in metri). Il design del modello 2024 la chiude
   **senza migrazione di dati**, ma con una colonna additiva `speed_unit` su `races` (`default 'ft'`, così le
   righe esistenti restano come sono) e l'unità mostrata accanto al campo. Dedurla dalla sorgente non bastava:

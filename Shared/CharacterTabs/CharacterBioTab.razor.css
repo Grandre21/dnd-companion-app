@@ -251,3 +251,12 @@
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+/* Il testo delle regole di sottoclasse è lungo: va staccato dall'elenco dei privilegi, che si
+   legge a colpo d'occhio, senza diventare un muro. */
+.subclass-text {
+    margin-top: 0.7rem;
+    padding-top: 0.7rem;
+    border-top: 0.5px solid rgba(var(--gold-rgb), 0.2);
+    font-size: 12px;
+}

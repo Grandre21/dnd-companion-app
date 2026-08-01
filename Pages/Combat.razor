@@ -1,9 +1,11 @@
 @page "/combat"
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
+@using DndCompanion.Services
 @implements IDisposable
 @inject ICombatStateRepository CombatStateRepository
 @inject ICharacterRepository CharacterRepository
-@inject IMonsterRepository MonsterRepository
+@inject ICatalogService Catalog
 @inject CurrentUserService CurrentUser
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -100,26 +102,51 @@
                 {
                     <LoadingSpinner Text="Caricamento mostri..." />
                 }
-                else if (campaignMonsters.Count == 0)
-                {
-                    <div class="mi-empty">Nessun mostro nella campagna.</div>
-                }
                 else
                 {
-                    @foreach (var m in campaignMonsters)
+                    <input type="text" class="mi-search" placeholder="Cerca fra i mostri del manuale..."
+                           @bind="monsterSearch" @bind:event="oninput" aria-label="Cerca un mostro" />
+
+                    var scelta = MonsterPicker.Scegli(
+                        campaignMonsters, packageMonsters, monsterSearch, MaxVociMostro);
+                    @if (scelta.Voci.Count == 0)
                     {
-                        <div class="mi-row">
-                            <span class="mi-name">@m.Name</span>
-                            <span class="mi-hp">PF @CombatImport.ParseLeadingHp(m.HitPoints)</span>
-                            <div class="mi-stepper">
-                                <button type="button" class="hp-btn hp-minus" aria-label="Meno"
-                                        @onclick="() => AdjustQty(m.Id, -1)" disabled="@(GetQty(m.Id) == 0)">−</button>
-                                <span class="mi-qty">@GetQty(m.Id)</span>
-                                <button type="button" class="hp-btn hp-plus" aria-label="Più"
-                                        @onclick="() => AdjustQty(m.Id, 1)">+</button>
-                            </div>
+                        <div class="mi-empty">
+                            @(string.IsNullOrWhiteSpace(monsterSearch)
+                                ? "Nessun mostro nella campagna: scrivi qui sopra per cercarlo nel manuale."
+                                : "Nessun mostro trovato con questo nome.")
                         </div>
                     }
+                    else
+                    {
+                        @foreach (var v in scelta.Voci)
+                        {
+                            <div class="mi-row">
+                                <span class="mi-name">
+                                    @v.Nome
+                                    @if (v.DalManuale)
+                                    {
+                                        <span class="mi-source">Dal manuale</span>
+                                    }
+                                </span>
+                                <span class="mi-hp">PF @CombatImport.ParseLeadingHp(v.PfTesto)</span>
+                                <div class="mi-stepper">
+                                    <button type="button" class="hp-btn hp-minus" aria-label="Meno"
+                                            @onclick="() => AdjustQty(v.Chiave, -1)" disabled="@(GetQty(v.Chiave) == 0)">−</button>
+                                    <span class="mi-qty">@GetQty(v.Chiave)</span>
+                                    <button type="button" class="hp-btn hp-plus" aria-label="Più"
+                                            @onclick="() => AdjustQty(v.Chiave, 1)">+</button>
+                                </div>
+                            </div>
+                        }
+                        @if (scelta.Troncate > 0)
+                        {
+                            <div class="mi-empty">
+                                Altri @scelta.Troncate mostri corrispondono: restringi la ricerca per vederli.
+                            </div>
+                        }
+                    }
+
                     <button type="button" class="add-btn" @onclick="AddSelectedMonstersAsync"
                             disabled="@(TotalMonsterQty == 0 || isImporting)">
                         @(isImporting ? "Aggiunta..." : $"Aggiungi {TotalMonsterQty} combattenti")
@@ -252,9 +279,16 @@
     private bool showMonsterImport;
     private bool isLoadingMonsters;
     private List<Monster> campaignMonsters = new();
+    private List<PackageMonster> packageMonsters = new();
+    private string monsterSearch = string.Empty;
+
+    /// <summary>Quante voci mostrarne al massimo: con 331 mostri a catalogo un elenco intero sarebbe
+    /// illeggibile su un telefono, e renderebbe 331 stepper. Le altre le conta il picker.</summary>
+    private const int MaxVociMostro = 40;
     private readonly Dictionary<string, int> monsterQty = new();
 
     private int TotalMonsterQty => monsterQty.Values.Sum();
+
     private int GetQty(string monsterId) => monsterQty.TryGetValue(monsterId, out var q) ? q : 0;
 
     private Combatant? CurrentCombatant =>
@@ -447,8 +481,14 @@
         errorMessage = null;
         try
         {
-            campaignMonsters = await MonsterRepository.GetMonstersForCampaignAsync(CurrentUser.CampaignId);
+            // Le due sorgenti insieme: le righe della campagna e le voci del manuale. Il tracker
+            // leggeva solo le prime, e i 331 mostri del pacchetto non erano utilizzabili al tavolo
+            // senza prima importarli a mano nel catalogo.
+            var vista = await Catalog.GetMonstersAsync(CurrentUser.CampaignId);
+            campaignMonsters = vista.DbRows.ToList();
+            packageMonsters = vista.PackageEntries.ToList();
             monsterQty.Clear();
+            monsterSearch = string.Empty;
         }
         catch (Exception ex)
         {
@@ -470,10 +510,24 @@
         errorMessage = null;
         try
         {
-            foreach (var m in campaignMonsters)
+            // Le quantità sono indicizzate per chiave prefissata, non per uuid: si scorre quella
+            // mappa e non le liste, così restano scelte anche le voci che la ricerca non mostra
+            // più (si sceglie un mostro, si cerca il successivo, e il primo non deve sparire).
+            foreach (var (chiave, qty) in monsterQty)
             {
-                var qty = GetQty(m.Id);
-                if (qty > 0) combatants.AddRange(CombatImport.FromMonster(m, qty));
+                if (qty <= 0) continue;
+                var id = MonsterPicker.IdSenzaPrefisso(chiave);
+
+                if (MonsterPicker.DalManuale(chiave))
+                {
+                    var voce = packageMonsters.FirstOrDefault(p => p.Id == id);
+                    if (voce is not null) combatants.AddRange(CombatImport.FromPackageMonster(voce, qty));
+                }
+                else
+                {
+                    var riga = campaignMonsters.FirstOrDefault(m => m.Id == id);
+                    if (riga is not null) combatants.AddRange(CombatImport.FromMonster(riga, qty));
+                }
             }
             await SaveCombatStateAsync();
             showMonsterImport = false;

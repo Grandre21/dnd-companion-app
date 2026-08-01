@@ -356,6 +356,42 @@ public class ClassProgressionTests
         Assert.Equal("L1 — Ira", testo);
     }
 
+    // ---- «È ancora la classe del manuale?»: la domanda che autorizza il materiale SRD accanto ----
+
+    /// <summary>Serve alla scheda per decidere se mostrare i privilegi di sottoclasse. La domanda
+    /// non coincide con «Risolvi ha risposto»: una classe del tavolo che porti una propria tabella
+    /// dei livelli fa rispondere Risolvi, ma quella tabella non è del manuale — e sotto sarebbero
+    /// comparsi i privilegi SRD di una classe deliberatamente sostituita.</summary>
+    [Fact]
+    public void ClasseDelManuale_dice_no_se_il_tavolo_ha_la_propria_riga()
+    {
+        var conTabellaPropria = new[] { Riga("u1", "Mago", "L1 — Il nostro mago\nL3 — Roba nostra") };
+
+        Assert.NotNull(ClassProgression.Risolvi(conTabellaPropria, new[] { VoceDiPacchetto("Mago") }, "Mago"));
+        Assert.False(ClassProgression.ClasseDelManuale(conTabellaPropria, "Mago"));
+    }
+
+    [Fact]
+    public void ClasseDelManuale_dice_si_senza_righe_o_con_una_riga_importata()
+    {
+        Assert.True(ClassProgression.ClasseDelManuale(Array.Empty<CharacterClass>(), "Mago"));
+        Assert.True(ClassProgression.ClasseDelManuale(null, "Mago"));
+        Assert.True(ClassProgression.ClasseDelManuale(
+            new[] { Riga("u1", "Mago", "L1 — X", sourceId: "srd-2024-it/classe/mago") }, "Mago"));
+    }
+
+    /// <summary>Il confronto è normalizzato come nel resto dei cataloghi, e un nome vuoto non è una
+    /// classe del manuale: senza nome non c'è nulla da accostare.</summary>
+    [Theory]
+    [InlineData("mago", false)]
+    [InlineData("  MAGO ", false)]
+    [InlineData("Chierico", true)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void ClasseDelManuale_normalizza_il_nome(string? nome, bool atteso)
+        => Assert.Equal(atteso, ClassProgression.ClasseDelManuale(
+            new[] { Riga("u1", "Mago", "Regole nostre.") }, nome));
+
     [Fact]
     public void Il_giro_completo_conserva_privilegi_e_slot()
     {

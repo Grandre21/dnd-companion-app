@@ -155,6 +155,55 @@ public class PackageImportPlanTests
         Assert.Contains("resta nel tuo file", sezione.Note!, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>La guida della pagina Dati invita a partire dall'export «manuale incluso», che
+    /// contiene le sottoclassi: chi ne aggiunge una propria a quel file la vedrebbe sparire senza un
+    /// rigo, perché la tabella `classes` non ha una colonna per portarle. Stessa regola dei talenti:
+    /// una sezione non scritta va dichiarata, non taciuta.</summary>
+    [Fact]
+    public void ForClasses_ConSottoclassiNelFile_DiceCheNonVengonoScritte()
+    {
+        var pacchetto = new CatalogPackage
+        {
+            SchemaVersion = 1,
+            Id = "mio-pacchetto",
+            Classes =
+            {
+                new PackageClass
+                {
+                    Id = "mio-pacchetto/guerriero",
+                    Name = "Guerriero",
+                    Subclasses = { new PackageSubclass { Id = "mio-pacchetto/campione", Name = "Campione" } },
+                },
+            },
+        };
+
+        var sezione = PackageImportPlan.ForClasses(
+            pacchetto, new CampaignCatalogs(), isMaster: false, userId: Utente);
+
+        Assert.Equal("Classi", sezione.Title);
+        Assert.Equal(1, sezione.CreateCount);
+        Assert.Contains("sottoclassi", sezione.Note!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("una classe ne porta", sezione.Note!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Senza sottoclassi nel file la nota non c'è: un'avvertenza che parla di un contenuto
+    /// assente si legge come un problema da risolvere.</summary>
+    [Fact]
+    public void ForClasses_SenzaSottoclassi_NonMetteAlcunaNota()
+    {
+        var pacchetto = new CatalogPackage
+        {
+            SchemaVersion = 1,
+            Id = "mio-pacchetto",
+            Classes = { new PackageClass { Id = "mio-pacchetto/guerriero", Name = "Guerriero" } },
+        };
+
+        var sezione = PackageImportPlan.ForClasses(
+            pacchetto, new CampaignCatalogs(), isMaster: false, userId: Utente);
+
+        Assert.Null(sezione.Note);
+    }
+
     [Fact]
     public void Build_ProduceUnaSezionePerTipoPiuITalenti()
     {

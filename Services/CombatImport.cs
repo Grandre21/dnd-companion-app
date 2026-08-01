@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using DndCompanion.Models;
+using DndCompanion.Models.Packages;
 
 namespace DndCompanion.Services;
 
@@ -22,13 +23,23 @@ public static class CombatImport
     // q copie di un Combatant dal mostro: nome numerato se q>1, Initiative=0, CurrentHp=MaxHp=ParseLeadingHp.
     // q <= 0 -> sequenza vuota.
     public static IEnumerable<Combatant> FromMonster(Monster monster, int quantity)
+        => FromNameAndHp(monster.Name, monster.HitPoints, quantity);
+
+    /// <summary>Come <see cref="FromMonster"/>, ma da una voce di manuale. Serve perché il tracker
+    /// attinge a entrambe le sorgenti: un mostro che vive solo nel pacchetto non ha una riga di
+    /// database, e non gli serve — <c>Combatant</c> è un POCO dentro il jsonb di
+    /// <c>combat_state</c>, senza chiave esterna verso <c>monsters</c>.</summary>
+    public static IEnumerable<Combatant> FromPackageMonster(PackageMonster monster, int quantity)
+        => FromNameAndHp(monster.Name, monster.HitPoints, quantity);
+
+    private static IEnumerable<Combatant> FromNameAndHp(string name, string? hitPointsText, int quantity)
     {
-        var hp = ParseLeadingHp(monster.HitPoints);
+        var hp = ParseLeadingHp(hitPointsText);
         for (var i = 1; i <= quantity; i++)
         {
             yield return new Combatant
             {
-                Name = quantity == 1 ? monster.Name : $"{monster.Name} {i}",
+                Name = quantity == 1 ? name : $"{name} {i}",
                 Initiative = 0,
                 CurrentHp = hp,
                 MaxHp = hp,

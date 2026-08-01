@@ -1,4 +1,6 @@
 @using DndCompanion.Models
+@using DndCompanion.Models.Packages
+@using DndCompanion.Services
 
 <div class="form-view">
     <div class="sheet-top">
@@ -37,9 +39,13 @@
                         </select>
                         @if (isClassCustom)
                         {
+                            @* Anche il testo libero rivaluta la sottoclasse: scrivendo il nome di una
+                               classe del manuale il campo sottoclasse diventa un menu, e senza questo
+                               resterebbe dentro il valore di prima — invisibile e salvabile. *@
                             <input type="text" class="input custom-input" maxlength="40"
                                    placeholder="Scrivi la classe"
-                                   @bind="Draft.Class" @bind:event="oninput" />
+                                   @bind="Draft.Class" @bind:event="oninput"
+                                   @bind:after="ScollegaSottoclasseNonPiuValida" />
                         }
                         @if (SelectedClassInfo is not null)
                         {
@@ -55,9 +61,30 @@
 
                     <div class="field">
                         <label>Sottoclasse</label>
-                        <input type="text" class="input" maxlength="60"
-                               placeholder="es. Berserker, Campione, Evocatore..."
-                               @bind="Draft.Subclass" />
+                        @if (SottoclassiDisponibili.Count > 0)
+                        {
+                            <select class="input" value="@CurrentSubclassSelection" @onchange="OnSubclassSelectionChanged">
+                                <option value="">-- Nessuna --</option>
+                                @foreach (var s in SottoclassiDisponibili)
+                                {
+                                    <option value="@s.Name">@s.Name</option>
+                                }
+                                <option value="@CustomOptionValue">Altro (testo libero)</option>
+                            </select>
+                            @if (isSubclassCustom)
+                            {
+                                <input type="text" class="input custom-input" maxlength="60"
+                                       placeholder="Scrivi la sottoclasse"
+                                       @bind="Draft.Subclass" @bind:event="oninput" />
+                            }
+                        }
+                        else
+                        {
+                            @* Nessuna sottoclasse a catalogo per questa classe: resta il testo libero. *@
+                            <input type="text" class="input" maxlength="60"
+                                   placeholder="es. Cammino del berserker, Campione..."
+                                   @bind="Draft.Subclass" />
+                        }
                     </div>
 
                     <div class="field">
@@ -569,12 +596,36 @@
 @code {
     [Parameter, EditorRequired] public Character Draft { get; set; } = default!;
     [Parameter] public List<CharacterClass> Classes { get; set; } = new();
+
+    /// <summary>Classi del manuale: le sottoclassi stanno solo lì, perché la tabella `classes` non
+    /// ha una colonna per portarle. Vuota = campo di testo libero, come prima.</summary>
+    [Parameter] public List<PackageClass> ClassPackages { get; set; } = new();
     [Parameter] public List<Race> Races { get; set; } = new();
     [Parameter] public bool IsBusy { get; set; }
     [Parameter] public EventCallback OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
     private const string CustomOptionValue = "__custom__";
+
+    private bool isSubclassCustom;
+
+    /// <summary>Come nel wizard: il menu si offre solo se la classe è ancora quella del manuale. Se
+    /// il tavolo ha la propria «Mago», le sue sottoclassi il manuale non le conosce e resta il testo
+    /// libero — la stessa domanda che si pone la tab «Scheda» prima di mostrarne i privilegi.</summary>
+    private IReadOnlyList<PackageSubclass> SottoclassiDisponibili
+        => ClassProgression.ClasseDelManuale(Classes, Draft.Class)
+            ? SubclassCatalog.PerClasse(ClassPackages, Draft.Class)
+            : Array.Empty<PackageSubclass>();
+
+    private string CurrentSubclassSelection
+        => isSubclassCustom ? CustomOptionValue : (Draft.Subclass ?? string.Empty);
+
+    private void OnSubclassSelectionChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? string.Empty;
+        if (val == CustomOptionValue) { isSubclassCustom = true; Draft.Subclass = string.Empty; }
+        else { isSubclassCustom = false; Draft.Subclass = val; }
+    }
     private bool isClassCustom;
     private bool isRaceCustom;
     private Character? _lastDraft;
@@ -607,6 +658,16 @@
                 && Classes.All(c => !string.Equals(c.Name, Draft.Class, StringComparison.Ordinal));
             isRaceCustom = !string.IsNullOrEmpty(Draft.Race)
                 && Races.All(r => !string.Equals(r.Name, Draft.Race, StringComparison.Ordinal));
+            // Stesso criterio per la sottoclasse: senza, ogni PG creato prima che le sottoclassi
+            // esistessero — e ne ha una scritta a mano — aprirebbe il menu su «Nessuna» mentre il
+            // dato è ancora lì, e per conservarlo bisognerebbe riscriverlo. E lo stato «Altro»
+            // sopravviveva da un personaggio al successivo.
+            //
+            // Si applica il record INTERO, valore compreso: i PG creati prima di oggi possono avere
+            // la sottoclasse di un'altra classe (il campo era testo libero e il cambio di classe non
+            // lo ripuliva). Tenendo solo `ScrittaAMano` il menu non mostrerebbe nulla mentre il dato
+            // resta — e al primo salvataggio si riscriverebbe un Mago col Cammino del berserker.
+            ScollegaSottoclasseNonPiuValida();
         }
     }
 
@@ -662,6 +723,15 @@
             isClassCustom = false;
             Draft.Class = val;
         }
+        ScollegaSottoclasseNonPiuValida();
+    }
+
+    private void ScollegaSottoclasseNonPiuValida()
+    {
+        var scelta = SubclassCatalog.RisolviScelta(
+            ClassPackages, Draft.Class, Draft.Subclass, Classes);
+        Draft.Subclass = scelta.Valore;
+        isSubclassCustom = scelta.ScrittaAMano;
     }
 
     private static string FormatRaceBonuses(Race race)

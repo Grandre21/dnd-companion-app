@@ -663,6 +663,39 @@
       0
      ]
     }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/cammino-del-berserker",
+     "name": "Cammino del berserker",
+     "description": "Incanala l'ira in furia violenta\n\nL'ira dei barbari che percorrono il Cammino del berserker è diretta principalmente verso la violenza. È un cammino di furia indiscriminata in cui i barbari si esaltano nel caos della battaglia, lasciando che l'ira si impadronisca di loro e li renda più forti.\n\nLivello 3 — Frenesia: Se il personaggio usa Attacco irruento mentre è in preda all'ira, infligge danni extra al primo bersaglio che colpisce nel suo turno con un attacco basato sulla Forza. Per determinare i danni extra, il personaggio tira un numero di d6 pari al suo bonus Danni dell'ira e li somma. I danni sono dello stesso tipo dell'arma o del colpo senz'armi che il personaggio ha utilizzato per l'attacco.\n\nLivello 6 — Ira incontenibile: Il barbaro non può essere affascinato o spaventato mentre è in ira. Se è affascinato o spaventato quando entra in ira, quella condizione ha fine.\n\nLivello 10 — Ritorsione: Quando il barbaro subisce danni da una creatura che si trova entro 1,5 metri da sé, può usare la sua reazione per effettuare un attacco in mischia contro quella creatura, utilizzando un'arma o un colpo senz'armi.\n\nLivello 14 — Presenza intimidatoria: Come azione bonus, il barbaro può incutere terrore con la sua presenza minacciosa e il suo potere primordiale. Quando lo fa, ogni creatura a scelta del personaggio in un'emanazione del raggio di 9 metri di cui il personaggio è il punto di origine deve effettuare un tiro salvezza su Saggezza (CD pari a 8 + il modificatore di Forza del barbaro + il bonus di competenza). Se lo fallisce, la creatura è spaventata per 1 minuto. Alla fine del turno di ogni creatura spaventata, la creatura ripete il tiro salvezza e, se lo supera, l'effetto svanisce. Dopo aver usato questo privilegio, il personaggio non può riutilizzarlo prima di aver completato un riposo lungo; può ignorare questo limite spendendo un utilizzo dell'ira (nessuna azione richiesta).",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Frenesia"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Ira incontenibile"
+       ]
+      },
+      {
+       "level": 10,
+       "features": [
+        "Ritorsione"
+       ]
+      },
+      {
+       "level": 14,
+       "features": [
+        "Presenza intimidatoria"
+       ]
+      }
+     ]
+    }
    ]
   },
   {
@@ -1032,6 +1065,34 @@
       1
      ]
     }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/collegio-della-sapienza",
+     "name": "Collegio della Sapienza",
+     "description": "Scandaglia le profondità della conoscenza magica\n\nI bardi del Collegio della Sapienza accumulano incantesimi e segreti da varie fonti, come tomi accademici, riti mistici e racconti della tradizione contadina. I membri del collegio si riuniscono nelle biblioteche e nelle università per condividere la loro sapienza con gli altri. Si incontrano anche in occasione di feste popolari e ricevimenti di stato, dove possono denunciare casi di corruzione, smascherare bugie e farsi beffe dei più pomposi esponenti delle autorità.\n\nLivello 3 — Competenze bonus: Il bardo acquisisce competenza in tre abilità a scelta.\n\nLivello 3 — Parole taglienti: Il bardo impara a fare buon uso del suo ingegno per distrarre, confondere e fiaccare la determinazione e la competenza altrui in maniera soprannaturale. Quando una creatura che il bardo è in grado di vedere situata entro 18 metri da sé effettua un tiro per i danni, o supera una prova di caratteristica o un tiro per colpire, il bardo può usare una reazione per spendere un utilizzo di Ispirazione bardica; il bardo tira il dado di Ispirazione bardica e sottrae il numero ottenuto dal tiro della creatura, riducendo il danno o trasformando potenzialmente il successo in un fallimento.\n\nLivello 6 — Scoperte magiche: Il bardo apprende due incantesimi a scelta che possono far parte della lista degli incantesimi del chierico, del druido o del mago o di una loro combinazione (vedi la sezione di ciascuna classe per i rispettivi incantesimi). L'incantesimo scelto deve essere un trucchetto o un incantesimo per il quale il personaggio dispone di slot incantesimo, come indicato nella tabella Privilegi del bardo. Gli incantesimi scelti sono sempre considerati preparati e ogni volta che il personaggio ottiene un livello da bardo può sostituire uno degli incantesimi con un altro che soddisfi questi requisiti.\n\nLivello 14 — Abilità impareggiabile: Quando un bardo effettua una prova di caratteristica o un tiro per colpire e fallisce, può spendere un utilizzo di Ispirazione bardica; se lo fa, tira un dado di Ispirazione bardica e aggiunge il risultato ottenuto al d20, trasformando potenzialmente il fallimento in un successo. In caso di fallimento, l'Ispirazione bardica non viene consumata.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Competenze bonus",
+        "Parole taglienti"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Scoperte magiche"
+       ]
+      },
+      {
+       "level": 14,
+       "features": [
+        "Abilità impareggiabile"
+       ]
+      }
+     ]
+    }
    ]
   },
   {
@@ -1383,6 +1444,35 @@
       2,
       1,
       1
+     ]
+    }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/dominio-della-vita",
+     "name": "Dominio della Vita",
+     "description": "Allevia le ferite del mondo\n\nIl Dominio della Vita si concentra sull'energia positiva che aiuta a sostenere ogni essere vivente del multiverso. I chierici che attingono a questo dominio sono maestri della guarigione e usano la forza vitale per curare molte ferite. L'esistenza stessa si basa sull'energia positiva associata a questo dominio, rendendolo adatto a pressoché qualsiasi tradizione religiosa. Questo dominio è associato in particolare alle divinità dell'agricoltura, agli dèi della guarigione o della resistenza e agli dèi della casa e della comunità. La magia di questo dominio viene cercata anche dagli ordini religiosi dei guaritori.\n\nLivello 3 — Discepolo della vita: Quando un incantesimo lanciato dal chierico con uno slot incantesimo ripristina i punti ferita di una creatura, quella creatura recupera un ammontare di punti ferita aggiuntivi nel turno in cui l'incantesimo viene lanciato. I punti ferita aggiuntivi sono pari a 2 più il livello dello slot incantesimo.\n\nLivello 3 — Incantesimi del Dominio della Vita: La connessione con questo dominio divino permette al chierico di avere sempre pronti alcuni incantesimi. Quando il chierico raggiunge un livello specificato nella tabella Incantesimi del Dominio della Vita, gli incantesimi lì elencati sono considerati come preparati. Incantesimi del Dominio della Vita Livello da chierico Incantesimi preparati 3 Aiuto, benedizione, cura ferite e ristorare inferiore 5 Parola guaritrice di massa e rinascita 7 Aura di vita e interdizione alla morte 9 Ristorare superiore e cura ferite di massa\n\nLivello 3 — Preservare vita: Come azione di Magia, il chierico brandisce il suo simbolo sacro e spende un utilizzo di Incanalare divinità per evocare un flusso di energia curativa che può ripristinare un numero di punti ferita pari a cinque volte il suo livello da chierico. Il personaggio sceglie delle creature sanguinanti entro 9 metri da sé (incluso se stesso) e divide quei punti ferita tra loro. Questo privilegio può ripristinare un ammontare di punti ferita di una creatura che la riporti a non più della metà dei suoi punti ferita massimi.\n\nLivello 6 — Guaritore benedetto: Gli incantesimi curativi che il chierico lancia sugli altri guariscono anche il chierico stesso. Subito dopo aver lanciato un incantesimo con uno slot incantesimo che ripristina i punti ferita di una o più creature diverse da se stesso, il chierico recupera punti ferita pari a 2 più il livello dello slot incantesimo.\n\nLivello 17 — Guarigione suprema: Quando il chierico sta per lanciare normalmente uno o più dadi per ripristinare i punti ferita di una creatura con un incantesimo o con Incanalare divinità, anziché tirare quei dadi per la guarigione, usa il numero più alto possibile per ogni dado. Ad esempio, invece di ripristinare 2d6 punti ferita di una creatura con un incantesimo, un chierico ne ripristina 12.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Discepolo della vita",
+        "Incantesimi del Dominio della Vita",
+        "Preservare vita"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Guaritore benedetto"
+       ]
+      },
+      {
+       "level": 17,
+       "features": [
+        "Guarigione suprema"
+       ]
+      }
      ]
     }
    ]
@@ -1743,6 +1833,40 @@
       2,
       1,
       1
+     ]
+    }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/circolo-della-terra",
+     "name": "Circolo della Terra",
+     "description": "Celebra la connessione con il mondo naturale\n\nIl Circolo della Terra è composto da mistici e sapienti che preservano i riti e le conoscenze dei tempi antichi. Questi druidi si incontrano all'interno di circoli sacri di alberi o monoliti, per rivelarsi in Druidico i segreti primordiali che hanno appreso. I più saggi membri del circolo presiedono come sommi sacerdoti delle comunità.\n\nLivello 3 — Incantesimi del Circolo della Terra: Al termine di un riposo lungo, il druido sceglie un tipo di terra: arida, polare, temperata o tropicale. Consulta la tabella qui di seguito corrispondente al tipo di terra scelto; gli incantesimi elencati per il livello da druido attuale e per i livelli inferiori si considerano preparati. Terra arida Livello da druido Incantesimi del Circolo 3 Dardo di fuoco, mani brucianti, sfocatura 5 Palla di fuoco 7 Inaridire 9 Muro di pietra Terra polare Livello da druido Incantesimi del Circolo 3 Blocca persone , nube di nebbia, raggio di gelo 5 Tempesta di nevischio 7 Tempesta di ghiaccio 9 Cono di freddo Terra temperata Livello da druido Incantesimi del Circolo 3 Passo velato, sonno e stretta folgorante 5 Fulmine 7 Libertà di movimento 9 Traslazione arborea Terra tropicale Livello da druido Incantesimi del Circolo 3 Fiotto acido, raggio di infermità , ragnatela 5 Nube maleodorante 7 Metamorfosi 9 Piaga degli insetti\n\nLivello 3 — Ausilio dalla terra: Come azione di Magia, può spendere un utilizzo di Forma selvatica e scegliere un punto entro 18 metri da sé. Per un istante, in una sfera del raggio di 3 metri centrata su quel punto appaiono fiori che donano vitalità e spine che risucchiano la vita. Ogni creatura nella sfera a scelta del druido deve effettuare un tiro salvezza su Costituzione contro la CD del tiro salvezza sul suo incantesimo. La creatura subisce 2d6 danni necrotici in caso di fallimento, o la metà in caso di successo. Una creatura a scelta del druido in quell'area recupera 2d6 punti ferita. I danni e la guarigione del personaggio aumentano di 1d6 quando raggiunge il 10º (3d6) e il 14º (4d6) livello da druido.\n\nLivello 6 — Recupero naturale: Il druido può lanciare uno degli incantesimi di 1º livello o superiore che ha preparato con il privilegio Incantesimi del Circolo senza spendere uno slot incantesimo; deve completare un riposo lungo prima di poterlo fare di nuovo. Inoltre, quando completa un riposo breve, sceglie quali slot incantesimo spesi desidera recuperare. Questi slot incantesimo possono avere un livello totale pari o inferiore alla metà del livello da druido (arrotondato per eccesso) e nessuno slot può essere di livello superiore al 6º. Per esempio, se il personaggio è un druido di 6º livello, può recuperare slot incantesimo per un valore totale di tre livelli. Il druido può recuperare uno slot incantesimo di 3º livello, uno slot incantesimo di 2º livello e uno di 1º livello, o tre slot incantesimo di 1º livello. Dopo aver recuperato gli slot incantesimo con questo privilegio, il druido non può farlo di nuovo prima di aver completato un riposo lungo.\n\nLivello 10 — Interdizione della Natura: Il druido è immune alla condizione avvelenato ed è dotato di resistenza a un tipo di danno associato alla terra che ha scelto per il privilegio Incantesimi del Circolo, come indicato nella tabella Interdizione della Natura. Interdizione della Natura Tipo di terra Resistenza Arida Fuoco Polare Freddo Tipo di terra Resistenza Temperata Fulmine Tropicale Veleno\n\nLivello 14 — Rifugio della Natura: Come azione di Magia, il druido può spendere un utilizzo della sua Forma selvatica per far apparire alberi e viticci spettrali in un cubo con spigolo di 4,5 metri in un punto del terreno entro 36 metri da sé. La vegetazione permane per 1 minuto, o finché il druido non è incapacitato o morto. Mentre si trovano in quell'area, il druido e i suoi alleati ottengono mezza copertura, e gli alleati ottengono la resistenza conferita da Interdizione della Natura. Come azione bonus, il druido può muovere il cubo fino a 18 metri sul terreno entro 36 metri da sé.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Incantesimi del Circolo della Terra",
+        "Ausilio dalla terra"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Recupero naturale"
+       ]
+      },
+      {
+       "level": 10,
+       "features": [
+        "Interdizione della Natura"
+       ]
+      },
+      {
+       "level": 14,
+       "features": [
+        "Rifugio della Natura"
+       ]
+      }
      ]
     }
    ]
@@ -2116,6 +2240,46 @@
       0,
       0,
       0
+     ]
+    }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/campione",
+     "name": "Campione",
+     "description": "Raggiungi l'eccellenza fisica nel combattimento\n\nIl campione si concentra sullo sviluppo delle abilità marziali in un'incessante ricerca della vittoria. Unisce un rigoroso addestramento a una condizione fisica eccellente per infliggere colpi devastanti, resistere ai pericoli e ottenere la gloria. Che si tratti di gare atletiche o di battaglie sanguinose, i campioni lottano per la corona del vincitore.\n\nLivello 3 — Critico migliorato: I tiri per colpire con armi e con colpi senz'armi possono mettere a segno un colpo critico con un risultato di 19 o 20 al tiro del d20.\n\nLivello 3 — Atleta straordinario: Grazie alle sue doti atletiche, il guerriero dispone di vantaggio ai tiri per l'iniziativa e alle prove di Forza (Atletica). Inoltre, subito dopo aver messo a segno un colpo critico, può muoversi fino a metà della propria velocità senza provocare attacchi di opportunità.\n\nLivello 7 — Stile di combattimento aggiuntivo: Il guerriero può scegliere un altro talento Stile di combattimento.\n\nLivello 10 — Guerriero eroico: Il brivido della battaglia conduce il guerriero verso la vittoria. Durante il combattimento, può concedere a se stesso Ispirazione eroica ogni volta che inizia il turno senza di essa.\n\nLivello 15 — Critico superiore: I tiri per colpire con armi e con colpi senz'armi possono mettere a segno un colpo critico con un risultato di 18–20 al tiro del d20.\n\nLivello 18 — Sopravvissuto: Il guerriero giunge all'apice della sua resilienza in battaglia, ottenendo i seguenti benefici. Sfuggire alla morte. Dispone di vantaggio ai tiri salvezza contro morte. Inoltre, quando ottiene 18–20 a un tiro salvezza contro morte, possiede il beneficio di ottenere un 20. Incoraggiamento eroico. All'inizio di ogni suo turno, il guerriero recupera punti ferita pari a 5 più il suo modificatore di Costituzione se è sanguinante e possiede almeno 1 punto ferita.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Critico migliorato",
+        "Atleta straordinario"
+       ]
+      },
+      {
+       "level": 7,
+       "features": [
+        "Stile di combattimento aggiuntivo"
+       ]
+      },
+      {
+       "level": 10,
+       "features": [
+        "Guerriero eroico"
+       ]
+      },
+      {
+       "level": 15,
+       "features": [
+        "Critico superiore"
+       ]
+      },
+      {
+       "level": 18,
+       "features": [
+        "Sopravvissuto"
+       ]
+      }
      ]
     }
    ]
@@ -2500,6 +2664,40 @@
       0
      ]
     }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/furfante",
+     "name": "Furfante",
+     "description": "Vai a caccia di tesori nei panni di un autentico\n\navventuriero Grazie alle capacità da scassinatore, cacciatore di tesori ed esploratore, il personaggio ormai rappresenta l'avventuriero per antonomasia. Oltre a vantare agilità e furtività migliorate, ottiene abilità utili per addentrarsi in rovine inesplorate e acquisire il massimo beneficio dagli oggetti magici al loro interno.\n\nLivello 3 — Mani veloci: Come azione bonus, puoi scegliere una delle opzioni elencate di seguito. Rapidità di mano. Il ladro effettua una prova di Destrezza (Rapidità di mano) per scassinare una serratura, disattivare una trappola con gli arnesi da scasso o borseggiare qualcuno. Usare un oggetto. Puoi effettuare l'azione di Utilizzo o di Magia per utilizzare un oggetto magico che richiede una di quelle azioni.\n\nLivello 3 — Lavoro al secondo piano: Grazie a un duro addestramento, riesci ad arrivare in luoghi particolarmente difficili da raggiungere, ottenendo i seguenti benefici. Scalatore. Il personaggio ottiene una velocità di scalata pari alla propria velocità. Saltatore. Il ladro può determinare la distanza dei suoi salti usando il modificatore di Destrezza anziché quello di Forza.\n\nLivello 9 — Furtività suprema: Il ladro ottiene la seguente opzione per il Colpo astuto. Attacco nascosto (costo: 1d6). Se il ladro è invisibile per via dell'azione Nascondersi, l'attacco non interrompe tale condizione se termina il turno dietro a tre quarti di copertura o a una copertura totale.\n\nLivello 13 — Usare oggetto magico: Il ladro ha imparato a trarre il massimo dall'utilizzo degli oggetti magici, ottenendo i seguenti benefici. Cariche. Quando il ladro usa la proprietà di un oggetto magico che ne consuma delle cariche, tira 1d6. Se il risultato è 6, la proprietà viene utilizzata senza consumare cariche. Pergamene. Il ladro può utilizzare qualunque pergamena magica sfruttando Intelligenza come caratteristica da incantatore. Se l'incantesimo è un trucchetto o un incantesimo di 1º livello, può lanciarlo senza effettuare alcuna prova. Invece, se la pergamena contiene un incantesimo di livello superiore, deve prima superare una prova di Intelligenza (Arcano) (CD 10 più il livello dell'incantesimo). Se la prova viene superata, lancerà l'incantesimo. In caso di fallimento, la pergamena si disintegra. Sintonia. Il ladro può entrare in sintonia con un massimo di quattro oggetti magici contemporaneamente.\n\nLivello 17 — Riflessi da furfante: Il ladro è diventato abile nel tendere imboscate e sfuggire rapidamente alle situazioni di pericolo. Per questo, può effettuare due turni durante il primo round di ogni combattimento. Effettua il suo primo turno alla sua normale iniziativa e il secondo turno alla sua iniziativa meno 10.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Mani veloci",
+        "Lavoro al secondo piano"
+       ]
+      },
+      {
+       "level": 9,
+       "features": [
+        "Furtività suprema"
+       ]
+      },
+      {
+       "level": 13,
+       "features": [
+        "Usare oggetto magico"
+       ]
+      },
+      {
+       "level": 17,
+       "features": [
+        "Riflessi da furfante"
+       ]
+      }
+     ]
+    }
    ]
   },
   {
@@ -2852,6 +3050,40 @@
       2,
       1,
       1
+     ]
+    }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/invocatore",
+     "name": "Invocatore",
+     "description": "Crea effetti elementali esplosivi\n\nUn invocatore concentra i suoi studi sulle magie che generano potenti effetti elementali come un freddo pungente, una fiamma incandescente, un rombo di tuono, un fulmine crepitante o un acido sfrigolante. Alcuni invocatori prestano servizio nelle forze militari come unità di artiglieria in grado di colpire gli eserciti nemici da lontano. Altri usano i loro poteri per proteggere il prossimo, mentre altri ancora li sfruttano per il proprio tornaconto personale.\n\nLivello 3 — Invocatore sapiente: Scegli due incantesimi da mago della scuola di Invocazione che non siano di livello superiore al 2º, e aggiungili gratuitamente al libro degli incantesimi del mago. Inoltre, ogni volta che il personaggio ottiene accesso a un nuovo livello di slot incantesimo in questa classe, puoi aggiungere gratuitamente al libro un ulteriore incantesimo da mago della scuola di Invocazione. L'incantesimo scelto deve essere di un livello di cui possiede degli slot incantesimo.\n\nLivello 3 — Trucchetto potente: I trucchetti del mago che infliggono danni possono influenzare perfino le creature che altrimenti eviterebbero il grosso dell'effetto. Quando il personaggio lancia un trucchetto contro una creatura e la manca con il tiro per colpire o questa supera il tiro salvezza contro il trucchetto, il bersaglio subisce metà dei danni (se applicabile), ma non gli vengono inflitti eventuali effetti aggiuntivi.\n\nLivello 6 — Plasmare incantesimi: Il mago è in grado di creare delle sacche di relativa sicurezza all'interno degli effetti delle sue invocazioni. Quando il mago lancia un incantesimo di Invocazione che influenza le altre creature nel suo campo visivo, può scegliere un numero di quelle creature pari a 1 più il livello dell'incantesimo. Le creature scelte superano automaticamente i loro tiri salvezza contro l'incantesimo e non subiscono alcun danno se normalmente subirebbero la metà dei danni in caso di tiro salvezza superato.\n\nLivello 10 — Invocazione potente: Quando il mago lancio un incantesimo della scuola di Invocazione, può aggiungere a un tiro per i danni il suo modificatore di Intelligenza.\n\nLivello 14 — Saturazione magica: Il mago può aumentare il potere dei suoi incantesimi. Quando lancia un incantesimo con uno slot di livello da 1 a 5 che infligge danni, con quell'incantesimo può infliggere il massimo dei danni nel turno in cui lo lancia. La prima volta che lo fa, il mago non subisce alcun effetto avverso. Se però utilizza questo privilegio di nuovo prima di avere completato un riposo lungo, subisce 2d12 danni necrotici per ogni livello dell'incantesimo in questione, subito dopo averlo lanciato. Questi danni ignorano le varie forme di resistenza e immunità. Ogni volta che utilizza di nuovo questo privilegio prima di aver completato un riposo lungo, i danni necrotici per livello dell'incantesimo aumentano di 1d12.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Invocatore sapiente",
+        "Trucchetto potente"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Plasmare incantesimi"
+       ]
+      },
+      {
+       "level": 10,
+       "features": [
+        "Invocazione potente"
+       ]
+      },
+      {
+       "level": 14,
+       "features": [
+        "Saturazione magica"
+       ]
+      }
      ]
     }
    ]
@@ -3232,6 +3464,39 @@
       0
      ]
     }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/guerriero-della-mano-aperta",
+     "name": "Guerriero della Mano Aperta",
+     "description": "Padroneggia le tecniche di combattimento senz'armi\n\nI Guerrieri della Mano Aperta sono i maestri del combattimento senz'armi. Apprendono tecniche speciali per spingere e sbilanciare i loro avversari e manipolano la propria energia per proteggersi dai danni.\n\nLivello 3 — Tecnica della mano aperta: Ogni volta che il monaco colpisce una creatura con un attacco concessogli dalla sua Raffica di colpi, può imporre a quel bersaglio uno degli effetti seguenti: Disorientamento. Il bersaglio non può effettuare attacchi di opportunità fino all'inizio del suo turno successivo. Spinta. Il bersaglio deve effettuare un tiro salvezza su Forza. Se lo fallisce, il monaco spinge il bersaglio via da sé fino a un massimo di 4,5 metri. Rovesciamento. Il bersaglio deve superare un tiro salvezza su Destrezza, altrimenti cade a terra prono.\n\nLivello 6 — Integrità del corpo: Il monaco ottiene la capacità di curarsi. Come azione bonus, può tirare il dado di Arti marziali. In questo modo, recupera un numero di punti ferita pari al risultato ottenuto più il suo modificatore di Saggezza (minimo di 1 punto ferita recuperato). Il personaggio può utilizzare questo privilegio un numero di volte pari al valore del suo modificatore di Saggezza (minimo una volta) e recupera tutti gli utilizzi consumati quando completa un riposo lungo.\n\nLivello 11 — Passo lesto: Quando il monaco effettua un'azione bonus diversa da Passo del vento, può usare anche Passo del vento subito dopo l'azione bonus.\n\nLivello 17 — Palmo tremante: Il monaco ottiene la capacità di scatenare vibrazioni letali nel corpo di un altro. Quando il monaco colpisce una creatura con un colpo senz'armi, può spendere 4 punti concentrazione per dare il via a queste vibrazioni impercettibili, che durano un numero di giorni pari al suo livello da monaco. Le vibrazioni sono innocue, a meno che il monaco non effettui un'azione per interromperle. In alternativa, quando effettua l'azione di Attacco nel proprio turno, può rinunciare a uno degli attacchi per porre fine alle vibrazioni. Per farlo, il monaco e il bersaglio devono trovarsi sullo stesso piano di esistenza. Quando il monaco pone fine alle vibrazioni, il bersaglio deve effettuare un tiro salvezza su Costituzione; subisce 10d12 danni da forza in caso di fallimento, o la metà dei danni in caso di successo. Il monaco può tenere soltanto una creatura alla volta sotto l'effetto di questo privilegio. Le vibrazioni possono essere interrotte senza provocare danni (nessuna azione richiesta).",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Tecnica della mano aperta"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Integrità del corpo"
+       ]
+      },
+      {
+       "level": 11,
+       "features": [
+        "Passo lesto"
+       ]
+      },
+      {
+       "level": 17,
+       "features": [
+        "Palmo tremante"
+       ]
+      }
+     ]
+    }
    ]
   },
   {
@@ -3594,6 +3859,40 @@
       0,
       0,
       0
+     ]
+    }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/giuramento-di-devozione",
+     "name": "Giuramento di devozione",
+     "description": "Tieni fede agli ideali di giustizia e ordine\n\nIl Giuramento di devozione vincola i paladini agli ideali di giustizia e ordine, avvicinandoli all'archetipo del \"cavaliere senza macchia e senza paura\". Si considerano modelli esemplari di condotta e alcuni di loro, nel bene e nel male, applicano gli stessi parametri al resto del mondo. Molti di coloro che prestano questo giuramento sono devoti agli dèi della legalità e del bene, e usano i dettami delle loro divinità come misura della propria devozione. Altri, invece, prendono gli angeli come esempi dei propri ideali e integrano immagini di ali angeliche nei propri elmi o stemmi. Condividono i seguenti dettami: • Che la tua parola sia vincolante come una promessa. • Proteggi i deboli e non aver mai paura di agire. • Che le tue onorevoli gesta siano da esempio per gli altri.\n\nLivello 3 — Incantesimi del Giuramento di devozione: La magia del giuramento del paladino gli consente di avere sempre pronti determinati incantesimi. Una volta raggiunto un livello specificato nella tabella Incantesimi del Giuramento di devozione, gli incantesimi lì elencati saranno sempre considerati come preparati. Incantesimi del Giuramento di devozione Livello da paladino Incantesimi 3 Protezione dal bene e dal male , scudo della fede 5 Aiuto, zona di verità 9 Faro di speranza, dissolvi magie 13 Libertà di movimento , guardiano della fede 17 Comunione, colpo infuocato\n\nLivello 3 — Arma consacrata: Quando il paladino effettua l'azione di Attacco, può consumare uno degli usi di Incanalare divinità per infondere energia positiva nell'arma da mischia che impugna. Per 10 minuti o fino al prossimo utilizzo del privilegio, il paladino aggiunge il suo modificatore di Carisma ai tiri per colpire eseguiti con quell'arma (fino a un bonus minimo di +1) e, ogni volta che colpisce, può infliggere danni normali o radiosi. Inoltre, l'arma emette luce intensa in un raggio di 6 metri e luce fioca per ulteriori 6 metri. Questo effetto può essere interrotto in anticipo (nessuna azione richiesta). L'effetto termina se il paladino non ha più con sé l'arma interessata.\n\nLivello 7 — Aura di devozione: Il paladino e i suoi alleati non possono essere affascinati finché si trovano all'interno dell'Aura di protezione. Se un alleato affascinato entra nel suo raggio d'influenza, non subirà più quell'effetto finché sarà al suo interno.\n\nLivello 15 — Punizione protettiva: La punizione magica del paladino ora emana energia protettiva. Ogni volta che utilizza punizione divina, il paladino e i suoi alleati ottengono mezza copertura finché sono nell'Aura di protezione. Questo beneficio rimane attivo fino all'inizio del suo turno successivo.\n\nLivello 20 — Nube sacra: Come azione bonus, il paladino può infondere la sua Aura di protezione con del potere sacro, conferendo i benefici sottostanti per 10 minuti o finché non vengono interrotti (nessuna azione richiesta). Dopo aver utilizzato questo privilegio, il personaggio non può riutilizzarlo prima di aver completato un riposo lungo. Tuttavia, è possibile ripristinarne l'uso consumando uno slot incantesimo di 5º livello (nessuna azione richiesta). Danni radiosi. Se un nemico comincia il suo turno all'interno dell'aura, subisce danni radiosi pari al modificatore di Carisma più il bonus di competenza del paladino. Luce del sole. L'aura rifulge di luce intensa, ovvero la luce solare. Sentinella sacra. Se costretto a effettuare dei tiri salvezza da un immondo o un non morto, il paladino dispone di vantaggio.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Incantesimi del Giuramento di devozione",
+        "Arma consacrata"
+       ]
+      },
+      {
+       "level": 7,
+       "features": [
+        "Aura di devozione"
+       ]
+      },
+      {
+       "level": 15,
+       "features": [
+        "Punizione protettiva"
+       ]
+      },
+      {
+       "level": 20,
+       "features": [
+        "Nube sacra"
+       ]
+      }
      ]
     }
    ]
@@ -3964,6 +4263,40 @@
       0
      ]
     }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/cacciatore",
+     "name": "Cacciatore",
+     "description": "Proteggi la natura e le persone dalla distruzione\n\nBracchi la preda sia nelle terre selvagge che in ogni altro luogo, utilizzando le tue abilità di cacciatore per proteggere la natura e le persone dalle forze che intendono distruggerle.\n\nLivello 3 — Sapienza del cacciatore: Il cacciatore può fare appello alle forze della natura per scoprire punti di forza e debolezza della propria preda. Se una creatura ha su di sé il marchio del cacciatore del personaggio, questi saprà se il bersaglio ha immunità, resistenze e vulnerabilità, e quali sono.\n\nLivello 3 — Preda del cacciatore: Il ranger ottiene una delle seguenti opzioni di privilegio a scelta. Ogni volta che completa un riposo breve o lungo, può sostituire l'opzione selezionata con l'altra. Devastatore dell'orda. Una volta per turno quando il ranger effettua un attacco con un'arma, può sferrare un altro attacco con la stessa arma contro una creatura diversa che sia entro 1,5 metri dal bersaglio originale e a portata dell'arma, e che non abbia già attaccato nel corso del turno corrente. Sterminatore di colossi. La tenacia del ranger scoraggia anche i nemici più resilienti. Quando colpisce una creatura con un'arma, questa infligge 1d8 danni aggiuntivi al bersaglio se gli mancano dei punti ferita. Può infliggere questi danni extra solo una volta per turno.\n\nLivello 7 — Tattiche difensive: Il ranger ottiene una delle seguenti opzioni di privilegio a scelta. Ogni volta che completa un riposo breve o lungo, può sostituire l'opzione selezionata con l'altra. Difesa dal multiattacco. Se una creatura colpisce il ranger con un tiro per colpire subirà svantaggio a tutti gli altri tiri per colpire effettuati contro il ranger durante il turno. Sfuggire all'orda. Gli attacchi di opportunità effettuati contro il personaggio subiscono svantaggio.\n\nLivello 11 — Preda del cacciatore superiore: Una volta per turno, quando il ranger infligge danni a una creatura su cui è posto il suo marchio del cacciatore, può infliggere i danni aggiuntivi dell'incantesimo anche a una creatura nel suo campo visivo che si trovi entro 9 metri dal primo bersaglio.\n\nLivello 15 — Difesa del cacciatore superiore: Quando il ranger subisce danni, può utilizzare una reazione per ottenere resistenza a quel danno e ad altri dello stesso tipo fino al termine del turno in corso.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Sapienza del cacciatore",
+        "Preda del cacciatore"
+       ]
+      },
+      {
+       "level": 7,
+       "features": [
+        "Tattiche difensive"
+       ]
+      },
+      {
+       "level": 11,
+       "features": [
+        "Preda del cacciatore superiore"
+       ]
+      },
+      {
+       "level": 15,
+       "features": [
+        "Difesa del cacciatore superiore"
+       ]
+      }
+     ]
+    }
    ]
   },
   {
@@ -4319,6 +4652,40 @@
       2,
       1,
       1
+     ]
+    }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/stregoneria-draconica",
+     "name": "Stregoneria draconica",
+     "description": "Lasciati inebriare dalla magia dei draghi\n\nLa magia innata dello stregone proviene dal dono di un drago. Potrebbe averla ereditata da un drago antico che, prossimo alla morte, ha conferito il proprio potere magico a lui o a un suo antenato, o magari l'ha assorbito da un luogo pregno di energia draconica o da uno dei tesori di queste creature. Oppure uno dei suoi antenati era un drago.\n\nLivello 3 — Resilienza draconica: La magia nel corpo dello stregone fa sì che il suo corpo mostri i tratti fisici del proprio dono draconico. I punti ferita massimi del personaggio salgono di 3 e aumentano di nuovo di 1 ogni volta che acquisisce un livello da stregone. Inoltre, alcune parti del suo corpo sono ricoperte da scaglie di drago. Se non indossa armatura, la Classe Armatura base corrisponde a 10 più i modificatori di Destrezza e Carisma.\n\nLivello 3 — Incantesimi draconici: Quando lo stregone raggiunge un livello specificato nella tabella Incantesimi draconici, gli incantesimi lì elencati sono considerati come preparati. Incantesimi draconici Livello da stregone Incantesimi 3 Alterare se stesso , globo cromatico , comando, soffio del drago 5 Paura, volare 7 Occhio arcano, charme sui mostri 9 Conoscenza delle leggende , richiama drago\n\nLivello 6 — Affinità elementale: Grazie alla sua magia draconica, lo stregone ha affinità con un tipo di danno associato ai draghi e può sceglierne uno fra quelli seguenti: acido, freddo, fulmine, fuoco o veleno. Lo stregone è dotato di resistenza al tipo di danno selezionato e, quando lancia un incantesimo di quell'elemento, può aggiungere il proprio modificatore di Carisma a un tiro per i danni per quell'incantesimo.\n\nLivello 14 — Ali di drago: Come azione bonus, lo stregone può far apparire delle ali draconiche sulla sua schiena per 1 ora o finché non le fa scomparire (nessuna azione richiesta). Per tutta la durata dell'abilità, il personaggio ha velocità di volo di 18 metri. Dopo aver usato questo privilegio, il personaggio non può riutilizzarlo prima di aver completato un riposo lungo; può ignorare questo limite spendendo 3 punti stregoneria (nessuna azione richiesta).\n\nLivello 18 — Seguace draconico: Lo stregone può lanciare richiama drago senza usare una componente materiale. Inoltre, può anche lanciarlo una volta senza consumare uno slot incantesimo e recupera l'abilità di lanciarlo in questo modo dopo aver completato un riposo lungo. Ogni volta che lo stregone lancia l'incantesimo, può modificarlo in modo che non richieda concentrazione. Così facendo, per quel lancio la durata dell'incantesimo diventa di 1 minuto.",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Resilienza draconica",
+        "Incantesimi draconici"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Affinità elementale"
+       ]
+      },
+      {
+       "level": 14,
+       "features": [
+        "Ali di drago"
+       ]
+      },
+      {
+       "level": 18,
+       "features": [
+        "Seguace draconico"
+       ]
+      }
      ]
     }
    ]
@@ -4678,6 +5045,40 @@
       0,
       0,
       0
+     ]
+    }
+   ],
+   "subclasses": [
+    {
+     "id": "srd-2024-it/sottoclasse/patrono-immondo",
+     "name": "Patrono immondo",
+     "description": "Stringi un patto con i Piani Inferiori\n\nGrazie al patto stretto, il warlock attinge i suoi poteri dai Piani Inferiori, ovvero i regni della perdizione. Potrebbe aver stipulato un accordo con un signore dei demoni, un arcidiavolo o un altro immondo particolarmente potente. Il patrono ha obiettivi malvagi, come la corruzione o la distruzione di tutto (incluso il warlock stesso) e il percorso del personaggio sarà plasmato dalla misura in cui si batterà per sabotarli.\n\nLivello 3 — Benedizione dell'oscuro: Quando il personaggio fa scendere un nemico a 0 punti ferita, ottiene una quantità di punti ferita temporanei pari al modificatore di Carisma più il proprio livello da warlock (minimo 1 punto ferita temporaneo). Questo beneficio viene ottenuto anche nel caso in cui un nemico entro 3 metri dal warlock sia ridotto a 0 punti ferita da qualcun altro.\n\nLivello 3 — Incantesimi immondi: La magia del patrono consente al warlock di avere sempre pronti determinati incantesimi. Una volta raggiunto un livello specificato nella tabella Incantesimi immondi, gli incantesimi lì elencati saranno sempre considerati come preparati. Incantesimi immondi Livello da warlock Incantesimi 3 Comando, mani brucianti , raggio rovente, suggestione 5 Nube maleodorante, palla di fuoco 7 Muro di fuoco, scudo di fuoco 9 Costrizione, piaga degli insetti\n\nLivello 6 — Fortuna dell'Oscuro: Il warlock può appellarsi al proprio patrono immondo per alterare il fato in suo favore. Quando effettua una prova di caratteristica o un tiro salvezza, può utilizzare questo privilegio per aggiungere 1d10 al suo tiro. Può farlo dopo avere visto il tiro, ma prima che qualsiasi effetto del tiro sia applicato. Questo privilegio è utilizzabile un numero di volte pari al modificatore di Carisma del personaggio (minimo una volta), ma non più di una volta per ogni tiro. Tutti gli utilizzi spesi vengono recuperati quando il personaggio completa un riposo lungo.\n\nLivello 10 — Resilienza immonda: Ogni volta che il personaggio completa un riposo breve o lungo, è possibile scegliere un tipo di danno (tranne forza). Così facendo, ottiene resistenza a quel tipo di danno finché non ne sceglie uno diverso tramite questo privilegio.\n\nLivello 14 — Scagliare all'Inferno: Una volta per turno, quando il warlock colpisce una creatura con un tiro per colpire, può tentare di trasferire istantaneamente il bersaglio nei Piani Inferiori. Quest'ultimo deve superare un tiro salvezza su Carisma contro la CD del tiro salvezza sull'incantesimo del personaggio, altrimenti scomparirà e piomberà in un luogo raccapricciante. Se il bersaglio non è un immondo, subisce 8d10 danni psichici ed è incapacitato fino alla fine del turno successivo del personaggio, quando tornerà nello spazio precedentemente occupato o in quello libero più vicino. Dopo aver usato questo privilegio, il personaggio non può riutilizzarlo prima di aver completato un riposo lungo; può ignorare questo limite spendendo uno slot incantesimo della Magia del patto (nessuna azione richiesta).",
+     "levels": [
+      {
+       "level": 3,
+       "features": [
+        "Benedizione dell'oscuro",
+        "Incantesimi immondi"
+       ]
+      },
+      {
+       "level": 6,
+       "features": [
+        "Fortuna dell'Oscuro"
+       ]
+      },
+      {
+       "level": 10,
+       "features": [
+        "Resilienza immonda"
+       ]
+      },
+      {
+       "level": 14,
+       "features": [
+        "Scagliare all'Inferno"
+       ]
+      }
      ]
     }
    ]

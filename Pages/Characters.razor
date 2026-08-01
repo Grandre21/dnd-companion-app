@@ -138,6 +138,7 @@
                 {
                     <CharacterBioTab Character="@selected" CanEdit="@CanEdit" OnSaveNotes="@SaveNotesAsync"
                                      ClassProgressionText="@ProgressioneClasseSelezionata"
+                                     Subclass="@SottoclasseSelezionata"
                                      OnDelete="@DeleteSelectedAsync" IsBusy="@isBusy" />
                 }
 
@@ -164,6 +165,7 @@
             @* L'eliminazione sta in fondo alla tab «Scheda», non qui: si cerca guardando il
                personaggio, non entrando in modifica. *@
             <CharacterEditForm Draft="@editDraft" Classes="@classes" Races="@races"
+                               ClassPackages="@packageClasses"
                                IsBusy="@isBusy" OnSave="@SaveFormAsync" OnCancel="@CancelForm" />
             break;
     }
@@ -203,6 +205,19 @@
     // Classi del pacchetto: servono per mostrare i privilegi anche a chi NON ha importato le classi
     // nella campagna, che è il caso normale. Le righe di database restano la fonte prioritaria.
     private List<PackageClass> packageClasses = new();
+
+    /// <summary>La sottoclasse del PG come la conosce il manuale, null se scritta a mano.
+    ///
+    /// Si mostra solo se la classe è ancora quella del manuale: se il tavolo ha una propria riga
+    /// «Mago», mostrare lì sotto i privilegi SRD dell'Invocatore farebbe dire alla stessa schermata
+    /// due cose incoerenti — per una classe che quel tavolo ha deliberatamente sostituito. La
+    /// domanda la risolve <see cref="ClassProgression.ClasseDelManuale"/> e non l'esito di
+    /// <c>Risolvi</c>: una classe del tavolo che porti una propria tabella dei livelli lo fa
+    /// rispondere comunque, e quella tabella non è del manuale.</summary>
+    private PackageSubclass? SottoclasseSelezionata
+        => selected is null || !ClassProgression.ClasseDelManuale(classes, selected.Class)
+            ? null
+            : SubclassCatalog.Trova(packageClasses, selected.Class, selected.Subclass);
 
     /// <summary>Tabella dei livelli della classe del PG aperto; la regola di precedenza sta
     /// nell'helper puro, qui restano solo le due collezioni già caricate.</summary>

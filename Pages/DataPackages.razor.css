@@ -106,6 +106,75 @@
     line-height: 1.5;
 }
 
+/* ===== Guida al formato ===== */
+.guide-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    /* 44px: bersaglio tattile. */
+    min-height: 44px;
+    padding: 0.4rem 0;
+    background: transparent;
+    border: none;
+    color: var(--gold);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.guide-chevron {
+    color: var(--gold-dim);
+    font-size: 0.85rem;
+}
+
+.guide-body {
+    font-size: 0.88rem;
+    color: var(--gold-muted);
+    line-height: 1.55;
+}
+
+.guide-body p {
+    margin: 0 0 0.75rem;
+}
+
+.guide-body code {
+    padding: 1px 5px;
+    background: rgba(var(--black-rgb), 0.35);
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--gold-light);
+}
+
+.guide-code-label {
+    margin-bottom: 0.35rem !important;
+    color: var(--gold-dim);
+}
+
+/* Il blocco di codice scorre per conto suo: su un telefono una riga lunga
+   trascinerebbe in orizzontale l'intera pagina. */
+.guide-code {
+    margin: 0 0 1rem;
+    padding: 0.7rem 0.85rem;
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text);
+    white-space: pre;
+}
+
+/* ===== Azioni di esportazione ===== */
+.export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
 /* ===== Campo file / form ===== */
 .field {
     display: flex;
