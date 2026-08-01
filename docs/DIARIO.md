@@ -1207,8 +1207,8 @@ l'utente non preme «Aggiorna». In lettura Newtonsoft ignora le colonne che il 
 scrittura `Update` serializza solo le colonne mappate, quindi il client vecchio non può azzerare una
 colonna che non conosce. Nell'ordine inverso, però, la migrazione è un **prerequisito duro**: il
 client nuovo mappa `subclasses` e la manda su ogni scrittura, quindi senza `ALTER TABLE` fallirebbero
-con 400 anche «salva classe» e l'import — non le sole sottoclassi. È in DA-FARE fra le verifiche
-manuali, in cima.
+con 400 anche «salva classe» e l'import — non le sole sottoclassi. Applicata all'hosted prima del push,
+e verificata; vale come regola per ogni futura `ADD COLUMN` che entri anche nel modello.
 
 Il formato tiene un `id:` facoltativo in testa a ogni blocco. Non serve a niente dentro l'app —
 nessun ramo decisionale consulta l'id di una sottoclasse — e serve a due cose fuori: la fedeltà del

@@ -89,6 +89,13 @@ centinaia di migliaia di token, e applicarlo uguale a un refuso e a una migrazio
    **push** è automatico: su `main` pubblica, e resta su richiesta esplicita.
 
 Note:
+- **Se il lavoro è stato scritto da più subagent in parallelo, il gate va puntato sulle giunture.**
+  Verificato il 2026-08-01 su un fan-out di tre agenti a insiemi di file disgiunti: la divisione ha
+  funzionato (nessun conflitto, helper puri e test da ciascuno), ma **tutti** i difetti gravi stavano
+  dove un insieme incontra l'altro — l'export produceva un file che il parser nuovo rifiutava, e un
+  test rosso stava in un file che nessuno dei tre aveva in mano. Nessuno dei tre poteva vederli, per
+  costruzione. Quindi: nel prompt del gate elenca **esplicitamente** i confini (chi scrive / chi legge
+  lo stesso dato) e chiedi che li attraversino.
 - **Economia del prompt**: agli agenti passa **solo i file rilevanti** e i fatti già verificati
   («build Release 0/0, N test verdi: non rilanciarli»). Senza questa riga rifanno build e test a ogni
   giro, per ciascuno.

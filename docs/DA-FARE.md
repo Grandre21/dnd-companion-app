@@ -21,21 +21,17 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
 > ogni push e da segnalare all'utente.
 
-- 🔴 **Migrazione `20260801000000_class_subclasses.sql` da applicare all'hosted PRIMA del push.** Non è
-  la solita raccomandazione: il client nuovo mappa `classes.subclasses`, quindi `postgrest` la manda su
-  **ogni** scrittura. Senza l'`ALTER TABLE` non si rompono le sole sottoclassi — falliscono con 400
-  anche «salva classe», «duplica e modifica» e l'import delle classi. Verifica:
-  `SELECT column_name FROM information_schema.columns WHERE table_name='classes' AND column_name='subclasses';`
-- 🔴 **Migrazione `20260731000000_party_visibility.sql`** applicata a mano al Supabase hosted, se non
-  già fatto: finché non gira, la pagina Party mostra il banner d'errore. Verifica:
-  `SELECT proname FROM pg_proc WHERE proname = 'get_party_overview';`
+> Nessuna migrazione in sospeso: `20260801000000_class_subclasses.sql` e
+> `20260731000000_party_visibility.sql` sono entrambe applicate all'hosted (verificate il 2026-08-01,
+> con `information_schema.columns` e `pg_proc`).
+
 - 🟠 **Sottoclassi nella pagina Classi**: aggiungere, modificare (il nome resta al suo posto nell'elenco),
   rimuovere; «duplica e modifica» da una voce SRD deve portarsele dietro; le righe del manuale restano
   di sola lettura. E il menu della sottoclasse deve comparire nella scheda anche per una classe **del
   tavolo** o importata, non solo per quelle del manuale.
 - 🟠 **File esportato dal client precedente**: prendere un export «tutto, manuale incluso» fatto *prima*
-  di questo rilascio e reimportarlo. Deve entrare senza errori — è la compatibilità che ha fatto
-  esentare gli id di sottoclassi e talenti dal divieto del prefisso.
+  del 2026-08-01 e reimportarlo. Deve entrare senza errori — è la compatibilità che ha fatto esentare
+  gli id di sottoclassi e talenti dal divieto del prefisso. Se si rompe, quella scelta era sbagliata.
 - 🔴 **Prova a due account** (master + giocatore in incognito): il giocatore vede solo i propri PG, il
   master tutti; entrambi vedono il gruppo in Party con le sole stat sintetiche.
 - 🟠 **Publish Release trimmato**: `dotnet publish DndCompanion.csproj -c Release -o publish`, servire
