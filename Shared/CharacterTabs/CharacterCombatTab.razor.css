@@ -379,3 +379,248 @@
     font-size: 0.75rem;
     color: var(--gold-dim);
 }
+
+/* ===== Combat: risorse di classe =====
+   Stessa famiglia visiva di .hit-dice-card/.rest-card (stesso fondo/bordo): sono la stessa
+   famiglia di contatori che si spendono e si ripristinano (v. spec 2026-08-06). */
+.resource-card {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.resource-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.resource-name {
+    margin: 0;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.resource-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.resource-count {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gold-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.resource-edit-btn {
+    background: transparent;
+    border: none;
+    color: var(--gold-dim);
+    font-size: 1rem;
+    cursor: pointer;
+    font-family: inherit;
+    /* 44px anche se il glifo è piccolo: è un bersaglio a matita, non un'icona decorativa. */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.resource-edit-btn:hover {
+    color: var(--gold-light);
+}
+
+.resource-dots {
+    display: flex;
+    flex-wrap: wrap;
+    /* 2rem (32px): il pallino visibile misura 16px, quindi i centri distano 16+32=48px — sopra i
+       44px del tap target (::after sotto), che altrimenti si sovrapporrebbero fra pallini
+       adiacenti. Stesso ragionamento di .ds-dots più sopra, con un target più grande. */
+    gap: 2rem;
+    margin: 0.6rem 0.15rem 0.3rem;
+}
+
+.resource-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold-dim);
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+    flex-shrink: 0;
+}
+
+.resource-dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.resource-dot.filled {
+    background: var(--gold);
+    border-color: var(--gold);
+}
+
+.resource-recharge {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--gold-dim);
+    font-style: italic;
+}
+
+.resource-add-btn {
+    /* Stesso linguaggio visivo di .inv-add-btn (CharacterItemsTab.razor.css): la CSS isolation di
+       Blazor non fa seguire le regole scoped del genitore al markup di un figlio, quindi si
+       ridichiara qui (v. memoria "blazor-css-isolation-extraction"). */
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px dashed rgba(var(--gold-rgb), 0.5);
+    color: var(--gold);
+    padding: 0.7rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    margin-bottom: 0.6rem;
+    min-height: 44px;
+}
+
+.resource-add-btn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    border-style: solid;
+    color: var(--gold-light);
+}
+
+.resource-add-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.resource-form,
+.resource-edit-panel {
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.resource-edit-panel {
+    margin: 0.6rem 0 0;
+}
+
+.resource-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.resource-chip {
+    background: rgba(var(--gold-rgb), 0.12);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold-light);
+    padding: 0.5rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    min-height: 44px;
+}
+
+.resource-chip:hover {
+    background: rgba(var(--gold-rgb), 0.2);
+}
+
+.resource-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.6rem;
+}
+
+.resource-field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.resource-input {
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: #e8d9b5;
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 8px;
+    min-height: 44px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.resource-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.resource-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.resource-form-actions .primary-btn,
+.resource-form-actions .secondary-btn,
+.resource-delete-btn {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+}
+
+.resource-delete-btn {
+    background: transparent;
+    border: 1px solid rgba(var(--danger-rgb), 0.5);
+    color: rgb(var(--danger-rgb));
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+}
+
+.resource-delete-btn:hover:not(:disabled) {
+    background: rgba(var(--danger-rgb), 0.15);
+}
+
+.resource-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ===== Combat: bonus d'attacco calcolato ===== */
+.weapon-calc-hint {
+    font-size: 0.75rem;
+    color: var(--gold-dim);
+    font-style: italic;
+}

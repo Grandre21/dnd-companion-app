@@ -198,6 +198,39 @@
         </div>
     }
 
+    @* Addestramento: la stessa voce del riquadro "EQUIPMENT TRAINING & PROFICIENCIES" della
+       carta, testo libero (v. spec 2026-08-06, D4) perché non alimenta calcoli e si consulta
+       poche volte a campagna — non durante il gioco, come le altre voci sopra, quindi in fondo
+       a quel gruppo e non insieme alle NOTE LIBERE, che sono la parte a cambio frequente. *@
+    <div class="bio-block">
+        <p class="bio-block-title">ADDESTRAMENTO</p>
+
+        <div class="training-field">
+            <label class="training-label" for="training-armor">Armature</label>
+            <textarea id="training-armor" class="training-textarea" rows="2" @bind="armorTrainingDraft"
+                      disabled="@(!CanEdit)" placeholder="Es. leggera, media, pesante, scudi"></textarea>
+        </div>
+        <div class="training-field">
+            <label class="training-label" for="training-weapons">Armi</label>
+            <textarea id="training-weapons" class="training-textarea" rows="2" @bind="weaponProficienciesDraft"
+                      disabled="@(!CanEdit)" placeholder="Es. spade corte, asce, armi da tiro"></textarea>
+        </div>
+        <div class="training-field">
+            <label class="training-label" for="training-tools">Strumenti</label>
+            <textarea id="training-tools" class="training-textarea" rows="2" @bind="toolProficienciesDraft"
+                      disabled="@(!CanEdit)" placeholder="Es. strumenti da fabbro, kit del ladro"></textarea>
+        </div>
+
+        @if (CanEdit)
+        {
+            <button type="button" class="small-btn"
+                    @onclick="SaveTraining"
+                    disabled="@(isSavingTraining || !TrainingDraftsChanged)">
+                @(isSavingTraining ? "Salvataggio..." : "Salva addestramento")
+            </button>
+        }
+    </div>
+
     <div class="bio-block">
         <p class="bio-block-title">NOTE LIBERE</p>
         <textarea class="notes-textarea" rows="5" @bind="notesDraft" disabled="@(!CanEdit)"
@@ -244,6 +277,12 @@
     /// <summary>Il genitore persiste le note (UpdateCharacter + sync della lista) e gestisce gli errori.</summary>
     [Parameter] public EventCallback<string> OnSaveNotes { get; set; }
 
+    /// <summary>Il genitore persiste l'addestramento (UpdateCharacter + sync della lista), stesso
+    /// schema di <see cref="OnSaveNotes"/>: qui il draft, là la scrittura e la gestione errori. La
+    /// tupla segue il precedente già in uso nel progetto (<c>LevelUpDialog.OnRisposta</c>) invece
+    /// di aprire tre canali separati per tre campi che si salvano sempre insieme.</summary>
+    [Parameter] public EventCallback<(string ArmorTraining, string WeaponProficiencies, string ToolProficiencies)> OnSaveTraining { get; set; }
+
     /// <summary>La sottoclasse risolta, da qualunque sorgente (v.
     /// <see cref="SubclassCatalog.Disponibili"/>): null se il nome è scritto a mano o se la classe
     /// non ne offre nessuna. Il genitore la risolve, perché è lui ad avere sia le righe di classe
@@ -277,6 +316,10 @@
 
     private string notesDraft = string.Empty;
     private bool isSavingNotes;
+    private string armorTrainingDraft = string.Empty;
+    private string weaponProficienciesDraft = string.Empty;
+    private string toolProficienciesDraft = string.Empty;
+    private bool isSavingTraining;
     private string? _lastId;
 
     // Re-inizializza il draft quando cambia il PG mostrato (prima lo faceva il genitore alla selezione).
@@ -286,6 +329,9 @@
         {
             _lastId = Character.Id;
             notesDraft = Character.Notes ?? string.Empty;
+            armorTrainingDraft = Character.ArmorTraining ?? string.Empty;
+            weaponProficienciesDraft = Character.WeaponProficiencies ?? string.Empty;
+            toolProficienciesDraft = Character.ToolProficiencies ?? string.Empty;
         }
     }
 
@@ -295,5 +341,18 @@
         isSavingNotes = true;
         await OnSaveNotes.InvokeAsync(notesDraft);
         isSavingNotes = false;
+    }
+
+    private bool TrainingDraftsChanged =>
+        armorTrainingDraft != (Character.ArmorTraining ?? string.Empty) ||
+        weaponProficienciesDraft != (Character.WeaponProficiencies ?? string.Empty) ||
+        toolProficienciesDraft != (Character.ToolProficiencies ?? string.Empty);
+
+    private async Task SaveTraining()
+    {
+        if (!CanEdit) return;
+        isSavingTraining = true;
+        await OnSaveTraining.InvokeAsync((armorTrainingDraft, weaponProficienciesDraft, toolProficienciesDraft));
+        isSavingTraining = false;
     }
 }

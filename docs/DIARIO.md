@@ -1472,3 +1472,57 @@ ripristino compreso.
 
 Otto punti su otto sono ora coerenti. Correggerne due e lasciarne sei sarebbe stato peggio che non
 cominciare: avrebbe dato l'impressione che il problema fosse risolto.
+
+## La scheda alla pari con la carta (2026-08-06)
+
+L'utente ha messo nella root la scheda cartacea del suo personaggio — Grunnok Baldus, Barbaro 5
+Berserker — e ha chiesto che l'app mostrasse tutto ciò che si vede lì, ed essere **più comoda della
+carta**. Il confronto ha smentito la mia premessa e ne ha tirato fuori una migliore.
+
+**La premessa sbagliata era che servisse riorganizzare la scheda.** Non serviva: i tab per momento
+d'uso ci sono dal 2026-08-05, e il tab «Tiri» porta già in testa il commento «tutto ciò che si tira o
+si spende in un turno». Il modello copre quasi tutta la carta, e tutto ciò che contiene era già
+mostrato — gli unici campi mai visualizzati sono metadati. Mancavano **tre dati**, non una struttura.
+
+**Il principio che ne è uscito**, e che vale da qui in avanti: la carta vince sul testo statico a
+colpo d'occhio, l'app vince sui contatori. Tutto ciò che su quella scheda è un segno a matita da
+cancellare — punti ferita, usi dell'Ira, dadi vita, slot — è dove l'app può fare meglio. La prosa dei
+privilegi resta prosa: se ogni privilegio diventasse una card interattiva, la scheda sarebbe **più
+lenta** della carta, che è l'opposto del mandato.
+
+Quindi: **risorse di classe** con i loro usi (un `jsonb` additivo, quattro campi e non uno di più —
+niente effetti, niente inneschi: la semantica resta nella prosa, il contatore conta e basta),
+**addestramento** come tre campi di testo e non una griglia di caselle (si consulta due volte a
+campagna e non alimenta calcoli: strutturarlo sarebbe il modulo da compilare che si voleva evitare),
+e **bonus d'attacco calcolato**, col valore scritto a mano che vince sempre — la valvola per l'arma
+magica.
+
+Il suggerimento delle risorse per classe nasce da un'osservazione dell'utente: «non c'è solo l'Ira».
+Il sistema resta generico, ma «Aggiungi risorsa» propone quelle della propria classe — Ispirazione
+bardica, Secondo fiato, Focus del monaco, Imposizione delle mani — coi nomi presi dai privilegi del
+pacchetto e un test che li incrocia col JSON. I massimi li scrive l'utente: i contatori per livello
+non sono nei dati, e fingere di saperli sarebbe peggio che chiederli.
+
+**Il gate ha trovato un bloccante che avrebbe distrutto dati veri**: `CloneCharacter` non copiava i
+quattro campi nuovi, quindi bastava aprire il form di modifica e salvare per cancellare risorse e
+addestramento dal database, in silenzio. Il commento sopra quel metodo lo diceva da sé — «copia
+profonda di TUTTI i campi, altrimenti salvando si azzerano i campi non clonati» — ed era già il
+secondo campo dimenticato lì. Ora c'è il test che mancava: costruisce un personaggio con ogni
+proprietà valorizzata, clona, e confronta per riflessione. Il prossimo che aggiunge una colonna e
+scorda il clone lo scopre da un test rosso col nome della proprietà, non da un giocatore.
+
+Il secondo finding ha spiegato una cosa della scheda di carta: **i campi delle armi non erano
+compilabili nell'app**. Bonus d'attacco, danno e note esistevano nel modello dal principio, ma nessun
+form li offriva — ecco perché sulla carta il Spadone dice «+1 colpo str 2d6» scritto a mano. E il
+calcolo appena introdotto peggiorava le cose, perché senza i flag cadeva sempre su Forza: un arciere
+si sarebbe visto proporre il modificatore sbagliato come se fosse certo. Da qui la regola:
+**l'app non presenta come certo un valore che dipende da dati che l'utente non ha ancora fornito.**
+
+Sul metodo, una conferma e una novità. La conferma: sei agenti a file disgiunti, e di nuovo tutti i
+difetti gravi sulle giunture. La novità è il test d'integrazione del `jsonb` — il primo del progetto
+che usa il client Postgrest **vero** invece di REST grezzo, per esercitare esattamente il percorso di
+`CharacterRepository`. Serviva perché `Update` serializza tutte le colonne mappate: una
+serializzazione sbagliata non avrebbe rotto «la funzione nuova», avrebbe rotto **ogni salvataggio di
+scheda**, e nessun test unitario poteva vederlo. Verde al primo colpo, ma non era scontato — e ha
+fatto emergere per strada un gotcha dello stack locale (l'`apikey` duplicato in querystring dal
+client, che il gateway non consuma) ora in memoria di progetto.

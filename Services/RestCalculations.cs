@@ -21,6 +21,19 @@ public sealed record EsitoRiposo
     /// breve): <see cref="RestCalculations.Applica"/> in tal caso li lascia come sono.</summary>
     public IReadOnlyList<int>? SpellSlotsUsed { get; init; }
 
+    /// <summary>Lo stato completo delle risorse di classe dopo il riposo (tutte, non solo quelle
+    /// ripristinate: le altre sono copiate invariate) — stesso pattern di <see cref="SpellSlotsUsed"/>,
+    /// solo con una lista di lunghezza variabile invece di nove campi fissi. Null se il personaggio
+    /// non ha risorse di classe: <see cref="RestCalculations.Applica"/> in tal caso non tocca
+    /// <c>Character.ClassResources</c>.</summary>
+    public IReadOnlyList<ClassResource>? ClassResources { get; init; }
+
+    /// <summary>Nomi delle risorse effettivamente ripristinate (Spesi passati da &gt;0 a 0 da questo
+    /// riposo) — non tutte quelle con la ricarica giusta: una già a 0 non è "cambiata" e non compare
+    /// qui, per non annunciare un ripristino che non c'è stato. Null se il personaggio non ha risorse
+    /// di classe.</summary>
+    public IReadOnlyList<string>? RisorseRipristinate { get; init; }
+
     /// <summary>Righe pronte per il toast, già in italiano.</summary>
     public required IReadOnlyList<string> Riepilogo { get; init; }
 }
@@ -58,6 +71,8 @@ public static class RestCalculations
         var slotUsatiPrima = SlotUsatiCorrenti(c);
         var slotDaRipristinare = slotUsatiPrima.Any(v => v > 0);
 
+        var (risorseNuove, risorseRipristinate) = RipristinaRisorse(c, riposoLungo: true);
+
         var righe = new List<string> { RigaPf(pfPrima, pfDopo, c.MaxHitPoints) };
         if (c.TempHitPoints != 0) righe.Add("PF temporanei azzerati");
         if (recuperati > 0)
@@ -66,6 +81,7 @@ public static class RestCalculations
         }
         if (slotDaRipristinare) righe.Add("Slot incantesimo ripristinati");
         if (c.DeathSaveSuccesses > 0 || c.DeathSaveFailures > 0) righe.Add("Tiri salvezza contro la morte azzerati");
+        if (risorseRipristinate.Count > 0) righe.Add(RigaRisorseRipristinate(risorseRipristinate));
 
         return new EsitoRiposo
         {
@@ -75,6 +91,8 @@ public static class RestCalculations
             DeathSaveSuccesses = 0,
             DeathSaveFailures = 0,
             SpellSlotsUsed = new int[9],
+            ClassResources = risorseNuove,
+            RisorseRipristinate = risorseRipristinate.Count > 0 ? risorseRipristinate : null,
             Riepilogo = righe,
         };
     }
@@ -106,6 +124,8 @@ public static class RestCalculations
         var pfDopo = Math.Min(c.MaxHitPoints, pfPrima + cura);
         var spesiDopo = c.HitDiceSpent + dadiEffettivi;
 
+        var (risorseNuove, risorseRipristinate) = RipristinaRisorse(c, riposoLungo: false);
+
         var righe = new List<string>();
         if (dadiEffettivi == 0)
         {
@@ -116,6 +136,7 @@ public static class RestCalculations
             righe.Add(RigaPf(pfPrima, pfDopo, c.MaxHitPoints));
             righe.Add(dadiEffettivi == 1 ? "1 dado vita speso" : $"{dadiEffettivi} dadi vita spesi");
         }
+        if (risorseRipristinate.Count > 0) righe.Add(RigaRisorseRipristinate(risorseRipristinate));
 
         return new EsitoRiposo
         {
@@ -125,6 +146,8 @@ public static class RestCalculations
             DeathSaveSuccesses = c.DeathSaveSuccesses,
             DeathSaveFailures = c.DeathSaveFailures,
             SpellSlotsUsed = null,
+            ClassResources = risorseNuove,
+            RisorseRipristinate = risorseRipristinate.Count > 0 ? risorseRipristinate : null,
             Riepilogo = righe,
         };
     }
@@ -171,6 +194,11 @@ public static class RestCalculations
             c.SpellSlots8Used = slot[7];
             c.SpellSlots9Used = slot[8];
         }
+
+        if (esito.ClassResources is { } risorse)
+        {
+            c.ClassResources = new List<ClassResource>(risorse);
+        }
     }
 
     // ---------------------------------------------------------------
@@ -191,4 +219,55 @@ public static class RestCalculations
         c.SpellSlots1Used, c.SpellSlots2Used, c.SpellSlots3Used, c.SpellSlots4Used, c.SpellSlots5Used,
         c.SpellSlots6Used, c.SpellSlots7Used, c.SpellSlots8Used, c.SpellSlots9Used,
     };
+
+    /// <summary>Calcola il nuovo stato delle risorse di classe per un riposo (lungo o breve) senza
+    /// toccare <paramref name="c"/>: per ogni risorsa la cui <c>Ricarica</c> si ripristina con questo
+    /// riposo (<see cref="ClassResourceRules.SiRipristinaCon"/> — non ricodificato qui) e che aveva
+    /// almeno un uso speso, restituisce una copia con <c>Spesi</c> azzerato e il nome nell'elenco dei
+    /// ripristinati; le altre (ricarica diversa, "nessuna", malformata, o già a 0) sono copiate
+    /// invariate e non compaiono nell'elenco. Nessuna risorsa (lista vuota o null) → (null, lista
+    /// vuota), senza eccezioni.</summary>
+    private static (List<ClassResource>? Nuove, List<string> NomiRipristinati) RipristinaRisorse(
+        Character c, bool riposoLungo)
+    {
+        if (c.ClassResources is null || c.ClassResources.Count == 0)
+            return (null, new List<string>());
+
+        var nuove = new List<ClassResource>(c.ClassResources.Count);
+        var nomiRipristinati = new List<string>();
+
+        foreach (var risorsa in c.ClassResources)
+        {
+            if (risorsa is null) continue;
+
+            if (risorsa.Spesi > 0 && ClassResourceRules.SiRipristinaCon(risorsa.Ricarica, riposoLungo))
+            {
+                nomiRipristinati.Add(risorsa.Nome);
+                nuove.Add(new ClassResource
+                {
+                    Nome = risorsa.Nome, Max = risorsa.Max, Spesi = 0, Ricarica = risorsa.Ricarica,
+                });
+            }
+            else
+            {
+                nuove.Add(new ClassResource
+                {
+                    Nome = risorsa.Nome, Max = risorsa.Max, Spesi = risorsa.Spesi, Ricarica = risorsa.Ricarica,
+                });
+            }
+        }
+
+        return (nuove, nomiRipristinati);
+    }
+
+    /// <summary>"Ira ripristinata" per una sola risorsa, "Ira e Secondo fiato ripristinate" per due o
+    /// più (elenco con virgole e "e" finale, sempre in forma plurale) — <paramref name="nomi"/> non
+    /// deve essere vuota: il chiamante lo garantisce col controllo <c>Count &gt; 0</c>.</summary>
+    private static string RigaRisorseRipristinate(IReadOnlyList<string> nomi)
+    {
+        if (nomi.Count == 1) return $"{nomi[0]} ripristinata";
+
+        var elenco = string.Join(", ", nomi.Take(nomi.Count - 1)) + " e " + nomi[^1];
+        return $"{elenco} ripristinate";
+    }
 }

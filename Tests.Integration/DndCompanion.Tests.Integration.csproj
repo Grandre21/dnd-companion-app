@@ -24,4 +24,13 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Serve ai test di serializzazione (ClassResourcesSerializationIntegrationTests): usano il
+         VERO client postgrest-csharp e i VERI Model (Character, ClassResource, InventoryItem) invece
+         di REST grezzo, per esercitare esattamente il path di Services/Repositories/*Repository.cs
+         (client.From<T>().Insert/Update) — dove vive il rischio di questo repo (v. CLAUDE.md). Stesso
+         pattern di riferimento già usato da Tests/DndCompanion.Tests.csproj. -->
+    <ProjectReference Include="..\DndCompanion.csproj" />
+  </ItemGroup>
+
 </Project>

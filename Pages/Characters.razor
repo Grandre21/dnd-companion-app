@@ -199,6 +199,7 @@
                 @if (activeTab == "bio")
                 {
                     <CharacterBioTab Character="@selected" CanEdit="@CanEdit" OnSaveNotes="@SaveNotesAsync"
+                                     OnSaveTraining="@SaveTrainingAsync"
                                      ClassProgressionText="@ProgressioneClasseSelezionata"
                                      Subclass="@SottoclasseSelezionata"
                                      OnDelete="@DeleteSelectedAsync" IsBusy="@isBusy" />
@@ -317,7 +318,9 @@
     // IsSaving): prima ciascuno teneva il proprio booleano locale (isSavingHp/isResting), e un
     // riposo confermato insieme a un tocco sui PF potevano far partire due scritture in corsa sullo
     // stesso Character — quella che arriva seconda "vince" in database mentre la scheda in memoria
-    // resta con l'altra. Impostato/rimosso in SaveCharacterCoreAsync, l'unico punto che scrive.
+    // resta con l'altra. Impostato/rimosso in SaveCharacterCoreAsync e in SaveTrainingAsync: sono i
+    // due punti che scrivono sul personaggio aperto, e la barra dei valori (Danni/Cura) resta
+    // renderizzata e attiva mentre l'altro salva, perché vive fuori dal contenuto delle tab.
     private bool isSavingCharacter;
 
     // ===== Tastierino danni/cura (v. CharacterVitalsBar.OnOpenHpPanel) =====
@@ -774,6 +777,63 @@
         }
     }
 
+    // Persistenza dell'addestramento (invocata da CharacterBioTab via OnSaveTraining), stesso schema
+    // di SaveNotesAsync qui sopra ma su tre campi invece di uno, e con `pg` catturato prima
+    // dell'await: fra il tap su "Salva addestramento" e la risposta di rete l'utente può aprire un
+    // altro personaggio (OpenDetailAsync sostituisce `selected`), e un ripristino letto da `selected`
+    // scriverebbe questi tre campi dentro la scheda sbagliata — stesso motivo per cui la
+    // sincronizzazione in lista, sotto, passa `pg` all'overload di SyncListFromSelected e non si
+    // affida al `selected` corrente. isSavingCharacter si legge in guardia E si imposta, con la
+    // stessa disciplina di SaveCharacterCoreAsync (v. il commento sul campo): un salvataggio dei PF
+    // o un riposo in corso — o viceversa un addestramento in corso — non deve incrociarsi con
+    // l'altro sulla stessa riga.
+    private async Task SaveTrainingAsync(
+        (string ArmorTraining, string WeaponProficiencies, string ToolProficiencies) training)
+    {
+        if (selected is null || !CanEdit || isSavingCharacter) return;
+
+        var pg = selected;
+        var previousArmor = pg.ArmorTraining;
+        var previousWeapons = pg.WeaponProficiencies;
+        var previousTools = pg.ToolProficiencies;
+
+        pg.ArmorTraining = training.ArmorTraining;
+        pg.WeaponProficiencies = training.WeaponProficiencies;
+        pg.ToolProficiencies = training.ToolProficiencies;
+        errorMessage = null;
+        isSavingCharacter = true;
+        StateHasChanged();
+        try
+        {
+            var saved = await CharacterRepository.UpdateCharacterAsync(pg);
+            if (saved is null)
+            {
+                pg.ArmorTraining = previousArmor;
+                pg.WeaponProficiencies = previousWeapons;
+                pg.ToolProficiencies = previousTools;
+                errorMessage = "Il server non ha restituito il personaggio salvato.";
+                return;
+            }
+
+            pg.ArmorTraining = saved.ArmorTraining;
+            pg.WeaponProficiencies = saved.WeaponProficiencies;
+            pg.ToolProficiencies = saved.ToolProficiencies;
+            SyncListFromSelected(pg);
+        }
+        catch (Exception ex)
+        {
+            pg.ArmorTraining = previousArmor;
+            pg.WeaponProficiencies = previousWeapons;
+            pg.ToolProficiencies = previousTools;
+            errorMessage = $"Errore salvataggio addestramento: {ex.Message}";
+        }
+        finally
+        {
+            isSavingCharacter = false;
+            StateHasChanged();
+        }
+    }
+
     /// <summary>Il vero salvataggio, con l'ESITO: le RLS nuove legano l'update all'appartenenza
     /// corrente alla campagna, e quando la condizione non combacia (utente rimosso da
     /// campaign_members) PostgREST non solleva un errore — aggiorna zero righe e risponde [], e
@@ -781,10 +841,12 @@
     /// precedente di questo metodo, il chiamante non ha modo di sapere che il database non si è
     /// mosso: da qui l'allineamento a SaveFormAsync, che questo caso lo gestisce già.
     ///
-    /// isSavingCharacter è l'UNICO punto che lo imposta: CharacterVitalsBar e CharacterCombatTab lo
-    /// leggono via il parametro IsSaving invece di un booleano locale a testa, cosicché un riposo e
-    /// un tocco sui PF confermati nello stesso istante non facciano partire due scritture in corsa
-    /// sullo stesso Character (v. il commento sul campo). StateHasChanged è esplicito perché sia
+    /// isSavingCharacter lo impostano due punti — questo metodo e SaveTrainingAsync (v. il
+    /// commento lì): CharacterVitalsBar e CharacterCombatTab lo leggono via il parametro IsSaving
+    /// invece di un booleano locale a testa, cosicché un riposo e un tocco sui PF confermati nello
+    /// stesso istante — o in corsa con un salvataggio dell'addestramento — non facciano partire due
+    /// scritture in corsa sullo stesso Character (v. il commento sul campo). StateHasChanged è
+    /// esplicito perché sia
     /// CharacterVitalsBar sia CharacterCombatTab invocano questo metodo (o il wrapper
     /// SaveCharacterAsync) come Func&lt;Task&lt;bool&gt;&gt;/Task diretto e non come EventCallback:
     /// senza il wrapping di EventCallback, che dopo l'invocazione rirenderizza da sé il "receiver",
@@ -831,8 +893,16 @@
     private void SyncListFromSelected()
     {
         if (selected is null) return;
-        var idx = characters.FindIndex(c => c.Id == selected.Id);
-        if (idx >= 0) characters[idx] = selected;
+        SyncListFromSelected(selected);
+    }
+
+    // Overload esplicito per chi cattura `pg` prima di un await (v. SaveTrainingAsync): se nel
+    // frattempo l'utente ha aperto un altro personaggio, `selected` non è più `pg`, e sincronizzare
+    // sul primo scriverebbe la riga sbagliata nella lista invece di quella appena salvata.
+    private void SyncListFromSelected(Character character)
+    {
+        var idx = characters.FindIndex(c => c.Id == character.Id);
+        if (idx >= 0) characters[idx] = character;
     }
 
     // ===== Level-up guidato =====
@@ -1049,8 +1119,13 @@
     }
 
     // Copia profonda di TUTTI i campi: il form di modifica deve fare round-trip
-    // completo, altrimenti salvando si azzerano i campi non clonati.
-    private static Character CloneCharacter(Character c) => new()
+    // completo, altrimenti salvando si azzerano i campi non clonati. `internal` (non `private`)
+    // per il test di round-trip in Tests/CharacterCloneTests.cs (InternalsVisibleTo già
+    // configurato nel .csproj): confronta per riflessione tutte le proprietà pubbliche, così il
+    // prossimo campo dimenticato qui (ClassResources/ArmorTraining/WeaponProficiencies/
+    // ToolProficiencies furono il secondo dimenticato, dopo Subclass) fa fallire il test invece
+    // di azzerare dati in produzione al primo salvataggio dal form di modifica.
+    internal static Character CloneCharacter(Character c) => new()
     {
         Id = c.Id,
         OwnerId = c.OwnerId,
@@ -1090,6 +1165,14 @@
         DeathSaveSuccesses = c.DeathSaveSuccesses,
         DeathSaveFailures = c.DeathSaveFailures,
         HeroicInspiration = c.HeroicInspiration,
+
+        // Risorse di classe (jsonb): copia PER VALORE, mai `= c.ClassResources` — altrimenti la
+        // bozza e il personaggio aperto condividerebbero la stessa lista, e "Annulla" sul form
+        // non annullerebbe più nulla (mutare il clone muterebbe anche l'originale).
+        ClassResources = c.ClassResources.Select(r => new ClassResource
+        {
+            Nome = r.Nome, Max = r.Max, Spesi = r.Spesi, Ricarica = r.Ricarica,
+        }).ToList(),
 
         // Competenze tiri salvezza
         ProfSaveStrength = c.ProfSaveStrength,
@@ -1143,6 +1226,11 @@
         SpeciesTraits = c.SpeciesTraits,
         ClassFeatures = c.ClassFeatures,
         Feats = c.Feats,
+
+        // Addestramento
+        ArmorTraining = c.ArmorTraining,
+        WeaponProficiencies = c.WeaponProficiencies,
+        ToolProficiencies = c.ToolProficiencies,
 
         // Denari
         CopperPieces = c.CopperPieces,

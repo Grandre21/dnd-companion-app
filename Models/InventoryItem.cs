@@ -47,4 +47,18 @@ public class InventoryItem : BaseModel
 
     [Column("attack_notes")]
     public string? AttackNotes { get; set; }
+
+    /// <summary>Arma accurata (finesse): il bonus d'attacco calcolato usa il migliore fra Forza e
+    /// Destrezza invece della sola Forza (Services/WeaponCalculations.cs).</summary>
+    [Column("is_finesse")]
+    public bool IsFinesse { get; set; }
+
+    /// <summary>Arma a distanza: il bonus d'attacco calcolato usa Destrezza invece di Forza.</summary>
+    [Column("is_ranged")]
+    public bool IsRanged { get; set; }
+
+    /// <summary>Eccezione a D6 (la competenza con l'arma si assume vera): se true, il bonus di
+    /// competenza non entra nel calcolo del bonus d'attacco.</summary>
+    [Column("is_not_proficient")]
+    public bool IsNotProficient { get; set; }
 }

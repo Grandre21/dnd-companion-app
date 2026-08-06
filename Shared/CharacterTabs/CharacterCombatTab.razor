@@ -68,6 +68,137 @@
     }
 </div>
 
+@* Risorse di classe (Ira, Ispirazione bardica, ...): stessa famiglia dei dadi vita e del riposo —
+   contatori che si spendono e si ripristinano (v. spec 2026-08-06, «Le risorse di classe»). Niente
+   riquadro vuoto quando non ce n'è nessuna: solo il pulsante per aggiungerne una. *@
+@if (Character.ClassResources.Any())
+{
+    <p class="section-header">RISORSE</p>
+}
+@if (CanEdit)
+{
+    @if (!isAddingResource)
+    {
+        <button type="button" class="resource-add-btn" @onclick="OpenAddResourceForm" disabled="@IsSaving">
+            + Aggiungi risorsa
+        </button>
+    }
+    else
+    {
+        <div class="resource-form">
+            @if (SuggestedResources.Any())
+            {
+                <div class="resource-suggestions">
+                    @foreach (var s in SuggestedResources)
+                    {
+                        var suggerita = s;
+                        <button type="button" class="resource-chip" @onclick="() => ApplySuggestion(suggerita)">
+                            @suggerita.Nome
+                        </button>
+                    }
+                </div>
+            }
+            <div class="resource-field">
+                <label for="risorsa-nome">Nome</label>
+                <input id="risorsa-nome" type="text" class="resource-input" maxlength="60"
+                       placeholder="Nome della risorsa" @bind="resourceDraft.Nome" />
+            </div>
+            <div class="resource-field">
+                <label for="risorsa-max">Massimo</label>
+                <input id="risorsa-max" type="number" class="resource-input" min="1"
+                       @bind="resourceDraft.Max" />
+            </div>
+            <div class="resource-field">
+                <label for="risorsa-ricarica">Ricarica</label>
+                <select id="risorsa-ricarica" class="resource-input" @bind="resourceDraft.Ricarica">
+                    <option value="lungo">Riposo lungo</option>
+                    <option value="breve">Riposo breve</option>
+                    <option value="nessuna">Nessuna (altro)</option>
+                </select>
+            </div>
+            <div class="resource-form-actions">
+                <button type="button" class="primary-btn" @onclick="SaveNewResourceAsync"
+                        disabled="@(IsSaving || isSavingResources)">
+                    @(isSavingResources ? "Salvataggio..." : "Salva")
+                </button>
+                <button type="button" class="secondary-btn" @onclick="CancelAddResource"
+                        disabled="@isSavingResources">
+                    Annulla
+                </button>
+            </div>
+        </div>
+    }
+}
+@foreach (var risorsa in Character.ClassResources)
+{
+    var r = risorsa;
+    var disponibili = r.Max - r.Spesi;
+    <div class="resource-card">
+        <div class="resource-header">
+            <p class="resource-name">@r.Nome</p>
+            <div class="resource-header-actions">
+                <span class="resource-count">@disponibili / @r.Max</span>
+                @if (CanEdit)
+                {
+                    <button type="button" class="resource-edit-btn" aria-label="Modifica @r.Nome"
+                            @onclick="() => ToggleEditResource(r)" disabled="@IsSaving">✎</button>
+                }
+            </div>
+        </div>
+        <div class="resource-dots">
+            @for (int i = 1; i <= r.Max; i++)
+            {
+                var n = i;
+                <span class="resource-dot @(n <= disponibili ? "filled" : "")"
+                      role="button" tabindex="0"
+                      aria-pressed="@AriaBool(n <= disponibili)" aria-label="Uso @n di @r.Nome"
+                      @onclick="() => OnResourceDotClickAsync(r, n)"
+                      @onkeydown="@(e => OnKey(e, () => OnResourceDotClickAsync(r, n)))"></span>
+            }
+        </div>
+        <p class="resource-recharge">Ricarica: @EtichettaRicarica(r.Ricarica)</p>
+
+        @if (ReferenceEquals(editingResource, r))
+        {
+            <div class="resource-edit-panel">
+                <div class="resource-field">
+                    <label for="@($"risorsa-edit-nome-{r.GetHashCode()}")">Nome</label>
+                    <input id="@($"risorsa-edit-nome-{r.GetHashCode()}")" type="text" class="resource-input"
+                           maxlength="60" @bind="editDraft.Nome" />
+                </div>
+                <div class="resource-field">
+                    <label for="@($"risorsa-edit-max-{r.GetHashCode()}")">Massimo</label>
+                    <input id="@($"risorsa-edit-max-{r.GetHashCode()}")" type="number" class="resource-input"
+                           min="1" @bind="editDraft.Max" />
+                </div>
+                <div class="resource-field">
+                    <label for="@($"risorsa-edit-ricarica-{r.GetHashCode()}")">Ricarica</label>
+                    <select id="@($"risorsa-edit-ricarica-{r.GetHashCode()}")" class="resource-input"
+                            @bind="editDraft.Ricarica">
+                        <option value="lungo">Riposo lungo</option>
+                        <option value="breve">Riposo breve</option>
+                        <option value="nessuna">Nessuna (altro)</option>
+                    </select>
+                </div>
+                <div class="resource-form-actions">
+                    <button type="button" class="primary-btn" @onclick="() => SaveEditResourceAsync(r)"
+                            disabled="@(IsSaving || isSavingResources)">
+                        @(isSavingResources ? "Salvataggio..." : "Salva")
+                    </button>
+                    <button type="button" class="secondary-btn" @onclick="CancelEditResource"
+                            disabled="@isSavingResources">
+                        Annulla
+                    </button>
+                    <button type="button" class="resource-delete-btn" @onclick="() => DeleteResourceAsync(r)"
+                            disabled="@(IsSaving || isSavingResources)">
+                        Elimina
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
 @if (ShowDeathSaves)
 {
     <div class="death-saves-card">
@@ -125,11 +256,37 @@
 {
     @foreach (var w in Weapons)
     {
+        var haFlagArma = w.IsFinesse || w.IsRanged || w.IsNotProficient;
+        var bonusCalcolato = WeaponCalculations.BonusAttacco(w, Character);
         <div class="weapon-card">
             <div class="weapon-header">
                 <p class="weapon-name">@w.Name</p>
                 <p class="weapon-stats">
-                    @if (!string.IsNullOrWhiteSpace(w.AttackBonus)) { <span>@w.AttackBonus</span> }
+                    @* Il valore scritto a mano vince: se AttackBonus è valorizzato si mostra quello, col
+                       calcolato (WeaponCalculations, D5) accanto come confronto discreto. Se è vuoto E
+                       l'arma non ha ALCUN flag impostato (accurata/a distanza/non competente),
+                       ModificatoreArma ricade per costruzione sul ramo Forza — quasi certamente sbagliato
+                       per un'arma a distanza o accurata mai configurata. In quel caso il numero si mostra
+                       come STIMA esplicita, non come "il" bonus: l'app non deve presentare come certo un
+                       valore che dipende da dati che l'utente non ha ancora fornito (v. CLAUDE.md). Se
+                       invece un flag è impostato, l'arma è già stata curata: il calcolato torna a essere
+                       il valore mostrato senza cautele, come prima di questa distinzione. *@
+                    @if (!string.IsNullOrWhiteSpace(w.AttackBonus))
+                    {
+                        <span>@w.AttackBonus</span>
+                        <span class="weapon-calc-hint">(calcolato @FormatBonus(bonusCalcolato))</span>
+                    }
+                    else if (haFlagArma)
+                    {
+                        <span>@FormatBonus(bonusCalcolato)</span>
+                    }
+                    else
+                    {
+                        <span class="weapon-calc-hint"
+                              title="Nessun bonus scritto a mano e nessuna proprietà (accurata/a distanza/non competente) impostata su quest'arma: il calcolo assume un'arma da mischia con Forza. Se l'arma è a distanza o accurata, modificala per un valore corretto.">
+                            stima @FormatBonus(bonusCalcolato) da Forza
+                        </span>
+                    }
                     @if (!string.IsNullOrWhiteSpace(w.Damage)) { <span>· @w.Damage @w.DamageType?.ToLower()</span> }
                 </p>
             </div>
@@ -192,14 +349,26 @@ else
     private bool totaleTiratoModificatoAMano;
     private string? _lastRestCharacterId;
 
+    // ===== Risorse di classe =====
+    private bool isAddingResource;
+    private ClassResource resourceDraft = new();
+    private ClassResource? editingResource;
+    private ClassResource editDraft = new();
+    private bool isSavingResources;
+
     // Reset dello stato UI locale al cambio di PG (stesso pattern di CharacterItemsTab): senza,
-    // un pannello di riposo breve lasciato aperto seguirebbe il PG selezionato dopo.
+    // un pannello di riposo breve — o un form risorse — lasciato aperto seguirebbe il PG
+    // selezionato dopo.
     protected override void OnParametersSet()
     {
         if (Character.Id != _lastRestCharacterId)
         {
             _lastRestCharacterId = Character.Id;
             showShortRestPanel = false;
+            isAddingResource = false;
+            resourceDraft = new ClassResource();
+            isSavingResources = false;
+            editingResource = null;
         }
     }
 
@@ -252,16 +421,30 @@ else
     /// uno stato già mutato: es. un riposo lungo ripetuto due volte di seguito dopo due fallimenti
     /// recupererebbe il doppio dei dadi vita a cui il personaggio ha diritto per un riposo, e alla
     /// prima scrittura riuscita (anche innocua, come un tocco sui PF da un altro tab) quel valore
-    /// gonfiato finirebbe in database.</summary>
+    /// gonfiato finirebbe in database.
+    ///
+    /// Include anche <c>ClassResources</c> (v. sezione «Risorse di classe» più sotto): da quando
+    /// <see cref="RestCalculations.Applica"/> ripristina anche le risorse (Ricarica compatibile),
+    /// un riposo tocca quella lista tanto quanto PF/dadi vita/slot — senza fotografarla qui, un
+    /// riposo salvato a vuoto azzererebbe "Spesi" solo in locale (mai confermato) ma un ritentativo
+    /// o un qualunque salvataggio successivo persisterebbe quell'azzeramento fantasma.</summary>
     private sealed record RiposoSnapshot(
         int HitPoints, int TempHitPoints, int HitDiceSpent, int DeathSaveSuccesses, int DeathSaveFailures,
         int SpellSlots1Used, int SpellSlots2Used, int SpellSlots3Used, int SpellSlots4Used, int SpellSlots5Used,
-        int SpellSlots6Used, int SpellSlots7Used, int SpellSlots8Used, int SpellSlots9Used)
+        int SpellSlots6Used, int SpellSlots7Used, int SpellSlots8Used, int SpellSlots9Used,
+        List<ClassResource> ClassResources)
     {
         public static RiposoSnapshot Cattura(Character c) => new(
             c.HitPoints, c.TempHitPoints, c.HitDiceSpent, c.DeathSaveSuccesses, c.DeathSaveFailures,
             c.SpellSlots1Used, c.SpellSlots2Used, c.SpellSlots3Used, c.SpellSlots4Used, c.SpellSlots5Used,
-            c.SpellSlots6Used, c.SpellSlots7Used, c.SpellSlots8Used, c.SpellSlots9Used);
+            c.SpellSlots6Used, c.SpellSlots7Used, c.SpellSlots8Used, c.SpellSlots9Used,
+            // Copia per VALORE (nuove istanze ClassResource), non per riferimento: anche se
+            // RestCalculations oggi sostituisce sempre la lista con istanze nuove senza mutare
+            // quelle vecchie, questa fotografia non deve dipendere da quel dettaglio implementativo
+            // per restare valida.
+            (c.ClassResources ?? new List<ClassResource>())
+                .Select(r => new ClassResource { Nome = r.Nome, Max = r.Max, Spesi = r.Spesi, Ricarica = r.Ricarica })
+                .ToList());
 
         public void Ripristina(Character c)
         {
@@ -279,6 +462,7 @@ else
             c.SpellSlots7Used = SpellSlots7Used;
             c.SpellSlots8Used = SpellSlots8Used;
             c.SpellSlots9Used = SpellSlots9Used;
+            c.ClassResources = ClassResources;
         }
     }
 
@@ -305,6 +489,12 @@ else
         var esito = RestCalculations.RiposoBreve(pg, dadiSpesi, totaleTirato);
         RestCalculations.Applica(pg, esito);
         showShortRestPanel = false;
+        // Applica sostituisce SEMPRE ClassResources con istanze nuove (anche le risorse non
+        // toccate da questo riposo — v. RestCalculations.RipristinaRisorse) — un pannello di
+        // modifica risorsa aperto punterebbe a un'istanza ormai fuori lista: ReferenceEquals col
+        // nuovo array fallirebbe e si chiuderebbe di scatto scartando in silenzio l'editDraft.
+        // Meglio chiuderlo esplicitamente qui, come si fa già per showShortRestPanel.
+        editingResource = null;
 
         // Il toast si annuncia solo se il salvataggio è confermato: con le RLS legate
         // all'appartenenza corrente alla campagna, un update rifiutato torna [] (non un errore) e
@@ -355,6 +545,8 @@ else
         var esito = RestCalculations.RiposoLungo(pg);
         RestCalculations.Applica(pg, esito);
         showShortRestPanel = false;
+        // V. il commento in ConfermaRiposoBreveAsync: stesso motivo, stesso rischio.
+        editingResource = null;
 
         var salvato = await OnChanged();
         if (salvato)
@@ -444,6 +636,264 @@ else
         if (!await OnChanged())
         {
             pg.HitDiceSpent = precedente;
+            await OnLocalRevert.InvokeAsync();
+        }
+    }
+
+    // ===== Risorse di classe =====
+    // Nessuna regola di dominio qui: ClassResourceRules decide cosa vuol dire "spendere" o
+    // "recuperare" un uso e come si ripulisce un nome/ricarica; questo componente chiama e mostra.
+    // Stessa disciplina snapshot-e-ripristina delle mutazioni sopra (dadi vita, TS morte,
+    // ispirazione): "pg" catturato ORA perché Character può cambiare sotto un await, e il
+    // ripristino usa una COPIA SHALLOW della lista presa prima di mutare — copia shallow perché
+    // ClassResourceRules.Spendi/Recupera sono pure (restituiscono una nuova istanza, non mutano
+    // quella vecchia): la vecchia lista continua a contenere gli oggetti "di prima" intatti.
+
+    /// <summary>Le risorse suggerite per la classe del personaggio, escluse quelle già presenti
+    /// (confronto normalizzato, v. CatalogKey): senza il filtro, uno scorciatoia già aggiunta
+    /// porterebbe solo a un tentativo di salvataggio rifiutato per nome duplicato.</summary>
+    private IReadOnlyList<ClassResource> SuggestedResources =>
+        ClassResourceRules.Suggerite(Character.Class)
+            .Where(s => !Character.ClassResources.Any(r =>
+                CatalogKey.NormalizeName(r.Nome) == CatalogKey.NormalizeName(s.Nome)))
+            .ToList();
+
+    private static string EtichettaRicarica(string? ricarica) => ricarica?.Trim().ToLowerInvariant() switch
+    {
+        "breve" => "riposo breve",
+        "nessuna" => "altro",
+        _ => "riposo lungo",
+    };
+
+    private void OpenAddResourceForm()
+    {
+        if (!CanEdit) return;
+        resourceDraft = new ClassResource { Ricarica = "lungo" };
+        isAddingResource = true;
+    }
+
+    private void CancelAddResource()
+    {
+        isAddingResource = false;
+        resourceDraft = new ClassResource();
+    }
+
+    private void ApplySuggestion(ClassResource suggerita)
+    {
+        resourceDraft.Nome = suggerita.Nome;
+        resourceDraft.Ricarica = suggerita.Ricarica;
+    }
+
+    private async Task SaveNewResourceAsync()
+    {
+        // IsSaving (condiviso col genitore/CharacterVitalsBar) copre le corse con salvataggi
+        // partiti da ALTRI controlli di questo tab (riposo, dadi vita, ...); isSavingResources
+        // resta per il feedback immediato ("Salvataggio...") e la ri-entranza sulla stessa azione.
+        if (!CanEdit || IsSaving || isSavingResources) return;
+
+        var nome = resourceDraft.Nome?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(nome))
+        {
+            Toasts.ShowError("Il nome della risorsa è obbligatorio");
+            return;
+        }
+        if (resourceDraft.Max < 1)
+        {
+            Toasts.ShowError("Il massimo deve essere almeno 1");
+            return;
+        }
+
+        var pg = Character;
+        var chiave = CatalogKey.NormalizeName(nome);
+        if (pg.ClassResources.Any(r => CatalogKey.NormalizeName(r.Nome) == chiave))
+        {
+            Toasts.ShowError("Esiste già una risorsa con questo nome");
+            return;
+        }
+
+        // Copia PRIMA di aggiungere: v. commento d'apertura della sezione.
+        var precedente = new List<ClassResource>(pg.ClassResources);
+        pg.ClassResources.Add(new ClassResource
+        {
+            Nome = nome,
+            Max = resourceDraft.Max,
+            Spesi = 0,
+            Ricarica = resourceDraft.Ricarica,
+        });
+
+        isSavingResources = true;
+        var salvato = await OnChanged();
+        isSavingResources = false;
+
+        if (salvato)
+        {
+            isAddingResource = false;
+            resourceDraft = new ClassResource();
+        }
+        else
+        {
+            pg.ClassResources = precedente;
+            await OnLocalRevert.InvokeAsync();
+        }
+    }
+
+    /// <summary>Un tocco su un pallino: se è quello che segna la disponibilità corrente lo
+    /// "spegne" (un uso in meno), altrimenti porta la disponibilità esattamente a quel pallino —
+    /// stesso schema di SetDeathSaveSuccesses/Failures più sopra, letto sui pallini "disponibili"
+    /// invece che "raggiunti". Toccare un pallino già vuoto quindi RECUPERA usi fino a lì.</summary>
+    private async Task OnResourceDotClickAsync(ClassResource risorsa, int posizione)
+    {
+        if (!CanEdit || IsSaving) return;
+
+        var pg = Character;
+        var idx = pg.ClassResources.IndexOf(risorsa);
+        if (idx < 0) return;
+
+        var disponibili = risorsa.Max - risorsa.Spesi;
+        var nuoviDisponibili = posizione == disponibili ? posizione - 1 : posizione;
+        var delta = disponibili - nuoviDisponibili; // positivo = spende, negativo = recupera
+        if (delta == 0) return;
+
+        var precedente = new List<ClassResource>(pg.ClassResources);
+        var aggiornata = ClassResourceRules.Spendi(risorsa, delta);
+        pg.ClassResources[idx] = aggiornata;
+
+        // Spendi/Recupera sono pure: "risorsa" nella lista è ora un'istanza NUOVA. Se il pannello
+        // di modifica era aperto proprio su questa risorsa, il riferimento in editingResource
+        // punterebbe ancora alla vecchia istanza — al render successivo ReferenceEquals(...) col
+        // nuovo oggetto del @foreach fallirebbe e il pannello si chiuderebbe di scatto, scartando
+        // in silenzio il testo che l'utente stava scrivendo. Si riallinea invece che azzerare: qui
+        // la risorsa non viene rimossa, solo aggiornata (a differenza di DeleteResourceAsync). E se
+        // il salvataggio fallisce, il riallineamento si annulla insieme al resto: la lista torna a
+        // "precedente" (le vecchie istanze) e editingResource deve tornare a puntare lì.
+        var editavaQuestaRisorsa = ReferenceEquals(editingResource, risorsa);
+        if (editavaQuestaRisorsa) editingResource = aggiornata;
+
+        if (!await OnChanged())
+        {
+            pg.ClassResources = precedente;
+            if (editavaQuestaRisorsa) editingResource = risorsa;
+            await OnLocalRevert.InvokeAsync();
+        }
+    }
+
+    private void ToggleEditResource(ClassResource risorsa)
+    {
+        if (!CanEdit || IsSaving) return;
+        if (ReferenceEquals(editingResource, risorsa))
+        {
+            editingResource = null;
+            return;
+        }
+        editingResource = risorsa;
+        editDraft = new ClassResource
+        {
+            Nome = risorsa.Nome,
+            Max = risorsa.Max,
+            Spesi = risorsa.Spesi,
+            Ricarica = risorsa.Ricarica,
+        };
+    }
+
+    private void CancelEditResource() => editingResource = null;
+
+    private async Task SaveEditResourceAsync(ClassResource risorsa)
+    {
+        if (!CanEdit || IsSaving || isSavingResources) return;
+
+        var nome = editDraft.Nome?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(nome))
+        {
+            Toasts.ShowError("Il nome della risorsa è obbligatorio");
+            return;
+        }
+        if (editDraft.Max < 1)
+        {
+            Toasts.ShowError("Il massimo deve essere almeno 1");
+            return;
+        }
+
+        var pg = Character;
+        var idx = pg.ClassResources.IndexOf(risorsa);
+        if (idx < 0) return;
+
+        var chiaveNuova = CatalogKey.NormalizeName(nome);
+        var duplicato = pg.ClassResources
+            .Where((r, i) => i != idx)
+            .Any(r => CatalogKey.NormalizeName(r.Nome) == chiaveNuova);
+        if (duplicato)
+        {
+            Toasts.ShowError("Esiste già una risorsa con questo nome");
+            return;
+        }
+
+        // Il massimo può scendere sotto gli usi già spesi (es. da 4 a 2 con 3 spesi): Spesi si
+        // clampa al nuovo massimo, mai il contrario — coerente con ClassResourceRules.Normalizza.
+        var nuovoMax = editDraft.Max;
+        var nuovoSpesi = Math.Clamp(risorsa.Spesi, 0, nuovoMax);
+        var aggiornata = new ClassResource
+        {
+            Nome = nome,
+            Max = nuovoMax,
+            Spesi = nuovoSpesi,
+            Ricarica = editDraft.Ricarica,
+        };
+
+        var precedente = new List<ClassResource>(pg.ClassResources);
+        pg.ClassResources[idx] = aggiornata;
+
+        isSavingResources = true;
+        var salvato = await OnChanged();
+        isSavingResources = false;
+
+        if (salvato)
+        {
+            // Solo se il pannello aperto è ancora quello di QUESTA risorsa: se nel frattempo
+            // l'utente ne ha aperto un altro (o questa stessa chiamata arriva in ritardo dopo che
+            // altro ha già cambiato editingResource), chiuderlo qui chiuderebbe il pannello
+            // sbagliato — stesso guardia già usata in DeleteResourceAsync.
+            if (ReferenceEquals(editingResource, risorsa)) editingResource = null;
+        }
+        else
+        {
+            pg.ClassResources = precedente;
+            await OnLocalRevert.InvokeAsync();
+        }
+    }
+
+    private async Task DeleteResourceAsync(ClassResource risorsa)
+    {
+        if (!CanEdit || IsSaving || isSavingResources) return;
+
+        var confermato = await Confirm.ShowAsync($"Eliminare la risorsa \"{risorsa.Nome}\"?");
+        if (!confermato) return;
+
+        // Ricontrollato dopo la conferma: la finestra è asincrona, e nel frattempo un altro
+        // salvataggio sullo stesso personaggio può essere già partito.
+        if (!CanEdit || IsSaving || isSavingResources) return;
+
+        var pg = Character;
+        var idx = pg.ClassResources.IndexOf(risorsa);
+        if (idx < 0) return;
+
+        var precedente = new List<ClassResource>(pg.ClassResources);
+        pg.ClassResources.RemoveAt(idx);
+        // Tenuto a parte per poterlo riallineare anche sul fallimento (v. sotto) — stesso schema
+        // di "editavaQuestaRisorsa" in OnResourceDotClickAsync.
+        var editavaQuestaRisorsa = ReferenceEquals(editingResource, risorsa);
+        if (editavaQuestaRisorsa) editingResource = null;
+
+        isSavingResources = true;
+        var salvato = await OnChanged();
+        isSavingResources = false;
+
+        if (!salvato)
+        {
+            pg.ClassResources = precedente;
+            // Se il salvataggio fallisce la risorsa non è mai stata eliminata: il pannello di
+            // modifica torna a puntarci, invece di restare chiuso su un dato che in realtà c'è
+            // ancora (stesso schema del ripristino in OnResourceDotClickAsync).
+            if (editavaQuestaRisorsa) editingResource = risorsa;
             await OnLocalRevert.InvokeAsync();
         }
     }

@@ -275,4 +275,117 @@ public class RestCalculationsTests
     [InlineData("non valido", 0)]
     public void MediaDadoVita_calcola_n_su_2_piu_1_del_primo_blocco(string? hitDiceMax, int atteso)
         => Assert.Equal(atteso, RestCalculations.MediaDadoVita(hitDiceMax));
+
+    // ---- Risorse di classe ----
+
+    [Fact]
+    public void RiposoLungo_ripristina_le_risorse_con_ricarica_lungo_e_breve()
+    {
+        var pg = Pg(hp: 20, maxHp: 20);
+        pg.ClassResources = new List<ClassResource>
+        {
+            new() { Nome = "Ira", Max = 2, Spesi = 2, Ricarica = "lungo" },
+            new() { Nome = "Secondo fiato", Max = 1, Spesi = 1, Ricarica = "breve" },
+        };
+
+        var esito = RestCalculations.RiposoLungo(pg);
+        RestCalculations.Applica(pg, esito);
+
+        Assert.Equal(0, pg.ClassResources.Single(r => r.Nome == "Ira").Spesi);
+        Assert.Equal(0, pg.ClassResources.Single(r => r.Nome == "Secondo fiato").Spesi);
+        Assert.Contains("Ira e Secondo fiato ripristinate", esito.Riepilogo);
+    }
+
+    [Fact]
+    public void RiposoBreve_ripristina_solo_le_risorse_con_ricarica_breve()
+    {
+        var pg = Pg(hp: 20, maxHp: 20);
+        pg.ClassResources = new List<ClassResource>
+        {
+            new() { Nome = "Ira", Max = 2, Spesi = 2, Ricarica = "lungo" },
+            new() { Nome = "Secondo fiato", Max = 1, Spesi = 1, Ricarica = "breve" },
+        };
+
+        var esito = RestCalculations.RiposoBreve(pg, dadiSpesi: 0, totaleTirato: 0);
+        RestCalculations.Applica(pg, esito);
+
+        Assert.Equal(2, pg.ClassResources.Single(r => r.Nome == "Ira").Spesi); // "lungo": non tocca
+        Assert.Equal(0, pg.ClassResources.Single(r => r.Nome == "Secondo fiato").Spesi);
+        Assert.Contains("Secondo fiato ripristinata", esito.Riepilogo);
+        Assert.DoesNotContain(esito.Riepilogo, r => r.Contains("Ira"));
+    }
+
+    [Fact]
+    public void RiposoLungo_non_tocca_le_risorse_con_ricarica_nessuna()
+    {
+        var pg = Pg(hp: 20, maxHp: 20);
+        pg.ClassResources = new List<ClassResource>
+        {
+            new() { Nome = "Attacco furtivo", Max = 0, Spesi = 3, Ricarica = "nessuna" },
+        };
+
+        var esito = RestCalculations.RiposoLungo(pg);
+        RestCalculations.Applica(pg, esito);
+
+        Assert.Equal(3, pg.ClassResources.Single().Spesi);
+        Assert.DoesNotContain(esito.Riepilogo, r => r.Contains("ripristinat"));
+    }
+
+    [Fact]
+    public void RiposoLungo_con_lista_risorse_vuota_non_aggiunge_righe_ne_esplode()
+    {
+        var pg = Pg(hp: 20, maxHp: 20);
+        pg.ClassResources = new List<ClassResource>();
+
+        var esito = RestCalculations.RiposoLungo(pg);
+
+        Assert.Null(esito.ClassResources);
+        Assert.Null(esito.RisorseRipristinate);
+        Assert.DoesNotContain(esito.Riepilogo, r => r.Contains("ripristinat"));
+    }
+
+    [Fact]
+    public void RiposoLungo_con_lista_risorse_null_non_aggiunge_righe_ne_esplode()
+    {
+        var pg = Pg(hp: 20, maxHp: 20);
+        pg.ClassResources = null!;
+
+        var esito = RestCalculations.RiposoLungo(pg);
+        RestCalculations.Applica(pg, esito); // non deve lanciare
+
+        Assert.Null(esito.ClassResources);
+        Assert.Null(esito.RisorseRipristinate);
+        Assert.DoesNotContain(esito.Riepilogo, r => r.Contains("ripristinat"));
+    }
+
+    [Fact]
+    public void RiposoLungo_una_risorsa_gia_piena_non_viene_annunciata()
+    {
+        var pg = Pg(hp: 20, maxHp: 20);
+        pg.ClassResources = new List<ClassResource>
+        {
+            new() { Nome = "Ira", Max = 2, Spesi = 0, Ricarica = "lungo" },
+        };
+
+        var esito = RestCalculations.RiposoLungo(pg);
+
+        Assert.DoesNotContain(esito.Riepilogo, r => r.Contains("ripristinat"));
+        Assert.Null(esito.RisorseRipristinate);
+    }
+
+    [Fact]
+    public void RiposoLungo_con_ricarica_malformata_non_tocca_la_risorsa()
+    {
+        var pg = Pg(hp: 20, maxHp: 20);
+        pg.ClassResources = new List<ClassResource>
+        {
+            new() { Nome = "Misteriosa", Max = 3, Spesi = 2, Ricarica = "boh" },
+        };
+
+        var esito = RestCalculations.RiposoLungo(pg);
+        RestCalculations.Applica(pg, esito);
+
+        Assert.Equal(2, pg.ClassResources.Single().Spesi);
+        Assert.DoesNotContain(esito.Riepilogo, r => r.Contains("ripristinat"));
+    }
 }

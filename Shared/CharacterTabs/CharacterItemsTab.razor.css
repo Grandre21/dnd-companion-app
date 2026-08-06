@@ -431,6 +431,35 @@
     opacity: 0.6;
 }
 
+.inv-edit-btn {
+    background: transparent;
+    border: none;
+    color: var(--gold-dim);
+    font-size: 1rem;
+    cursor: pointer;
+    font-family: inherit;
+    /* 44px come .resource-edit-btn (CharacterCombatTab.razor.css): è un bersaglio a matita,
+       non un'icona decorativa. */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.inv-edit-btn:hover:not(:disabled) {
+    color: var(--gold-light);
+    background: rgba(var(--gold-rgb), 0.1);
+}
+
+.inv-edit-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .inv-delete-btn {
     background: transparent;
     border: none;
@@ -449,6 +478,76 @@
 .inv-delete-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+/* Pannello di modifica di un oggetto già in elenco: stesso linguaggio visivo di .inv-form (il
+   form di creazione più sopra), riusa .inv-form-grid/.inv-form-actions com'è già generico. */
+.inv-edit-form {
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-top: 0.6rem;
+}
+
+/* ===== Campi arma (form di creazione e di modifica) ===== */
+.weapon-fields-title {
+    margin: 0.2rem 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.weapon-flags {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-top: 0.15rem;
+}
+
+.weapon-flag {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    /* 44px: le tre spunte sono bersagli quanto i checkbox altrove nel tab (v. .inv-eq-toggle). */
+    min-height: 44px;
+    padding: 0.35rem 0.2rem;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 6px;
+}
+
+.weapon-flag:hover {
+    background: rgba(var(--gold-rgb), 0.06);
+}
+
+.weapon-flag input[type="checkbox"] {
+    accent-color: var(--gold);
+    width: 18px;
+    height: 18px;
+    margin-top: 0.2rem;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.weapon-flag-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.weapon-flag-name {
+    font-weight: 600;
+    color: var(--gold-light);
+    font-size: 0.9rem;
+}
+
+.weapon-flag-hint {
+    font-size: 0.75rem;
+    color: var(--gold-dim);
+    line-height: 1.3;
 }
 
 .inv-description {

@@ -48,6 +48,62 @@
                         </select>
                     </div>
 
+                    @if (IsWeaponType(newItemDraft.ItemType))
+                    {
+                        <p class="weapon-fields-title field-full">Dettagli dell'arma</p>
+
+                        <div class="field field-full">
+                            <label>Bonus d'attacco (facoltativo)</label>
+                            <input type="text" class="input" maxlength="20"
+                                   placeholder="es. +5 — lascia vuoto per il calcolo automatico"
+                                   @bind="newItemDraft.AttackBonus" />
+                        </div>
+
+                        <div class="field">
+                            <label>Danno</label>
+                            <input type="text" class="input" maxlength="20"
+                                   placeholder="es. 2d6"
+                                   @bind="newItemDraft.Damage" />
+                        </div>
+
+                        <div class="field">
+                            <label>Tipo di danno</label>
+                            <input type="text" class="input" maxlength="30"
+                                   placeholder="es. Taglio"
+                                   @bind="newItemDraft.DamageType" />
+                        </div>
+
+                        <div class="field field-full">
+                            <label>Note (opzionale)</label>
+                            <textarea class="input" rows="2"
+                                      @bind="newItemDraft.AttackNotes"></textarea>
+                        </div>
+
+                        <div class="weapon-flags field-full">
+                            <label class="weapon-flag">
+                                <input type="checkbox" @bind="newItemDraft.IsFinesse" />
+                                <span class="weapon-flag-text">
+                                    <span class="weapon-flag-name">Accurata</span>
+                                    <span class="weapon-flag-hint">Può usare Destrezza al posto di Forza, se conviene.</span>
+                                </span>
+                            </label>
+                            <label class="weapon-flag">
+                                <input type="checkbox" @bind="newItemDraft.IsRanged" />
+                                <span class="weapon-flag-text">
+                                    <span class="weapon-flag-name">A distanza</span>
+                                    <span class="weapon-flag-hint">Usa Destrezza per il bonus d'attacco.</span>
+                                </span>
+                            </label>
+                            <label class="weapon-flag">
+                                <input type="checkbox" @bind="newItemDraft.IsNotProficient" />
+                                <span class="weapon-flag-text">
+                                    <span class="weapon-flag-name">Non competente</span>
+                                    <span class="weapon-flag-hint">Niente bonus di competenza per questa arma.</span>
+                                </span>
+                            </label>
+                        </div>
+                    }
+
                     <div class="field field-full">
                         <label>Descrizione (opzionale)</label>
                         <textarea class="input" rows="3"
@@ -85,7 +141,8 @@
             @foreach (var item in Items)
             {
                 var isItemExpanded = expandedItemId == item.Id;
-                var isWeapon = string.Equals(item.ItemType, "weapon", StringComparison.OrdinalIgnoreCase);
+                var isEditingThisItem = editingItemId == item.Id;
+                var isWeapon = IsWeaponType(item.ItemType);
                 var hasWeaponStats = isWeapon &&
                     (!string.IsNullOrWhiteSpace(item.AttackBonus) ||
                      !string.IsNullOrWhiteSpace(item.Damage) ||
@@ -112,15 +169,20 @@
                         @if (CanEditInventory)
                         {
                             <div class="qty-controls">
+                                @* Disabilitati anche mentre il pannello di modifica di QUESTO oggetto è
+                                   aperto: lo stepper scrive item.Quantity subito sul server, ma il pannello
+                                   lavora su una copia scollegata (editItemDraft) — le due scritture
+                                   convergerebbero su "item" e l'ultima a salvare vincerebbe, perdendo in
+                                   silenzio l'incremento/decremento fatto nel frattempo. *@
                                 <button type="button" class="qty-btn qty-minus"
                                         @onclick="() => AdjustQuantityAsync(item, -1)"
-                                        disabled="@isSavingInventory">
+                                        disabled="@(isSavingInventory || isEditingThisItem)">
                                     −
                                 </button>
                                 <span class="qty-value">@item.Quantity</span>
                                 <button type="button" class="qty-btn qty-plus"
                                         @onclick="() => AdjustQuantityAsync(item, 1)"
-                                        disabled="@isSavingInventory">
+                                        disabled="@(isSavingInventory || isEditingThisItem)">
                                     +
                                 </button>
                             </div>
@@ -158,6 +220,14 @@
                                 <span>Equipaggiato</span>
                             </label>
 
+                            <button type="button" class="inv-edit-btn"
+                                    title="Modifica oggetto"
+                                    aria-label="Modifica @item.Name"
+                                    @onclick="() => OpenEditItemForm(item)"
+                                    disabled="@isSavingInventory">
+                                ✎
+                            </button>
+
                             <button type="button" class="inv-delete-btn"
                                     title="Elimina oggetto"
                                     @onclick="() => DeleteItemAsync(item)"
@@ -170,6 +240,116 @@
                     @if (isItemExpanded && !string.IsNullOrWhiteSpace(item.Description))
                     {
                         <div class="inv-description">@item.Description</div>
+                    }
+
+                    @if (isEditingThisItem)
+                    {
+                        <div class="inv-edit-form">
+                            <div class="inv-form-grid">
+                                <div class="field field-full">
+                                    <label>Nome</label>
+                                    <input type="text" class="input" maxlength="80"
+                                           placeholder="Nome dell'oggetto"
+                                           @bind="editItemDraft.Name" />
+                                </div>
+
+                                <div class="field">
+                                    <label>Quantità</label>
+                                    <input type="number" class="input" min="1" @bind="editItemDraft.Quantity" />
+                                </div>
+
+                                <div class="field">
+                                    <label>Peso</label>
+                                    <input type="number" class="input" step="0.1" min="0"
+                                           @bind="editItemDraft.Weight" />
+                                </div>
+
+                                <div class="field field-full">
+                                    <label>Tipo</label>
+                                    <select class="input" @bind="editItemDraft.ItemType">
+                                        @foreach (var o in ItemTypeOptions)
+                                        {
+                                            <option value="@o.Value">@o.Label</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                @if (IsWeaponType(editItemDraft.ItemType))
+                                {
+                                    <p class="weapon-fields-title field-full">Dettagli dell'arma</p>
+
+                                    <div class="field field-full">
+                                        <label>Bonus d'attacco (facoltativo)</label>
+                                        <input type="text" class="input" maxlength="20"
+                                               placeholder="es. +5 — lascia vuoto per il calcolo automatico"
+                                               @bind="editItemDraft.AttackBonus" />
+                                    </div>
+
+                                    <div class="field">
+                                        <label>Danno</label>
+                                        <input type="text" class="input" maxlength="20"
+                                               placeholder="es. 2d6"
+                                               @bind="editItemDraft.Damage" />
+                                    </div>
+
+                                    <div class="field">
+                                        <label>Tipo di danno</label>
+                                        <input type="text" class="input" maxlength="30"
+                                               placeholder="es. Taglio"
+                                               @bind="editItemDraft.DamageType" />
+                                    </div>
+
+                                    <div class="field field-full">
+                                        <label>Note (opzionale)</label>
+                                        <textarea class="input" rows="2"
+                                                  @bind="editItemDraft.AttackNotes"></textarea>
+                                    </div>
+
+                                    <div class="weapon-flags field-full">
+                                        <label class="weapon-flag">
+                                            <input type="checkbox" @bind="editItemDraft.IsFinesse" />
+                                            <span class="weapon-flag-text">
+                                                <span class="weapon-flag-name">Accurata</span>
+                                                <span class="weapon-flag-hint">Può usare Destrezza al posto di Forza, se conviene.</span>
+                                            </span>
+                                        </label>
+                                        <label class="weapon-flag">
+                                            <input type="checkbox" @bind="editItemDraft.IsRanged" />
+                                            <span class="weapon-flag-text">
+                                                <span class="weapon-flag-name">A distanza</span>
+                                                <span class="weapon-flag-hint">Usa Destrezza per il bonus d'attacco.</span>
+                                            </span>
+                                        </label>
+                                        <label class="weapon-flag">
+                                            <input type="checkbox" @bind="editItemDraft.IsNotProficient" />
+                                            <span class="weapon-flag-text">
+                                                <span class="weapon-flag-name">Non competente</span>
+                                                <span class="weapon-flag-hint">Niente bonus di competenza per questa arma.</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                }
+
+                                <div class="field field-full">
+                                    <label>Descrizione (opzionale)</label>
+                                    <textarea class="input" rows="3"
+                                              @bind="editItemDraft.Description"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="inv-form-actions">
+                                <button type="button" class="primary-btn"
+                                        @onclick="() => SaveEditItemAsync(item)"
+                                        disabled="@isSavingInventory">
+                                    @(isSavingInventory ? "Salvataggio..." : "Salva")
+                                </button>
+                                <button type="button" class="secondary-btn"
+                                        @onclick="CancelEditItem"
+                                        disabled="@isSavingInventory">
+                                    Annulla
+                                </button>
+                            </div>
+                        </div>
                     }
                 </div>
             }
@@ -263,6 +443,12 @@ else
     private bool isEditingMoney;
     private string? _lastId;
 
+    // Modifica di un oggetto già in elenco: stesso schema di isAddingItem/newItemDraft sopra, ma
+    // tenuto a parte perché più oggetti nell'elenco condividono lo stesso form — solo uno alla
+    // volta può essere in modifica (editingItemId ne indica l'Id, null = nessuno).
+    private string? editingItemId;
+    private InventoryItem editItemDraft = new();
+
     // Le armi (Value "weapon") vengono mostrate nella sezione Combattimento. Le altre voci usano Value == Label.
     private static readonly (string Value, string Label)[] ItemTypeOptions =
     {
@@ -279,6 +465,27 @@ else
 
     private double TotalInventoryWeight => Items.Sum(i => (i.Weight ?? 0) * i.Quantity);
 
+    // Confronto centralizzato: decide sia il badge "Arma" nell'elenco sia se i form di
+    // creazione/modifica mostrano i campi arma (bonus, danno, note, le tre spunte).
+    private static bool IsWeaponType(string? itemType) =>
+        string.Equals(itemType, "weapon", StringComparison.OrdinalIgnoreCase);
+
+    // Se il tipo scelto non è "arma" i campi arma restano nascosti in UI, ma senza questo
+    // azzeramento un valore scritto mentre il tipo era ancora "weapon" (poi cambiato prima di
+    // salvare) sopravvivrebbe invisibile sul record: se l'oggetto tornasse "arma" in futuro,
+    // ricomparirebbero bonus/danno/flag mai intenzionalmente confermati per quella configurazione.
+    private static void ClearWeaponFieldsIfNotWeapon(InventoryItem item)
+    {
+        if (IsWeaponType(item.ItemType)) return;
+        item.AttackBonus = null;
+        item.Damage = null;
+        item.DamageType = null;
+        item.AttackNotes = null;
+        item.IsFinesse = false;
+        item.IsRanged = false;
+        item.IsNotProficient = false;
+    }
+
     // Reset dello stato UI locale al cambio di PG (prima lo faceva il genitore alla selezione).
     protected override void OnParametersSet()
     {
@@ -289,6 +496,8 @@ else
             isAddingItem = false;
             isEditingMoney = false;
             newItemDraft = new InventoryItem();
+            editingItemId = null;
+            editItemDraft = new InventoryItem();
         }
     }
 
@@ -323,6 +532,7 @@ else
             return;
         }
         if (newItemDraft.Quantity < 1) newItemDraft.Quantity = 1;
+        ClearWeaponFieldsIfNotWeapon(newItemDraft);
 
         isSavingInventory = true;
         await OnError.InvokeAsync(null);
@@ -342,6 +552,110 @@ else
         catch (Exception ex)
         {
             await OnError.InvokeAsync($"Errore creazione oggetto: {ex.Message}");
+        }
+        finally
+        {
+            isSavingInventory = false;
+        }
+    }
+
+    // ===== Modifica di un oggetto già in elenco =====
+    // Un'arma creata prima dell'introduzione di IsFinesse/IsRanged/IsNotProficient (e più in
+    // generale qualunque oggetto) resterebbe senza questi campi per sempre senza un modo per
+    // aggiornarla: questo form segue lo stesso schema di quello di creazione più sopra, bindato
+    // a editItemDraft invece che a newItemDraft.
+
+    private void OpenEditItemForm(InventoryItem item)
+    {
+        if (!CanEditInventory) return;
+        if (editingItemId == item.Id)
+        {
+            CancelEditItem();
+            return;
+        }
+        editingItemId = item.Id;
+        editItemDraft = CloneItem(item);
+    }
+
+    private void CancelEditItem()
+    {
+        editingItemId = null;
+        editItemDraft = new InventoryItem();
+    }
+
+    private static InventoryItem CloneItem(InventoryItem source) => new()
+    {
+        Id = source.Id,
+        CharacterId = source.CharacterId,
+        Name = source.Name,
+        Quantity = source.Quantity,
+        Weight = source.Weight,
+        Description = source.Description,
+        ItemType = source.ItemType,
+        IsEquipped = source.IsEquipped,
+        AttackBonus = source.AttackBonus,
+        Damage = source.Damage,
+        DamageType = source.DamageType,
+        AttackNotes = source.AttackNotes,
+        IsFinesse = source.IsFinesse,
+        IsRanged = source.IsRanged,
+        IsNotProficient = source.IsNotProficient,
+    };
+
+    private static void CopyItemFields(InventoryItem target, InventoryItem source)
+    {
+        target.Name = source.Name;
+        target.Quantity = source.Quantity;
+        target.Weight = source.Weight;
+        target.Description = source.Description;
+        target.ItemType = source.ItemType;
+        target.AttackBonus = source.AttackBonus;
+        target.Damage = source.Damage;
+        target.DamageType = source.DamageType;
+        target.AttackNotes = source.AttackNotes;
+        target.IsFinesse = source.IsFinesse;
+        target.IsRanged = source.IsRanged;
+        target.IsNotProficient = source.IsNotProficient;
+    }
+
+    private async Task SaveEditItemAsync(InventoryItem item)
+    {
+        if (!CanEditInventory) return;
+
+        if (string.IsNullOrWhiteSpace(editItemDraft.Name))
+        {
+            await OnError.InvokeAsync("Il nome dell'oggetto è obbligatorio");
+            return;
+        }
+        if (editItemDraft.Quantity < 1) editItemDraft.Quantity = 1;
+        ClearWeaponFieldsIfNotWeapon(editItemDraft);
+
+        // Snapshot per il ripristino se il salvataggio non è confermato: "item" è l'istanza VIVA
+        // nella lista del genitore (stessa disciplina di AdjustQuantityAsync/ToggleEquippedAsync
+        // più sotto), non una copia — la si muta subito per il feedback immediato, prima di sapere
+        // se il server accetta davvero la scrittura.
+        var precedente = CloneItem(item);
+        CopyItemFields(item, editItemDraft);
+
+        isSavingInventory = true;
+        await OnError.InvokeAsync(null);
+        try
+        {
+            var saved = await InventoryRepository.UpdateInventoryItemAsync(item);
+            if (saved is null)
+            {
+                CopyItemFields(item, precedente);
+                await OnError.InvokeAsync("Il server non ha restituito l'oggetto salvato.");
+                return;
+            }
+            editingItemId = null;
+            editItemDraft = new InventoryItem();
+            await OnInventoryChanged.InvokeAsync(); // il genitore ricarica (ordine tipo poi nome + Combat aggiornato)
+        }
+        catch (Exception ex)
+        {
+            CopyItemFields(item, precedente);
+            await OnError.InvokeAsync($"Errore salvataggio oggetto: {ex.Message}");
         }
         finally
         {

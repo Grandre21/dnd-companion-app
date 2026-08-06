@@ -21,11 +21,24 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
 > ogni push e da segnalare all'utente.
 
-> Nessuna migrazione in sospeso. `20260806120000_close_campaign_hopping.sql` è **applicata e
-> verificata** all'hosted il 2026-08-06 (`pg_policies`, più la ricerca di righe orfane); chiude il
-> varco §2 su 7 tabelle. Le precedenti (`20260801000000_class_subclasses.sql`,
-> `20260731000000_party_visibility.sql`) erano già applicate dal 2026-08-01.
+> 🔴 **MIGRAZIONE IN SOSPESO — `20260806130000_scheda_carta.sql`, da applicare PRIMA del prossimo
+> push, e stavolta il rischio è più alto del solito.** Aggiunge 4 colonne a `characters`
+> (`class_resources jsonb`, `armor_training`, `weapon_proficiencies`, `tool_proficiencies`) e 3 a
+> `inventory` (`is_finesse`, `is_ranged`, `is_not_proficient`). `Update` serializza **tutte** le
+> colonne mappate: se il client va online prima della migrazione, **ogni salvataggio di scheda
+> fallisce**, non solo le funzioni nuove. Istruzioni e query di verifica in testa al file `.sql` —
+> deve restituire 7 righe. Verificata sullo stack locale: migrazione applicata, 32 test
+> d'integrazione verdi, incluso il giro andata-ritorno del `jsonb` contro Postgres vero.
+>
+> Le precedenti sono applicate: `20260806120000_close_campaign_hopping.sql` (2026-08-06, verificata
+> con `pg_policies` e la ricerca di righe orfane), `20260801000000_class_subclasses.sql` e
+> `20260731000000_party_visibility.sql` (2026-08-01).
 
+- 🔴 **Scheda alla pari con la carta, quattro prove** (nuovo, 2026-08-06): (a) un riposo lungo che
+  **ripristina le risorse** e le nomina nel riepilogo; (b) un'arma **accurata** su un personaggio con
+  Destrezza maggiore della Forza: il bonus deve usare Destrezza; (c) il **form di modifica** aperto e
+  salvato su un personaggio con risorse e addestramento — non devono sparire (era il bloccante di
+  `CloneCharacter`); (d) una risorsa con ricarica **«nessuna»**: il riposo non deve toccarla.
 - 🔴 **Level-up guidato, tre prove** (nuovo, 2026-08-06): (a) un PG del manuale che sale a un livello
   **con una scelta** — sottoclasse al 3° o talento al 4° — e la conferma scrive davvero; (b) un PG con
   classe **del tavolo** senza tabella: il dialogo non deve aprirsi, e deve comparire il toast che

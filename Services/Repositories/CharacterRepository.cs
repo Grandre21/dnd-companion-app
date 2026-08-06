@@ -1,4 +1,5 @@
 using DndCompanion.Models;
+using DndCompanion.Services;
 
 namespace DndCompanion.Services.Repositories;
 
@@ -23,7 +24,16 @@ public class CharacterRepository : ICharacterRepository
         var response = await client.From<Character>()
             .Where(c => c.CampaignId == campaignId)
             .Get();
-        return response.Models;
+
+        var personaggi = response.Models;
+        // Rete anti-NRE sul jsonb class_resources (v. ClassResourceRules.Normalizza): un elemento
+        // null o malformato non deve impedire l'apertura della scheda al ciclo che disegna le
+        // pillole. Normalizzato una volta qui, sul percorso di lettura, vale per ogni consumatore
+        // invece che per il singolo componente.
+        foreach (var pg in personaggi)
+            pg.ClassResources = ClassResourceRules.Normalizza(pg.ClassResources);
+
+        return personaggi;
     }
 
     public async Task<Character?> CreateCharacterAsync(Character character)

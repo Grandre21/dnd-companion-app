@@ -120,6 +120,14 @@ public class Character : BaseModel
     public bool HeroicInspiration { get; set; }
 
     // ---------------------------------------------------------------
+    // Risorse di classe (jsonb): le caselline a matita accanto ai privilegi sulla carta.
+    // Stesso pattern di CombatState.Combatants. Lettura/scrittura tollerante in
+    // Services/ClassResourceRules.cs — v. spec 2026-08-06, sezione «Le risorse di classe».
+    // ---------------------------------------------------------------
+    [Column("class_resources")]
+    public List<ClassResource> ClassResources { get; set; } = new();
+
+    // ---------------------------------------------------------------
     // Competenze tiri salvezza
     // ---------------------------------------------------------------
     [Column("prof_save_strength")]
@@ -262,6 +270,20 @@ public class Character : BaseModel
 
     [Column("feats")]
     public string? Feats { get; set; }
+
+    // ---------------------------------------------------------------
+    // Addestramento (EQUIPMENT TRAINING & PROFICIENCIES sulla carta): testo libero, non una
+    // griglia di caselle (D4 nello spec 2026-08-06) — non alimenta calcoli, si consulta due volte
+    // a campagna.
+    // ---------------------------------------------------------------
+    [Column("armor_training")]
+    public string? ArmorTraining { get; set; }
+
+    [Column("weapon_proficiencies")]
+    public string? WeaponProficiencies { get; set; }
+
+    [Column("tool_proficiencies")]
+    public string? ToolProficiencies { get; set; }
 
     // ---------------------------------------------------------------
     // Denari
