@@ -219,3 +219,9 @@ una colonna»: il read-modify-write lato client ha la stessa finestra.
   `LevelUpPlanner.Applica` confronta il personaggio prima e dopo campo per campo, i suggerimenti di
   `ClassResourceRules` si verificano contro il pacchetto SRD, `CharacterCloneTests` contro il
   modello. Costano poco e reggono senza manutenzione.
+- **Un test nato per sorvegliare una correzione va provato per mutazione**: togli la correzione,
+  verifica che diventi **rosso**, ripristina. Costa un minuto ed è la sola prova che serva a
+  qualcosa. Il 2026-08-06 il test della doppia pianificazione usava Costituzione 14, e il
+  modificatore di 14 è lo stesso di 15: **passava identico anche senza il fix**. Quando il valore
+  scelto è ciò che rende il test non vacuo (una parità, uno zero, una soglia), scrivilo **accanto al
+  valore** — altrimenti la prossima «semplificazione» riporta il test alla vacuità senza segnali.
