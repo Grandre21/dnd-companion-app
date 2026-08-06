@@ -86,42 +86,18 @@
         _ => "?"
     };
 
-    private static string SkillLabel(SkillType s) => s switch
-    {
-        SkillType.Athletics => "Atletica",
-        SkillType.Acrobatics => "Acrobazia",
-        SkillType.SleightOfHand => "Rapidità di mano",
-        SkillType.Stealth => "Furtività",
-        SkillType.Arcana => "Arcano",
-        SkillType.History => "Storia",
-        SkillType.Investigation => "Indagare",
-        SkillType.Nature => "Natura",
-        SkillType.Religion => "Religione",
-        SkillType.AnimalHandling => "Addestrare animali",
-        SkillType.Insight => "Intuizione",
-        SkillType.Medicine => "Medicina",
-        SkillType.Perception => "Percezione",
-        SkillType.Survival => "Sopravvivenza",
-        SkillType.Deception => "Inganno",
-        SkillType.Intimidation => "Intimidire",
-        SkillType.Performance => "Intrattenere",
-        SkillType.Persuasion => "Persuasione",
-        _ => s.ToString()
-    };
+    // Enum -> nome italiano: centralizzato in SkillCatalog (usato anche dal vincolo di scelta
+    // abilità e dai suoi test contro il pacchetto SRD).
+    private static string SkillLabel(SkillType s) => SkillCatalog.Nome(s);
 
-    // Skill associate alla caratteristica (coerente con CharacterCalculations.GetSkillAbility).
-    private static IEnumerable<SkillType> SkillsFor(AbilityType a) => a switch
-    {
-        AbilityType.Strength => new[] { SkillType.Athletics },
-        AbilityType.Dexterity => new[] { SkillType.Acrobatics, SkillType.SleightOfHand, SkillType.Stealth },
-        AbilityType.Constitution => Array.Empty<SkillType>(),
-        AbilityType.Intelligence => new[] { SkillType.Arcana, SkillType.History, SkillType.Investigation, SkillType.Nature, SkillType.Religion },
-        AbilityType.Wisdom => new[] { SkillType.AnimalHandling, SkillType.Insight, SkillType.Medicine, SkillType.Perception, SkillType.Survival },
-        AbilityType.Charisma => new[] { SkillType.Deception, SkillType.Intimidation, SkillType.Performance, SkillType.Persuasion },
-        _ => Array.Empty<SkillType>()
-    };
+    // Skill associate alla caratteristica: DERIVATA da CharacterCalculations.GetSkillAbility invece
+    // di ricopiarne l'inverso a mano (era lo stesso difetto di SkillLabel, promosso solo a metà —
+    // MINORE 6 del gate del 2026-08-06). Così una skill nuova entra qui da sola.
+    private static IEnumerable<SkillType> SkillsFor(AbilityType a) =>
+        SkillCatalog.Tutte.Where(s => CharacterCalculations.GetSkillAbility(s) == a);
 
-    // ---- Accessor stato (lookup/scrittura flag: CharacterCalculations non li espone pubblici) ----
+    // ---- Accessor stato: punteggio e tiri salvezza (CharacterCalculations non li espone
+    // pubblici). Le skill, sotto, non ripetono più questo schema: delegano a SkillCatalog. ----
 
     private static int AbilityScore(Character c, AbilityType a) => a switch
     {
@@ -158,99 +134,13 @@
         }
     }
 
-    private static bool GetSkillProf(Character c, SkillType s) => s switch
-    {
-        SkillType.Athletics => c.ProfAthletics,
-        SkillType.Acrobatics => c.ProfAcrobatics,
-        SkillType.SleightOfHand => c.ProfSleightOfHand,
-        SkillType.Stealth => c.ProfStealth,
-        SkillType.Arcana => c.ProfArcana,
-        SkillType.History => c.ProfHistory,
-        SkillType.Investigation => c.ProfInvestigation,
-        SkillType.Nature => c.ProfNature,
-        SkillType.Religion => c.ProfReligion,
-        SkillType.AnimalHandling => c.ProfAnimalHandling,
-        SkillType.Insight => c.ProfInsight,
-        SkillType.Medicine => c.ProfMedicine,
-        SkillType.Perception => c.ProfPerception,
-        SkillType.Survival => c.ProfSurvival,
-        SkillType.Deception => c.ProfDeception,
-        SkillType.Intimidation => c.ProfIntimidation,
-        SkillType.Performance => c.ProfPerformance,
-        SkillType.Persuasion => c.ProfPersuasion,
-        _ => false
-    };
+    // Lettura/scrittura delle 18 coppie di bool: centralizzate in SkillCatalog, che le condivide
+    // col vincolo di scelta abilità (SkillChoiceRules) e con la creazione guidata.
+    private static bool GetSkillProf(Character c, SkillType s) => SkillCatalog.Competente(c, s);
 
-    private static void SetSkillProf(Character c, SkillType s, bool v)
-    {
-        switch (s)
-        {
-            case SkillType.Athletics: c.ProfAthletics = v; break;
-            case SkillType.Acrobatics: c.ProfAcrobatics = v; break;
-            case SkillType.SleightOfHand: c.ProfSleightOfHand = v; break;
-            case SkillType.Stealth: c.ProfStealth = v; break;
-            case SkillType.Arcana: c.ProfArcana = v; break;
-            case SkillType.History: c.ProfHistory = v; break;
-            case SkillType.Investigation: c.ProfInvestigation = v; break;
-            case SkillType.Nature: c.ProfNature = v; break;
-            case SkillType.Religion: c.ProfReligion = v; break;
-            case SkillType.AnimalHandling: c.ProfAnimalHandling = v; break;
-            case SkillType.Insight: c.ProfInsight = v; break;
-            case SkillType.Medicine: c.ProfMedicine = v; break;
-            case SkillType.Perception: c.ProfPerception = v; break;
-            case SkillType.Survival: c.ProfSurvival = v; break;
-            case SkillType.Deception: c.ProfDeception = v; break;
-            case SkillType.Intimidation: c.ProfIntimidation = v; break;
-            case SkillType.Performance: c.ProfPerformance = v; break;
-            case SkillType.Persuasion: c.ProfPersuasion = v; break;
-        }
-    }
+    private static void SetSkillProf(Character c, SkillType s, bool v) => SkillCatalog.ImpostaCompetenza(c, s, v);
 
-    private static bool GetSkillExp(Character c, SkillType s) => s switch
-    {
-        SkillType.Athletics => c.ExpAthletics,
-        SkillType.Acrobatics => c.ExpAcrobatics,
-        SkillType.SleightOfHand => c.ExpSleightOfHand,
-        SkillType.Stealth => c.ExpStealth,
-        SkillType.Arcana => c.ExpArcana,
-        SkillType.History => c.ExpHistory,
-        SkillType.Investigation => c.ExpInvestigation,
-        SkillType.Nature => c.ExpNature,
-        SkillType.Religion => c.ExpReligion,
-        SkillType.AnimalHandling => c.ExpAnimalHandling,
-        SkillType.Insight => c.ExpInsight,
-        SkillType.Medicine => c.ExpMedicine,
-        SkillType.Perception => c.ExpPerception,
-        SkillType.Survival => c.ExpSurvival,
-        SkillType.Deception => c.ExpDeception,
-        SkillType.Intimidation => c.ExpIntimidation,
-        SkillType.Performance => c.ExpPerformance,
-        SkillType.Persuasion => c.ExpPersuasion,
-        _ => false
-    };
+    private static bool GetSkillExp(Character c, SkillType s) => SkillCatalog.Esperto(c, s);
 
-    private static void SetSkillExp(Character c, SkillType s, bool v)
-    {
-        switch (s)
-        {
-            case SkillType.Athletics: c.ExpAthletics = v; break;
-            case SkillType.Acrobatics: c.ExpAcrobatics = v; break;
-            case SkillType.SleightOfHand: c.ExpSleightOfHand = v; break;
-            case SkillType.Stealth: c.ExpStealth = v; break;
-            case SkillType.Arcana: c.ExpArcana = v; break;
-            case SkillType.History: c.ExpHistory = v; break;
-            case SkillType.Investigation: c.ExpInvestigation = v; break;
-            case SkillType.Nature: c.ExpNature = v; break;
-            case SkillType.Religion: c.ExpReligion = v; break;
-            case SkillType.AnimalHandling: c.ExpAnimalHandling = v; break;
-            case SkillType.Insight: c.ExpInsight = v; break;
-            case SkillType.Medicine: c.ExpMedicine = v; break;
-            case SkillType.Perception: c.ExpPerception = v; break;
-            case SkillType.Survival: c.ExpSurvival = v; break;
-            case SkillType.Deception: c.ExpDeception = v; break;
-            case SkillType.Intimidation: c.ExpIntimidation = v; break;
-            case SkillType.Performance: c.ExpPerformance = v; break;
-            case SkillType.Persuasion: c.ExpPersuasion = v; break;
-        }
-    }
+    private static void SetSkillExp(Character c, SkillType s, bool v) => SkillCatalog.ImpostaEsperienza(c, s, v);
 }

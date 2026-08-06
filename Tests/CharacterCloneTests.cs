@@ -1,4 +1,3 @@
-using System.Reflection;
 using DndCompanion.Models;
 using DndCompanion.Pages;
 using Xunit;
@@ -24,29 +23,9 @@ public class CharacterCloneTests
         var originale = CostruisciCharacterConValoriDistinti();
         var clone = Characters.CloneCharacter(originale);
 
-        foreach (var prop in ProprietaDaConfrontare())
-        {
-            if (prop.Name == nameof(Character.ClassResources))
-            {
-                var attese = Assert.IsType<List<ClassResource>>(prop.GetValue(originale));
-                var ottenute = Assert.IsType<List<ClassResource>>(prop.GetValue(clone));
-                Assert.Equal(attese.Count, ottenute.Count);
-                for (var i = 0; i < attese.Count; i++)
-                {
-                    Assert.Equal(attese[i].Nome, ottenute[i].Nome);
-                    Assert.Equal(attese[i].Max, ottenute[i].Max);
-                    Assert.Equal(attese[i].Spesi, ottenute[i].Spesi);
-                    Assert.Equal(attese[i].Ricarica, ottenute[i].Ricarica);
-                }
-                continue;
-            }
-
-            var valoreOriginale = prop.GetValue(originale);
-            var valoreClone = prop.GetValue(clone);
-            Assert.True(Equals(valoreOriginale, valoreClone),
-                $"Character.{prop.Name}: originale='{valoreOriginale}' ma il clone ha " +
-                $"'{valoreClone}' — CloneCharacter non copia (più) questo campo.");
-        }
+        CharacterReflectionTestHelpers.AssertPersonaggiUguali(originale, clone, (prop, valoreOriginale, valoreClone) =>
+            $"Character.{prop.Name}: originale='{valoreOriginale}' ma il clone ha " +
+            $"'{valoreClone}' — CloneCharacter non copia (più) questo campo.");
     }
 
     [Fact]
@@ -75,9 +54,6 @@ public class CharacterCloneTests
         Assert.Single(originale.ClassResources);             // ...né la nuova voce aggiunta al clone.
     }
 
-    private static IEnumerable<PropertyInfo> ProprietaDaConfrontare() =>
-        typeof(Character).GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-
     // Un valore diverso dal default di OGNI proprietà (compresi i default non-zero dichiarati sul
     // modello, es. Level = 1, ArmorClass = 10, Size = "Media"): se CloneCharacter dimentica una
     // proprietà, il clone la ritrova al suo valore di default — diverso da quello impostato qui — e
@@ -85,7 +61,7 @@ public class CharacterCloneTests
     private static Character CostruisciCharacterConValoriDistinti()
     {
         var c = new Character();
-        foreach (var prop in ProprietaDaConfrontare())
+        foreach (var prop in CharacterReflectionTestHelpers.ProprietaCharacter())
         {
             if (prop.Name == nameof(Character.ClassResources))
             {

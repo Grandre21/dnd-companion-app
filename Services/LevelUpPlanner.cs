@@ -151,7 +151,15 @@ public static class LevelUpPlanner
     /// <see cref="AppendUnica"/> dedupla le righe), ma i punteggi sono <c>+=</c> — se il genitore
     /// richiama <see cref="Applica"/> sullo stesso <see cref="Character"/> già mutato (es. dopo un
     /// errore di rete su <c>UpdateCharacterAsync</c> e un ritentativo), <c>Completo</c> resta vero e
-    /// una caratteristica prenderebbe l'incremento una seconda volta.</summary>
+    /// una caratteristica prenderebbe l'incremento una seconda volta.
+    ///
+    /// <para><b>Chiamante da conoscere prima di irrigidire questa guardia:</b> <see cref="CreationChain.Deriva"/>
+    /// la elude DA FUORI apposta — costruisce un <see cref="LevelUpPlan"/> con SOLO le decisioni già
+    /// risolte (<c>pianoDaApplicare</c>, filtrato dalle risposte valide) proprio per far passare
+    /// <c>Completo</c> anche quando altre decisioni dello stesso livello restano aperte, perché lì il
+    /// livello deve avanzare comunque. Un domani che rendesse questa guardia più severa (es. una
+    /// verifica aggiuntiva che <c>CreationChain</c> non replica) romperebbe quel chiamante senza che
+    /// nulla qui lo segnali.</para></summary>
     public static Character Applica(Character pg, LevelUpPlan piano, IReadOnlyDictionary<string, Risposta>? risposte)
     {
         if (!piano.Completo(risposte)) return pg;

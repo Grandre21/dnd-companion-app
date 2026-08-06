@@ -76,8 +76,11 @@ public static class CharacterCalculations
         var bonus = mod;
         // Competente e con expertise: pb sommato due volte (raddoppiato).
         // Solo expertise senza competenza (anomalo): pb singolo (defensive).
-        if (IsProficientInSkill(c, skill)) bonus += pb;
-        if (HasExpertiseInSkill(c, skill)) bonus += pb;
+        // Le 18 coppie di bool si leggono da SkillCatalog, non da un secondo switch qui: era la
+        // stessa tabella scritta due volte (SERIO 1 del gate del 2026-08-06), ed è esattamente il
+        // genere di duplicazione che fa divergere la spunta di StatCard dal bonus mostrato accanto.
+        if (SkillCatalog.Competente(c, skill)) bonus += pb;
+        if (SkillCatalog.Esperto(c, skill)) bonus += pb;
         return bonus;
     }
 
@@ -166,52 +169,6 @@ public static class CharacterCalculations
         AbilityType.Intelligence => c.ProfSaveIntelligence,
         AbilityType.Wisdom => c.ProfSaveWisdom,
         AbilityType.Charisma => c.ProfSaveCharisma,
-        _ => false
-    };
-
-    private static bool IsProficientInSkill(Character c, SkillType skill) => skill switch
-    {
-        SkillType.Athletics => c.ProfAthletics,
-        SkillType.Acrobatics => c.ProfAcrobatics,
-        SkillType.SleightOfHand => c.ProfSleightOfHand,
-        SkillType.Stealth => c.ProfStealth,
-        SkillType.Arcana => c.ProfArcana,
-        SkillType.History => c.ProfHistory,
-        SkillType.Investigation => c.ProfInvestigation,
-        SkillType.Nature => c.ProfNature,
-        SkillType.Religion => c.ProfReligion,
-        SkillType.AnimalHandling => c.ProfAnimalHandling,
-        SkillType.Insight => c.ProfInsight,
-        SkillType.Medicine => c.ProfMedicine,
-        SkillType.Perception => c.ProfPerception,
-        SkillType.Survival => c.ProfSurvival,
-        SkillType.Deception => c.ProfDeception,
-        SkillType.Intimidation => c.ProfIntimidation,
-        SkillType.Performance => c.ProfPerformance,
-        SkillType.Persuasion => c.ProfPersuasion,
-        _ => false
-    };
-
-    private static bool HasExpertiseInSkill(Character c, SkillType skill) => skill switch
-    {
-        SkillType.Athletics => c.ExpAthletics,
-        SkillType.Acrobatics => c.ExpAcrobatics,
-        SkillType.SleightOfHand => c.ExpSleightOfHand,
-        SkillType.Stealth => c.ExpStealth,
-        SkillType.Arcana => c.ExpArcana,
-        SkillType.History => c.ExpHistory,
-        SkillType.Investigation => c.ExpInvestigation,
-        SkillType.Nature => c.ExpNature,
-        SkillType.Religion => c.ExpReligion,
-        SkillType.AnimalHandling => c.ExpAnimalHandling,
-        SkillType.Insight => c.ExpInsight,
-        SkillType.Medicine => c.ExpMedicine,
-        SkillType.Perception => c.ExpPerception,
-        SkillType.Survival => c.ExpSurvival,
-        SkillType.Deception => c.ExpDeception,
-        SkillType.Intimidation => c.ExpIntimidation,
-        SkillType.Performance => c.ExpPerformance,
-        SkillType.Persuasion => c.ExpPersuasion,
         _ => false
     };
 
