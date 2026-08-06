@@ -1553,3 +1553,94 @@ sottile e un'etichetta piccola in maiuscolo, niente di nuovo nella palette. Ness
 `RestCalculations`, `ClassResourceRules`, `WeaponCalculations` invariati — solo markup spostato
 all'interno dello stesso file. Gate a un giro (`critico` + `conformità`): uscita pulita, con solo
 imprecisioni minori nei commenti corrette al volo.
+
+## La creazione guidata: collegare il motore, non scriverne un secondo (2026-08-06, quarto giro)
+
+Il wizard di creazione produceva **personaggi incompleti**, e la cosa non si vedeva: build verde,
+test verdi, scheda che si apre. Mancavano gli slot incantesimo (un Mago di 1° nasceva senza slot: il
+tab Magia c'era ma non si poteva lanciare nulla), mancava `SpellcastingAbility` (CD e bonus
+d'attacco magico vuoti), e le competenze di classe erano mostrate come **prosa** invece che come
+scelta — «2 tra Atletica, …» da leggere, e poi le caselle da spuntare a mano, senza vincolo. Chi non
+lo sapeva partiva con zero competenze.
+
+E mancava il caso che al tavolo capita davvero: **entrare in una campagna già avviata**, cioè creare
+un personaggio al 5°. Si digitava «5» e si otteneva una scheda con i punti ferita di un 5° ma senza
+sottoclasse, senza il talento del 4°, con gli slot di nessun livello.
+
+Il motore che sa fare tutto questo **esisteva già**: `LevelUpPlanner`, costruito lo stesso giorno. La
+tappa non era scrivere una progressione — era collegarla. La linea rossa, dichiarata nella spec e
+ripetuta nel prompt di ogni agente: **nessun secondo motore**. Qualunque strada in cui il wizard
+calcolasse da sé cosa succede salendo avrebbe prodotto due implementazioni della stessa tabella, e
+sarebbero divergute alla prima correzione applicata a una sola delle due.
+
+### Il replay al posto dell'undo
+
+Il consulto con Fable ha sciolto il nodo che avevo lasciato aperto. `Applica` **muta** l'istanza che
+riceve: su quattro livelli concatenati, un undo per snapshot sarebbe stato fragile. La forma giusta è
+che lo stato del wizard non sia mai «il personaggio al livello k», ma la coppia **(baseline,
+risposte per livello)** — e che il personaggio a livello N si **derivi** rieseguendo il fold da capo
+a ogni cambiamento. Tornare indietro non richiede allora alcun undo: si butta il derivato e si
+ricalcola, il che è corretto per costruzione anche quando il giocatore cambia idea sull'incremento di
+caratteristica del 4° e il retroattivo di Costituzione va rifatto su tutti i livelli.
+
+Il rischio più grave l'ha nominato Fable, non io: `SaveAsync` sincronizza le sei caratteristiche
+finali **in coda al salvataggio** (`CharacterWizard.razor:1147-1153`). Se il fold girasse prima, quel
+sync **cancellerebbe l'incremento** applicato al 4° — il gemello esatto del bloccante `CloneCharacter`
+del giro precedente, e altrettanto silenzioso. Da qui la pipeline rigida e mai interlacciata:
+assembla il baseline (sync compreso), valida, deriva, normalizza, salva.
+
+### Il ponte era già doppio
+
+Le competenze N-su-M richiedevano una mappa fra tre cose: il tipo `SkillType`, il nome italiano che
+compare nel pacchetto SRD, e le diciotto coppie di bool sulla riga `characters`. Quella mappa esisteva
+— `private static` dentro `Shared/StatCard.razor`, quattro `switch` da diciotto rami, cioè logica di
+dominio dentro il markup. L'ho fatta promuovere in `SkillCatalog`.
+
+Il gate ha trovato che ne esisteva **una seconda**, in `CharacterCalculations.IsProficientInSkill` e
+`HasExpertiseInSkill`, identica carattere per carattere. Togliendo la copia da `StatCard` ne avevamo
+create due dove ne volevamo una — e sono le due che alimentano **lati opposti della stessa riga di
+scheda**: la spunta la scrive `SkillCatalog`, il bonus accanto lo calcola
+`CharacterCalculations.GetSkillBonus`. Una divergenza avrebbe mostrato un bonus da competente accanto
+a una casella spenta, senza errori. Ora la tabella vive in un posto solo.
+
+Sul vincolo, la decisione che conta è che il degrado sia **totale**: se anche un solo nome della
+lista non mappa su una delle diciotto abilità, il vincolo non vale affatto e si ricade sul picker
+libero. Le diciotto coppie di bool non sanno rappresentare un'abilità homebrew: un vincolo che ne
+elencasse una la renderebbe irraggiungibile — il giocatore vedrebbe un'opzione che non può
+selezionare, o peggio la selezionerebbe senza che nulla venga scritto. Meglio nessun vincolo che un
+vincolo bugiardo.
+
+### Tre giri di gate, otto difetti seri, tutti sulle giunture
+
+Nessuno stava dentro una fetta: stavano tutti dove una incontra l'altra, che è ormai la regolarità di
+questo repo. I due che contano davvero:
+
+**La sottoclasse veniva richiesta di nuovo a ogni livello successivo.** Se il giocatore non risponde
+al 3°, il fold avanza comunque e `pg.Subclass` resta vuota — così al 6° la tabella porta «Privilegio
+di sottoclasse», `CostruisciDecisioni` non vede alcuna sottoclasse impostata e **ricrea la stessa
+domanda**. Un Barbaro di 14° avrebbe mostrato quattro schede identiche, e rispondendo prima al 6° e
+poi al 3° la prima risposta sarebbe stata scartata in silenzio. Nella catena la sottoclasse è **una
+sola** scelta, quella del livello in cui compare per la prima volta.
+
+**I punti ferita si gonfiavano su un aumento di Costituzione mai scritto.** `IncrementoCostituzione`
+legge la risposta grezza senza passare dalla validazione di forma. Finché la guardia tutto-o-niente
+di `Applica` bloccava l'intero livello era innocuo — al massimo un numero sbagliato che non si
+salvava. Ma la catena quella guardia **deve** aggirarla, perché il livello avanzi mentre il giocatore
+decide: basta cliccare «+» una volta sola invece di due e il piano calcolava quattro punti ferita dal
+nulla. La correzione non è filtrare il piano ma **pianificare due volte**: una con tutte le risposte
+per ciò che l'interfaccia mostra, una con le sole risposte valide per ciò che viene scritto. `Pianifica`
+è pura e senza I/O, quindi chiamarla due volte non costa nulla.
+
+### Il test che sorvegliava e non sorvegliava
+
+Vale da solo il giro in più. Il test scritto per inchiodare la doppia pianificazione usava un
+personaggio con Costituzione 14, e la risposta malformata la portava a 15 — ma il modificatore di 14
+e quello di 15 sono lo stesso numero. I punti ferita coincidevano comunque: **il test passava
+identico anche togliendo la correzione**. Serve una Costituzione dispari perché la differenza emerga,
+e ora il valore porta accanto il commento che spiega perché la parità conta — altrimenti il prossimo
+che «semplifica» il baseline riporta il test alla vacuità.
+
+Da qui una pratica che vale la pena tenere: quando un test nasce per sorvegliare una correzione
+precisa, **provarlo per mutazione** — togliere la correzione e verificare che diventi rosso. Fatto
+qui, ha dato 39 contro 43 attesi. È l'unica dimostrazione che un test serva a qualcosa, e costa un
+minuto.
