@@ -1,0 +1,582 @@
+/* ===== Dialogo "Sali di livello" =====
+   Foglio a tutto schermo su mobile (scroll interno, conferma sticky in fondo), card centrata da
+   641px in su — la stessa soglia usata da CharacterEditForm.razor.css. Lo scope isolato del
+   genitore non raggiunge questo componente (v. CLAUDE.md): ogni classe che serve qui è definita
+   qui, anche quando assomiglia a un pattern già visto altrove (accordion, pillole di stato). */
+
+.lud-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(var(--black-rgb), 0.65);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 1150; /* sopra i toast (1100), sotto ConfirmDialog (1200) se dovesse mai comparirvi sopra */
+}
+
+.lud-sheet {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* dvh e non vh: la barra URL dinamica di Android cambia l'altezza del viewport, e vh
+       lascerebbe un vuoto o taglierebbe il fondo a ogni suo show/hide. */
+    max-height: 92dvh;
+    background: var(--bg-card);
+    border: 1px solid var(--gold-dim);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 30px rgba(var(--black-rgb), 0.6);
+    overflow: hidden;
+}
+
+/* In corso di salvataggio: il corpo si spegne visivamente, ma `pointer-events: none` non ferma la
+   tastiera (il tab la ignora) — chi blocca davvero l'input è `disabled="@InCorso"` su ciascun
+   controllo del corpo (radio, campo del tiro, righe delle decisioni, opzioni, punteggi, testo
+   libero), stesso meccanismo dei due pulsanti di azione qui sotto. */
+.lud-busy .lud-scroll {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.lud-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.75rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.2);
+}
+
+.lud-header-text {
+    min-width: 0;
+}
+
+.lud-title {
+    margin: 0;
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 1.4rem;
+    color: var(--gold);
+    line-height: 1.2;
+}
+
+.lud-subtitle {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+}
+
+.lud-close {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--gold-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.lud-close:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.12);
+    color: var(--gold-light);
+}
+
+.lud-close:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.lud-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.75rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.lud-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lud-section-title {
+    margin: 0;
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gold);
+    text-transform: uppercase;
+}
+
+/* ---- Ottieni: la ricompensa, per prima ---- */
+
+.lud-gain-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.lud-gain-item {
+    color: var(--text);
+    font-size: 0.95rem;
+    line-height: 1.35;
+}
+
+/* ---- Derivati come delta ---- */
+
+.lud-derived {
+    background: rgba(var(--gold-rgb), 0.06);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 10px;
+    padding: 0.7rem 0.85rem;
+    gap: 0.4rem;
+}
+
+.lud-derived-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.lud-derived-sub {
+    opacity: 0.85;
+}
+
+.lud-derived-label {
+    font-size: 0.8rem;
+    color: var(--gold-muted);
+    flex: 0 0 auto;
+}
+
+.lud-derived-delta {
+    font-size: 0.95rem;
+    color: var(--text-body);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.lud-derived-delta strong {
+    color: var(--gold-light);
+    font-weight: 700;
+}
+
+.lud-arrow {
+    color: var(--gold-dim);
+    margin: 0 0.15rem;
+}
+
+.lud-unlock {
+    margin: 0.3rem 0 0;
+    font-size: 0.85rem;
+    color: var(--gold-light);
+    font-weight: 600;
+}
+
+/* ---- Tiro del dado ---- */
+
+.lud-dice {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.lud-dice-option {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 44px;
+    color: var(--text);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.lud-dice-option input[type="radio"] {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--gold);
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+
+/* La riga "Ho tirato" è un contenitore (non più un <label>) perché il campo numerico del tiro
+   sta fuori dal <label> — dentro, l'associazione implicita andrebbe al radio, il primo controllo
+   etichettabile, lasciando il campo senza nome accessibile (v. aria-label sull'input). */
+.lud-dice-radio-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+}
+
+.lud-dice-input {
+    width: 4rem;
+    min-height: 44px;
+    box-sizing: border-box;
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--text);
+    padding: 0.4rem 0.5rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.lud-dice-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.lud-dice-max {
+    color: var(--gold-dim);
+    font-size: 0.85rem;
+}
+
+/* ---- Da scegliere: righe con stato che si espandono in linea ---- */
+
+.lud-decision {
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.lud-decision-open {
+    border-color: rgba(var(--gold-rgb), 0.45);
+}
+
+.lud-decision-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 48px;
+    padding: 0.6rem 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+
+.lud-decision-chevron {
+    color: var(--gold);
+    font-size: 0.85rem;
+    flex: 0 0 auto;
+    width: 1rem;
+}
+
+.lud-decision-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.lud-decision-status {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lud-status-todo {
+    color: var(--gold-light);
+    background: rgba(var(--gold-rgb), 0.15);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+}
+
+.lud-status-done {
+    color: rgb(var(--success-rgb));
+    background: rgba(var(--success-rgb), 0.16);
+    border: 1px solid rgba(var(--success-rgb), 0.4);
+}
+
+.lud-status-optional {
+    color: var(--gold-dim);
+    background: rgba(var(--gold-rgb), 0.06);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+}
+
+.lud-decision-body {
+    padding: 0.2rem 0.75rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    border-top: 1px solid rgba(var(--gold-rgb), 0.15);
+}
+
+/* ---- Opzioni (sottoclasse / talento / stile / dono epico) ---- */
+
+.lud-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lud-option {
+    border: 1px solid rgba(var(--gold-rgb), 0.18);
+    border-radius: 8px;
+    padding: 0.15rem 0.15rem 0.5rem;
+}
+
+.lud-option-selected {
+    border-color: rgba(var(--gold-rgb), 0.55);
+    background: rgba(var(--gold-rgb), 0.06);
+}
+
+.lud-option-select {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 44px;
+    padding: 0.4rem 0.55rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+
+.lud-option-select:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.lud-option-check {
+    color: var(--gold);
+    font-size: 1rem;
+    flex: 0 0 auto;
+}
+
+.lud-option-name {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.lud-option-desc {
+    margin: 0.1rem 0.55rem 0;
+    color: var(--text-body);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.lud-option-expand {
+    margin: 0.2rem 0.55rem 0;
+    background: transparent;
+    border: none;
+    color: var(--gold-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.3rem 0;
+    min-height: 44px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.lud-option-expand:hover {
+    color: var(--gold-light);
+}
+
+.lud-option-empty,
+.lud-option-hint {
+    margin: 0;
+    color: var(--gold-dim);
+    font-size: 0.82rem;
+    font-style: italic;
+}
+
+/* ---- Ripartizione dei punteggi (incremento di caratteristica) ---- */
+
+.lud-scores {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.lud-scores-hint {
+    margin: 0 0 0.2rem;
+    color: var(--gold-muted);
+    font-size: 0.8rem;
+}
+
+.lud-score-row {
+    display: grid;
+    grid-template-columns: 3rem 44px 1fr 44px;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+}
+
+.lud-score-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.lud-score-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    background: linear-gradient(180deg, var(--bg-alt) 0%, var(--bg) 100%);
+    color: var(--gold-light);
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.lud-score-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.lud-score-value {
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.lud-score-value strong {
+    color: var(--gold-light);
+}
+
+.lud-scores-total {
+    margin: 0.2rem 0 0;
+    font-size: 0.82rem;
+    color: var(--gold-muted);
+    text-align: right;
+}
+
+/* ---- Decisione libera (annotazione facoltativa) ---- */
+
+.lud-free {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.lud-free-avviso {
+    margin: 0;
+    color: var(--gold-muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.lud-free-text {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--text);
+    padding: 0.6rem 0.7rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    border-radius: 8px;
+}
+
+.lud-free-text:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+/* ---- Avvisi: informativi, mai bloccanti — stesso tono di .info-summary altrove nell'app ---- */
+
+.lud-warning {
+    margin: 0;
+    padding: 0.55rem 0.75rem;
+    background: rgba(var(--gold-rgb), 0.08);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    border-radius: 6px;
+    color: var(--gold-muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+/* ---- Azioni: sticky in fondo, sempre visibili sopra il contenuto che scorre ---- */
+
+.lud-actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(var(--gold-rgb), 0.25);
+    background: var(--bg-card);
+}
+
+.lud-cancel,
+.lud-confirm {
+    flex: 1;
+    min-height: 48px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+}
+
+.lud-cancel {
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+}
+
+.lud-cancel:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+.lud-confirm {
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--text-on-gold);
+    border: none;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
+}
+
+.lud-confirm:hover:not(:disabled) {
+    filter: brightness(1.05);
+}
+
+.lud-cancel:disabled,
+.lud-confirm:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ---- Desktop: card centrata invece di foglio a tutto schermo (stessa soglia di CharacterEditForm) ---- */
+@media (min-width: 641px) {
+    .lud-overlay {
+        align-items: center;
+        padding: 1.5rem;
+    }
+
+    .lud-sheet {
+        max-width: 480px;
+        max-height: 85vh;
+        border-radius: 16px;
+    }
+}

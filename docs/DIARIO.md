@@ -1286,3 +1286,66 @@ Sul costo del gate calibrato: il diff toccava dati, serializzazione, modelli e f
 quindi tre giri pieni. Hanno trovato un BLOCCANTE, quattro SERIO e undici minori — e il BLOCCANTE
 avrebbe rotto in produzione proprio la funzione che la guida dell'app indica per prima. Qui i tre giri
 si sono pagati.
+
+## Level-up guidato: il piano è una funzione, non un valore (2026-08-06)
+
+L'innesco è stato Baldur's Gate 3. Lì il passaggio di livello propone le sole scelte legali e non
+chiede mai di digitare un numero; qui salire di livello significava aprire il form e correggere a mano
+punti ferita, dadi vita, nove slot e competenze. Era l'attrito che tornava a ogni sessione di gioco, e
+l'unico punto dell'app in cui il giocatore doveva conoscere le regole **meglio** dell'app che le
+contiene.
+
+Il perimetro è più stretto di BG3, e la differenza è voluta: BG3 conosce la *semantica* di ogni
+privilegio perché ha un reparto contenuti dietro. Quest'app conosce le *tabelle*, che è ciò che serve
+per togliere l'attrito. «Difesa senza armatura» arriva come nome nell'elenco e non diventa una formula
+per la classe armatura: attraversare quella linea significa data entry di meccaniche per sempre.
+
+Il conto dei costi si è rivelato più basso del previsto, e per una ragione trovata nei dati: i 17
+talenti del pacchetto hanno già `category` — Origine, Generale, Stile di combattimento, Epico. Nella
+5e 2024 l'incremento di caratteristica **è** un talento Generale, quindi i livelli 4/8/12/16 non sono
+un caso speciale ma «scegli un talento Generale», e la sotto-scelta dei punteggi si apre solo se cade
+lì. Le quattro scelte più frequenti della progressione — 66 occorrenze su 274 — erano già alimentate
+dai dati esistenti. Il primo giro non ha richiesto una riga di contenuto nuovo.
+
+**Due decisioni hanno cambiato la forma del codice**, entrambe emerse dal consulto prima di scrivere.
+
+La prima: l'incremento di Costituzione ha **effetto retroattivo** sui punti ferita — +2 all'8° vale +1
+per ognuno dei livelli già posseduti. Un piano calcolato una volta sola divergerebbe dalle regole
+proprio nel flusso che promette di calcolarle. Quindi `LevelUpPlan` non è un valore ma il risultato di
+una funzione `(stato, risposte)`, e si rigenera a ogni risposta.
+
+La seconda: **si sale un livello alla volta**. Dentro un salto 3°→7° le scelte si influenzano a
+cascata (la sottoclasse presa al 3° sblocca privilegi al 6°, l'incremento al 4° cambia i punti ferita
+del 5°-7°): il triplo della superficie di bug per il caso raro. Il recupero si fa ripetendo, con un
+«Sali ancora» nel toast — che è anche come fa BG3.
+
+**L'app non tira il dado.** Offre la media, oppure un campo dove inserire il risultato tirato al
+tavolo, vincolato a `1..dado`. Un tiro dentro l'app andrebbe reso vincolante — registrato e non
+ripetibile — per non essere un reroll silenzioso; e il dado si tira davanti al master, che è il momento
+sociale bello. Non offrendo l'RNG, il problema non esiste.
+
+I punti ferita si **sommano**, non si ricalcolano da zero: chi ai livelli passati aveva tirato non se
+li vede corretti, cioè sovrascritti. Gli slot invece sono assoluti, perché la tabella è la verità e il
+vettore intero è sicuro anche su una scheda incoerente. E `Pianifica` torna `null` se la classe non ha
+una tabella: il motore guida dove ha dati, e per le classi del tavolo resta il form di prima.
+
+**Scostamento dichiarato rispetto alla spec**: delle sottoclassi si mostra il nome con la descrizione
+troncata ed espandibile, non l'estratto del solo livello d'ingresso. Estrarre quel blocco significa
+parsare prosa libera («Livello 3 — Frenesia: …»), che è fragile e mal testabile, per un guadagno
+modesto. La spec diceva l'estratto, il piano operativo la troncatura: la contraddizione era fra i due
+documenti, e si chiude qui a favore della troncatura.
+
+**Sul metodo.** È il primo lavoro fatto con la regola nuova (v. `CLAUDE.md`, «Chi scrive il codice»):
+progetto e reviso io, scrivono i Sonnet, Fable consiglia in sola lettura. Il consulto è servito prima
+di scrivere, non dopo: le due decisioni qui sopra sono nate lì, e correggerle a codice fatto sarebbe
+costato una riscrittura del motore.
+
+La conferma più netta è arrivata dal gate. Il lavoro è stato scritto da tre agenti a file disgiunti, e
+**tutti i difetti gravi stavano sulle giunture** — dove un file incontra l'altro e nessun autore può
+vedere per costruzione. I peggiori: `Applica` sommava i punteggi senza tetto a 20, e
+`CharacterNormalizer` le caratteristiche non le clampa (gotcha già noto); `Applica` non era idempotente
+sui punteggi, quindi un salvataggio fallito e ritentato dava +2 due volte; una scelta con catalogo
+vuoto — rete assente — rendeva la conferma irraggiungibile per sempre; e i privilegi passivi finivano a
+schermo **due volte**, perché la scheda li deriva già dalla stessa tabella, sotto un titolo
+(«annotati a mano») che dichiarava il falso. Nessuno di questi era visibile dall'interno di un file
+solo.

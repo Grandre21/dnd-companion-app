@@ -25,6 +25,13 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > `20260731000000_party_visibility.sql` sono entrambe applicate all'hosted (verificate il 2026-08-01,
 > con `information_schema.columns` e `pg_proc`).
 
+- 🔴 **Level-up guidato, tre prove** (nuovo, 2026-08-06): (a) un PG del manuale che sale a un livello
+  **con una scelta** — sottoclasse al 3° o talento al 4° — e la conferma scrive davvero; (b) un PG con
+  classe **del tavolo** senza tabella: il dialogo non deve aprirsi, e deve comparire il toast che
+  rimanda al form; (c) un incantatore che **sblocca un cerchio nuovo**, con il rimando al tab Magia.
+- 🟠 **Level-up con salvataggio fallito**: togliere la rete a metà conferma. Il dialogo deve restare
+  aperto con le risposte intatte ed essere ritentabile — e al secondo tentativo i punteggi **non**
+  devono incrementarsi due volte.
 - 🟠 **Sottoclassi nella pagina Classi**: aggiungere, modificare (il nome resta al suo posto nell'elenco),
   rimuovere; «duplica e modifica» da una voce SRD deve portarsele dietro; le righe del manuale restano
   di sola lettura. E il menu della sottoclasse deve comparire nella scheda anche per una classe **del
@@ -97,11 +104,11 @@ Residuo minore di C.
 
 ## 3. Gioco al tavolo
 
-- 🟠 **Motore di derivazione condiviso** (PF, slot, competenze, taglia, velocità, privilegi) usato da
-  creazione, **modifica** e level-up: oggi solo il wizard suggerisce qualcosa e il form duplica il
-  markup senza calcolare niente.
-- 🟠 **Level-up guidato**: oggi salire di livello è editare a mano PF, dadi vita, 9 slot e competenze.
-  È l'attrito che torna a ogni sessione di gioco. Poggia sul motore qui sopra.
+- 🟠 **Creazione e modifica non usano ancora il motore**: `LevelUpPlanner` calcola PF, dadi vita, slot
+  e competenza per il level-up, ma il wizard si limita a suggerire e il form di modifica duplica il
+  markup senza calcolare niente. V. [DIARIO](./DIARIO.md), «Level-up guidato».
+- 🟡 **I privilegi di sottoclasse vanno applicati, non solo elencati**: il dialogo li annuncia, la
+  scheda li deriva dalla tabella, ma nessuno li traduce in effetti.
 - 🟠 **Combattimento consultabile**: il tracker porta solo nome e PF, quindi le statistiche del mostro
   non si vedono mentre si combatte. Serve un riferimento alla sorgente nel `Combatant` (campo
   additivo nel `jsonb`, nessuna migrazione) e un blocco statistiche apribile sulla riga.

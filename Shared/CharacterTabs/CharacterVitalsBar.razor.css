@@ -5,6 +5,48 @@
    una barra sempre a schermo le misure sono più strette (gap, corpo del numero, spaziature). I
    44px dei pulsanti sono l'unica misura che non si tocca. */
 
+/* ---- Livello + level-up guidato ---- */
+
+.level-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+}
+
+.level-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--gold-muted);
+    letter-spacing: 0.3px;
+}
+
+.level-up-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 1rem;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--text-on-gold);
+    border: none;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(var(--black-rgb), 0.35);
+    transition: all 0.15s ease;
+}
+
+.level-up-btn:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+}
+
+.level-up-btn:active {
+    transform: translateY(0);
+}
+
 .vitals-bar {
     display: grid;
     /* Sotto i 360px la card dei PF non regge i due pulsanti da 44px affiancati, e prende una riga

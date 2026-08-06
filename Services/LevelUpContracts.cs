@@ -22,8 +22,13 @@ public sealed record DecisioneFraOpzioni(
 
 /// <summary>La ripartizione dell'incremento di caratteristica: +2 a una, oppure +1 a due. Compare
 /// solo come figlia di una <see cref="DecisioneFraOpzioni"/> in cui è stato scelto il talento
-/// dell'incremento.</summary>
-public sealed record DecisionePunteggi(string Chiave, string Titolo) : Decisione(Chiave, Titolo);
+/// dell'incremento. <paramref name="PunteggiAttuali"/> porta i sei valori correnti del
+/// personaggio (chiavi inglesi minuscole, lo stesso ordine di
+/// <see cref="CharacterWizardLogic.AbilityKeyOrder"/>): senza di questi il dialogo non saprebbe
+/// quale caratteristica è già a 20 e disabilitare il relativo "+".</summary>
+public sealed record DecisionePunteggi(
+    string Chiave, string Titolo, IReadOnlyDictionary<string, int> PunteggiAttuali)
+    : Decisione(Chiave, Titolo);
 
 /// <summary>Scelta di cui il catalogo non conosce le opzioni (invocazioni occulte, metamagia,
 /// maestrie). Si annota in prosa. <paramref name="Avviso"/> è il testo che spiega perché non c'è un
@@ -59,6 +64,10 @@ public sealed record LevelUpPlan(
     int LivelloA,
     /// <summary>Il dado vita della classe ("d12"), per il selettore del tiro.</summary>
     string DadoVita,
+    /// <summary>La media del dado ("d12" → 7), già calcolata qui: il dialogo la mostra nel
+    /// selettore del tiro e non deve riparsare <see cref="DadoVita"/> per ricavarla da sé — due
+    /// implementazioni dello stesso fatto avrebbero potuto divergere.</summary>
+    int MediaDado,
     Proposta<int> PuntiFeritaMax,
     Proposta<int> PuntiFeritaCorrenti,
     Proposta<string> DadiVita,
@@ -74,21 +83,56 @@ public sealed record LevelUpPlan(
     int? CerchioSbloccato)
 {
     /// <summary>Vero se ogni decisione che blocca la conferma ha una risposta valida. Le
-    /// <see cref="DecisioneLibera"/> non bloccano mai: annotare è un servizio, non un obbligo.</summary>
+    /// <see cref="DecisioneLibera"/> non bloccano mai: annotare è un servizio, non un obbligo.
+    /// Cicla su <see cref="Completa"/> invece di riscrivere la stessa regola qui.</summary>
     public bool Completo(IReadOnlyDictionary<string, Risposta>? risposte)
     {
         foreach (var d in Decisioni)
         {
-            if (d is DecisioneLibera) continue;
-
-            if (risposte is null || !risposte.TryGetValue(d.Chiave, out var r)) return false;
-
-            switch (d)
-            {
-                case DecisioneFraOpzioni f when r.Scelte.Count != f.Quante: return false;
-                case DecisionePunteggi when r.Punteggi.Values.Sum() != 2: return false;
-            }
+            Risposta? r = null;
+            risposte?.TryGetValue(d.Chiave, out r);
+            if (!Completa(d, r)) return false;
         }
         return true;
+    }
+
+    /// <summary>Vero se questa decisione è soddisfatta da questa risposta. Estratta da
+    /// <see cref="Completo"/> perché il dialogo la riusa per la pillola di stato di una singola
+    /// riga, e non deve duplicare la regola per conto suo.</summary>
+    public bool Completa(Decisione decisione, Risposta? risposta)
+    {
+        if (decisione is DecisioneLibera) return true;
+        if (risposta is null) return false;
+
+        return decisione switch
+        {
+            DecisioneFraOpzioni f => risposta.Scelte.Count == f.Quante,
+            DecisionePunteggi => PunteggiValidi(risposta.Punteggi),
+            _ => true
+        };
+    }
+
+    /// <summary>Le sole sei chiavi che una <see cref="DecisionePunteggi"/> può usare — la stessa
+    /// fonte di <see cref="CharacterWizardLogic.AbilityKeyOrder"/>, non un elenco duplicato.</summary>
+    private static readonly HashSet<string> CaratteristicheAmmesse =
+        new(CharacterWizardLogic.AbilityKeyOrder, StringComparer.Ordinal);
+
+    /// <summary>Vero se la ripartizione dei punti è una delle due forme legali della 5e 2024: +2 a
+    /// una sola caratteristica, oppure +1 a due caratteristiche distinte. Il solo totale non basta:
+    /// somma a 2 anche <c>{"strength": 5, "constitution": -3}</c>, che scriverebbe una Costituzione
+    /// ABBASSATA di 3 — <see cref="LevelUpPlanner.Applica"/> si fida di questo controllo e non
+    /// riverifica la forma.</summary>
+    private static bool PunteggiValidi(IReadOnlyDictionary<string, int> punteggi)
+    {
+        if (punteggi.Count is not (1 or 2)) return false;
+
+        var somma = 0;
+        foreach (var (chiave, valore) in punteggi)
+        {
+            if (!CaratteristicheAmmesse.Contains(chiave)) return false;
+            if (valore is not (1 or 2)) return false;
+            somma += valore;
+        }
+        return somma == 2;
     }
 }

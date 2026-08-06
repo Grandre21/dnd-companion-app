@@ -1,0 +1,513 @@
+@* Il dialogo "Sali di livello": mostra il LevelUpPlan calcolato dal genitore e raccoglie le
+   risposte alle decisioni, ma non calcola e non salva nulla da sé.
+
+   Nessun @inject di repository/servizi dati: riceve Piano già fatto e segnala le risposte con
+   EventCallback. Il genitore ricalcola con LevelUpPlanner.Pianifica e ripassa un Piano nuovo —
+   qui non si chiama mai LevelUpPlanner, e Risposte non si modifica in locale (è la proprietà del
+   genitore: ogni interazione chiama OnRisposta e aspetta il piano aggiornato dall'alto).
+
+   Il guadagno viene prima della burocrazia: si apre su "Diventa livello N" e sui privilegi
+   ottenuti, non su un form. Le decisioni sono righe con stato che si espandono in linea, una alla
+   volta — non un wizard a passi, perché il caso dominante (zero scelte) deve restare un tap. *@
+
+@if (Piano is LevelUpPlan piano)
+{
+    <div class="lud-overlay" @onclick="HandleOverlayClickAsync">
+        <div class="lud-sheet @(InCorso ? "lud-busy" : "")" role="dialog" aria-modal="true"
+             aria-labelledby="lud-title" @onclick:stopPropagation="true">
+
+            <div class="lud-header">
+                <div class="lud-header-text">
+                    <h2 id="lud-title" class="lud-title">Diventa livello @piano.LivelloA</h2>
+                    <p class="lud-subtitle">@piano.Classe · @piano.LivelloDa → @piano.LivelloA</p>
+                </div>
+                <button type="button" class="lud-close" aria-label="Chiudi" disabled="@InCorso"
+                        @onclick="HandleAnnullaAsync">✕</button>
+            </div>
+
+            <div class="lud-scroll">
+
+                @if (piano.PrivilegiOttenuti.Count > 0)
+                {
+                    <section class="lud-section">
+                        <p class="lud-section-title">Ottieni</p>
+                        <ul class="lud-gain-list">
+                            @foreach (var privilegio in piano.PrivilegiOttenuti)
+                            {
+                                <li class="lud-gain-item">@privilegio</li>
+                            }
+                        </ul>
+                    </section>
+                }
+
+                <section class="lud-section lud-derived">
+                    <div class="lud-derived-row">
+                        <span class="lud-derived-label">PF max</span>
+                        <span class="lud-derived-delta">
+                            @piano.PuntiFeritaMax.Attuale <span class="lud-arrow">→</span>
+                            <strong>@piano.PuntiFeritaMax.Proposto</strong>
+                        </span>
+                    </div>
+                    @if (piano.PuntiFeritaCorrenti.Attuale != piano.PuntiFeritaMax.Attuale)
+                    {
+                        @* Il PG è ferito: senza questa riga il guadagno sui PF correnti resterebbe
+                           implicito, e il diff mostrato non racconterebbe l'intera storia. *@
+                        <div class="lud-derived-row lud-derived-sub">
+                            <span class="lud-derived-label">PF correnti</span>
+                            <span class="lud-derived-delta">
+                                @piano.PuntiFeritaCorrenti.Attuale <span class="lud-arrow">→</span>
+                                @piano.PuntiFeritaCorrenti.Proposto
+                            </span>
+                        </div>
+                    }
+                    <div class="lud-derived-row">
+                        <span class="lud-derived-label">Dado vita</span>
+                        <span class="lud-derived-delta">
+                            @piano.DadiVita.Attuale <span class="lud-arrow">→</span>
+                            <strong>@piano.DadiVita.Proposto</strong>
+                        </span>
+                    </div>
+                    <div class="lud-derived-row">
+                        <span class="lud-derived-label">Competenza</span>
+                        <span class="lud-derived-delta">
+                            @FormatBonus(piano.BonusCompetenza.Attuale) <span class="lud-arrow">→</span>
+                            <strong>@FormatBonus(piano.BonusCompetenza.Proposto)</strong>
+                        </span>
+                    </div>
+                    @{ var slotCambiati = SlotCambiati(piano); }
+                    @if (slotCambiati.Count > 0)
+                    {
+                        <div class="lud-derived-row">
+                            <span class="lud-derived-label">Slot</span>
+                            <span class="lud-derived-delta">@string.Join(" · ", slotCambiati)</span>
+                        </div>
+                    }
+                    @if (!string.Equals(piano.CaratteristicaIncantatore.Attuale, piano.CaratteristicaIncantatore.Proposto, StringComparison.Ordinal))
+                    {
+                        <div class="lud-derived-row">
+                            <span class="lud-derived-label">Incantesimi</span>
+                            <span class="lud-derived-delta">
+                                @EtichettaAbilita(piano.CaratteristicaIncantatore.Attuale) <span class="lud-arrow">→</span>
+                                <strong>@EtichettaAbilita(piano.CaratteristicaIncantatore.Proposto)</strong>
+                            </span>
+                        </div>
+                    }
+                    @if (piano.CerchioSbloccato is int cerchio)
+                    {
+                        <p class="lud-unlock">✨ Si apre il @(cerchio)° cerchio di incantesimi</p>
+                    }
+                </section>
+
+                <section class="lud-section lud-dice">
+                    <p class="lud-section-title">Punti ferita guadagnati</p>
+                    <label class="lud-dice-option">
+                        <input type="radio" name="lud-dice" checked="@(!tiroManuale)" disabled="@InCorso"
+                               @onchange="UsaMediaAsync" />
+                        <span>Media <strong>+@piano.MediaDado</strong></span>
+                    </label>
+                    <div class="lud-dice-option">
+                        <label class="lud-dice-radio-label">
+                            <input type="radio" name="lud-dice" checked="@tiroManuale" disabled="@InCorso"
+                                   @onchange="UsaTiroAsync" />
+                            <span>Ho tirato</span>
+                        </label>
+                        @if (tiroManuale)
+                        {
+                            var facceMax = FacceMax(piano.MediaDado);
+                            var troncato = Math.Clamp(valoreTiro ?? piano.MediaDado, 1, facceMax);
+                            @* @key sul valore troncato + un contatore che avanza a ogni scarto fra
+                               digitato e troncato: senza questo, se il valore troncato coincide con
+                               quello del render precedente (es. era già al massimo), Blazor non
+                               tocca il DOM e l'input continua a mostrare il numero fuori intervallo
+                               digitato dall'utente invece del valore realmente usato nel piano. *@
+                            var chiaveTiro = $"{troncato}-{tiroChiaveVersione}";
+                            <input type="number" class="lud-dice-input" aria-label="Risultato del dado"
+                                   disabled="@InCorso" min="1" max="@facceMax" @key="chiaveTiro"
+                                   value="@troncato" @onchange="CambiaValoreTiroAsync" />
+                            <span class="lud-dice-max">/@facceMax</span>
+                        }
+                    </div>
+                </section>
+
+                @if (piano.Decisioni.Count > 0)
+                {
+                    <section class="lud-section">
+                        <p class="lud-section-title">Da scegliere</p>
+                        @foreach (var decisione in piano.Decisioni)
+                        {
+                            var espansa = chiaveEspansa == decisione.Chiave;
+                            var (statoTesto, statoClasse) = Stato(piano, decisione);
+                            <div class="lud-decision @(espansa ? "lud-decision-open" : "")">
+                                <button type="button" class="lud-decision-row" disabled="@InCorso"
+                                        aria-expanded="@AriaBool(espansa)"
+                                        @onclick="() => ToggleChiave(decisione.Chiave)">
+                                    <span class="lud-decision-chevron">@(espansa ? "▾" : "▸")</span>
+                                    <span class="lud-decision-title">@decisione.Titolo</span>
+                                    <span class="lud-decision-status @statoClasse">@statoTesto</span>
+                                </button>
+
+                                @if (espansa)
+                                {
+                                    <div class="lud-decision-body">
+                                        @if (decisione is DecisioneFraOpzioni opzioni)
+                                        {
+                                            var scelte = SceltaAttuale(opzioni.Chiave);
+                                            <div class="lud-options">
+                                                @if (opzioni.Opzioni.Count == 0)
+                                                {
+                                                    <p class="lud-option-empty">Nessuna opzione a catalogo per questa scelta.</p>
+                                                }
+                                                @foreach (var opzione in opzioni.Opzioni)
+                                                {
+                                                    var selezionata = scelte.Contains(opzione.Nome);
+                                                    var bloccata = !selezionata && opzioni.Quante > 1 && scelte.Count >= opzioni.Quante;
+                                                    var descKey = opzioni.Chiave + "|" + opzione.Nome;
+                                                    var descEspansa = descrizioniEspanse.Contains(descKey);
+                                                    <div class="lud-option @(selezionata ? "lud-option-selected" : "")">
+                                                        <button type="button" class="lud-option-select" disabled="@(InCorso || bloccata)"
+                                                                aria-pressed="@AriaBool(selezionata)"
+                                                                @onclick="() => ScegliOpzioneAsync(opzioni, opzione.Nome)">
+                                                            <span class="lud-option-check">@(selezionata ? "●" : "○")</span>
+                                                            <span class="lud-option-name">@opzione.Nome</span>
+                                                        </button>
+                                                        @if (!string.IsNullOrWhiteSpace(opzione.Descrizione))
+                                                        {
+                                                            <p class="lud-option-desc">
+                                                                @(descEspansa ? opzione.Descrizione : Troncata(opzione.Descrizione))
+                                                            </p>
+                                                            @if (opzione.Descrizione.Length > TroncamentoSoglia)
+                                                            {
+                                                                <button type="button" class="lud-option-expand" disabled="@InCorso"
+                                                                        @onclick="() => ToggleDescrizione(descKey)">
+                                                                    @(descEspansa ? "Comprimi ▴" : "Espandi ▾")
+                                                                </button>
+                                                            }
+                                                        }
+                                                    </div>
+                                                }
+                                                @if (opzioni.Quante > 1)
+                                                {
+                                                    <p class="lud-option-hint">Scegli fino a @opzioni.Quante.</p>
+                                                }
+                                            </div>
+                                        }
+                                        else if (decisione is DecisionePunteggi punteggi)
+                                        {
+                                            var correnti = PunteggiCorrenti(punteggi.Chiave);
+                                            var totale = correnti.Values.Sum();
+                                            <div class="lud-scores">
+                                                <p class="lud-scores-hint">Somma esattamente 2: +2 a una sola oppure +1 a due.</p>
+                                                @foreach (var (chiaveCar, sigla, nome) in Caratteristiche)
+                                                {
+                                                    var valore = correnti.TryGetValue(chiaveCar, out var v) ? v : 0;
+                                                    var attuale = punteggi.PunteggiAttuali.TryGetValue(chiaveCar, out var pa) ? pa : 10;
+                                                    var proposto = attuale + valore;
+                                                    var alTetto = proposto >= 20;
+                                                    <div class="lud-score-row">
+                                                        <span class="lud-score-name" title="@nome">@sigla</span>
+                                                        <button type="button" class="lud-score-btn" disabled="@(InCorso || valore <= 0)"
+                                                                aria-label="Togli a @nome"
+                                                                @onclick="() => VariaPunteggioAsync(punteggi.Chiave, chiaveCar, -1)">−</button>
+                                                        <span class="lud-score-value">
+                                                            @attuale
+                                                            @if (valore > 0)
+                                                            {
+                                                                <span class="lud-arrow">→</span><strong>@proposto</strong>
+                                                            }
+                                                        </span>
+                                                        <button type="button" class="lud-score-btn" disabled="@(InCorso || totale >= 2 || alTetto)"
+                                                                aria-label="Aggiungi a @nome"
+                                                                @onclick="() => VariaPunteggioAsync(punteggi.Chiave, chiaveCar, 1)">+</button>
+                                                    </div>
+                                                }
+                                                <p class="lud-scores-total">Assegnati: @totale/2</p>
+                                            </div>
+                                        }
+                                        else if (decisione is DecisioneLibera libera)
+                                        {
+                                            var testoAttuale = Risposte.TryGetValue(libera.Chiave, out var rl) ? rl.Testo : string.Empty;
+                                            <div class="lud-free">
+                                                <p class="lud-free-avviso">@libera.Avviso</p>
+                                                <textarea class="lud-free-text" rows="3" disabled="@InCorso"
+                                                          placeholder="Annota qui la tua scelta (facoltativo)"
+                                                          value="@testoAttuale"
+                                                          @onchange="e => ImpostaTestoLiberoAsync(libera.Chiave, e.Value?.ToString() ?? string.Empty)"></textarea>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </section>
+                }
+
+                @if (piano.Avvisi.Count > 0)
+                {
+                    <section class="lud-section">
+                        @foreach (var avviso in piano.Avvisi)
+                        {
+                            <p class="lud-warning">⚠ @avviso</p>
+                        }
+                    </section>
+                }
+            </div>
+
+            <div class="lud-actions">
+                <button type="button" class="lud-cancel" disabled="@InCorso" @onclick="HandleAnnullaAsync">
+                    Annulla
+                </button>
+                <button type="button" class="lud-confirm"
+                        disabled="@(InCorso || !piano.Completo(Risposte))"
+                        @onclick="HandleConfermaAsync">
+                    @(InCorso ? "Salvataggio..." : $"Diventa livello {piano.LivelloA}")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public LevelUpPlan? Piano { get; set; }
+
+    [Parameter] public IReadOnlyDictionary<string, Risposta> Risposte { get; set; }
+        = new Dictionary<string, Risposta>();
+
+    /// <summary>Una risposta è cambiata: il genitore ricalcola il piano e lo ripassa.</summary>
+    [Parameter] public EventCallback<(string Chiave, Risposta Risposta)> OnRisposta { get; set; }
+
+    /// <summary>Il tiro del dado inserito a mano, null = metodo medio.</summary>
+    [Parameter] public EventCallback<int?> OnTiro { get; set; }
+
+    [Parameter] public EventCallback OnConferma { get; set; }
+    [Parameter] public EventCallback OnAnnulla { get; set; }
+    [Parameter] public bool InCorso { get; set; }
+
+    // ---- Stato locale, di sola presentazione: nessuno di questi campi è un dato di dominio, e
+    // nessuno viene mai scritto dentro Risposte (che resta del genitore). ----
+
+    /// <summary>La chiave della decisione aperta in questo momento: una alla volta.</summary>
+    private string? chiaveEspansa;
+
+    /// <summary>Chiavi "Chiave|Opzione" per le descrizioni di catalogo espanse a mano.</summary>
+    private readonly HashSet<string> descrizioniEspanse = new(StringComparer.Ordinal);
+
+    private bool tiroManuale;
+    private int? valoreTiro;
+
+    /// <summary>Avanza a ogni scarto fra il numero digitato nel campo del tiro e quello troncato
+    /// nell'intervallo del dado: entra nella @key dell'input, per forzare Blazor a toccare
+    /// davvero il DOM anche quando il valore troncato coincide con quello del render precedente
+    /// (v. il commento sopra l'input).</summary>
+    private int tiroChiaveVersione;
+
+    /// <summary>Il livello per cui è stato aperto il dialogo l'ultima volta: quando cambia (il
+    /// genitore riapre il dialogo con "Sali ancora"), lo stato dell'accordion e del tiro tornano
+    /// al punto di partenza — altrimenti resterebbe aperta la decisione del livello precedente.
+    /// Torna a null quando il Piano si azzera (dialogo chiuso): così una riapertura sullo STESSO
+    /// livello (scegli, annulla, riapri) resetta comunque lo stato, invece di ritrovare la
+    /// guardia già "soddisfatta" dal giro precedente.</summary>
+    private int? livelloTracciato;
+
+    private const int TroncamentoSoglia = 220;
+
+    /// <summary>Chiave inglese minuscola, sigla e nome italiano delle sei caratteristiche — usata
+    /// sia per l'etichetta della caratteristica da incantatore sia per le righe di DecisionePunteggi.</summary>
+    private static readonly (string Chiave, string Sigla, string Nome)[] Caratteristiche =
+    {
+        ("strength", "FOR", "Forza"),
+        ("dexterity", "DES", "Destrezza"),
+        ("constitution", "COS", "Costituzione"),
+        ("intelligence", "INT", "Intelligenza"),
+        ("wisdom", "SAG", "Saggezza"),
+        ("charisma", "CAR", "Carisma"),
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Piano is null)
+        {
+            livelloTracciato = null; // dialogo chiuso: la prossima apertura riparte sempre da zero.
+            return;
+        }
+        if (livelloTracciato == Piano.LivelloA) return;
+
+        livelloTracciato = Piano.LivelloA;
+        chiaveEspansa = null;
+        descrizioniEspanse.Clear();
+        tiroManuale = false;
+        valoreTiro = null;
+        await OnTiro.InvokeAsync(null); // il genitore deve tornare alla media anche lui: altrimenti
+                                         // le due parti divergono su quale tiro sia in vigore.
+    }
+
+    // ---- Formattazione pura, nessun accesso a Piano/Risposte: sicura da chiamare ovunque. ----
+
+    /// <summary>Le facce del dado dalla media già calcolata dal piano (media = facce/2 + 1, quindi
+    /// facce = (media-1)*2): evita di riparsare piano.DadoVita con una logica propria, che
+    /// duplicherebbe LevelUpPlanner con un fallback diverso in caso di stringa non riconosciuta.
+    ///
+    /// Clampata a un minimo di 2: HitDie è testo libero in Pages/Classes.razor, e un refuso tipo
+    /// "d1" (invece di "d10") dà MediaDado=1 e quindi facce=0 — i due punti che chiamano FacceMax
+    /// fanno poi Math.Clamp(valore, 1, facceMax), che con max 0 e min 1 lancia ArgumentException
+    /// durante il render (dialogo inutilizzabile finché non si ricarica). Il fix vive qui, non nei
+    /// due punti di chiamata: un solo posto da correggere per entrambi.</summary>
+    private static int FacceMax(int mediaDado) => Math.Max(2, (mediaDado - 1) * 2);
+
+    private static string Troncata(string testo)
+        => testo.Length <= TroncamentoSoglia ? testo : testo[..TroncamentoSoglia].TrimEnd() + "…";
+
+    private static string EtichettaAbilita(string chiave)
+    {
+        if (string.IsNullOrWhiteSpace(chiave)) return "—";
+        foreach (var (k, _, nome) in Caratteristiche)
+            if (string.Equals(k, chiave, StringComparison.OrdinalIgnoreCase)) return nome;
+        return chiave;
+    }
+
+    private static IReadOnlyList<string> SlotCambiati(LevelUpPlan piano)
+    {
+        var attuali = piano.SlotMax.Attuale;
+        var proposti = piano.SlotMax.Proposto;
+        var righe = new List<string>();
+        var n = Math.Min(attuali.Count, proposti.Count);
+        for (var i = 0; i < n; i++)
+        {
+            if (attuali[i] != proposti[i])
+                righe.Add($"{i + 1}° {attuali[i]} → {proposti[i]}");
+        }
+        return righe;
+    }
+
+    // ---- Lettura di Risposte (mai scrittura diretta). ----
+
+    private IReadOnlyList<string> SceltaAttuale(string chiave)
+        => Risposte.TryGetValue(chiave, out var r) ? r.Scelte : Array.Empty<string>();
+
+    private IReadOnlyDictionary<string, int> PunteggiCorrenti(string chiave)
+        => Risposte.TryGetValue(chiave, out var r) ? r.Punteggi : new Dictionary<string, int>(StringComparer.Ordinal);
+
+    /// <summary>Testo e classe della pillola di stato per una riga di "Da scegliere". Per
+    /// <see cref="DecisionePunteggi"/> passa da <see cref="LevelUpPlan.Completa"/> invece di
+    /// riscrivere la regola qui: il contratto valida anche la FORMA della ripartizione (+2 a una
+    /// / +1 a due, chiavi ammesse), non solo che la somma faccia 2 — un controllo locale diverso
+    /// potrebbe dire "✓ assegnato" su una risposta che il bottone di conferma rifiuta.</summary>
+    private (string Testo, string Classe) Stato(LevelUpPlan piano, Decisione decisione)
+    {
+        switch (decisione)
+        {
+            case DecisioneFraOpzioni f:
+                var scelte = SceltaAttuale(f.Chiave);
+                return scelte.Count == f.Quante
+                    ? ($"✓ {string.Join(", ", scelte)}", "lud-status-done")
+                    : ("da scegliere", "lud-status-todo");
+
+            case DecisionePunteggi p:
+                var rispostaPunteggi = Risposte.TryGetValue(p.Chiave, out var rp) ? rp : null;
+                return piano.Completa(p, rispostaPunteggi)
+                    ? ("✓ assegnato", "lud-status-done")
+                    : ("da scegliere", "lud-status-todo");
+
+            case DecisioneLibera l:
+                var testo = Risposte.TryGetValue(l.Chiave, out var r) ? r.Testo : string.Empty;
+                return string.IsNullOrWhiteSpace(testo)
+                    ? ("facoltativa", "lud-status-optional")
+                    : ("✓ annotata", "lud-status-done");
+
+            default:
+                return (string.Empty, string.Empty);
+        }
+    }
+
+    // ---- Interazione: ogni cambiamento passa da OnRisposta/OnTiro, mai da una scrittura locale
+    // su Risposte. ----
+
+    private void ToggleChiave(string chiave) => chiaveEspansa = chiaveEspansa == chiave ? null : chiave;
+
+    private void ToggleDescrizione(string chiave)
+    {
+        if (!descrizioniEspanse.Remove(chiave)) descrizioniEspanse.Add(chiave);
+    }
+
+    private async Task ScegliOpzioneAsync(DecisioneFraOpzioni decisione, string nome)
+    {
+        var attuali = SceltaAttuale(decisione.Chiave);
+        List<string> nuove;
+        if (attuali.Contains(nome))
+        {
+            nuove = attuali.Where(x => x != nome).ToList();
+        }
+        else if (decisione.Quante == 1)
+        {
+            nuove = new List<string> { nome };
+        }
+        else if (attuali.Count < decisione.Quante)
+        {
+            nuove = attuali.Append(nome).ToList();
+        }
+        else
+        {
+            return; // già al massimo: i controlli restano disabilitati, ma niente crash se arriva comunque un tap.
+        }
+
+        await OnRisposta.InvokeAsync((decisione.Chiave, new Risposta { Scelte = nuove }));
+    }
+
+    private async Task VariaPunteggioAsync(string chiave, string caratteristica, int delta)
+    {
+        var correnti = PunteggiCorrenti(chiave);
+        var totale = correnti.Values.Sum();
+        var valore = correnti.TryGetValue(caratteristica, out var v) ? v : 0;
+
+        // Il vincolo "somma esattamente 2, massimo +2 su una sola" si riduce a un solo controllo:
+        // con la somma già limitata a 2, nessun singolo valore può comunque superare 2.
+        if (delta > 0 && totale >= 2) return;
+        if (delta < 0 && valore <= 0) return;
+
+        var nuovi = new Dictionary<string, int>(correnti, StringComparer.Ordinal);
+        var nuovoValore = valore + delta;
+        if (nuovoValore <= 0) nuovi.Remove(caratteristica);
+        else nuovi[caratteristica] = nuovoValore;
+
+        await OnRisposta.InvokeAsync((chiave, new Risposta { Punteggi = nuovi }));
+    }
+
+    private Task ImpostaTestoLiberoAsync(string chiave, string testo)
+        => OnRisposta.InvokeAsync((chiave, new Risposta { Testo = testo }));
+
+    private Task UsaMediaAsync()
+    {
+        tiroManuale = false;
+        valoreTiro = null;
+        return OnTiro.InvokeAsync(null);
+    }
+
+    private Task UsaTiroAsync()
+    {
+        tiroManuale = true;
+        valoreTiro ??= Piano is LevelUpPlan piano ? piano.MediaDado : 1;
+        return OnTiro.InvokeAsync(valoreTiro);
+    }
+
+    private Task CambiaValoreTiroAsync(ChangeEventArgs e)
+    {
+        if (Piano is not LevelUpPlan piano || !int.TryParse(e.Value?.ToString(), out var v))
+            return Task.CompletedTask;
+
+        var troncato = Math.Clamp(v, 1, FacceMax(piano.MediaDado));
+        // Il digitato eccedeva l'intervallo ed è stato troncato a un valore che magari coincide
+        // con quello già in campo (era già al massimo): senza questo contatore nella @key
+        // dell'input, Blazor non vedrebbe alcuna differenza da propagare al DOM, e il campo
+        // continuerebbe a mostrare il numero fuori intervallo digitato dall'utente.
+        if (troncato != v) tiroChiaveVersione++;
+
+        valoreTiro = troncato;
+        return OnTiro.InvokeAsync(valoreTiro);
+    }
+
+    private Task HandleOverlayClickAsync() => InCorso ? Task.CompletedTask : OnAnnulla.InvokeAsync();
+
+    private Task HandleAnnullaAsync() => InCorso ? Task.CompletedTask : OnAnnulla.InvokeAsync();
+
+    private Task HandleConfermaAsync()
+        => InCorso || Piano is null || !Piano.Completo(Risposte) ? Task.CompletedTask : OnConferma.InvokeAsync();
+}

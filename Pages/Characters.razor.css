@@ -322,6 +322,83 @@
     gap: 0.85rem;
 }
 
+/* ===== Level-up guidato ===== */
+
+/* Il proseguimento "Sali ancora", in flusso appena sotto la barra sticky: niente di fisso, è un
+   invito e non un'interruzione — chi non lo vuole scorre oltre. */
+.levelup-again {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.7rem;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    border-radius: 10px;
+}
+
+.levelup-again-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+}
+
+.levelup-again-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0 1rem;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--text-on-gold);
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.levelup-again-dismiss {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--gold-dim);
+    font-size: 1rem;
+    line-height: 1;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.levelup-again-dismiss:hover {
+    background: rgba(var(--gold-rgb), 0.15);
+}
+
+/* L'errore del salvataggio deve restare leggibile MENTRE il dialogo è aperto (il piano non si
+   chiude su un fallimento, per restare ritentabile): serve una posizione fissa sopra il suo
+   overlay (z-index 1150, v. LevelUpDialog.razor.css), non il flusso normale della pagina dove
+   <DbErrorBanner> finirebbe coperto. */
+.levelup-error {
+    position: fixed;
+    top: calc(0.75rem + env(safe-area-inset-top, 0px));
+    left: 1rem;
+    right: 1rem;
+    z-index: 1180;
+}
+
+@media (min-width: 641px) {
+    .levelup-error {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: min(90vw, 480px);
+    }
+}
+
 /* ===== Desktop ===== */
 @media (min-width: 641px) {
     .characters-container {

@@ -5,6 +5,21 @@
    CharacterCombatTab e per leggerli bisognava tornare lì, anche mentre si guardavano gli
    incantesimi o l'inventario. I ± dei PF restano qui perché sono il controllo più premuto
    dell'app — spostarli senza portarsi dietro i pulsanti avrebbe peggiorato le cose. *@
+@* Il bottone del level-up guidato vive qui, accanto al livello, e non nell'header col nome: è
+   il controllo di permesso già esistente (CanEdit, speculare alle RLS) a deciderne la visibilità,
+   niente di nuovo da introdurre. Nascosto al 20° perché non c'è un livello successivo da proporre;
+   il calcolo del piano e il salvataggio restano al genitore (Characters.razor) — qui si segnala
+   solo l'intenzione, come già fa OnChanged per i PF. *@
+@if (CanEdit && Character.Level < 20)
+{
+    <div class="level-row">
+        <span class="level-label">Livello @Character.Level</span>
+        <button type="button" class="level-up-btn" @onclick="RequestLevelUpAsync">
+            Sali di livello
+        </button>
+    </div>
+}
+
 <div class="vitals-bar">
     @* Numero sopra, ± sotto: in fila orizzontale la card dovrebbe essere larga almeno 160px (44+44
        di pulsanti, che non si rimpiccioliscono, più il numero a tre cifre), e in una barra a quattro
@@ -54,7 +69,14 @@
     /// esattamente come faceva CharacterCombatTab prima dell'estrazione.</summary>
     [Parameter] public EventCallback OnChanged { get; set; }
 
+    /// <summary>Richiesta di apertura del dialogo "Sali di livello": il genitore costruisce il
+    /// piano (catalogo, tabella dei livelli, dado vita) e lo mostra. Questo componente non calcola
+    /// e non salva nulla, come per i PF.</summary>
+    [Parameter] public EventCallback OnLevelUp { get; set; }
+
     private bool isSavingHp;
+
+    private Task RequestLevelUpAsync() => OnLevelUp.InvokeAsync();
 
     private async Task AdjustHpAsync(int delta)
     {

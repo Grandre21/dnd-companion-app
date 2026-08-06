@@ -94,7 +94,8 @@
                    del secondo, e quell'altezza cambia con la larghezza dello schermo (i PF vanno
                    a capo sotto i 360px). *@
                 <div class="sheet-sticky">
-                <CharacterVitalsBar Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                <CharacterVitalsBar Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
+                                     OnLevelUp="@ApriLivelloUpAsync" />
 
                 <div class="tab-bar">
                     <button class="tab-item @(activeTab == "rolls" ? "active" : "")" @onclick='() => activeTab = "rolls"'>
@@ -118,6 +119,22 @@
                     }
                 </div>
                 </div>
+
+                @* Il proseguimento "Sali ancora": D3 vuole un livello alla volta, e per recuperarne
+                   più di uno si ripete il dialogo — questo invito evita di dover ritrovare il
+                   bottone in cima alla barra dopo ogni conferma. Sparisce da sé alla prossima
+                   apertura o alla chiusura manuale. *@
+                @if (mostraSaliAncora)
+                {
+                    <div class="levelup-again">
+                        <span class="levelup-again-text">Vuoi salire ancora?</span>
+                        <button type="button" class="levelup-again-btn" @onclick="ApriLivelloUpAsync">
+                            Sali ancora
+                        </button>
+                        <button type="button" class="levelup-again-dismiss" aria-label="Chiudi"
+                                @onclick="() => mostraSaliAncora = false">✕</button>
+                    </div>
+                }
 
                 <div class="tab-content">
 
@@ -158,6 +175,25 @@
                 }
 
                 </div>
+
+                @* ===================== LEVEL-UP GUIDATO =====================
+                   Smontato dal DOM quando non c'è un piano (@if a monte, non solo il @if interno al
+                   componente): senza, chiudere e riaprire lo stesso livello lascerebbe vivo lo stato
+                   locale del dialogo (tiro manuale, accordion espanso) mentre il piano nuovo qui
+                   sotto parte sempre da capo — la giuntura nota fra questo file e LevelUpDialog. *@
+                @if (livelloErrore is not null)
+                {
+                    <div class="levelup-error">
+                        <DbErrorBanner Message="@livelloErrore" OnDismiss="@(() => livelloErrore = null)" />
+                    </div>
+                }
+                @if (livelloPiano is not null)
+                {
+                    <LevelUpDialog Piano="@livelloPiano" Risposte="@livelloRisposte"
+                                   OnRisposta="@OnLivelloRisposta" OnTiro="@OnLivelloTiro"
+                                   OnConferma="@ConfermaLivelloUpAsync" OnAnnulla="@AnnullaLivelloUp"
+                                   InCorso="@livelloInCorso" />
+                }
             </div>
             break;
 
@@ -230,6 +266,20 @@
 
     private bool isBusy;
     private string? errorMessage;
+
+    // ===== Level-up guidato =====
+    // Il piano è null a riposo: è la condizione che smonta <LevelUpDialog/> dal DOM (v. il @if nel
+    // markup). Le risposte sono mutabili in loco perché LevelUpPlanner.Pianifica le legge, non le
+    // possiede: ricalcolare il piano dopo ogni modifica è compito di RicalcolaPianoLivello.
+    private LevelUpPlan? livelloPiano;
+    private readonly Dictionary<string, Risposta> livelloRisposte = new(StringComparer.Ordinal);
+    private int? livelloTiro;
+    private bool livelloInCorso;
+    private string? livelloErrore;
+
+    // Mostrato dopo una conferma riuscita, se il personaggio non è già al 20°: un tap in meno per
+    // recuperare più livelli di fila (D3 del design, "un livello alla volta" con "Sali ancora").
+    private bool mostraSaliAncora;
 
     private bool CanEdit =>
         selected is not null && AccessControl.CanEdit(CurrentUser.IsMaster, selected.OwnerId, CurrentUser.UserId);
@@ -307,6 +357,7 @@
         selected = c;
         mode = ViewMode.Detail;
         activeTab = "rolls";
+        ChiudiLivelloUp();
         await LoadInventoryAsync(c.Id);
         await EnsureSpellCatalogAsync();
         await EnsureClassPackageAsync();
@@ -353,6 +404,7 @@
     private void GoBack()
     {
         selected = null;
+        ChiudiLivelloUp();
         BackToListOrEmpty();
     }
 
@@ -599,6 +651,218 @@
         if (idx >= 0) characters[idx] = selected;
     }
 
+    // ===== Level-up guidato =====
+    // Orchestrazione soltanto: il calcolo vive in LevelUpPlanner (helper puro), la presentazione in
+    // LevelUpDialog. Qui si prendono i cataloghi già in memoria, si passa tutto al planner e si fa
+    // UN salvataggio alla conferma — mai un ricalcolo o una scrittura dentro il dialogo stesso.
+
+    private async Task ApriLivelloUpAsync()
+    {
+        if (selected is null || !CanEdit || selected.Level >= 20) return;
+
+        mostraSaliAncora = false;
+        livelloErrore = null;
+        livelloRisposte.Clear();
+        livelloTiro = null;
+
+        // Di norma già in cache da OpenDetailAsync: il controllo interno la rende gratuita nel
+        // caso comune, e necessaria solo se il caricamento iniziale del pacchetto era fallito.
+        await EnsureClassPackageAsync();
+
+        RicalcolaPianoLivello();
+
+        if (livelloPiano is null)
+        {
+            Toasts.ShowError("Questa classe non ha una tabella dei livelli: modifica la scheda a mano.");
+        }
+    }
+
+    // Richiamato dal genitore a ogni risposta: il piano NON si aggiorna da solo, perché
+    // l'incremento di Costituzione ha effetto retroattivo sui punti ferita già maturati.
+    private void RicalcolaPianoLivello()
+    {
+        if (selected is null)
+        {
+            livelloPiano = null;
+            return;
+        }
+
+        var sottoclassi = SubclassCatalog.Disponibili(classes, packageClasses, selected.Class);
+        livelloPiano = LevelUpPlanner.Pianifica(
+            selected,
+            ProgressioneClasseSelezionata,
+            sottoclassi,
+            Catalog.Feats,
+            livelloRisposte,
+            livelloTiro,
+            DadoVitaClasseSelezionata());
+    }
+
+    private void OnLivelloRisposta((string Chiave, Risposta Risposta) e)
+    {
+        livelloRisposte[e.Chiave] = e.Risposta;
+        RicalcolaPianoLivello();
+    }
+
+    private void OnLivelloTiro(int? tiro)
+    {
+        livelloTiro = tiro;
+        RicalcolaPianoLivello();
+    }
+
+    private void AnnullaLivelloUp() => ChiudiLivelloUp();
+
+    private void ChiudiLivelloUp()
+    {
+        livelloPiano = null;
+        livelloRisposte.Clear();
+        livelloTiro = null;
+        livelloErrore = null;
+        mostraSaliAncora = false;
+    }
+
+    /// <summary>Fotografia dei campi che <see cref="LevelUpPlanner.Applica"/> può toccare — la
+    /// whitelist del planner, non un elenco indipendente — presa PRIMA di mutare il personaggio.
+    /// Serve a <see cref="ConfermaLivelloUpAsync"/> per riportare `selected` esattamente com'era
+    /// se il salvataggio fallisce: `selected` è l'istanza viva condivisa con la scheda aperta e con
+    /// la riga in `characters`, non una copia, quindi senza questo ripristino un "Annulla" dopo un
+    /// errore di rete lascerebbe il livello nuovo scritto lì mentre il database ha ancora quello
+    /// vecchio — e il primo salvataggio successivo da un altro tab (il "−" dei PF, "Salva note",
+    /// qualunque OnChanged) persisterebbe in silenzio un level-up che l'utente non ha mai
+    /// confermato. Non toglierlo perché "sembra ridondante" col commento sull'idempotenza di
+    /// Applica: quella guardia protegge da un SECONDO livello applicato allo stesso Character,
+    /// non da un livello mai confermato lasciato lì dopo un errore.
+    ///
+    /// Non copre gli effetti di <see cref="CharacterNormalizer.Normalize"/> (chiamata in coda ad
+    /// Applica) su campi fuori da questa whitelist — trim di testo e clamp numerici. Accettato: su
+    /// un personaggio già salvato in precedenza quei campi arrivano già normalizzati, quindi
+    /// Normalize non ha nulla da cambiare; il residuo teorico (uno spazio finale tolto da un campo
+    /// mai stato salvato prima) non vale il costo di allargare la whitelist.</summary>
+    private sealed record LivelloUpSnapshot(
+        int Level, int MaxHitPoints, int HitPoints, string? HitDiceMax,
+        int SpellSlots1Max, int SpellSlots2Max, int SpellSlots3Max, int SpellSlots4Max, int SpellSlots5Max,
+        int SpellSlots6Max, int SpellSlots7Max, int SpellSlots8Max, int SpellSlots9Max,
+        string? Subclass, string? SpellcastingAbility, string? ClassFeatures, string? Feats,
+        int Strength, int Dexterity, int Constitution, int Intelligence, int Wisdom, int Charisma)
+    {
+        public static LivelloUpSnapshot Cattura(Character pg) => new(
+            pg.Level, pg.MaxHitPoints, pg.HitPoints, pg.HitDiceMax,
+            pg.SpellSlots1Max, pg.SpellSlots2Max, pg.SpellSlots3Max, pg.SpellSlots4Max, pg.SpellSlots5Max,
+            pg.SpellSlots6Max, pg.SpellSlots7Max, pg.SpellSlots8Max, pg.SpellSlots9Max,
+            pg.Subclass, pg.SpellcastingAbility, pg.ClassFeatures, pg.Feats,
+            pg.Strength, pg.Dexterity, pg.Constitution, pg.Intelligence, pg.Wisdom, pg.Charisma);
+
+        public void Ripristina(Character pg)
+        {
+            pg.Level = Level;
+            pg.MaxHitPoints = MaxHitPoints;
+            pg.HitPoints = HitPoints;
+            pg.HitDiceMax = HitDiceMax;
+            pg.SpellSlots1Max = SpellSlots1Max;
+            pg.SpellSlots2Max = SpellSlots2Max;
+            pg.SpellSlots3Max = SpellSlots3Max;
+            pg.SpellSlots4Max = SpellSlots4Max;
+            pg.SpellSlots5Max = SpellSlots5Max;
+            pg.SpellSlots6Max = SpellSlots6Max;
+            pg.SpellSlots7Max = SpellSlots7Max;
+            pg.SpellSlots8Max = SpellSlots8Max;
+            pg.SpellSlots9Max = SpellSlots9Max;
+            pg.Subclass = Subclass;
+            pg.SpellcastingAbility = SpellcastingAbility;
+            pg.ClassFeatures = ClassFeatures;
+            pg.Feats = Feats;
+            pg.Strength = Strength;
+            pg.Dexterity = Dexterity;
+            pg.Constitution = Constitution;
+            pg.Intelligence = Intelligence;
+            pg.Wisdom = Wisdom;
+            pg.Charisma = Charisma;
+        }
+    }
+
+    private async Task ConfermaLivelloUpAsync()
+    {
+        if (selected is null || livelloPiano is null || livelloInCorso) return;
+        if (!livelloPiano.Completo(livelloRisposte)) return;
+
+        var piano = livelloPiano;
+        var pg = selected;
+
+        // Presa PRIMA di Applica: è lo stato a cui tornare se il salvataggio fallisce (v. il
+        // commento sul record qui sopra). Ripristinarlo qui sana anche il ricalcolo del piano dopo
+        // un ritentativo: con `pg` tornato al livello vecchio, RicalcolaPianoLivello (richiamata da
+        // OnLivelloTiro/OnLivelloRisposta) riparte da lì invece di proporre un secondo salto sopra
+        // un livello mai confermato.
+        var snapshot = LivelloUpSnapshot.Cattura(pg);
+
+        livelloInCorso = true;
+        livelloErrore = null;
+        try
+        {
+            // Muta l'istanza corrente, non una copia: i tab già aperti la tengono viva. Se questo
+            // stesso salvataggio viene ritentato dopo un errore di rete, Applica trova pg.Level già
+            // uguale a piano.LivelloA e non rimuta nulla — la guardia di idempotenza che la rende
+            // sicura da richiamare due volte sullo stesso Character.
+            LevelUpPlanner.Applica(pg, piano, livelloRisposte);
+
+            var saved = await CharacterRepository.UpdateCharacterAsync(pg);
+            if (saved is null)
+            {
+                snapshot.Ripristina(pg);
+                livelloErrore = "Il server non ha restituito il personaggio salvato.";
+                return;
+            }
+
+            SyncListFromSelected();
+            ChiudiLivelloUp();
+
+            var messaggio = $"Ora sei livello {saved.Level}.";
+            if (piano.CerchioSbloccato is int cerchio)
+            {
+                messaggio += $" Hai sbloccato il {cerchio}° cerchio di incantesimi.";
+                // Rimando concreto al tab Magia, non solo nominato nel testo del toast — ma non se
+                // l'utente è sul tab Scheda: CharacterBioTab tiene le note non salvate solo in
+                // locale, e smontarlo per lo switch le butterebbe via senza preavviso. Il messaggio
+                // nel toast resta comunque, switch di tab o no.
+                if (!string.IsNullOrWhiteSpace(saved.SpellcastingAbility) && activeTab != "bio")
+                    activeTab = "magic";
+            }
+            Toasts.ShowSuccess(messaggio);
+
+            mostraSaliAncora = saved.Level < 20;
+        }
+        catch (Exception ex)
+        {
+            // Il dialogo resta aperto (livelloPiano non viene toccato) e le risposte restano
+            // intatte: un nuovo tap su "Diventa livello N" ritenta lo stesso salvataggio. `pg` è
+            // già stato riportato allo stato precedente (v. lo snapshot sopra), quindi il
+            // ritentativo riparte dallo stesso punto di prima, non da un livello già mutato.
+            snapshot.Ripristina(pg);
+            livelloErrore = $"Errore salvataggio livello: {ex.Message}";
+        }
+        finally
+        {
+            livelloInCorso = false;
+        }
+    }
+
+    /// <summary>Il dado vita della classe, per il calcolo dei punti ferita: dalla riga di campagna
+    /// omonima se la dichiara, altrimenti dal manuale. Vince sul dado dedotto da
+    /// <see cref="Character.HitDiceMax"/> dentro il planner — un Barbaro con HitDiceMax vuoto o
+    /// scritto storto non deve vedersi proporre punti ferita calcolati su d8.</summary>
+    private string? DadoVitaClasseSelezionata()
+    {
+        if (selected is null) return null;
+        var chiave = CatalogKey.NormalizeName(selected.Class);
+
+        var dallaCampagna = classes.FirstOrDefault(c =>
+            CatalogKey.NormalizeName(c.Name) == chiave && !string.IsNullOrWhiteSpace(c.HitDie));
+        if (dallaCampagna is not null) return dallaCampagna.HitDie;
+
+        var dalManuale = packageClasses.FirstOrDefault(c =>
+            CatalogKey.NormalizeName(c.Name) == chiave && !string.IsNullOrWhiteSpace(c.HitDie));
+        return dalManuale?.HitDie;
+    }
 
     // Copia profonda di TUTTI i campi: il form di modifica deve fare round-trip
     // completo, altrimenti salvando si azzerano i campi non clonati.
