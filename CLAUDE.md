@@ -129,6 +129,13 @@ Tre ruoli distinti, e **non li cumulo**:
 - **Il fan-out ai Sonnet va a file disgiunti**, con i confini dichiarati nel prompt di ciascuno. Il
   gate poi si punta sulle **giunture**, per la ragione già verificata il 2026-08-01: i difetti gravi
   stanno dove una fetta incontra l'altra, e nessuno degli autori può vederli per costruzione.
+- **Gli agenti in parallelo non committano: committo io** (regola del 2026-08-06). Condividono lo
+  stesso working tree, e due `git commit` simultanei si contendono il lock dell'index. Nel prompt va
+  detto esplicitamente, insieme a: «se il build fallisce in file che non sono tuoi, è un altro agente
+  a metà lavoro — aspetta e ritenta, non provare a ripararli».
+- **Le firme che fanno da confine le decido io e le passo a tutti in anticipo**, anche a chi scriverà
+  contro tipi che ancora non esistono: è ciò che permette di lanciare in parallelo fette che
+  altrimenti andrebbero in fila.
 - Il gate a due agenti resta **invariato** e si applica al lavoro dei Sonnet come a qualunque altro:
   è ciò che rende sicura la delega, non un adempimento in più.
 
