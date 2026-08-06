@@ -1526,3 +1526,30 @@ serializzazione sbagliata non avrebbe rotto «la funzione nuova», avrebbe rotto
 scheda**, e nessun test unitario poteva vederlo. Verde al primo colpo, ma non era scontato — e ha
 fatto emergere per strada un gotcha dello stack locale (l'`apikey` duplicato in querystring dal
 client, che il gateway non consuma) ora in memoria di progetto.
+
+## Il tab «Tiri» riordinato per momento del turno (2026-08-06, terzo giro)
+
+Non è una marcia indietro sulla voce precedente («La scheda alla pari con la carta»): quella
+riguardava la **copertura** — mancavano tre dati, non una struttura. Qui il problema è un altro
+asse, l'**ordine**: il tab era cresciuto per aggiunte successive (dadi vita e riposo prima, poi
+risorse di classe, poi TS contro morte, poi armi), e quell'ordine racconta la cronologia dei commit,
+non il modo in cui si gioca — al tavolo si attacca, e l'arma stava quinta.
+
+Il nuovo ordine è per momento del turno: TS contro morte (condizionali, ma quando compaiono in
+testa — se il PG sta morendo non conta altro), velocità e ispirazione, armi, risorse di classe, poi
+caratteristiche/tiri salvezza/abilità (`CharacterStatsTab`); solo dopo un divisore («a fine
+combattimento») dadi vita e riposo, cioè quel che si recupera quando lo scontro è finito.
+
+Il nodo era strutturale: `CharacterStatsTab` era un componente a parte, reso da `Characters.razor`
+come fratello **dopo** `CharacterCombatTab`, e andava intercalato in mezzo senza fondere i due
+componenti né duplicarne l'istanza. La scelta è stata un `RenderFragment ChildContent` su
+`CharacterCombatTab`: `Characters.razor` passa `<CharacterStatsTab .../>` come figlio, e il genitore
+lo rende esattamente dove serve (dopo le risorse, prima del divisore). L'isolamento CSS di Blazor
+segue il componente che dichiara il markup, non il genitore nel DOM: nidificarlo così non ha richiesto
+toccare `CharacterStatsTab.razor.css`.
+
+Il divisore («a fine combattimento») usa solo token esistenti (`--gold-rgb`, `--gold-dim`): un filo
+sottile e un'etichetta piccola in maiuscolo, niente di nuovo nella palette. Nessuna logica toccata —
+`RestCalculations`, `ClassResourceRules`, `WeaponCalculations` invariati — solo markup spostato
+all'interno dello stesso file. Gate a un giro (`critico` + `conformità`): uscita pulita, con solo
+imprecisioni minori nei commenti corrette al volo.

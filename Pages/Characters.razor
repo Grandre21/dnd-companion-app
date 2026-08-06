@@ -183,16 +183,20 @@
                 <div class="tab-content">
 
                 @* ===================== TAB TIRI =====================
-                   Tutto ciò che si tira o si spende in un turno: la fascia con velocità e
-                   ispirazione, i dadi vita, i TS contro morte, le armi, e poi le sei
-                   caratteristiche con tiri salvezza e abilità. Le due metà restano due componenti:
-                   qui si compongono, non si fondono. *@
+                   Riordinato per momento del turno (2026-08-06), non per ordine di aggiunta: TS
+                   contro morte (quando servono — in testa, perché se il PG sta morendo non conta
+                   altro), velocità e ispirazione, armi, risorse di classe, poi le sei
+                   caratteristiche con tiri salvezza e abilità — e solo dopo, oltre il divisore
+                   «a fine combattimento», dadi vita e riposo. CharacterStatsTab resta un componente
+                   separato (le due metà non si fondono): CharacterCombatTab lo rende come
+                   ChildContent, in mezzo alle proprie sezioni, invece che come fratello dopo. *@
                 @if (activeTab == "rolls")
                 {
                     <CharacterCombatTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterCoreAsync"
                                         IsSaving="@isSavingCharacter" OnLocalRevert="@(() => StateHasChanged())"
-                                        Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()" />
-                    <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                                        Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()">
+                        <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                    </CharacterCombatTab>
                 }
 
                 @* ===================== TAB SCHEDA ===================== *@

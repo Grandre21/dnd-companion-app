@@ -5,68 +5,116 @@
 
 @* PF, CA, INI e PERC sono saliti in CharacterVitalsBar, sopra le tab: servono a ogni turno e
    stavano dietro un tocco. Qui resta ciò che si consulta quando serve davvero. *@
-<div class="hit-dice-card">
-    <p class="card-label">DADI VITA</p>
-    <div class="hit-dice-row">
-        <button class="hd-btn" @onclick="DecrementHitDice" aria-label="Un dado vita in meno"
-                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent <= 0)">−</button>
-        <div class="hit-dice-display">
-            <span class="hit-dice-value">@(HitDiceTotal() - Character.HitDiceSpent) / @HitDiceTotal()</span>
-            <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(Character.HitDiceMax) ? "—" : Character.HitDiceMax)</span>
-        </div>
-        <button class="hd-btn" @onclick="IncrementHitDice" aria-label="Un dado vita in più"
-                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent >= HitDiceTotal())">+</button>
-    </div>
-</div>
 
-@* Riposo lungo/breve (RestCalculations, helper puro): il lungo passa da ConfirmDialog perché
-   azzera i TS contro morte; il breve apre un pannello che chiede dadi spesi + totale tirato
-   (l'app non tira il dado, offre solo la media come valore precompilato). *@
-<div class="rest-card">
-    <p class="card-label">RIPOSO</p>
-    <div class="rest-actions">
-        <button type="button" class="secondary-btn rest-btn" @onclick="ToggleShortRestPanel"
-                disabled="@(!CanEdit || IsSaving)">
-            Riposo breve
-        </button>
-        <button type="button" class="primary-btn rest-btn" @onclick="RiposoLungoAsync"
-                disabled="@(!CanEdit || IsSaving)">
-            Riposo lungo
-        </button>
-    </div>
+@* ===== Ordine del tab «Tiri» (riordino 2026-08-06): per momento del turno, non per data di
+   aggiunta. Prima ciò che si tira/spende in combattimento (TS morte quando servono, velocità e
+   ispirazione, armi, risorse di classe, poi le caratteristiche/abilità di CharacterStatsTab), poi
+   — dopo il divisore «a fine combattimento» — ciò che si recupera (dadi vita, riposo). I TS contro
+   morte restano condizionali (ShowDeathSaves) ma, quando compaiono, vanno in testa: se il
+   personaggio sta morendo non c'è arma o risorsa che conti prima di quel tiro. *@
 
-    @if (showShortRestPanel)
-    {
-        <div class="short-rest-panel">
-            <div class="short-rest-field">
-                <span class="short-rest-label">Dadi vita spesi</span>
-                <div class="short-rest-stepper">
-                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(-1)"
-                            aria-label="Un dado vita speso in meno"
-                            disabled="@(!CanEdit || dadiSpesi <= 0)">−</button>
-                    <span class="short-rest-value">@dadiSpesi / @HitDiceRemaining()</span>
-                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(1)"
-                            aria-label="Un dado vita speso in più"
-                            disabled="@(!CanEdit || dadiSpesi >= HitDiceRemaining())">+</button>
+@if (ShowDeathSaves)
+{
+    <div class="death-saves-card">
+        <p class="card-label">TIRI SALVEZZA CONTRO MORTE</p>
+        <div class="death-saves-row">
+            <div class="death-saves-group">
+                <span class="ds-label success">Successi</span>
+                <div class="ds-dots">
+                    @for (int i = 1; i <= 3; i++)
+                    {
+                        var n = i;
+                        <span class="ds-dot @(Character.DeathSaveSuccesses >= n ? "filled success" : "")"
+                              role="button" tabindex="0"
+                              aria-pressed="@AriaBool(Character.DeathSaveSuccesses >= n)" aria-label="Successo tiro salvezza @n"
+                              @onclick="() => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)"
+                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)))"></span>
+                    }
                 </div>
             </div>
-            <div class="short-rest-field">
-                <label class="short-rest-label" for="riposo-breve-totale">Totale tirato</label>
-                <input id="riposo-breve-totale" type="number" class="short-rest-input" min="0"
-                       value="@totaleTirato" @oninput="OnTotaleTiratoInput" disabled="@(!CanEdit)" />
-            </div>
-            <div class="short-rest-actions">
-                <button type="button" class="secondary-btn rest-btn" @onclick="CloseShortRestPanel">
-                    Annulla
-                </button>
-                <button type="button" class="primary-btn rest-btn" @onclick="ConfermaRiposoBreveAsync"
-                        disabled="@(!CanEdit || IsSaving || dadiSpesi <= 0)">
-                    Conferma
-                </button>
+            <div class="death-saves-group">
+                <span class="ds-label failure">Fallimenti</span>
+                <div class="ds-dots">
+                    @for (int i = 1; i <= 3; i++)
+                    {
+                        var n = i;
+                        <span class="ds-dot @(Character.DeathSaveFailures >= n ? "filled failure" : "")"
+                              role="button" tabindex="0"
+                              aria-pressed="@AriaBool(Character.DeathSaveFailures >= n)" aria-label="Fallimento tiro salvezza @n"
+                              @onclick="() => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)"
+                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)))"></span>
+                    }
+                </div>
             </div>
         </div>
-    }
+    </div>
+}
+
+<div class="secondary-stats">
+    <div class="mini-stat">
+        <p class="mini-label">VEL</p>
+        <p class="mini-value">@Character.Speed<span class="mini-unit">m</span></p>
+    </div>
+    <div class="mini-stat">
+        <p class="mini-label">ISPIRAZIONE</p>
+        <span class="inspiration-toggle @(Character.HeroicInspiration ? "active" : "")"
+              role="button" tabindex="0"
+              aria-pressed="@AriaBool(Character.HeroicInspiration)" aria-label="Ispirazione eroica"
+              @onclick="ToggleHeroicInspiration"
+              @onkeydown="@(e => OnKey(e, ToggleHeroicInspiration))"></span>
+    </div>
 </div>
+
+<p class="section-header">ARMI</p>
+@if (Weapons.Any())
+{
+    @foreach (var w in Weapons)
+    {
+        var haFlagArma = w.IsFinesse || w.IsRanged || w.IsNotProficient;
+        var bonusCalcolato = WeaponCalculations.BonusAttacco(w, Character);
+        <div class="weapon-card">
+            <div class="weapon-header">
+                <p class="weapon-name">@w.Name</p>
+                <p class="weapon-stats">
+                    @* Il valore scritto a mano vince: se AttackBonus è valorizzato si mostra quello, col
+                       calcolato (WeaponCalculations, D5) accanto come confronto discreto. Se è vuoto E
+                       l'arma non ha ALCUN flag impostato (accurata/a distanza/non competente),
+                       ModificatoreArma ricade per costruzione sul ramo Forza — quasi certamente sbagliato
+                       per un'arma a distanza o accurata mai configurata. In quel caso il numero si mostra
+                       come STIMA esplicita, non come "il" bonus: l'app non deve presentare come certo un
+                       valore che dipende da dati che l'utente non ha ancora fornito (v. CLAUDE.md). Se
+                       invece un flag è impostato, l'arma è già stata curata: il calcolato torna a essere
+                       il valore mostrato senza cautele, come prima di questa distinzione. *@
+                    @if (!string.IsNullOrWhiteSpace(w.AttackBonus))
+                    {
+                        <span>@w.AttackBonus</span>
+                        <span class="weapon-calc-hint">(calcolato @FormatBonus(bonusCalcolato))</span>
+                    }
+                    else if (haFlagArma)
+                    {
+                        <span>@FormatBonus(bonusCalcolato)</span>
+                    }
+                    else
+                    {
+                        <span class="weapon-calc-hint"
+                              title="Nessun bonus scritto a mano e nessuna proprietà (accurata/a distanza/non competente) impostata su quest'arma: il calcolo assume un'arma da mischia con Forza. Se l'arma è a distanza o accurata, modificala per un valore corretto.">
+                            stima @FormatBonus(bonusCalcolato) da Forza
+                        </span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(w.Damage)) { <span>· @w.Damage @w.DamageType?.ToLower()</span> }
+                </p>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(w.AttackNotes))
+            {
+                <p class="weapon-notes">@w.AttackNotes</p>
+            }
+        </div>
+    }
+}
+else
+{
+    <p class="empty-note">Nessuna arma equipaggiata</p>
+}
 
 @* Risorse di classe (Ira, Ispirazione bardica, ...): stessa famiglia dei dadi vita e del riposo —
    contatori che si spendono e si ripristinano (v. spec 2026-08-06, «Le risorse di classe»). Niente
@@ -199,108 +247,80 @@
     </div>
 }
 
-@if (ShowDeathSaves)
-{
-    <div class="death-saves-card">
-        <p class="card-label">TIRI SALVEZZA CONTRO MORTE</p>
-        <div class="death-saves-row">
-            <div class="death-saves-group">
-                <span class="ds-label success">Successi</span>
-                <div class="ds-dots">
-                    @for (int i = 1; i <= 3; i++)
-                    {
-                        var n = i;
-                        <span class="ds-dot @(Character.DeathSaveSuccesses >= n ? "filled success" : "")"
-                              role="button" tabindex="0"
-                              aria-pressed="@AriaBool(Character.DeathSaveSuccesses >= n)" aria-label="Successo tiro salvezza @n"
-                              @onclick="() => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)"
-                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)))"></span>
-                    }
-                </div>
-            </div>
-            <div class="death-saves-group">
-                <span class="ds-label failure">Fallimenti</span>
-                <div class="ds-dots">
-                    @for (int i = 1; i <= 3; i++)
-                    {
-                        var n = i;
-                        <span class="ds-dot @(Character.DeathSaveFailures >= n ? "filled failure" : "")"
-                              role="button" tabindex="0"
-                              aria-pressed="@AriaBool(Character.DeathSaveFailures >= n)" aria-label="Fallimento tiro salvezza @n"
-                              @onclick="() => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)"
-                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)))"></span>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-}
+@* Caratteristiche, tiri salvezza e abilità (CharacterStatsTab): resta un componente separato — non
+   fuso qui dentro, non duplicato come istanza a parte — che Characters.razor passa come figlio (v.
+   il commento lì). Si compone qui, in mezzo, invece che dopo: è l'ultima cosa che si tira prima del
+   divisore di fase più sotto. *@
+@ChildContent
 
-<div class="secondary-stats">
-    <div class="mini-stat">
-        <p class="mini-label">VEL</p>
-        <p class="mini-value">@Character.Speed<span class="mini-unit">m</span></p>
-    </div>
-    <div class="mini-stat">
-        <p class="mini-label">ISPIRAZIONE</p>
-        <span class="inspiration-toggle @(Character.HeroicInspiration ? "active" : "")"
-              role="button" tabindex="0"
-              aria-pressed="@AriaBool(Character.HeroicInspiration)" aria-label="Ispirazione eroica"
-              @onclick="ToggleHeroicInspiration"
-              @onkeydown="@(e => OnKey(e, ToggleHeroicInspiration))"></span>
+@* Divisore di fase: separa ciò che si tira o si spende in combattimento (sopra) da ciò che si
+   recupera quando è finito (sotto). Solo token esistenti, nessun colore nuovo — v. CLAUDE.md. *@
+<div class="turn-divider" role="separator" aria-hidden="true">
+    <span class="turn-divider-label">A fine combattimento</span>
+</div>
+
+<div class="hit-dice-card">
+    <p class="card-label">DADI VITA</p>
+    <div class="hit-dice-row">
+        <button class="hd-btn" @onclick="DecrementHitDice" aria-label="Un dado vita in meno"
+                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent <= 0)">−</button>
+        <div class="hit-dice-display">
+            <span class="hit-dice-value">@(HitDiceTotal() - Character.HitDiceSpent) / @HitDiceTotal()</span>
+            <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(Character.HitDiceMax) ? "—" : Character.HitDiceMax)</span>
+        </div>
+        <button class="hd-btn" @onclick="IncrementHitDice" aria-label="Un dado vita in più"
+                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent >= HitDiceTotal())">+</button>
     </div>
 </div>
 
-<p class="section-header">ARMI</p>
-@if (Weapons.Any())
-{
-    @foreach (var w in Weapons)
+@* Riposo lungo/breve (RestCalculations, helper puro): il lungo passa da ConfirmDialog perché
+   azzera i TS contro morte; il breve apre un pannello che chiede dadi spesi + totale tirato
+   (l'app non tira il dado, offre solo la media come valore precompilato). *@
+<div class="rest-card">
+    <p class="card-label">RIPOSO</p>
+    <div class="rest-actions">
+        <button type="button" class="secondary-btn rest-btn" @onclick="ToggleShortRestPanel"
+                disabled="@(!CanEdit || IsSaving)">
+            Riposo breve
+        </button>
+        <button type="button" class="primary-btn rest-btn" @onclick="RiposoLungoAsync"
+                disabled="@(!CanEdit || IsSaving)">
+            Riposo lungo
+        </button>
+    </div>
+
+    @if (showShortRestPanel)
     {
-        var haFlagArma = w.IsFinesse || w.IsRanged || w.IsNotProficient;
-        var bonusCalcolato = WeaponCalculations.BonusAttacco(w, Character);
-        <div class="weapon-card">
-            <div class="weapon-header">
-                <p class="weapon-name">@w.Name</p>
-                <p class="weapon-stats">
-                    @* Il valore scritto a mano vince: se AttackBonus è valorizzato si mostra quello, col
-                       calcolato (WeaponCalculations, D5) accanto come confronto discreto. Se è vuoto E
-                       l'arma non ha ALCUN flag impostato (accurata/a distanza/non competente),
-                       ModificatoreArma ricade per costruzione sul ramo Forza — quasi certamente sbagliato
-                       per un'arma a distanza o accurata mai configurata. In quel caso il numero si mostra
-                       come STIMA esplicita, non come "il" bonus: l'app non deve presentare come certo un
-                       valore che dipende da dati che l'utente non ha ancora fornito (v. CLAUDE.md). Se
-                       invece un flag è impostato, l'arma è già stata curata: il calcolato torna a essere
-                       il valore mostrato senza cautele, come prima di questa distinzione. *@
-                    @if (!string.IsNullOrWhiteSpace(w.AttackBonus))
-                    {
-                        <span>@w.AttackBonus</span>
-                        <span class="weapon-calc-hint">(calcolato @FormatBonus(bonusCalcolato))</span>
-                    }
-                    else if (haFlagArma)
-                    {
-                        <span>@FormatBonus(bonusCalcolato)</span>
-                    }
-                    else
-                    {
-                        <span class="weapon-calc-hint"
-                              title="Nessun bonus scritto a mano e nessuna proprietà (accurata/a distanza/non competente) impostata su quest'arma: il calcolo assume un'arma da mischia con Forza. Se l'arma è a distanza o accurata, modificala per un valore corretto.">
-                            stima @FormatBonus(bonusCalcolato) da Forza
-                        </span>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(w.Damage)) { <span>· @w.Damage @w.DamageType?.ToLower()</span> }
-                </p>
+        <div class="short-rest-panel">
+            <div class="short-rest-field">
+                <span class="short-rest-label">Dadi vita spesi</span>
+                <div class="short-rest-stepper">
+                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(-1)"
+                            aria-label="Un dado vita speso in meno"
+                            disabled="@(!CanEdit || dadiSpesi <= 0)">−</button>
+                    <span class="short-rest-value">@dadiSpesi / @HitDiceRemaining()</span>
+                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(1)"
+                            aria-label="Un dado vita speso in più"
+                            disabled="@(!CanEdit || dadiSpesi >= HitDiceRemaining())">+</button>
+                </div>
             </div>
-            @if (!string.IsNullOrWhiteSpace(w.AttackNotes))
-            {
-                <p class="weapon-notes">@w.AttackNotes</p>
-            }
+            <div class="short-rest-field">
+                <label class="short-rest-label" for="riposo-breve-totale">Totale tirato</label>
+                <input id="riposo-breve-totale" type="number" class="short-rest-input" min="0"
+                       value="@totaleTirato" @oninput="OnTotaleTiratoInput" disabled="@(!CanEdit)" />
+            </div>
+            <div class="short-rest-actions">
+                <button type="button" class="secondary-btn rest-btn" @onclick="CloseShortRestPanel">
+                    Annulla
+                </button>
+                <button type="button" class="primary-btn rest-btn" @onclick="ConfermaRiposoBreveAsync"
+                        disabled="@(!CanEdit || IsSaving || dadiSpesi <= 0)">
+                    Conferma
+                </button>
+            </div>
         </div>
     }
-}
-else
-{
-    <p class="empty-note">Nessuna arma equipaggiata</p>
-}
+</div>
 
 @code {
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
@@ -331,6 +351,15 @@ else
     [Parameter] public EventCallback OnLocalRevert { get; set; }
 
     [Parameter] public IReadOnlyList<InventoryItem> Weapons { get; set; } = Array.Empty<InventoryItem>();
+
+    /// <summary>Le caratteristiche/abilità (CharacterStatsTab): questo componente resta grande di
+    /// suo, e spezzarlo in due solo per intercalare CharacterStatsTab fra risorse e dadi vita
+    /// creerebbe due componenti che condividono lo stesso Character/CanEdit/OnChanged senza un
+    /// motivo migliore di questo. Characters.razor lo passa come figlio (v. il markup lì) invece
+    /// che renderlo come fratello dopo questo tab: così l'ordine di gioco (armi, risorse,
+    /// caratteristiche, poi — a fine combattimento — dadi vita e riposo) è un fatto della
+    /// composizione, non serve una seconda istanza né stato duplicato.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private bool ShowDeathSaves =>
         Character.HitPoints == 0 || Character.DeathSaveSuccesses > 0 || Character.DeathSaveFailures > 0;

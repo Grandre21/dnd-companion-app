@@ -624,3 +624,34 @@
     color: var(--gold-dim);
     font-style: italic;
 }
+
+/* ===== Combat: divisore di fase (riordino 2026-08-06) =====
+   Separa ciò che si tira/spende in combattimento (armi, risorse, caratteristiche/abilità — sopra)
+   da ciò che si recupera quando è finito (dadi vita, riposo — sotto): non decorativo, un cambio di
+   momento di gioco. Solo token esistenti: --gold-rgb per il filo (stessa opacità di .page-header
+   in Characters.razor.css), --gold-dim per l'etichetta (stesso colore di .card-label in app.css,
+   non di .section-header — quello usa --gold) — nessun colore letterale nuovo. */
+.turn-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.5rem 0 0.1rem;
+}
+
+.turn-divider::before,
+.turn-divider::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: rgba(var(--gold-rgb), 0.25);
+}
+
+.turn-divider-label {
+    flex: 0 0 auto;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--gold-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
