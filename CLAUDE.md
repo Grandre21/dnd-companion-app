@@ -99,10 +99,38 @@ Note:
 - **Economia del prompt**: agli agenti passa **solo i file rilevanti** e i fatti già verificati
   («build Release 0/0, N test verdi: non rilanciarli»). Senza questa riga rifanno build e test a ogni
   giro, per ciascuno.
-- Gli agenti sono in **sola lettura**: le correzioni le applico io tra un giro e l'altro.
+- Gli agenti del gate sono in **sola lettura**. Le correzioni fra un giro e l'altro **non le scrivo
+  io**: le fa scrivere a un Sonnet, come ogni altra modifica al codice (v. «Chi scrive il codice»).
 - Le **definizioni degli agenti** (`.claude/agents/`) stanno in una cartella **git-ignored**: non
   compaiono in `git diff`/`git status`. Se le modifichi, passale **esplicitamente** agli agenti.
 - I due agenti sono complementari a `/code-review` e `/security-review`, non li sostituiscono.
+
+## Regola obbligatoria: chi scrive il codice (regola del 2026-08-06)
+
+Tre ruoli distinti, e **non li cumulo**:
+
+| Ruolo | Chi | Cosa fa |
+|---|---|---|
+| **Progetto e revisione** | io (Opus) | taglio il lavoro in fette, scrivo i contratti fra le fette, reviso ciò che torna, tengo la conversazione con l'utente |
+| **Scrittura** | subagent **Sonnet** (`model: sonnet`) | ogni modifica ai file di codice, test compresi |
+| **Consulenza** | subagent **Fable** (`model: fable`) | pareri di progettazione nei punti dubbi. **Sola lettura**: non tocca file |
+
+- **Non scrivo codice di mia mano.** Nemmeno la correzione di una riga, nemmeno quelle che nascono
+  dal gate: preparo l'istruzione e la passa un Sonnet. Se la modifica è troppo piccola per meritare
+  un subagent, è comunque un subagent — la regola vale perché è uniforme, non perché ogni singola
+  delega convenga.
+- **Faccio io la documentazione di progetto** (`CLAUDE.md`, `docs/`): è la mia memoria di lavoro, e
+  passarla di mano le farebbe perdere il *perché*. La tabella del gate lo conferma già: sui `.md` non
+  si lanciano agenti.
+- **Nel dubbio, chiedo a Fable prima di decidere**, non dopo aver fatto scrivere il codice. Un
+  consulto costa molto meno di una fetta da rifare. Vale in particolare per: la forma di
+  un'astrazione nuova, un contratto fra due fette, e ogni volta che due letture del requisito
+  porterebbero a codice diverso.
+- **Il fan-out ai Sonnet va a file disgiunti**, con i confini dichiarati nel prompt di ciascuno. Il
+  gate poi si punta sulle **giunture**, per la ragione già verificata il 2026-08-01: i difetti gravi
+  stanno dove una fetta incontra l'altra, e nessuno degli autori può vederli per costruzione.
+- Il gate a due agenti resta **invariato** e si applica al lavoro dei Sonnet come a qualunque altro:
+  è ciò che rende sicura la delega, non un adempimento in più.
 
 ## Forma dei documenti (regola del 2026-08-01)
 
