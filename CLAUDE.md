@@ -149,6 +149,22 @@ Tre ruoli distinti, e **non li cumulo**:
   archivio e non si aggiorna.
 - Il `DIARIO` resta il racconto, e lì la prosa distesa è voluta: è la sola sede del *perché*.
 
+## Regola obbligatoria: come si scrive sul personaggio di un altro (2026-08-06)
+
+`characters` è una riga monolitica da ~90 colonne, non ha `updated_at`, e
+`CharacterRepository.UpdateCharacterAsync` fa `Update(character)`: **riga intera, last-write-wins**.
+Finché scrive una persona sola sulla propria scheda va bene. Le RLS però ammettono già un **secondo
+scrittore** — `characters_update` vale `owner_id = auth.uid() OR is_campaign_master(campaign_id)` —
+e appena l'interfaccia lo sfrutta, quel `last-write-wins` diventa il meccanismo di corruzione dati
+numero uno dell'app: il master che assegna 100 mo con in mano una copia stantia della scheda
+riscrive *tutte* le colonne, cancellando i PF, l'incantesimo annotato e il level-up appena fatto —
+e il salvataggio **riesce**, quindi nessun rollback lo intercetta.
+
+Quindi: **ogni scrittura su un personaggio che non è quello aperto nella propria scheda è o un
+insert di riga nuova (`inventory`) o un incremento atomico server-side (`UPDATE … SET col = col + n`
+dentro una RPC `SECURITY INVOKER`). Mai `UpdateCharacterAsync` su un PG altrui.** Nemmeno «solo per
+una colonna»: il read-modify-write lato client ha la stessa finestra.
+
 ## Verifica prima di "fatto"
 - Build pulita: `dotnet build` (0 warning / 0 errori atteso in Release).
 - Test verdi: `dotnet test Tests/DndCompanion.Tests.csproj`.

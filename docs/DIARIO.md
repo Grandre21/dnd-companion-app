@@ -1349,3 +1349,54 @@ vuoto — rete assente — rendeva la conferma irraggiungibile per sempre; e i p
 schermo **due volte**, perché la scheda li deriva già dalla stessa tabella, sotto un titolo
 («annotati a mano») che dichiarava il falso. Nessuno di questi era visibile dall'interno di un file
 solo.
+
+## Il master che assegna, e perché la riga intera è il problema (2026-08-06)
+
+Analisi fatta col consulto, dopo il level-up guidato, sul goal dichiarato: creazione e progressi
+guidati, il master che assegna esperienza, denaro e oggetti a un giocatore o a tutto il gruppo, e le
+comodità di Baldur's Gate 3 che al tavolo hanno senso.
+
+**La scoperta che ordina tutto il resto** è che le RLS sono già più avanti dell'interfaccia:
+`characters_update` vale `owner_id = auth.uid() OR is_campaign_master(campaign_id)`, e le policy di
+`inventory` fanno lo stesso passando dal personaggio. Il master **può già** scrivere sui PG altrui,
+oggi, senza una migrazione. Manca solo il flusso che glielo faccia fare comodamente.
+
+E qui sta il pericolo, perché `characters` è una riga monolitica da ~90 colonne, non ha `updated_at`,
+e `UpdateCharacterAsync` fa `Update(character)`: **riga intera, last-write-wins**. Finché scrive una
+persona sola sulla propria scheda va bene. Nel momento in cui il master diventa un secondo scrittore,
+quello stesso meccanismo diventa il modo numero uno per corrompere dati veri: il master che assegna
+100 mo a cinque personaggi con in mano una copia stantia riscrive *tutte* le colonne, e cancella i
+punti ferita aggiornati, l'incantesimo annotato, il level-up appena fatto. Lo snapshot/rollback messo
+in `Characters.razor` non protegge da questo: lì il salvataggio **riesce**, ed è proprio il problema.
+
+La soluzione scelta è la più semplice che funziona davvero: gli oggetti sono **insert di righe
+nuove** (zero concorrenza per costruzione), monete ed esperienza passano da una **RPC con incremento
+atomico** (`SET gold_pieces = gold_pieces + delta`, `SECURITY INVOKER` perché le RLS continuino a
+valere dentro la funzione). Non un optimistic locking con `updated_at`, che sarebbe sproporzionato; e
+soprattutto non un read-modify-write lato client, che ha esattamente la stessa finestra del bug che
+si vuole togliere. La regola è ora in `CLAUDE.md`, perché la prima implementazione frettolosa del
+«dai 100 mo» la violerebbe.
+
+**Cosa NON si costruisce**, e il perché conta quanto il cosa. Niente registro delle assegnazioni in
+v1: raddoppierebbe migrazione, policy e test per comprare uno storico che al tavolo è surrogato dalla
+voce del master — si ripesca se dopo un mese emergono davvero i «ti avevo già pagato?», e allora come
+*log*, mai come fonte del saldo. Niente notifiche al giocatore: l'app è **pull** per scelta
+architetturale documentata (il realtime è stato tolto dal bundle, il service worker non fa
+`skipWaiting`), e il tavolo ha già il suo canale in tempo reale, cioè la voce di chi arbitra. Niente
+riposo comandato dal master: sono scritture multi-riga cross-utente per replicare una frase che il
+master pronuncia comunque — il bottone del riposo sta sul personaggio e lo preme il giocatore. E
+niente avanzamento automatico da esperienza: l'esperienza si assegna come contatore, ma le soglie che
+promuovono contraddirebbero il level-up appena costruito come **atto deliberato del giocatore**, con
+scelte che solo lui può fare.
+
+**Sulla creazione guidata**, la decisione architetturale è una sola: «crea al livello N» non
+riscrive la progressione dentro il wizard, ma produce il personaggio di 1° completo e poi **incatena
+il dialogo di level-up** che esiste già. Qualunque altra strada produce due motori da tenere
+allineati — la stessa malattia dei due form di oggi, appena curata.
+
+**Il criterio con cui filtrare le comodità di BG3**, infine, e vale per tutto ciò che verrà: BG3 è
+arbitro assoluto di un gioco per un giocatore solo; qui l'arbitro è il master, a voce. Una funzione
+che *sostituisce contabilità* (riposi, bottino, slot, iniziativa) è benvenuta; una che *sostituisce
+l'autorità del tavolo* (avanzamento automatico, notifiche che anticipano il master, validazioni
+bloccanti sull'editor libero) sembra completezza e invece toglie flessibilità. L'editor libero e i
+campi a testo libero sono una funzionalità, non un debito.

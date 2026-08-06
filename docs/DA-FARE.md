@@ -191,13 +191,22 @@ Residuo minore di C.
 
 ---
 
-## 9. Ordine consigliato
+## 9. Ordine consigliato (rivisto il 2026-08-06)
 
-1. **§2 varco RLS** — una migrazione, gate della pubblicazione. È il solo 🔴 di codice che resta.
-2. **§3 motore di derivazione → level-up guidato** — in quest'ordine, il secondo poggia sul primo. Da
-   qui passa anche l'ultimo pezzo delle sottoclassi: i loro privilegi vanno **applicati**, non solo
-   elencati.
-3. **§3 combattimento consultabile** — indipendente, aggredibile in parallelo.
-4. **§1.B campi mancanti nel formato** — quando si tocca un modello per altri motivi: aggiungere un
-   campo al formato costa poco lì, e da solo non vale un intervento.
-5. Il resto (§4-§6) a spizzichi, dove si passa già per altri motivi.
+Deciso col consulto di analisi del 2026-08-06; il ragionamento sta in [DIARIO](./DIARIO.md), «Il
+master che assegna». Ogni tappa è usabile da sola; la 2 e la 3 si possono fare in parallelo alla 1.
+
+1. **§2 varco RLS** — l'unico 🔴 di codice. Va **prima** delle tappe 4-5, che scrivono sui PG altrui
+   attraverso quelle stesse policy: dopo, si testerebbero le RLS due volte.
+2. **Quality of life da tavolo, senza migrazioni**: riposo lungo/breve sul PG (oggi sono 10+ edit a
+   mano a ogni sessione), tastierino PF, iniziativa precompilata. Helper puri, ciascuno commitabile
+   da solo.
+3. **Creazione guidata**: il wizard smette di creare PG incompleti (slot, caratteristica da
+   incantatore, competenze vincolate), poi «crea al livello N» **incatenando il level-up esistente**
+   invece di riscrivere la progressione nel wizard. Nessuna migrazione, nessun data entry.
+4. **Il master assegna, parte gratuita**: «dai oggetto» e ispirazione dalla vista Party. Solo UI e
+   repository esistenti — le RLS lo permettono già.
+5. **Il master assegna, parte atomica**: RPC `grant_to_characters` per monete e PE, multi-selezione,
+   divisione del bottino. Una migrazione, fascia a 3 giri, test RLS sullo stack locale.
+6. **§3 combattimento consultabile** e §1.B campi mancanti del formato — quando si passa di lì per
+   altri motivi. Il resto (§4-§6) a spizzichi.
