@@ -10,7 +10,7 @@
 > - Spec e piani → `docs/superpowers/specs/` e `docs/superpowers/plans/`.
 > - Monetizzazione → [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md) (accantonata).
 >
-> Ultimo aggiornamento: **2026-08-01**
+> Ultimo aggiornamento: **2026-08-06**
 
 Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
 
@@ -21,18 +21,9 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
 > ogni push e da segnalare all'utente.
 
-> 🔴 **MIGRAZIONE IN SOSPESO — `20260806130000_scheda_carta.sql`, da applicare PRIMA del prossimo
-> push, e stavolta il rischio è più alto del solito.** Aggiunge 4 colonne a `characters`
-> (`class_resources jsonb`, `armor_training`, `weapon_proficiencies`, `tool_proficiencies`) e 3 a
-> `inventory` (`is_finesse`, `is_ranged`, `is_not_proficient`). `Update` serializza **tutte** le
-> colonne mappate: se il client va online prima della migrazione, **ogni salvataggio di scheda
-> fallisce**, non solo le funzioni nuove. Istruzioni e query di verifica in testa al file `.sql` —
-> deve restituire 7 righe. Verificata sullo stack locale: migrazione applicata, 32 test
-> d'integrazione verdi, incluso il giro andata-ritorno del `jsonb` contro Postgres vero.
->
-> Le precedenti sono applicate: `20260806120000_close_campaign_hopping.sql` (2026-08-06, verificata
-> con `pg_policies` e la ricerca di righe orfane), `20260801000000_class_subclasses.sql` e
-> `20260731000000_party_visibility.sql` (2026-08-01).
+> ✅ **Nessuna migrazione in sospeso.** Applicate all'hosted: `20260806130000_scheda_carta.sql` e
+> `20260806120000_close_campaign_hopping.sql` (2026-08-06), `20260801000000_class_subclasses.sql` e
+> `20260731000000_party_visibility.sql` (2026-08-01). Il client live corrisponde.
 
 - 🔴 **Scheda alla pari con la carta, quattro prove** (nuovo, 2026-08-06): (a) un riposo lungo che
   **ripristina le risorse** e le nomina nel riepilogo; (b) un'arma **accurata** su un personaggio con
@@ -125,11 +116,11 @@ Residuo minore di C.
 - 🟠 **Combattimento consultabile**: il tracker porta solo nome e PF, quindi le statistiche del mostro
   non si vedono mentre si combatte. Serve un riferimento alla sorgente nel `Combatant` (campo
   additivo nel `jsonb`, nessuna migrazione) e un blocco statistiche apribile sulla riga.
-- 🟡 **Iniziativa precompilata o tirata**: gli import mettono `Initiative = 0` benché l'app conosca il
-  bonus di ogni PG; i PF si regolano ±1 per click (tastierino). Unico punto: `CombatImport`.
 - 🟡 **Aiuto contestuale dal manuale**: nessuna spiegazione di cosa siano tiro salvezza, competenza,
   CD incantesimo. Indipendente da tutto il resto.
-- 🟢 **Conferma sui salvataggi impliciti** dei tab della scheda (`SaveCharacterAsync` è muto).
+- 🟢 **Conferma sui salvataggi impliciti** dei tab della scheda: il *fallimento* ora si vede
+  (`SaveCharacterCoreAsync` restituisce l'esito e valorizza `errorMessage`), il *successo* no —
+  Stats/Zaino/Magia salvano in silenzio.
 
 ---
 
@@ -186,8 +177,8 @@ Residuo minore di C.
 ## 7. Test e infrastruttura
 
 - 🟡 **bUnit** per testare interi componenti (rendering, eventi): per ora si estrae la logica pura man
-  mano. Stato attuale: **755 unit test** + 11 scenari d'integrazione RLS (stack Supabase locale,
-  auto-skip se giù).
+  mano. Stato attuale: **924 unit test** + **32 test d'integrazione** sullo stack Supabase locale
+  (RLS e serializzazione col client Postgrest reale; auto-skip se lo stack è giù).
 
 ---
 
