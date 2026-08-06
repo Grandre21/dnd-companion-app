@@ -80,25 +80,21 @@ public sealed class BackgroundsRlsIntegrationTests
     // --- is_campaign_master valutato sulla riga nuova: un master non può spostare fuori dalla
     // propria autorità un background che non ha creato lui ---
     //
-    // NOTA (importante, non ometterla in una futura revisione): il brief di questo task chiedeva
-    // letteralmente "un membro non può spostare un PROPRIO background in un'altra campagna" come
-    // scenario che la WITH CHECK protegge. Analisi + revisione a due agenti (round 1) hanno
-    // dimostrato che per COME è scritta la policy — ricalcata fedelmente da races_update —
-    // quello scenario specifico NON è protetto: added_by = auth.uid() resta vero nella riga nuova
-    // indipendentemente dalla campagna di destinazione (added_by non cambia con lo spostamento),
-    // quindi il ramo "sei l'autore" della OR resta vero per chi sposta una riga propria — con la
-    // WITH CHECK esplicita o senza, dato che qui è testualmente identica alla USING e Postgres la
-    // userebbe comunque come fallback (vedi il commento SQL sopra "backgrounds_update" nella
-    // migrazione). Il test sottostante verifica invece lo scenario in cui la valutazione sulla
-    // riga nuova fa davvero la differenza: un master (sulla riga vecchia la condizione è vera,
-    // perché è master della campagna di origine) che sposta una riga NON sua in una campagna di
-    // cui non è master (sulla riga nuova la condizione è falsa: né "sei l'autore" né "sei
-    // master"). La lacuna sul caso "autore sposta una riga propria" è ereditata e condivisa con le
-    // altre sei tabelle che hanno lo stesso schema simmetrico — non introdotta da questa migrazione,
-    // non corretta qui perché richiederebbe divergere dalle policy esistenti senza conferma esplicita
-    // (fuori mandato di questo task). L'elenco delle tabelle e la portata per ciascuna stanno in
-    // docs/DA-FARE.md §1, voce "Lacuna nella WITH CHECK di update": è l'unico posto che li enumera,
-    // per non doverli riallineare in più punti. Vedi anche il resoconto del Task 4.
+    // NOTA storica (Task 4, 2026-07-25): il brief di allora chiedeva letteralmente "un membro non
+    // può spostare un PROPRIO background in un'altra campagna" come scenario protetto dalla WITH
+    // CHECK, ma con la policy di quel momento — added_by = auth.uid() OR is_campaign_master(...),
+    // ricalcata da races_update — quello scenario specifico NON era protetto: added_by non cambia
+    // con lo spostamento, quindi il ramo "sei l'autore" restava vero a prescindere dalla
+    // destinazione. Non fu corretto lì perché divergere dalle altre sei tabelle era fuori mandato
+    // di quel task. QUESTA LACUNA È ORA CHIUSA dalla migrazione
+    // `20260806120000_close_campaign_hopping.sql` (2026-08-06), che lega il ramo autore alla
+    // appartenenza corrente (is_campaign_member) invece che alla sola uguaglianza su added_by — la
+    // prova è il test aggiunto sotto,
+    // <see cref="AutoreA_non_puo_piu_spostare_un_proprio_background_in_una_campagna_di_cui_non_e_membro"/>.
+    // Il test storico sotto resta invariato: verifica un secondo scenario, distinto e già protetto
+    // anche prima della correzione — un master (sulla riga vecchia la condizione è vera, perché è
+    // master della campagna di origine) che sposta una riga NON sua in una campagna di cui non è
+    // master (sulla riga nuova la condizione è falsa: né "sei l'autore" né "sei master").
 
     [SkippableFact]
     public async Task MasterA_non_puo_spostare_in_C3_un_background_di_B_che_non_ha_creato_lui()
@@ -119,5 +115,29 @@ public sealed class BackgroundsRlsIntegrationTests
         var rimastaInC1 = await GetBackgroundsAsUser(_fx.TokenA, LocalSupabaseFixture.CampaignC1);
         Assert.Contains(rimastaInC1,
             r => r!["id"]!.GetValue<string>() == LocalSupabaseFixture.BackgroundBC1ForMasterMoveDenied);
+    }
+
+    // --- Chiusura del varco (migrazione 20260806120000_close_campaign_hopping.sql): lo scenario
+    // letterale del brief del Task 4, "l'autore sposta una propria riga in un'altra campagna",
+    // che il test storico sopra documentava come NON protetto. Ora lo è: added_by = auth.uid() non
+    // basta più, serve anche is_campaign_member(campaign_id) sulla riga di destinazione. ---
+
+    [SkippableFact]
+    public async Task AutoreA_non_puo_piu_spostare_un_proprio_background_in_una_campagna_di_cui_non_e_membro()
+    {
+        Skip.IfNot(_fx.Available, "Stack Supabase locale non in esecuzione (`supabase start`).");
+
+        // A è autore E membro/master di C1 (la riga vecchia soddisfa entrambe le vecchie e le nuove
+        // condizioni) ma non ha alcuna riga in campaign_members per C3: prima della migrazione il
+        // ramo "sei l'autore" bastava comunque; ora la WITH CHECK richiede anche is_campaign_member
+        // sulla riga nuova, che qui è falsa.
+        using var req = _fx.AsUser(HttpMethod.Patch,
+            $"backgrounds?id=eq.{LocalSupabaseFixture.BackgroundAC1}", _fx.TokenA);
+        req.Content = JsonContent.Create(new { campaign_id = LocalSupabaseFixture.CampaignC3 });
+        using var resp = await _fx.Http.SendAsync(req);
+        // Stessa cautela del test sopra: non fidarsi dello status HTTP, rileggere la posizione.
+
+        var rimastaInC1 = await GetBackgroundsAsUser(_fx.TokenA, LocalSupabaseFixture.CampaignC1);
+        Assert.Contains(rimastaInC1, r => r!["id"]!.GetValue<string>() == LocalSupabaseFixture.BackgroundAC1);
     }
 }

@@ -94,8 +94,9 @@
                    del secondo, e quell'altezza cambia con la larghezza dello schermo (i PF vanno
                    a capo sotto i 360px). *@
                 <div class="sheet-sticky">
-                <CharacterVitalsBar Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
-                                     OnLevelUp="@ApriLivelloUpAsync" />
+                <CharacterVitalsBar Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterCoreAsync"
+                                     OnLevelUp="@ApriLivelloUpAsync" OnOpenHpPanel="@OpenHpPanel"
+                                     IsSaving="@isSavingCharacter" OnLocalRevert="@(() => StateHasChanged())" />
 
                 <div class="tab-bar">
                     <button class="tab-item @(activeTab == "rolls" ? "active" : "")" @onclick='() => activeTab = "rolls"'>
@@ -119,6 +120,49 @@
                     }
                 </div>
                 </div>
+
+                @* Tastierino danni/cura: reso qui dal genitore, FUORI da ".sheet-sticky" — esattamente
+                   come LevelUpDialog qui sotto. Quel contenitore è `position: sticky; z-index: 10`
+                   (v. Characters.razor.css) e crea uno stacking context: lo z-index 1150 di questo
+                   overlay conterebbe solo dentro quel contesto, e l'intero sottoalbero verrebbe dipinto
+                   a quota 10 nella radice — sotto BottomNav (100), UpdateBanner (1050) e ToastHost
+                   (1100). Alzare lo z-index di .sheet-sticky non risolverebbe: il contesto resterebbe
+                   annidato. Stato e markup vivevano in CharacterVitalsBar; il bottone che apre il
+                   pannello resta lì e chiede l'apertura via OnOpenHpPanel, come OnLevelUp per il
+                   level-up guidato. Due azioni esplicite (danni/cura) invece del segno da indovinare,
+                   col calcolo del cuscinetto temporaneo (CharacterView.ApplyDamage/ApplyHealing) che
+                   nessuno deve più fare a mente. Click sul fondo o Esc chiudono, click dentro il box
+                   non propaga. *@
+                @if (showHpPanel)
+                {
+                    <div class="hp-panel-overlay" @onclick="CloseHpPanel" @onkeydown="HandleHpPanelKeyDown">
+                        <div class="hp-panel" role="dialog" aria-modal="true" aria-labelledby="hp-panel-title"
+                             @onclick:stopPropagation="true">
+                            <button type="button" class="hp-panel-close" @onclick="CloseHpPanel" aria-label="Chiudi">✕</button>
+                            <p id="hp-panel-title" class="hp-panel-title">Danni o cura</p>
+                            <p class="hp-panel-current">@HpPanelCurrentLabel</p>
+
+                            <label class="hp-panel-label" for="hp-panel-amount">Quantità</label>
+                            <input id="hp-panel-amount" @ref="hpAmountInputRef" class="hp-panel-input"
+                                   type="number" inputmode="numeric" min="1" placeholder="0"
+                                   @bind="hpPanelAmount" @bind:event="oninput" />
+
+                            @if (selected.TempHitPoints > 0)
+                            {
+                                <p class="hp-panel-hint">Il danno consuma prima i PF temporanei.</p>
+                            }
+
+                            <div class="hp-panel-actions">
+                                <button type="button" class="hp-panel-btn hp-panel-damage"
+                                        disabled="@(!CanEdit || !CanApplyPanelAmount || isSavingCharacter)"
+                                        @onclick="ApplyPanelDamageAsync">Danni</button>
+                                <button type="button" class="hp-panel-btn hp-panel-heal"
+                                        disabled="@(!CanEdit || !CanApplyPanelAmount || isSavingCharacter)"
+                                        @onclick="ApplyPanelHealAsync">Cura</button>
+                            </div>
+                        </div>
+                    </div>
+                }
 
                 @* Il proseguimento "Sali ancora": D3 vuole un livello alla volta, e per recuperarne
                    più di uno si ripete il dialogo — questo invito evita di dover ritrovare il
@@ -145,7 +189,8 @@
                    qui si compongono, non si fondono. *@
                 @if (activeTab == "rolls")
                 {
-                    <CharacterCombatTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
+                    <CharacterCombatTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterCoreAsync"
+                                        IsSaving="@isSavingCharacter" OnLocalRevert="@(() => StateHasChanged())"
                                         Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()" />
                     <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
                 }
@@ -267,6 +312,37 @@
     private bool isBusy;
     private string? errorMessage;
 
+    // ===== Salvataggio del personaggio aperto =====
+    // Un solo flag, condiviso da CharacterVitalsBar e CharacterCombatTab (v. i loro parametri
+    // IsSaving): prima ciascuno teneva il proprio booleano locale (isSavingHp/isResting), e un
+    // riposo confermato insieme a un tocco sui PF potevano far partire due scritture in corsa sullo
+    // stesso Character — quella che arriva seconda "vince" in database mentre la scheda in memoria
+    // resta con l'altra. Impostato/rimosso in SaveCharacterCoreAsync, l'unico punto che scrive.
+    private bool isSavingCharacter;
+
+    // ===== Tastierino danni/cura (v. CharacterVitalsBar.OnOpenHpPanel) =====
+    // Stato di sola presentazione, spostato qui da CharacterVitalsBar perché il markup dell'overlay
+    // deve stare fuori da ".sheet-sticky" (v. il commento sul markup più sopra). Nessuno di questi
+    // campi è un dato di dominio; il calcolo vero (cuscinetto temporaneo prima, PF veri poi) vive in
+    // CharacterView.ApplyDamage/ApplyHealing.
+    private bool showHpPanel;
+    private int? hpPanelAmount;
+    private ElementReference hpAmountInputRef;
+    private bool focusHpAmountPending;
+
+    private bool CanApplyPanelAmount => hpPanelAmount is > 0;
+
+    private string HpPanelCurrentLabel
+    {
+        get
+        {
+            if (selected is null) return string.Empty;
+            return selected.TempHitPoints > 0
+                ? $"Ora {selected.HitPoints}/{selected.MaxHitPoints} (+{selected.TempHitPoints} temp)"
+                : $"Ora {selected.HitPoints}/{selected.MaxHitPoints}";
+        }
+    }
+
     // ===== Level-up guidato =====
     // Il piano è null a riposo: è la condizione che smonta <LevelUpDialog/> dal DOM (v. il @if nel
     // markup). Le risposte sono mutabili in loco perché LevelUpPlanner.Pianifica le legge, non le
@@ -332,6 +408,16 @@
         }
     }
 
+    // Il focus del tastierino danni/cura parte solo dopo che l'input è montato nel DOM (v.
+    // OpenHpPanel): stesso pattern che viveva in CharacterVitalsBar prima che l'overlay si
+    // spostasse qui.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusHpAmountPending) return;
+        focusHpAmountPending = false;
+        await hpAmountInputRef.FocusAsync();
+    }
+
     private async Task UpdateModeFromCharactersAsync()
     {
         if (CurrentUser.IsMaster)
@@ -358,6 +444,7 @@
         mode = ViewMode.Detail;
         activeTab = "rolls";
         ChiudiLivelloUp();
+        showHpPanel = false;
         await LoadInventoryAsync(c.Id);
         await EnsureSpellCatalogAsync();
         await EnsureClassPackageAsync();
@@ -405,7 +492,68 @@
     {
         selected = null;
         ChiudiLivelloUp();
+        showHpPanel = false;
         BackToListOrEmpty();
+    }
+
+    // ===== Tastierino danni/cura =====
+    // Richiesto da CharacterVitalsBar via OnOpenHpPanel; il markup vive qui perché deve stare fuori
+    // da ".sheet-sticky" (v. il commento sul markup più sopra).
+    private void OpenHpPanel()
+    {
+        if (!CanEdit || isSavingCharacter) return;
+        hpPanelAmount = null;
+        showHpPanel = true;
+        focusHpAmountPending = true; // il focus vero parte in OnAfterRenderAsync, a input montato.
+    }
+
+    private void CloseHpPanel() => showHpPanel = false;
+
+    /// <summary>Esc chiude il pannello da qualunque controllo al suo interno: l'evento nativo
+    /// risale dal figlio con focus (input o bottone) fino a questo handler sull'overlay.</summary>
+    private void HandleHpPanelKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") CloseHpPanel();
+    }
+
+    private Task ApplyPanelDamageAsync() => ApplyPanelAsync(ApplyDamage);
+    private Task ApplyPanelHealAsync() => ApplyPanelAsync(ApplyHealing);
+
+    private async Task ApplyPanelAsync(Action<Character, int> apply)
+    {
+        if (selected is null || !CanEdit || isSavingCharacter || hpPanelAmount is not int amount || amount <= 0)
+            return;
+
+        // Riferimento catturato ADESSO, non riletto da `selected` dopo l'await: fra l'apply e il
+        // salvataggio Blazor smista comunque gli eventi dell'interfaccia, e l'utente può premere
+        // "←" (GoBack azzera `selected` → NullReferenceException, non gestita in WebAssembly) o
+        // aprire un altro personaggio (OpenDetailAsync sostituisce `selected`) mentre questo
+        // metodo è ancora in attesa di rete. Rileggere `selected` al ripristino scriverebbe i PF
+        // del PRIMO personaggio dentro il SECONDO, che il salvataggio riuscito di quest'ultimo
+        // persisterebbe in silenzio. Lavorando su `pg` — la stessa istanza, non una copia — il
+        // ripristino resta ancorato al personaggio giusto qualunque cosa `selected` sia diventato.
+        var pg = selected;
+
+        // Presa PRIMA di apply: ApplyDamage/ApplyHealing mutano pg SUBITO, ma il salvataggio
+        // è asincrono e può fallire in modo muto (le RLS rifiutano l'update, PostgREST torna [] e
+        // SaveCharacterCoreAsync torna false) — stesso rischio già corretto per il riposo
+        // (RiposoSnapshot in CharacterCombatTab.razor): senza ripristino, un colpo o una cura mai
+        // confermati resterebbero lì fino al primo salvataggio successivo riuscito, che li
+        // persisterebbe in silenzio. Uso il metodo con l'esito (non il wrapper SaveCharacterAsync)
+        // apposta per poterlo controllare; qui non serve un OnLocalRevert separato — questo metodo
+        // è già il "receiver" del proprio @onclick, quindi si ridisegna da sé (e con sé
+        // CharacterVitalsBar, che legge lo stesso pg) a fine esecuzione.
+        var pf = pg.HitPoints;
+        var pfTemp = pg.TempHitPoints;
+
+        apply(pg, amount);
+        showHpPanel = false;
+
+        if (!await SaveCharacterCoreAsync())
+        {
+            pg.HitPoints = pf;
+            pg.TempHitPoints = pfTemp;
+        }
     }
 
     private void StartEdit() => OpenEditForm();
@@ -488,7 +636,7 @@
     {
         // Speculare a characters_delete: proprietario o master. Senza il permesso il server non
         // cancella e non protesta, quindi la finta riuscita si eviterebbe solo qui.
-        if (selected is null || !CanEdit || isBusy) return;
+        if (selected is null || !CanEdit || isBusy || isSavingCharacter) return;
 
         var nome = string.IsNullOrWhiteSpace(selected.Name) ? "questo personaggio" : $"\"{selected.Name}\"";
         var confermato = await Confirm.ShowAsync(
@@ -523,6 +671,7 @@
             }
 
             selected = null;
+            showHpPanel = false;
             editDraft = new Character();
             Toasts.ShowSuccess("Personaggio eliminato");
             await UpdateModeFromCharactersAsync();
@@ -625,24 +774,59 @@
         }
     }
 
-    private async Task SaveCharacterAsync()
+    /// <summary>Il vero salvataggio, con l'ESITO: le RLS nuove legano l'update all'appartenenza
+    /// corrente alla campagna, e quando la condizione non combacia (utente rimosso da
+    /// campaign_members) PostgREST non solleva un errore — aggiorna zero righe e risponde [], e
+    /// UpdateCharacterAsync torna null. Senza controllare `saved`, come faceva la versione
+    /// precedente di questo metodo, il chiamante non ha modo di sapere che il database non si è
+    /// mosso: da qui l'allineamento a SaveFormAsync, che questo caso lo gestisce già.
+    ///
+    /// isSavingCharacter è l'UNICO punto che lo imposta: CharacterVitalsBar e CharacterCombatTab lo
+    /// leggono via il parametro IsSaving invece di un booleano locale a testa, cosicché un riposo e
+    /// un tocco sui PF confermati nello stesso istante non facciano partire due scritture in corsa
+    /// sullo stesso Character (v. il commento sul campo). StateHasChanged è esplicito perché sia
+    /// CharacterVitalsBar sia CharacterCombatTab invocano questo metodo (o il wrapper
+    /// SaveCharacterAsync) come Func&lt;Task&lt;bool&gt;&gt;/Task diretto e non come EventCallback:
+    /// senza il wrapping di EventCallback, che dopo l'invocazione rirenderizza da sé il "receiver",
+    /// il cambio di isSavingCharacter non arriverebbe altrimenti alla UI durante l'attesa di rete.
+    /// (CharacterStatsTab/CharacterItemsTab/CharacterMagicTab restano su EventCallback puro tramite
+    /// il wrapper: quella magia di re-render la offre comunque il framework, per loro.)</summary>
+    private async Task<bool> SaveCharacterCoreAsync()
     {
-        if (selected is null) return;
+        if (selected is null) return false;
 
+        isSavingCharacter = true;
+        StateHasChanged();
         errorMessage = null;
         try
         {
             var saved = await CharacterRepository.UpdateCharacterAsync(selected);
-            if (saved is not null)
+            if (saved is null)
             {
-                SyncListFromSelected();
+                errorMessage = "Il server non ha restituito il personaggio salvato.";
+                return false;
             }
+
+            SyncListFromSelected();
+            return true;
         }
         catch (Exception ex)
         {
             errorMessage = $"Errore salvataggio caratteristiche: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            isSavingCharacter = false;
+            StateHasChanged();
         }
     }
+
+    // Wrapper senza esito, per i tab (CharacterStatsTab, CharacterItemsTab, CharacterMagicTab) che
+    // si limitano a chiedere il salvataggio via il solito EventCallback e non hanno bisogno di
+    // condizionare un proprio messaggio all'esito, a differenza di CharacterVitalsBar (i PF) e
+    // CharacterCombatTab (i riposi), che leggono l'esito da SaveCharacterCoreAsync direttamente.
+    private Task SaveCharacterAsync() => SaveCharacterCoreAsync();
 
     private void SyncListFromSelected()
     {
@@ -658,7 +842,7 @@
 
     private async Task ApriLivelloUpAsync()
     {
-        if (selected is null || !CanEdit || selected.Level >= 20) return;
+        if (selected is null || !CanEdit || isSavingCharacter || selected.Level >= 20) return;
 
         mostraSaliAncora = false;
         livelloErrore = null;
@@ -782,7 +966,7 @@
 
     private async Task ConfermaLivelloUpAsync()
     {
-        if (selected is null || livelloPiano is null || livelloInCorso) return;
+        if (selected is null || livelloPiano is null || livelloInCorso || isSavingCharacter) return;
         if (!livelloPiano.Completo(livelloRisposte)) return;
 
         var piano = livelloPiano;

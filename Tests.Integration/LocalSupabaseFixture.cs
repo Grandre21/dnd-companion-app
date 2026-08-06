@@ -29,6 +29,17 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
     public const string NoteSharedC1 = "a2222222-2222-2222-2222-222222222222";  // A, condivisa, in C1
     public const string NoteSharedC2 = "a3333333-3333-3333-3333-333333333333";  // A, condivisa, in C2
 
+    // Campaign hopping (chiusura del varco 🔴, 2026-08-06): righe dedicate per isolare ogni
+    // scenario dagli altri test che leggono/scrivono NoteSharedC1 ecc.
+    // A, condivisa, in C1: A tenta di spostarla in C3 (di cui non è membro/master) → deve restare in C1.
+    public const string NoteForHoppingTest = "a4444444-4444-4444-4444-444444444444";
+    // A, in C3: C3 è la campagna di cui NESSUNO dei due utenti di test ha una riga in
+    // campaign_members (vedi CampaignC3) → simula il "caso gemello" (ex-membro, o riga già spostata
+    // prima di questa migrazione) senza dover simulare una vera rimozione da campaign_members.
+    public const string NoteForTwinTest = "a5555555-5555-5555-5555-555555555555";
+    // A, condivisa, in C1: usata solo dal test che verifica l'update legittimo (A resta membro di C1).
+    public const string NoteForLegitimateUpdateTest = "a6666666-6666-6666-6666-666666666666";
+
     // Background (Task 4): righe di provenienza diversa per isolare ogni scenario RLS.
     public const string BackgroundAC1 = "b1111111-1111-1111-1111-111111111111";         // A, in C1
     public const string BackgroundAC2 = "b2222222-2222-2222-2222-222222222222";         // A, in C2
@@ -51,6 +62,13 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
     public const string CharacterBC1 = "c2222222-2222-2222-2222-222222222222";
     public const string CharacterAC2 = "c3333333-3333-3333-3333-333333333333";
     public const int CharacterAC1PassivePerception = 14;
+
+    // Campaign hopping (chiusura del varco 🔴, 2026-08-06): righe dedicate, stessa logica delle
+    // costanti Note* sopra.
+    // B, in C1: B tenta di spostarla in C3 (di cui non è membro/master) → deve restare in C1.
+    public const string CharacterForHoppingTest = "c4444444-4444-4444-4444-444444444444";
+    // B, in C3: B non è membro di C3 → simula il "caso gemello" senza rimuovere davvero un membro.
+    public const string CharacterForTwinTest = "c5555555-5555-5555-5555-555555555555";
 
     // Inventario (cascata RLS characters -> inventory): un oggetto per personaggio, per provare che
     // dopo la restrizione di characters_select il player non legge l'inventario del PG del master,
@@ -155,6 +173,11 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
             new { id = NotePrivateC1, title = "A privata C1", is_shared = false, owner_id = UserAId, campaign_id = CampaignC1 },
             new { id = NoteSharedC1, title = "A condivisa C1", is_shared = true, owner_id = UserAId, campaign_id = CampaignC1 },
             new { id = NoteSharedC2, title = "A condivisa C2", is_shared = true, owner_id = UserAId, campaign_id = CampaignC2 },
+            new { id = NoteForHoppingTest, title = "Nota da spostare (hopping)", is_shared = true, owner_id = UserAId, campaign_id = CampaignC1 },
+            // campaign_id = C3: A NON è membro/master di C3 (nessuna riga in campaign_members) →
+            // simula un ex-membro, o una riga già spostata prima di questa migrazione.
+            new { id = NoteForTwinTest, title = "Nota orfana (caso gemello)", is_shared = true, owner_id = UserAId, campaign_id = CampaignC3 },
+            new { id = NoteForLegitimateUpdateTest, title = "Nota da rinominare legittimamente", is_shared = true, owner_id = UserAId, campaign_id = CampaignC1 },
         });
         await InsertAsync("backgrounds", new[]
         {
@@ -183,6 +206,20 @@ public sealed class LocalSupabaseFixture : IAsyncLifetime
             new
             {
                 id = CharacterAC2, name = "Personaggio di A (C2)", owner_id = UserAId, campaign_id = CampaignC2,
+                level = 1, armor_class = 10, hit_points = 8, max_hit_points = 8, wisdom = 10, prof_perception = false,
+            },
+            // Campaign hopping (chiusura del varco 🔴, 2026-08-06): B tenta di spostarla in C3
+            // (di cui non è membro/master) → deve restare in C1.
+            new
+            {
+                id = CharacterForHoppingTest, name = "PG da spostare (hopping)", owner_id = UserBId, campaign_id = CampaignC1,
+                level = 1, armor_class = 10, hit_points = 8, max_hit_points = 8, wisdom = 10, prof_perception = false,
+            },
+            // In C3, di cui B non è membro/master: simula il "caso gemello" (ex-membro, o riga già
+            // spostata prima di questa migrazione) senza rimuovere davvero una riga da campaign_members.
+            new
+            {
+                id = CharacterForTwinTest, name = "PG orfano (caso gemello)", owner_id = UserBId, campaign_id = CampaignC3,
                 level = 1, armor_class = 10, hit_points = 8, max_hit_points = 8, wisdom = 10, prof_perception = false,
             },
         });

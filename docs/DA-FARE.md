@@ -21,9 +21,32 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
 > ogni push e da segnalare all'utente.
 
-> Nessuna migrazione in sospeso: `20260801000000_class_subclasses.sql` e
-> `20260731000000_party_visibility.sql` sono entrambe applicate all'hosted (verificate il 2026-08-01,
-> con `information_schema.columns` e `pg_proc`).
+> 🔴 **MIGRAZIONE IN SOSPESO — va applicata all'hosted PRIMA del prossimo push.**
+> `20260806120000_close_campaign_hopping.sql` chiude il varco RLS di §2 su 7 tabelle (`races`,
+> `classes`, `spells`, `monsters`, `backgrounds`, `characters`, `notes`). Verificata sullo stack
+> locale: 28/28 test d'integrazione verdi, compresi i 7 nuovi sullo spostamento fra campagne.
+> Applicarla dallo SQL Editor, poi verificare con:
+> ```sql
+> SELECT tablename, policyname,
+>        qual LIKE '%is_campaign_member%'       AS using_ha_membership,
+>        with_check LIKE '%is_campaign_member%' AS withcheck_ha_membership
+> FROM pg_policies WHERE schemaname = 'public' AND policyname LIKE '%_update' ORDER BY tablename;
+> ```
+> Attesi `TRUE/TRUE` sulle 7 sopra, `FALSE/FALSE` sulle altre. **La migrazione è compatibile col
+> client attualmente online** (nessuna schermata cambia `campaign_id`), quindi l'ordine
+> «prima il database, poi il push» è sicuro.
+>
+> ⚠️ **Dopo averla applicata, cercare le righe già orfane** — quelle iniettate prima della chiusura,
+> che ora nessuno può più toccare (il caso peggiore erano le note condivise):
+> ```sql
+> SELECT 'notes' AS tabella, n.id, n.title, n.campaign_id FROM notes n
+> WHERE NOT EXISTS (SELECT 1 FROM campaign_members m
+>                   WHERE m.campaign_id = n.campaign_id AND m.user_id = n.owner_id);
+> ```
+> Se non torna nulla, il varco non è mai stato sfruttato e non c'è bonifica da fare.
+>
+> Le precedenti (`20260801000000_class_subclasses.sql`, `20260731000000_party_visibility.sql`) sono
+> applicate (verificate il 2026-08-01).
 
 - 🔴 **Level-up guidato, tre prove** (nuovo, 2026-08-06): (a) un PG del manuale che sale a un livello
   **con una scelta** — sottoclasse al 3° o talento al 4° — e la conferma scrive davvero; (b) un PG con
@@ -196,17 +219,16 @@ Residuo minore di C.
 Deciso col consulto di analisi del 2026-08-06; il ragionamento sta in [DIARIO](./DIARIO.md), «Il
 master che assegna». Ogni tappa è usabile da sola; la 2 e la 3 si possono fare in parallelo alla 1.
 
-1. **§2 varco RLS** — l'unico 🔴 di codice. Va **prima** delle tappe 4-5, che scrivono sui PG altrui
-   attraverso quelle stesse policy: dopo, si testerebbero le RLS due volte.
-2. **Quality of life da tavolo, senza migrazioni**: riposo lungo/breve sul PG (oggi sono 10+ edit a
-   mano a ogni sessione), tastierino PF, iniziativa precompilata. Helper puri, ciascuno commitabile
-   da solo.
-3. **Creazione guidata**: il wizard smette di creare PG incompleti (slot, caratteristica da
-   incantatore, competenze vincolate), poi «crea al livello N» **incatenando il level-up esistente**
-   invece di riscrivere la progressione nel wizard. Nessuna migrazione, nessun data entry.
-4. **Il master assegna, parte gratuita**: «dai oggetto» e ispirazione dalla vista Party. Solo UI e
-   repository esistenti — le RLS lo permettono già.
-5. **Il master assegna, parte atomica**: RPC `grant_to_characters` per monete e PE, multi-selezione,
-   divisione del bottino. Una migrazione, fascia a 3 giri, test RLS sullo stack locale.
-6. **§3 combattimento consultabile** e §1.B campi mancanti del formato — quando si passa di lì per
-   altri motivi. Il resto (§4-§6) a spizzichi.
+1. **Creazione guidata**: il wizard smette di creare PG incompleti (slot, caratteristica da
+   incantatore, competenze vincolate come scelta N-su-M), poi «crea al livello N» **incatenando il
+   level-up esistente** invece di riscrivere la progressione nel wizard — qualunque altra strada
+   crea due motori che divergeranno. Nessuna migrazione, nessun data entry.
+2. **Il master assegna, parte atomica**: RPC `grant_to_characters` per monete e PE, multi-selezione,
+   divisione del bottino, più l'ispirazione. Una migrazione, fascia a 3 giri, test RLS sullo stack
+   locale. Vale la regola di `CLAUDE.md`: mai `UpdateCharacterAsync` su un PG altrui.
+3. **§3 combattimento consultabile** — indipendente, aggredibile in parallelo.
+4. **§1.B campi mancanti del formato** — quando si passa di lì per altri motivi.
+5. Il resto (§4-§6) a spizzichi.
+
+Chiuse il 2026-08-06: il varco RLS (migrazione scritta e verificata, **da applicare**, v. in cima),
+riposo lungo/breve, tastierino dei PF, iniziativa precompilata, «dai oggetto» dalla vista Party.

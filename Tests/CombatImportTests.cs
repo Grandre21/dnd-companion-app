@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DndCompanion.Tests;
 
-// Logica pura di import mostri nel combattimento (CombatImport).
+// Logica pura di import mostri e personaggi nel combattimento (CombatImport).
 public class CombatImportTests
 {
     private static Monster M(string name, string hp) => new() { Name = name, HitPoints = hp };
@@ -62,5 +62,57 @@ public class CombatImportTests
     {
         var ids = CombatImport.FromMonster(M("Orco", "15"), 3).Select(c => c.Id).ToList();
         Assert.Equal(3, ids.Distinct().Count());
+    }
+
+    // ---- FromCharacter: iniziativa precompilata dal bonus di Destrezza ----
+
+    private static Character PG(string name = "Aria", int dex = 10, int hp = 20, int maxHp = 20, string ownerId = "u1")
+        => new() { Name = name, Dexterity = dex, HitPoints = hp, MaxHitPoints = maxHp, OwnerId = ownerId };
+
+    [Fact]
+    public void FromCharacter_usa_il_bonus_di_destrezza_come_iniziativa_di_partenza()
+    {
+        var c = CombatImport.FromCharacter(PG(dex: 16)); // modificatore +3
+
+        Assert.Equal(3, c.Initiative);
+    }
+
+    [Fact]
+    public void FromCharacter_ammette_bonus_negativo_con_destrezza_bassa()
+    {
+        var c = CombatImport.FromCharacter(PG(dex: 8)); // modificatore -1
+
+        Assert.Equal(-1, c.Initiative);
+    }
+
+    [Fact]
+    public void FromCharacter_senza_destrezza_valorizzata_ha_iniziativa_zero_come_oggi()
+    {
+        // Destrezza non valorizzata = default del modello (10) -> modificatore 0: comportamento invariato.
+        var c = CombatImport.FromCharacter(new Character { Name = "Bo", HitPoints = 5, MaxHitPoints = 5 });
+
+        Assert.Equal(0, c.Initiative);
+    }
+
+    [Fact]
+    public void FromCharacter_riporta_nome_owner_e_pf_clampati_come_oggi()
+    {
+        var c = CombatImport.FromCharacter(PG(name: "Aria", dex: 14, hp: 30, maxHp: 25, ownerId: "u42"));
+
+        Assert.Equal("Aria", c.Name);
+        Assert.Equal("u42", c.OwnerId);
+        Assert.Equal(25, c.CurrentHp); // clampato a MaxHp come nell'import attuale
+        Assert.Equal(25, c.MaxHp);
+    }
+
+    [Fact]
+    public void FromCharacter_non_tocca_l_importazione_dei_mostri()
+    {
+        // I mostri restano Initiative=0: la precompilazione riguarda solo i PG (l'app non tira i dadi per i mostri).
+        var mostro = Assert.Single(CombatImport.FromMonster(M("Goblin", "7"), 1).ToList());
+        var pgConBonus = CombatImport.FromCharacter(PG(dex: 18));
+
+        Assert.Equal(0, mostro.Initiative);
+        Assert.Equal(4, pgConBonus.Initiative);
     }
 }

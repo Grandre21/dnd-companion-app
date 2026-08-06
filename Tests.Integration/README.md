@@ -40,11 +40,23 @@ dotnet test Tests.Integration/
   (`is_campaign_master` valutato sulla riga nuova, usando una terza campagna `C3` di cui non è
   membro): la verifica rilegge dove si trova davvero la riga dopo il tentativo, invece di fidarsi
   dello status HTTP della PATCH.
-  **Nota**: lo scenario "un autore sposta una propria riga in un'altra campagna" — quello descritto
-  nel brief del task — **non** è invece bloccato da questa policy (`added_by = auth.uid()` resta
-  vero indipendentemente dalla destinazione): è una lacuna ereditata da `races_update` e dalle
-  policy analoghe, non introdotta né corretta da questa migrazione. Vedi il commento nel test e in
-  `docs/DA-FARE.md` §1 per il dettaglio.
+- Un autore **non può più** spostare una propria riga in una campagna di cui non è membro (lo
+  scenario del brief del Task 4, allora non protetto: v. `docs/DIARIO.md` e la migrazione
+  `20260806120000_close_campaign_hopping.sql`).
+
+## Scenari coperti (`CampaignHoppingRlsIntegrationTests`)
+Chiusura del varco 🔴 «campaign hopping» sulle `WITH CHECK` di `UPDATE` (sette tabelle, dettaglio nel
+commento in cima a `20260806120000_close_campaign_hopping.sql`). Copre le due tabelle più esposte,
+`notes` e `characters`; le altre cinque condividono testualmente la stessa struttura di policy e sono
+confermate dal test aggiunto sopra a `BackgroundsRlsIntegrationTests`.
+- Un autore **non può** spostare una propria nota/personaggio in una campagna di cui non è membro
+  (la `WITH CHECK`, valutata sulla riga nuova, nega la destinazione).
+- Un ex-membro (simulato con una riga già "orfana", in una campagna dove non ha più/non ha mai avuto
+  una riga in `campaign_members`) **non può** più modificare quella riga, nemmeno un cambio innocuo
+  come un titolo o un nome (la `USING`, valutata sulla riga vecchia, nega l'update — è il "caso
+  gemello" della stessa lacuna).
+- L'update legittimo **continua a funzionare**: l'autore che resta membro della propria campagna, e
+  il master che modifica una riga altrui nella propria campagna, non sono toccati dalla correzione.
 
 ## Aggiornare lo schema locale
 Se cambiano le policy/lo schema in produzione, rigenera la migration:

@@ -65,6 +65,148 @@
 .ds-dot.filled.success { background: #7a9a6a; border-color: #7a9a6a; }
 .ds-dot.filled.failure { background: #c5746b; border-color: #c5746b; }
 
+/* ===== Combat: riposo lungo/breve =====
+   .primary-btn/.secondary-btn duplicate qui i due stili di Characters.razor.css: la CSS
+   isolation di Blazor non fa seguire le regole scoped del genitore al markup di un figlio
+   (v. memoria "blazor-css-isolation-extraction"), e CharacterItemsTab.razor.css è già nello
+   stesso schema per lo stesso motivo. */
+.primary-btn {
+    background: linear-gradient(180deg, var(--gold) 0%, #b8864d 100%);
+    color: var(--text-on-gold);
+    border: none;
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    padding: 0.9rem 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.rest-card {
+    background: var(--bg-card);
+    border: 1px solid #5a3f20;
+    border-radius: 10px;
+    padding: 0.6rem 0.85rem;
+    margin-bottom: 0.6rem;
+}
+
+.rest-actions {
+    display: flex;
+    gap: 0.6rem;
+}
+
+/* Bersaglio da 44px anche in riga da due: il padding di .primary-btn/.secondary-btn basta già
+   in verticale, qui si garantisce l'altezza minima quando il font va a capo su schermi stretti. */
+.rest-btn {
+    flex: 1;
+    min-height: 44px;
+    font-size: 0.95rem;
+    padding: 0.65rem 0.5rem;
+    text-align: center;
+}
+
+.short-rest-panel {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #5a3f20;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.short-rest-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.short-rest-label {
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+}
+
+.short-rest-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.short-rest-value {
+    min-width: 3.5rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.short-rest-input {
+    width: 5.5rem;
+    min-height: 44px;
+    box-sizing: border-box;
+    background: var(--bg);
+    border: 1px solid #5a3f20;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    color: var(--text);
+    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus del campo. */
+    font-size: 1rem;
+    font-family: inherit;
+    text-align: right;
+}
+
+.short-rest-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.short-rest-actions {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.short-rest-actions .rest-btn {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.9rem;
+}
+
 /* ===== Combat: stat secondarie ===== */
 .secondary-stats {
     display: flex;

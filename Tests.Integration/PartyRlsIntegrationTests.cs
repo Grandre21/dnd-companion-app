@@ -105,13 +105,34 @@ public sealed class PartyRlsIntegrationTests
         "owner_id", "owner_nickname",
     };
 
+    // Personaggi legittimamente in C1 (v. commenti su CharacterAC1/BC1/ForHoppingTest in
+    // LocalSupabaseFixture): il master (CharacterAC1), il player (CharacterBC1) e
+    // CharacterForHoppingTest — quest'ultimo seminato apposta in C1 (non altrove) perché lo
+    // scenario di campaign hopping richiede un membro DI C1 che tenti di spostare la propria riga
+    // in una campagna estranea. Non è quindi un dato spurio: 3 è il numero giusto oggi. Si
+    // verifica l'insieme esatto (non solo il conteggio) così il test non si rompe silenziosamente
+    // al prossimo personaggio aggiunto al seed — chi lo aggiunge aggiorna anche questa lista.
+    private static readonly string[] ExpectedCharacterIdsC1 =
+    {
+        LocalSupabaseFixture.CharacterAC1,
+        LocalSupabaseFixture.CharacterBC1,
+        LocalSupabaseFixture.CharacterForHoppingTest,
+    };
+
     [SkippableFact]
     public async Task RPC_party_overview_restituisce_le_sole_colonne_sintetiche_al_player()
     {
         Skip.IfNot(_fx.Available, "Stack Supabase locale non in esecuzione (`supabase start`).");
         var rows = await GetPartyOverviewAsUser(_fx.TokenB, LocalSupabaseFixture.CampaignC1);
 
-        Assert.Equal(2, rows.Count);
+        // Insieme esatto, non solo conteggio: CharacterAC2 (C2) e CharacterForTwinTest (C3) NON
+        // devono comparire, altrimenti la RPC starebbe perdendo il filtro per campagna.
+        var actualIds = rows.Select(r => r!["character_id"]!.GetValue<string>());
+        Assert.Equal(ExpectedCharacterIdsC1.OrderBy(id => id), actualIds.OrderBy(id => id));
+        Assert.DoesNotContain(rows, r => r!["character_id"]!.GetValue<string>() == LocalSupabaseFixture.CharacterAC2);
+        Assert.DoesNotContain(rows, r => r!["character_id"]!.GetValue<string>() == LocalSupabaseFixture.CharacterForTwinTest);
+
+        // Cuore della privacy della vista Party: solo colonne sintetiche, mai le colonne grezze.
         foreach (var row in rows)
         {
             var keys = ((JsonObject)row!).Select(kv => kv.Key).ToArray();
@@ -125,9 +146,12 @@ public sealed class PartyRlsIntegrationTests
         Skip.IfNot(_fx.Available, "Stack Supabase locale non in esecuzione (`supabase start`).");
         var rows = await GetPartyOverviewAsUser(_fx.TokenA, LocalSupabaseFixture.CampaignC1);
 
-        Assert.Equal(2, rows.Count);
-        Assert.Contains(rows, r => r!["character_id"]!.GetValue<string>() == LocalSupabaseFixture.CharacterAC1);
-        Assert.Contains(rows, r => r!["character_id"]!.GetValue<string>() == LocalSupabaseFixture.CharacterBC1);
+        // Stesso insieme esatto del test sopra lato player: il master non vede righe diverse, né
+        // in più né in meno (v. commento su ExpectedCharacterIdsC1 per il perché sono 3).
+        var actualIds = rows.Select(r => r!["character_id"]!.GetValue<string>());
+        Assert.Equal(ExpectedCharacterIdsC1.OrderBy(id => id), actualIds.OrderBy(id => id));
+        Assert.DoesNotContain(rows, r => r!["character_id"]!.GetValue<string>() == LocalSupabaseFixture.CharacterAC2);
+        Assert.DoesNotContain(rows, r => r!["character_id"]!.GetValue<string>() == LocalSupabaseFixture.CharacterForTwinTest);
     }
 
     [SkippableFact]

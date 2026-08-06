@@ -28,13 +28,21 @@
        Impilati ne bastano 88, e ci stanno da 360px in su. *@
     <div class="v-card v-hp">
         <p class="v-label">PF</p>
-        <p class="hp-value">@Character.HitPoints<span class="hp-max">/@Character.MaxHitPoints</span></p>
+        @* Il numero apre il tastierino: per un colpo da 27 i ± di oggi sono 27 tocchi, e il conto a
+           mano deve prima scalare il cuscinetto temporaneo prima dei PF veri — il calcolo che si
+           sbaglia più spesso. Il pulsante resta un elemento a sé (non un onclick sul <p>) così lo
+           stato disabled segue le stesse regole di CanEdit/IsSaving dei ± qui sotto. *@
+        <button type="button" class="hp-value-btn" @onclick="RequestOpenHpPanelAsync"
+                disabled="@(!CanEdit || IsSaving)" aria-haspopup="dialog"
+                aria-label="Applica danni o cura ai punti ferita">
+            <span class="hp-value">@Character.HitPoints<span class="hp-max">/@Character.MaxHitPoints</span></span>
+        </button>
         <div class="hp-row">
             <button class="hp-circle hp-minus" @onclick="DecreaseHp"
-                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints <= 0)"
+                    disabled="@(!CanEdit || IsSaving || Character.HitPoints <= 0)"
                     aria-label="Togli un punto ferita">−</button>
             <button class="hp-circle hp-plus" @onclick="IncreaseHp"
-                    disabled="@(!CanEdit || isSavingHp || Character.HitPoints >= Character.MaxHitPoints)"
+                    disabled="@(!CanEdit || IsSaving || Character.HitPoints >= Character.MaxHitPoints)"
                     aria-label="Aggiungi un punto ferita">+</button>
         </div>
         @if (Character.TempHitPoints > 0)
@@ -65,28 +73,78 @@
     /// <summary>Abilita i ± dei punti ferita; speculare alle RLS, come nelle altre tab.</summary>
     [Parameter] public bool CanEdit { get; set; }
 
-    /// <summary>Il genitore persiste il personaggio: qui si modifica solo il modello in memoria,
-    /// esattamente come faceva CharacterCombatTab prima dell'estrazione.</summary>
-    [Parameter] public EventCallback OnChanged { get; set; }
+    /// <summary>Il genitore persiste il personaggio; qui si modifica solo il modello in memoria,
+    /// esattamente come faceva CharacterCombatTab prima dell'estrazione. Deve riportare l'ESITO
+    /// (non un semplice EventCallback): le RLS legano l'update all'appartenenza corrente alla
+    /// campagna, e quando non combacia PostgREST aggiorna zero righe e risponde [] — senza
+    /// controllarlo qui, un colpo o una cura mai confermati resterebbero applicati ai PF in
+    /// memoria fino al primo salvataggio successivo riuscito (da qualunque tab), che li
+    /// persisterebbe in silenzio. Stesso motivo per cui CharacterCombatTab.OnChanged è un
+    /// Func&lt;Task&lt;bool&gt;&gt;.</summary>
+    [Parameter, EditorRequired] public Func<Task<bool>> OnChanged { get; set; } = default!;
 
     /// <summary>Richiesta di apertura del dialogo "Sali di livello": il genitore costruisce il
     /// piano (catalogo, tabella dei livelli, dado vita) e lo mostra. Questo componente non calcola
     /// e non salva nulla, come per i PF.</summary>
     [Parameter] public EventCallback OnLevelUp { get; set; }
 
-    private bool isSavingHp;
+    /// <summary>Richiesta di apertura del tastierino danni/cura: il genitore tiene stato e markup
+    /// dell'overlay (v. Characters.razor) e lo mostra FUORI dal contenitore sticky in cui vive
+    /// questa barra — se l'overlay restasse renderizzato da qui, nested dentro ".sheet-sticky", il
+    /// suo z-index conterebbe solo dentro lo stacking context creato da quel contenitore sticky e
+    /// finirebbe comunque sotto BottomNav/UpdateBanner/ToastHost. Stesso schema di OnLevelUp.</summary>
+    [Parameter] public EventCallback OnOpenHpPanel { get; set; }
+
+    /// <summary>Salvataggio in corso per QUESTO personaggio, tenuto dal genitore e condiviso con
+    /// CharacterCombatTab (stesso Character, stesso salvataggio): un flag locale a testa
+    /// permetterebbe a un riposo e a un tocco sui PF di partire nello stesso istante, con due
+    /// scritture in corsa sul server.</summary>
+    [Parameter] public bool IsSaving { get; set; }
+
+    /// <summary>Da invocare dopo aver riportato Character allo stato pre-tentativo, quando
+    /// OnChanged() torna false: questo componente si ridisegna da sé a fine dei propri metodi (è il
+    /// "receiver" del proprio click), ma CharacterCombatTab — fratello, non figlio, e che mostra il
+    /// riquadro dei TS contro morte quando i PF sono a 0 — non si accorgerebbe del ripristino
+    /// finché qualcos'altro non forzasse un render del genitore. SaveCharacterCoreAsync (in
+    /// Characters.razor) chiama già StateHasChanged sul genitore, ma PRIMA che questo componente
+    /// rientri dall'await e ripristini Character: quella StateHasChanged non vede ancora il valore
+    /// corretto. Bound dal genitore a un semplice StateHasChanged su di sé — stesso schema "il
+    /// figlio chiede, il genitore fa" di OnOpenHpPanel/OnLevelUp qui sopra, e identico al parametro
+    /// omonimo di CharacterCombatTab.</summary>
+    [Parameter] public EventCallback OnLocalRevert { get; set; }
 
     private Task RequestLevelUpAsync() => OnLevelUp.InvokeAsync();
 
+    private Task RequestOpenHpPanelAsync()
+    {
+        if (!CanEdit || IsSaving) return Task.CompletedTask;
+        return OnOpenHpPanel.InvokeAsync();
+    }
+
     private async Task AdjustHpAsync(int delta)
     {
-        if (!CanEdit) return;
-        var newHp = Math.Clamp(Character.HitPoints + delta, 0, Character.MaxHitPoints);
-        if (newHp == Character.HitPoints) return;
-        Character.HitPoints = newHp;
-        isSavingHp = true;
-        await OnChanged.InvokeAsync();
-        isSavingHp = false;
+        if (!CanEdit || IsSaving) return;
+
+        // Riferimento catturato ADESSO, non riletto dal parametro Character dopo l'await: mentre
+        // questo metodo aspetta OnChanged, Blazor smista comunque gli eventi dell'interfaccia, e il
+        // genitore può cambiare il parametro sotto di noi (un altro personaggio aperto, o "←" che
+        // torna alla lista). Rileggere Character al ripristino scriverebbe i PF del PG di PRIMA
+        // dentro quello NUOVO. Lavorando su `pg` — la stessa istanza, non una copia — il ripristino
+        // resta ancorato al PG giusto qualunque cosa il parametro sia diventato nel frattempo.
+        var pg = Character;
+        var newHp = Math.Clamp(pg.HitPoints + delta, 0, pg.MaxHitPoints);
+        if (newHp == pg.HitPoints) return;
+        var precedente = pg.HitPoints;
+        pg.HitPoints = newHp;
+        // V. il commento su OnChanged: senza il ripristino su fallimento, un tocco mai confermato
+        // resterebbe applicato ai PF in memoria.
+        if (!await OnChanged())
+        {
+            pg.HitPoints = precedente;
+            // V. il commento sul parametro OnLocalRevert: senza, CharacterCombatTab non si
+            // accorgerebbe del ripristino finché qualcos'altro non forzasse un render del genitore.
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 
     private Task DecreaseHp() => AdjustHpAsync(-1);

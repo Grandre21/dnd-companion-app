@@ -378,6 +378,137 @@
     background: rgba(var(--gold-rgb), 0.15);
 }
 
+/* ===== Tastierino danni/cura =====
+   Markup e stato vivono in questa pagina (non in CharacterVitalsBar, che lo apre) apposta per
+   restare FUORI da ".sheet-sticky": quel contenitore crea uno stacking context (v. il commento nel
+   .razor), e un overlay annidato lì dentro conterebbe il suo z-index solo internamente, finendo
+   comunque sotto BottomNav/UpdateBanner/ToastHost nella radice del documento. Overlay + box
+   centrato, stesso schema di ConfirmDialog/LevelUpDialog (v. i loro .razor.css) — le classi sono
+   ripetute qui perché lo scope isolato di un componente non raggiunge né i suoi figli generati
+   altrove né i suoi genitori. z-index in linea con LevelUpDialog (1150): sopra i toast (1100),
+   sotto ConfirmDialog (1200) se dovesse mai comparirvi sopra. */
+.hp-panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(var(--black-rgb), 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 1150;
+}
+
+.hp-panel {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--gold-dim);
+    border-radius: 12px;
+    padding: 1.25rem 1.25rem 1rem;
+    max-width: 320px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(var(--black-rgb), 0.6);
+}
+
+.hp-panel-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 44px;
+    height: 44px;
+    background: none;
+    border: none;
+    color: var(--gold-dim);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.hp-panel-title {
+    margin: 0 1.75rem 0.3rem 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gold-light);
+}
+
+.hp-panel-current {
+    margin: 0 0 0.9rem;
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.hp-panel-label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-dim);
+}
+
+.hp-panel-input {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1.1rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.hp-panel-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.hp-panel-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.72rem;
+    color: var(--gold-dim);
+}
+
+.hp-panel-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1rem;
+}
+
+.hp-panel-btn {
+    flex: 1 1 0;
+    min-height: 44px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter 0.12s ease;
+}
+
+.hp-panel-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.hp-panel-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.hp-panel-damage {
+    background: rgba(var(--error-rgb), 0.35);
+    border: 1px solid rgba(var(--danger-rgb), 0.7);
+    color: var(--error-text);
+}
+
+.hp-panel-heal {
+    background: rgba(var(--success-rgb), 0.22);
+    border: 1px solid rgba(var(--success-rgb), 0.6);
+    color: rgb(var(--success-rgb));
+}
+
 /* L'errore del salvataggio deve restare leggibile MENTRE il dialogo è aperto (il piano non si
    chiude su un fallimento, per restare ritentabile): serve una posizione fissa sopra il suo
    overlay (z-index 1150, v. LevelUpDialog.razor.css), non il flusso normale della pagina dove

@@ -159,6 +159,39 @@
     border-color: #7a9a6a;
 }
 
+/* Il numero è un bottone (apre il tastierino): reset dei default nativi, min-height 44px per il
+   bersaglio tattile pur restando visivamente vicino al vecchio <p>. Nessuna variazione di opacity
+   su :disabled — a differenza dei ± questo valore resta leggibile anche in sola lettura (CanEdit
+   false), dove oggi non c'era alcun bottone e quindi nessun dimming. */
+.hp-value-btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.12s ease;
+}
+
+.hp-value-btn:hover:not(:disabled) {
+    background-color: rgba(var(--gold-rgb), 0.1);
+}
+
+.hp-value-btn:active:not(:disabled) {
+    background-color: rgba(var(--gold-rgb), 0.18);
+}
+
+.hp-value-btn:disabled {
+    cursor: not-allowed;
+}
+
 .hp-value {
     margin: 0;
     font-size: 1.3rem;
@@ -180,3 +213,8 @@
     font-size: 0.72rem;
     color: #6b9ec5;
 }
+
+/* Il tastierino danni/cura (overlay .hp-panel-*) è stato spostato in Pages/Characters.razor.css:
+   il markup dell'overlay ora lo rende il genitore, fuori da ".sheet-sticky", per non restare
+   chiuso nello stacking context che quel contenitore sticky crea (v. il commento su
+   OnOpenHpPanel qui sopra nel .razor). */

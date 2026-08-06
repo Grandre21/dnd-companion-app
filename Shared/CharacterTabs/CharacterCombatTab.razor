@@ -1,20 +1,71 @@
 @using DndCompanion.Models
 @using DndCompanion.Services
+@inject ConfirmService Confirm
+@inject ToastService Toasts
 
 @* PF, CA, INI e PERC sono saliti in CharacterVitalsBar, sopra le tab: servono a ogni turno e
    stavano dietro un tocco. Qui resta ciò che si consulta quando serve davvero. *@
 <div class="hit-dice-card">
     <p class="card-label">DADI VITA</p>
     <div class="hit-dice-row">
-        <button class="hd-btn" @onclick="DecrementHitDice"
-                disabled="@(!CanEdit || Character.HitDiceSpent <= 0)">−</button>
+        <button class="hd-btn" @onclick="DecrementHitDice" aria-label="Un dado vita in meno"
+                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent <= 0)">−</button>
         <div class="hit-dice-display">
             <span class="hit-dice-value">@(HitDiceTotal() - Character.HitDiceSpent) / @HitDiceTotal()</span>
             <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(Character.HitDiceMax) ? "—" : Character.HitDiceMax)</span>
         </div>
-        <button class="hd-btn" @onclick="IncrementHitDice"
-                disabled="@(!CanEdit || Character.HitDiceSpent >= HitDiceTotal())">+</button>
+        <button class="hd-btn" @onclick="IncrementHitDice" aria-label="Un dado vita in più"
+                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent >= HitDiceTotal())">+</button>
     </div>
+</div>
+
+@* Riposo lungo/breve (RestCalculations, helper puro): il lungo passa da ConfirmDialog perché
+   azzera i TS contro morte; il breve apre un pannello che chiede dadi spesi + totale tirato
+   (l'app non tira il dado, offre solo la media come valore precompilato). *@
+<div class="rest-card">
+    <p class="card-label">RIPOSO</p>
+    <div class="rest-actions">
+        <button type="button" class="secondary-btn rest-btn" @onclick="ToggleShortRestPanel"
+                disabled="@(!CanEdit || IsSaving)">
+            Riposo breve
+        </button>
+        <button type="button" class="primary-btn rest-btn" @onclick="RiposoLungoAsync"
+                disabled="@(!CanEdit || IsSaving)">
+            Riposo lungo
+        </button>
+    </div>
+
+    @if (showShortRestPanel)
+    {
+        <div class="short-rest-panel">
+            <div class="short-rest-field">
+                <span class="short-rest-label">Dadi vita spesi</span>
+                <div class="short-rest-stepper">
+                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(-1)"
+                            aria-label="Un dado vita speso in meno"
+                            disabled="@(!CanEdit || dadiSpesi <= 0)">−</button>
+                    <span class="short-rest-value">@dadiSpesi / @HitDiceRemaining()</span>
+                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(1)"
+                            aria-label="Un dado vita speso in più"
+                            disabled="@(!CanEdit || dadiSpesi >= HitDiceRemaining())">+</button>
+                </div>
+            </div>
+            <div class="short-rest-field">
+                <label class="short-rest-label" for="riposo-breve-totale">Totale tirato</label>
+                <input id="riposo-breve-totale" type="number" class="short-rest-input" min="0"
+                       value="@totaleTirato" @oninput="OnTotaleTiratoInput" disabled="@(!CanEdit)" />
+            </div>
+            <div class="short-rest-actions">
+                <button type="button" class="secondary-btn rest-btn" @onclick="CloseShortRestPanel">
+                    Annulla
+                </button>
+                <button type="button" class="primary-btn rest-btn" @onclick="ConfermaRiposoBreveAsync"
+                        disabled="@(!CanEdit || IsSaving || dadiSpesi <= 0)">
+                    Conferma
+                </button>
+            </div>
+        </div>
+    }
 </div>
 
 @if (ShowDeathSaves)
@@ -97,7 +148,31 @@ else
 @code {
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
     [Parameter] public bool CanEdit { get; set; }
-    [Parameter] public EventCallback OnChanged { get; set; }
+
+    /// <summary>A differenza delle altre tab, qui il salvataggio deve riportare l'ESITO: il riposo
+    /// mostra un toast di successo solo se il server ha davvero accettato la scrittura (le RLS
+    /// legano l'update all'appartenenza corrente alla campagna — se non combacia, PostgREST
+    /// aggiorna zero righe e risponde [], e senza l'esito qui il riposo si annuncerebbe riuscito
+    /// comunque). Un EventCallback non può restituire un valore da InvokeAsync: da qui il delegato
+    /// semplice invece del solito EventCallback usato dalle altre tab.</summary>
+    [Parameter, EditorRequired] public Func<Task<bool>> OnChanged { get; set; } = default!;
+
+    /// <summary>Salvataggio in corso per QUESTO personaggio, tenuto dal genitore e condiviso con
+    /// CharacterVitalsBar: senza un solo flag comune, un riposo confermato e un tocco sui PF nello
+    /// stesso istante potrebbero far partire due scritture in corsa sullo stesso Character.</summary>
+    [Parameter] public bool IsSaving { get; set; }
+
+    /// <summary>Da invocare dopo aver riportato Character allo stato pre-tentativo, quando
+    /// OnChanged() torna false: questo componente si ridisegna da sé a fine dei propri metodi (è il
+    /// "receiver" del proprio click), ma CharacterVitalsBar — fratello, non figlio, e che mostra gli
+    /// stessi PF/PF-temp toccati dal riposo — non si accorgerebbe del ripristino finché qualcos'altro
+    /// non forzasse un render del genitore. SaveCharacterCoreAsync (in Characters.razor) chiama già
+    /// StateHasChanged sul genitore, ma PRIMA che questo componente rientri dall'await e ripristini
+    /// Character: quella StateHasChanged non vede ancora il valore corretto. Bound dal genitore a un
+    /// semplice StateHasChanged su di sé — stesso schema "il figlio chiede, il genitore fa" di
+    /// OnOpenHpPanel/OnLevelUp in CharacterVitalsBar.razor.</summary>
+    [Parameter] public EventCallback OnLocalRevert { get; set; }
+
     [Parameter] public IReadOnlyList<InventoryItem> Weapons { get; set; } = Array.Empty<InventoryItem>();
 
     private bool ShowDeathSaves =>
@@ -105,29 +180,251 @@ else
 
     private int HitDiceTotal() => CharacterCalculations.GetHitDiceTotal(Character.HitDiceMax);
 
-    private async Task SetDeathSaveSuccesses(int value)
+    // Clampato a 0: GetHitDiceRemaining non lo fa (CharacterCalculations.cs), e HitDiceSpent
+    // salvato a mano oltre il totale (nessun vincolo max in CharacterEditForm) lo renderebbe
+    // negativo — lo stepper del riposo breve mostrerebbe "-N / -N" invece di "0 / N".
+    private int HitDiceRemaining() => Math.Max(0, CharacterCalculations.GetHitDiceRemaining(Character));
+
+    // ===== Riposo lungo / riposo breve =====
+    private bool showShortRestPanel;
+    private int dadiSpesi;
+    private int totaleTirato;
+    private bool totaleTiratoModificatoAMano;
+    private string? _lastRestCharacterId;
+
+    // Reset dello stato UI locale al cambio di PG (stesso pattern di CharacterItemsTab): senza,
+    // un pannello di riposo breve lasciato aperto seguirebbe il PG selezionato dopo.
+    protected override void OnParametersSet()
+    {
+        if (Character.Id != _lastRestCharacterId)
+        {
+            _lastRestCharacterId = Character.Id;
+            showShortRestPanel = false;
+        }
+    }
+
+    private void ToggleShortRestPanel()
     {
         if (!CanEdit) return;
+        showShortRestPanel = !showShortRestPanel;
+        if (showShortRestPanel) ResetShortRestDraft();
+    }
+
+    private void CloseShortRestPanel() => showShortRestPanel = false;
+
+    private void ResetShortRestDraft()
+    {
+        dadiSpesi = Math.Min(1, HitDiceRemaining());
+        totaleTiratoModificatoAMano = false;
+        RicalcolaTotalePrecompilato();
+    }
+
+    private void RicalcolaTotalePrecompilato()
+    {
+        if (totaleTiratoModificatoAMano) return;
+        totaleTirato = RestCalculations.MediaDadoVita(Character.HitDiceMax) * dadiSpesi;
+    }
+
+    private void AdjustDadiSpesi(int delta)
+    {
+        if (!CanEdit) return;
+        var max = HitDiceRemaining();
+        var v = Math.Clamp(dadiSpesi + delta, 0, max);
+        if (v == dadiSpesi) return;
+        dadiSpesi = v;
+        RicalcolaTotalePrecompilato();
+    }
+
+    private void OnTotaleTiratoInput(ChangeEventArgs e)
+    {
+        if (!CanEdit) return;
+        totaleTiratoModificatoAMano = true;
+        totaleTirato = int.TryParse(e.Value?.ToString(), out var v) ? Math.Max(0, v) : 0;
+    }
+
+    /// <summary>Fotografia dei campi che <see cref="RestCalculations.Applica"/> può toccare —
+    /// stesso schema di LivelloUpSnapshot in Characters.razor, e per lo stesso motivo:
+    /// RestCalculations muta Character SUBITO (per poter mostrare il riepilogo prima/insieme al
+    /// salvataggio), ma il salvataggio vero è asincrono e può fallire in modo muto (le RLS legate
+    /// all'appartenenza corrente alla campagna rifiutano l'update, PostgREST torna [] senza un
+    /// errore). Senza ripristinare questi campi a un fallimento, un ritentativo — reazione naturale
+    /// ora che il fallimento è visibile e non più muto — applicherebbe l'esito una seconda volta su
+    /// uno stato già mutato: es. un riposo lungo ripetuto due volte di seguito dopo due fallimenti
+    /// recupererebbe il doppio dei dadi vita a cui il personaggio ha diritto per un riposo, e alla
+    /// prima scrittura riuscita (anche innocua, come un tocco sui PF da un altro tab) quel valore
+    /// gonfiato finirebbe in database.</summary>
+    private sealed record RiposoSnapshot(
+        int HitPoints, int TempHitPoints, int HitDiceSpent, int DeathSaveSuccesses, int DeathSaveFailures,
+        int SpellSlots1Used, int SpellSlots2Used, int SpellSlots3Used, int SpellSlots4Used, int SpellSlots5Used,
+        int SpellSlots6Used, int SpellSlots7Used, int SpellSlots8Used, int SpellSlots9Used)
+    {
+        public static RiposoSnapshot Cattura(Character c) => new(
+            c.HitPoints, c.TempHitPoints, c.HitDiceSpent, c.DeathSaveSuccesses, c.DeathSaveFailures,
+            c.SpellSlots1Used, c.SpellSlots2Used, c.SpellSlots3Used, c.SpellSlots4Used, c.SpellSlots5Used,
+            c.SpellSlots6Used, c.SpellSlots7Used, c.SpellSlots8Used, c.SpellSlots9Used);
+
+        public void Ripristina(Character c)
+        {
+            c.HitPoints = HitPoints;
+            c.TempHitPoints = TempHitPoints;
+            c.HitDiceSpent = HitDiceSpent;
+            c.DeathSaveSuccesses = DeathSaveSuccesses;
+            c.DeathSaveFailures = DeathSaveFailures;
+            c.SpellSlots1Used = SpellSlots1Used;
+            c.SpellSlots2Used = SpellSlots2Used;
+            c.SpellSlots3Used = SpellSlots3Used;
+            c.SpellSlots4Used = SpellSlots4Used;
+            c.SpellSlots5Used = SpellSlots5Used;
+            c.SpellSlots6Used = SpellSlots6Used;
+            c.SpellSlots7Used = SpellSlots7Used;
+            c.SpellSlots8Used = SpellSlots8Used;
+            c.SpellSlots9Used = SpellSlots9Used;
+        }
+    }
+
+    private async Task ConfermaRiposoBreveAsync()
+    {
+        if (!CanEdit || IsSaving || dadiSpesi <= 0) return;
+
+        // Riferimento catturato ADESSO, non riletto dal parametro Character dopo l'await: mentre
+        // questo metodo aspetta OnChanged, Blazor smista comunque gli eventi dell'interfaccia, e il
+        // genitore può cambiare il parametro sotto di noi (un altro personaggio aperto, o "←" che
+        // torna alla lista). Rileggere Character al ripristino scriverebbe i valori del PG di PRIMA
+        // dentro quello NUOVO.
+        var pg = Character;
+
+        // Presa PRIMA di Applica: RestCalculations muta pg subito (per poter mostrare il
+        // riepilogo nel toast), ma il salvataggio è asincrono e può fallire in modo muto (le RLS
+        // rifiutano l'update, PostgREST torna [] e OnChanged qui restituisce false). Ora che il
+        // fallimento è visibile (v. il commento su OnChanged più sotto), ritentare è la reazione
+        // naturale — e senza questo ripristino il secondo tentativo applicherebbe l'esito una
+        // seconda volta su uno stato già mutato (es. il doppio dei dadi vita spesi). Stesso schema
+        // di LivelloUpSnapshot in Characters.razor.
+        var snapshot = RiposoSnapshot.Cattura(pg);
+
+        var esito = RestCalculations.RiposoBreve(pg, dadiSpesi, totaleTirato);
+        RestCalculations.Applica(pg, esito);
+        showShortRestPanel = false;
+
+        // Il toast si annuncia solo se il salvataggio è confermato: con le RLS legate
+        // all'appartenenza corrente alla campagna, un update rifiutato torna [] (non un errore) e
+        // OnChanged qui restituisce false — senza controllarlo il riposo direbbe "fatto" anche a
+        // scrittura andata a vuoto (v. il commento su OnChanged qui sopra).
+        var salvato = await OnChanged();
+        if (salvato)
+        {
+            Toasts.ShowSuccess(string.Join(" · ", esito.Riepilogo));
+        }
+        else
+        {
+            snapshot.Ripristina(pg);
+            // V. il commento su OnLocalRevert: senza, CharacterVitalsBar (i PF/PF-temp che il
+            // riposo tocca) resterebbe a mostrare i valori mutati-e-mai-salvati.
+            await OnLocalRevert.InvokeAsync();
+        }
+    }
+
+    private async Task RiposoLungoAsync()
+    {
+        if (!CanEdit || IsSaving) return;
+
+        // Distruttivo (azzera i TS contro morte): conferma obbligatoria, come da regola di
+        // progetto per le azioni che non si possono annullare.
+        var confermato = await Confirm.ShowAsync(
+            "Fare un riposo lungo? Ripristina PF, dadi vita e slot incantesimo, e azzera i tiri " +
+            "salvezza contro la morte.");
+        if (!confermato) return;
+
+        // Ricontrollato dopo la conferma: la finestra di dialogo è asincrona, e nel frattempo un
+        // altro salvataggio sullo stesso personaggio (dai PF, o da un secondo tap qui) può essere
+        // partito nel mentre.
+        if (!CanEdit || IsSaving) return;
+
+        // Riferimento catturato ADESSO, non riletto dal parametro Character dopo l'await: fra la
+        // conferma e il salvataggio Blazor smista comunque gli eventi dell'interfaccia, e il
+        // genitore può cambiare il parametro sotto di noi (un altro personaggio aperto, o "←" che
+        // torna alla lista). Rileggere Character al ripristino scriverebbe i valori del PG di PRIMA
+        // dentro quello NUOVO.
+        var pg = Character;
+
+        // V. il commento in ConfermaRiposoBreveAsync: senza questo ripristino un ritentativo dopo
+        // un salvataggio rifiutato applicherebbe l'esito una seconda volta su uno stato già
+        // mutato — qui il rischio è peggiore (PF, dadi vita E slot incantesimo, non solo i dadi).
+        var snapshot = RiposoSnapshot.Cattura(pg);
+
+        var esito = RestCalculations.RiposoLungo(pg);
+        RestCalculations.Applica(pg, esito);
+        showShortRestPanel = false;
+
+        var salvato = await OnChanged();
+        if (salvato)
+        {
+            Toasts.ShowSuccess(string.Join(" · ", esito.Riepilogo));
+        }
+        else
+        {
+            snapshot.Ripristina(pg);
+            await OnLocalRevert.InvokeAsync();
+        }
+    }
+
+    // Le quattro mutazioni dirette che seguono (TS morte, ispirazione, dado vita) valgono un solo
+    // campo, non l'insieme che RiposoSnapshot fotografa — ma soffrono lo stesso difetto: mutano
+    // Character PRIMA di sapere se OnChanged() lo salverà davvero. Senza il ripristino sul
+    // fallimento, il valore mai confermato resterebbe lì fino al primo salvataggio successivo
+    // riuscito (da QUALUNQUE tab), che lo persisterebbe in silenzio insieme al resto.
+
+    private async Task SetDeathSaveSuccesses(int value)
+    {
+        if (!CanEdit || IsSaving) return;
+
+        // Riferimento catturato ADESSO, non riletto dal parametro Character dopo l'await: mentre
+        // questo metodo aspetta OnChanged, Blazor smista comunque gli eventi dell'interfaccia, e il
+        // genitore può cambiare il parametro sotto di noi (un altro personaggio aperto, o "←" che
+        // torna alla lista). Rileggere Character al ripristino scriverebbe il valore del PG di PRIMA
+        // dentro quello NUOVO.
+        var pg = Character;
         value = Math.Clamp(value, 0, 3);
-        if (value == Character.DeathSaveSuccesses) return;
-        Character.DeathSaveSuccesses = value;
-        await OnChanged.InvokeAsync();
+        if (value == pg.DeathSaveSuccesses) return;
+        var precedente = pg.DeathSaveSuccesses;
+        pg.DeathSaveSuccesses = value;
+        if (!await OnChanged())
+        {
+            pg.DeathSaveSuccesses = precedente;
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 
     private async Task SetDeathSaveFailures(int value)
     {
-        if (!CanEdit) return;
+        if (!CanEdit || IsSaving) return;
+
+        // V. il commento in SetDeathSaveSuccesses: stesso motivo, stesso rischio.
+        var pg = Character;
         value = Math.Clamp(value, 0, 3);
-        if (value == Character.DeathSaveFailures) return;
-        Character.DeathSaveFailures = value;
-        await OnChanged.InvokeAsync();
+        if (value == pg.DeathSaveFailures) return;
+        var precedente = pg.DeathSaveFailures;
+        pg.DeathSaveFailures = value;
+        if (!await OnChanged())
+        {
+            pg.DeathSaveFailures = precedente;
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 
     private async Task ToggleHeroicInspiration()
     {
-        if (!CanEdit) return;
-        Character.HeroicInspiration = !Character.HeroicInspiration;
-        await OnChanged.InvokeAsync();
+        if (!CanEdit || IsSaving) return;
+
+        // V. il commento in SetDeathSaveSuccesses: stesso motivo, stesso rischio.
+        var pg = Character;
+        var precedente = pg.HeroicInspiration;
+        pg.HeroicInspiration = !precedente;
+        if (!await OnChanged())
+        {
+            pg.HeroicInspiration = precedente;
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 
     private Task DecrementHitDice() => AdjustHitDiceSpentAsync(-1);
@@ -135,11 +432,19 @@ else
 
     private async Task AdjustHitDiceSpentAsync(int delta)
     {
-        if (!CanEdit) return;
+        if (!CanEdit || IsSaving) return;
+
+        // V. il commento in SetDeathSaveSuccesses: stesso motivo, stesso rischio.
+        var pg = Character;
         var total = HitDiceTotal();
-        var v = Math.Clamp(Character.HitDiceSpent + delta, 0, total);
-        if (v == Character.HitDiceSpent) return;
-        Character.HitDiceSpent = v;
-        await OnChanged.InvokeAsync();
+        var v = Math.Clamp(pg.HitDiceSpent + delta, 0, total);
+        if (v == pg.HitDiceSpent) return;
+        var precedente = pg.HitDiceSpent;
+        pg.HitDiceSpent = v;
+        if (!await OnChanged())
+        {
+            pg.HitDiceSpent = precedente;
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 }

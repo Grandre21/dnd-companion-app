@@ -1400,3 +1400,75 @@ che *sostituisce contabilità* (riposi, bottino, slot, iniziativa) è benvenuta;
 l'autorità del tavolo* (avanzamento automatico, notifiche che anticipano il master, validazioni
 bloccanti sull'editor libero) sembra completezza e invece toglie flessibilità. L'editor libero e i
 campi a testo libero sono una funzionalità, non un debito.
+
+## Cinque fette in parallelo, e il varco RLS chiuso davvero (2026-08-06)
+
+Giornata a fan-out largo: cinque agenti in parallelo su insiemi di file disgiunti, più il
+collegamento di un helper rimasto scollegato. Ne sono uscite le comodità che si sentono a ogni
+sessione di gioco — riposo lungo e breve, tastierino dei punti ferita, iniziativa precompilata, «dai
+oggetto» dalla vista Party — e la chiusura del varco RLS che era l'ultimo 🔴 di codice.
+
+**Il riposo** era dieci e più modifiche a mano ogni volta: ora il lungo rimette i punti ferita al
+massimo, azzera gli slot spesi, restituisce metà dei dadi vita e azzera i tiri salvezza contro morte
+(per questo chiede conferma); il breve fa spendere i dadi e cura, con la media precompilata e
+modificabile — l'app continua a non tirare i dadi. **Il tastierino** toglie i ventisette tocchi che
+servivano per un colpo da ventisette danni, e soprattutto consuma i punti ferita temporanei per
+primi, che è la regola che si sbaglia sempre a mano. **L'iniziativa** all'import porta il bonus
+invece di cinque zeri: chi tira somma a mente, chi non usa i turni ha comunque un ordine sensato.
+
+**«Dai oggetto» è deliberatamente monco**, e il perché conta più del cosa: assegna oggetti e basta,
+non monete né esperienza né ispirazione. Gli oggetti sono `INSERT` di righe nuove, quindi immuni
+alla concorrenza per costruzione; tutto il resto passerà da una RPC con incremento atomico, perché
+il master che salvasse l'intero personaggio con in mano una copia stantia cancellerebbe il level-up
+del giocatore — e quel salvataggio **riesce**, quindi non lo intercetterebbe nessun rollback. Il
+fallimento parziale è trattato come merita: «3 su 5» con i nomi di chi è rimasto fuori, e la
+selezione che si restringe a loro, così un secondo tentativo non consegna due volte.
+
+**Sul varco RLS, la lezione della giornata.** L'agente aveva verificato la migrazione staticamente —
+parentesi bilanciate, istruzioni contate, sintassi coerente — perché Docker era spento e i test
+d'integrazione si erano tutti auto-saltati. Avviare lo stack ha detto un'altra cosa: **dieci test
+rossi**. Nove erano il database locale che `supabase start` non aggiorna se il volume esiste già (li
+ha risolti `db reset`), e due erano un seed nuovo che rompeva le aspettative dei test del Party —
+il personaggio aggiunto per provare lo spostamento sta legittimamente nella campagna contata da
+quei test. Nessuno dei due era un difetto della migrazione, ma nessuno dei due si sarebbe visto
+senza eseguirla. Applicarla all'hosted fidandosi del conteggio di parentesi avrebbe significato
+scoprire lo stato delle policy **col sito online**.
+
+I test del Party sono stati riparati rendendoli più severi, non più permissivi: confrontano
+l'insieme esatto degli identificativi attesi invece di un numero, così il prossimo seed non li
+romperà e diranno *quali* righe sono tornate, non quante.
+
+La migrazione lega ogni `WITH CHECK` di update all'appartenenza **corrente** alla campagna, e scrive
+la stessa condizione anche nella `USING`: la prima chiude lo spostamento verso una campagna
+estranea, la seconda toglie la scrittura a chi la campagna l'ha lasciata. Resta un residuo accettato
+— l'autore può ancora spostare una propria riga verso una campagna di cui è **già** membro — che non
+è accesso a dati altrui.
+
+### Coda: la migrazione RLS ha fatto emergere un difetto che l'app aveva da sempre
+
+Il gate sulle giunture ha trovato la cosa più istruttiva della giornata, e non era in nessuna delle
+cinque fette: era nell'incontro fra una di esse e la migrazione.
+
+Le policy nuove legano l'update all'appartenenza corrente alla campagna. Quando la condizione non
+combacia, PostgREST **non solleva un errore**: aggiorna zero righe e risponde `[]`. Ma
+`SaveCharacterAsync` quel caso non lo guardava — a differenza di `SaveFormAsync`, che invece sì.
+Risultato: il riposo mostrava il suo riepilogo verde, la scheda restava riposata in memoria, il
+database no, e al ricaricamento tornava tutto indietro senza che nulla lo avesse segnalato.
+
+Tirando quel filo sono venuti fuori **otto punti** che mutavano il personaggio prima di sapere se il
+salvataggio fosse riuscito: riposo breve e lungo, tiri salvezza contro morte, ispirazione, dadi vita,
+tastierino, i ±1. Erano già sbagliati; semplicemente non c'era un modo realistico di farli fallire, e
+nessun test li copriva. Ora ognuno prende uno snapshot e ripristina quando il salvataggio non è
+confermato — e `SaveCharacterCoreAsync` restituisce l'esito, invece di ingoiarlo.
+
+Il secondo difetto della stessa famiglia è più sottile, e vale come regola per tutto il codice Blazor
+di questo progetto: **fra un `await` e l'altro il framework smista gli eventi dell'interfaccia**.
+Quindi `Character` e `selected` possono riferirsi a un *altro* personaggio quando il salvataggio
+rientra: chi tornasse indietro o aprisse un'altra scheda durante un salvataggio lento si vedrebbe
+ripristinare i punti ferita della prima **dentro la seconda**, che il primo salvataggio riuscito
+persisterebbe in silenzio — o, nel caso migliore, un `NullReferenceException` non gestito. Il
+riferimento va **catturato in una variabile locale prima della mutazione** e usato per tutto il giro,
+ripristino compreso.
+
+Otto punti su otto sono ora coerenti. Correggerne due e lasciarne sei sarebbe stato peggio che non
+cominciare: avrebbe dato l'impressione che il problema fosse risolto.

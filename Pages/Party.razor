@@ -1,7 +1,10 @@
 @page "/party"
 @using DndCompanion.Models
 @inject IPartyRepository PartyRepository
+@inject IInventoryRepository InventoryRepository
 @inject CurrentUserService CurrentUser
+@inject ConfirmService Confirm
+@inject ToastService Toasts
 @inject NavigationManager Navigation
 
 <PageTitle>Party - D&amp;D Companion</PageTitle>
@@ -41,6 +44,75 @@
     }
     else
     {
+        @if (CurrentUser.IsMaster)
+        {
+            <div class="gift-section">
+                @if (!isGiftPanelOpen)
+                {
+                    <button type="button" class="gift-toggle-btn" @onclick="OpenGiftPanel">
+                        🎁 Dai oggetto
+                    </button>
+                }
+                else
+                {
+                    <div class="gift-panel">
+                        <div class="gift-panel-title">Dai oggetto</div>
+
+                        <div class="gift-form-grid">
+                            <div class="field field-full">
+                                <label>Nome</label>
+                                <input type="text" class="input" maxlength="80"
+                                       placeholder="Nome dell'oggetto"
+                                       @bind="giftName" disabled="@isGifting" />
+                            </div>
+
+                            <div class="field">
+                                <label>Quantità</label>
+                                <input type="number" class="input" min="1"
+                                       @bind="giftQuantity" disabled="@isGifting" />
+                            </div>
+
+                            <div class="field field-full">
+                                <label>Descrizione (opzionale)</label>
+                                <textarea class="input" rows="2"
+                                          @bind="giftDescription" disabled="@isGifting"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="gift-recipients-label">Destinatari</div>
+                        <div class="gift-recipients">
+                            <label class="gift-recipient gift-recipient-all">
+                                <input type="checkbox" checked="@AllRecipientsSelected"
+                                       @onchange="@(e => ToggleSelectAll((bool)(e.Value ?? false)))"
+                                       disabled="@isGifting" />
+                                <span>Tutti (@members.Count)</span>
+                            </label>
+                            @foreach (var m in members)
+                            {
+                                <label class="gift-recipient">
+                                    <input type="checkbox" checked="@selectedRecipientIds.Contains(m.CharacterId)"
+                                           @onchange="@(e => ToggleRecipient(m.CharacterId, (bool)(e.Value ?? false)))"
+                                           disabled="@isGifting" />
+                                    <span>@RecipientLabel(m, members)</span>
+                                </label>
+                            }
+                        </div>
+
+                        <div class="gift-form-actions">
+                            <button type="button" class="primary-btn"
+                                    @onclick="SendGiftAsync" disabled="@isGifting">
+                                @(isGifting ? "Consegna..." : "Dai oggetto")
+                            </button>
+                            <button type="button" class="secondary-btn"
+                                    @onclick="CloseGiftPanel" disabled="@isGifting">
+                                Annulla
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
         @if (mine.Count > 0)
         {
             <div class="party-section">
@@ -136,6 +208,16 @@
     private bool isLoading = true;
     private string? errorMessage;
 
+    // ===== Dai oggetto (solo master) =====
+    private bool isGiftPanelOpen;
+    private string giftName = string.Empty;
+    private int giftQuantity = 1;
+    private string? giftDescription;
+    private readonly HashSet<string> selectedRecipientIds = new();
+    private bool isGifting;
+
+    private bool AllRecipientsSelected => members.Count > 0 && selectedRecipientIds.Count == members.Count;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -165,6 +247,172 @@
     {
         mine = PartyOverviewCalculations.Mine(members, CurrentUser.UserId);
         others = PartyOverviewCalculations.Others(members, CurrentUser.UserId);
+    }
+
+    private void OpenGiftPanel()
+    {
+        isGiftPanelOpen = true;
+        errorMessage = null;
+    }
+
+    private void CloseGiftPanel()
+    {
+        isGiftPanelOpen = false;
+        giftName = string.Empty;
+        giftQuantity = 1;
+        giftDescription = null;
+        selectedRecipientIds.Clear();
+    }
+
+    private void ToggleSelectAll(bool value)
+    {
+        if (value) selectedRecipientIds.UnionWith(members.Select(m => m.CharacterId));
+        else selectedRecipientIds.Clear();
+    }
+
+    private void ToggleRecipient(string characterId, bool value)
+    {
+        if (value) selectedRecipientIds.Add(characterId);
+        else selectedRecipientIds.Remove(characterId);
+    }
+
+    /// <summary>
+    /// Pura: l'etichetta di un destinatario per la lista di selezione e per i messaggi di esito.
+    /// Il nome del personaggio non è univoco nel gruppo (nessun vincolo lo impone): quando due
+    /// membri condividono lo stesso nome, aggiunge il nickname di chi lo possiede. Il nickname a sua
+    /// volta è <c>COALESCE(display_name, 'Utente')</c> lato RPC: due giocatori senza nome OAuth
+    /// risolvibile condividono "Utente", quindi nome+nickname insieme non bastano sempre — l'ultima
+    /// risorsa è un indice posizionale entro il sottogruppo ancora ambiguo, stabile per la durata
+    /// della chiamata perché <paramref name="allMembers"/> non cambia a metà.
+    /// </summary>
+    private static string RecipientLabel(PartyMember member, IReadOnlyCollection<PartyMember> allMembers)
+    {
+        var sameName = allMembers.Where(m => string.Equals(m.Name, member.Name, StringComparison.Ordinal)).ToList();
+        if (sameName.Count <= 1) return member.Name;
+
+        var withNickname = $"{member.Name} ({member.OwnerNickname})";
+        var sameNameAndNickname = sameName
+            .Where(m => string.Equals(m.OwnerNickname, member.OwnerNickname, StringComparison.Ordinal))
+            .ToList();
+        if (sameNameAndNickname.Count <= 1) return withNickname;
+
+        var position = sameNameAndNickname.FindIndex(m => m.CharacterId == member.CharacterId) + 1;
+        return $"{withNickname} #{position}";
+    }
+
+    /// <summary>
+    /// Consegna l'oggetto in bozza a ogni destinatario selezionato: un INSERT indipendente per
+    /// personaggio (mai un UPDATE sulla riga <c>characters</c>, v. CLAUDE.md). Ogni fallimento è
+    /// isolato dagli altri: un destinatario che fallisce non impedisce agli altri di ricevere
+    /// l'oggetto, e non deve passare per un successo totale silenzioso.
+    /// </summary>
+    private async Task SendGiftAsync()
+    {
+        if (!CurrentUser.IsMaster) return;
+        if (isGifting) return; // Un secondo clic mentre la consegna precedente è in corso non riparte.
+
+        var name = giftName.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Toasts.ShowError("Il nome dell'oggetto è obbligatorio.");
+            return;
+        }
+        if (giftQuantity < 1) giftQuantity = 1;
+
+        var targets = members.Where(m => selectedRecipientIds.Contains(m.CharacterId)).ToList();
+        if (targets.Count == 0)
+        {
+            Toasts.ShowError("Seleziona almeno un destinatario.");
+            return;
+        }
+
+        var confirmMessage = targets.Count == 1
+            ? $"Consegnare {giftQuantity}× \"{name}\" a {RecipientLabel(targets[0], members)}?"
+            : $"Consegnare {giftQuantity}× \"{name}\" a {targets.Count} personaggi?";
+
+        // isGifting sale PRIMA dell'attesa della conferma (non dopo): il pulsante si disabilita da
+        // subito, così un doppio clic rapidissimo non apre un secondo ConfirmDialog — che ha un solo
+        // slot (Services/ConfirmService.cs) e sovrascriverebbe la conferma pendente della prima chiamata.
+        isGifting = true;
+        errorMessage = null;
+        try
+        {
+            if (!await Confirm.ShowAsync(confirmMessage)) return;
+
+            var description = string.IsNullOrWhiteSpace(giftDescription) ? null : giftDescription.Trim();
+            // Per id, non per nome: due membri col medesimo nome non devono confondersi nel
+            // ricalcolo "chi è rimasto fuori" più sotto.
+            var failed = new List<PartyMember>();
+
+            foreach (var target in targets)
+            {
+                try
+                {
+                    var saved = await InventoryRepository.CreateInventoryItemAsync(new InventoryItem
+                    {
+                        CharacterId = target.CharacterId,
+                        Name = name,
+                        Quantity = giftQuantity,
+                        Description = description
+                    });
+                    if (saved is null) failed.Add(target);
+                }
+                catch
+                {
+                    failed.Add(target);
+                }
+            }
+
+            var outcome = new GiftOutcome(targets.Count - failed.Count, targets.Count,
+                failed.Select(f => RecipientLabel(f, members)).ToList());
+            var (toastMessage, toastType) = DescribeGiftOutcome(name, outcome);
+            if (toastType == ToastType.Success) Toasts.ShowSuccess(toastMessage);
+            else Toasts.ShowError(toastMessage);
+
+            if (failed.Count == 0)
+            {
+                // Successo totale: la bozza non serve più.
+                CloseGiftPanel();
+            }
+            else
+            {
+                // Fallimento totale o parziale: il pannello resta aperto, e la selezione si
+                // restringe a chi è rimasto fuori, così un secondo tentativo non rifà l'INSERT
+                // anche a chi ha già ricevuto l'oggetto.
+                var failedIds = failed.Select(f => f.CharacterId).ToHashSet();
+                selectedRecipientIds.IntersectWith(failedIds);
+                // Il toast si dissolve dopo pochi secondi: un fallimento parziale resta leggibile
+                // anche dopo, nel banner persistente della pagina (mai "Errore..." in testa, per non
+                // mostrare il tasto "Ripara e ricarica" di un problema che non è di sistema/cache).
+                errorMessage = toastMessage;
+            }
+        }
+        finally
+        {
+            isGifting = false;
+        }
+    }
+
+    private readonly record struct GiftOutcome(int Succeeded, int Total, IReadOnlyList<string> FailedNames);
+
+    /// <summary>
+    /// Pura: compone il messaggio (per toast e banner) e il tipo di toast da esito di consegna.
+    /// «3 su 5» più l'elenco di chi è rimasto fuori: un fallimento parziale silenzioso qui farebbe
+    /// credere al master di aver dato l'oggetto a tutti.
+    /// </summary>
+    private static (string Message, ToastType Type) DescribeGiftOutcome(string itemName, GiftOutcome outcome)
+    {
+        if (outcome.Succeeded == outcome.Total)
+        {
+            var destinatari = outcome.Total == 1 ? "1 personaggio" : $"{outcome.Total} personaggi";
+            return ($"Oggetto \"{itemName}\" consegnato a {destinatari}.", ToastType.Success);
+        }
+        if (outcome.Succeeded == 0)
+        {
+            return ($"Oggetto \"{itemName}\" non consegnato: nessuno dei {outcome.Total} destinatari lo ha ricevuto.", ToastType.Error);
+        }
+        var elenco = string.Join(", ", outcome.FailedNames);
+        return ($"Oggetto \"{itemName}\" consegnato a {outcome.Succeeded} su {outcome.Total}. Non ricevuto da: {elenco}.", ToastType.Error);
     }
 
     // Specie/classe non valorizzate (personaggio appena creato dal wizard): trattino invece di

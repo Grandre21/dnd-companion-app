@@ -5,7 +5,7 @@ using DndCompanion.Models.Packages;
 namespace DndCompanion.Services;
 
 /// <summary>
-/// Logica pura per importare i mostri della campagna come combattenti nel tracker iniziativa.
+/// Logica pura per importare mostri e personaggi come combattenti nel tracker iniziativa.
 /// Nessuno stato/I/O: il PF di Combatant è int, mentre Monster.HitPoints è testo libero
 /// (es. "45 (6d8+18)") → si estrae il primo intero.
 /// </summary>
@@ -45,5 +45,23 @@ public static class CombatImport
                 MaxHp = hp,
             };
         }
+    }
+
+    /// <summary>Un Combatant dal PG: PF clampati come oggi, ma <c>Initiative</c> parte dal
+    /// <b>bonus</b> di Destrezza (<see cref="CharacterCalculations.GetInitiative"/>) invece che da 0.
+    /// Non è un tiro — l'app non tira i dadi — solo il punto di partenza: chi tira somma a mente o
+    /// corregge il campo, chi non usa l'iniziativa a turni ha comunque un ordine sensato. Se il
+    /// bonus è 0 (Destrezza 10, o non valorizzata: il default del modello) il valore resta 0 come oggi.</summary>
+    public static Combatant FromCharacter(Character character)
+    {
+        var maxHp = Math.Max(1, character.MaxHitPoints);
+        return new Combatant
+        {
+            Name = character.Name,
+            OwnerId = character.OwnerId,
+            Initiative = CharacterCalculations.GetInitiative(character),
+            CurrentHp = Math.Clamp(character.HitPoints, 0, maxHp),
+            MaxHp = maxHp,
+        };
     }
 }

@@ -67,4 +67,31 @@ public static class CharacterView
             case 9: c.SpellSlots9Used = v; break;
         }
     }
+
+    // ===== Danno e cura (tastierino dei PF in CharacterVitalsBar) =====
+
+    /// <summary>Applica danno scalando prima i PF temporanei (regola 5e: il cuscinetto assorbe
+    /// per primo, e solo l'eccedenza tocca i PF veri) — è il calcolo che a mano si sbaglia più
+    /// spesso. Il risultato non scende mai sotto zero su nessuno dei due valori. Non tocca i tiri
+    /// salvezza contro morte: quelli restano una decisione separata di chi gioca.</summary>
+    public static void ApplyDamage(Character c, int damage)
+    {
+        if (damage <= 0) return;
+
+        var absorbedByTemp = Math.Min(c.TempHitPoints, damage);
+        c.TempHitPoints -= absorbedByTemp;
+
+        var remaining = damage - absorbedByTemp;
+        c.HitPoints = Math.Clamp(c.HitPoints - remaining, 0, c.MaxHitPoints);
+    }
+
+    /// <summary>Applica cura entro <see cref="Character.MaxHitPoints"/>: sale sui PF veri e
+    /// basta, senza toccare il cuscinetto temporaneo né i tiri salvezza contro morte — la cura
+    /// non "rianima" da sé nulla oltre al numero dei PF, è pura aritmetica.</summary>
+    public static void ApplyHealing(Character c, int healing)
+    {
+        if (healing <= 0) return;
+
+        c.HitPoints = Math.Clamp(c.HitPoints + healing, 0, c.MaxHitPoints);
+    }
 }

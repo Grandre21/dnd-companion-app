@@ -113,4 +113,82 @@ public class CharacterViewTests
         for (int lvl = 1; lvl <= 9; lvl++)
             Assert.Equal(0, CharacterView.GetSpellSlotUsed(c, lvl)); // nessuno slot valido toccato
     }
+
+    // ===== Danno e cura (tastierino dei PF) =====
+
+    [Theory]
+    [InlineData(10, 5, 20, 3, 10, 2)]   // danno sotto il cuscinetto: i PF veri non si toccano
+    [InlineData(10, 5, 20, 5, 10, 0)]   // danno esatto al cuscinetto: azzerato, PF veri intatti
+    [InlineData(10, 5, 20, 8, 7, 0)]    // danno oltre il cuscinetto: l'eccedenza scala i PF veri
+    [InlineData(10, 5, 20, 27, 0, 0)]   // colpo enorme (il caso che si sbaglia a mano): pavimento zero, non un negativo
+    [InlineData(10, 0, 20, 4, 6, 0)]    // senza cuscinetto, il danno va tutto sui PF veri
+    public void ApplyDamage_scala_prima_il_cuscinetto_temporaneo(
+        int hp, int temp, int max, int danno, int hpAtteso, int tempAtteso)
+    {
+        var c = new Character { HitPoints = hp, TempHitPoints = temp, MaxHitPoints = max };
+        CharacterView.ApplyDamage(c, danno);
+        Assert.Equal(hpAtteso, c.HitPoints);
+        Assert.Equal(tempAtteso, c.TempHitPoints);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void ApplyDamage_con_valore_non_positivo_non_fa_nulla(int danno)
+    {
+        var c = new Character { HitPoints = 10, TempHitPoints = 3, MaxHitPoints = 20 };
+        CharacterView.ApplyDamage(c, danno);
+        Assert.Equal(10, c.HitPoints);
+        Assert.Equal(3, c.TempHitPoints);
+    }
+
+    [Fact]
+    public void ApplyDamage_non_tocca_i_tiri_salvezza_contro_morte()
+    {
+        var c = new Character
+        {
+            HitPoints = 5, MaxHitPoints = 20,
+            DeathSaveSuccesses = 1, DeathSaveFailures = 2,
+        };
+        CharacterView.ApplyDamage(c, 100);
+        Assert.Equal(0, c.HitPoints);
+        Assert.Equal(1, c.DeathSaveSuccesses);
+        Assert.Equal(2, c.DeathSaveFailures);
+    }
+
+    [Theory]
+    [InlineData(5, 20, 10, 15)]   // cura normale entro il massimo
+    [InlineData(18, 20, 10, 20)]  // cura oltre il massimo: il tetto è MaxHitPoints
+    [InlineData(0, 20, 5, 5)]     // dagli 0 PF sale comunque: pura aritmetica, non un "rianima"
+    public void ApplyHealing_sale_entro_il_massimo(int hp, int max, int cura, int hpAtteso)
+    {
+        var c = new Character { HitPoints = hp, MaxHitPoints = max };
+        CharacterView.ApplyHealing(c, cura);
+        Assert.Equal(hpAtteso, c.HitPoints);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public void ApplyHealing_con_valore_non_positivo_non_fa_nulla(int cura)
+    {
+        var c = new Character { HitPoints = 10, MaxHitPoints = 20 };
+        CharacterView.ApplyHealing(c, cura);
+        Assert.Equal(10, c.HitPoints);
+    }
+
+    [Fact]
+    public void ApplyHealing_non_tocca_il_cuscinetto_ne_i_tiri_salvezza()
+    {
+        var c = new Character
+        {
+            HitPoints = 5, MaxHitPoints = 20, TempHitPoints = 4,
+            DeathSaveSuccesses = 2, DeathSaveFailures = 1,
+        };
+        CharacterView.ApplyHealing(c, 50);
+        Assert.Equal(20, c.HitPoints);
+        Assert.Equal(4, c.TempHitPoints);
+        Assert.Equal(2, c.DeathSaveSuccesses);
+        Assert.Equal(1, c.DeathSaveFailures);
+    }
 }
