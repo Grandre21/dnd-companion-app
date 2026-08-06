@@ -21,32 +21,10 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
 > ogni push e da segnalare all'utente.
 
-> 🔴 **MIGRAZIONE IN SOSPESO — va applicata all'hosted PRIMA del prossimo push.**
-> `20260806120000_close_campaign_hopping.sql` chiude il varco RLS di §2 su 7 tabelle (`races`,
-> `classes`, `spells`, `monsters`, `backgrounds`, `characters`, `notes`). Verificata sullo stack
-> locale: 28/28 test d'integrazione verdi, compresi i 7 nuovi sullo spostamento fra campagne.
-> Applicarla dallo SQL Editor, poi verificare con:
-> ```sql
-> SELECT tablename, policyname,
->        qual LIKE '%is_campaign_member%'       AS using_ha_membership,
->        with_check LIKE '%is_campaign_member%' AS withcheck_ha_membership
-> FROM pg_policies WHERE schemaname = 'public' AND policyname LIKE '%_update' ORDER BY tablename;
-> ```
-> Attesi `TRUE/TRUE` sulle 7 sopra, `FALSE/FALSE` sulle altre. **La migrazione è compatibile col
-> client attualmente online** (nessuna schermata cambia `campaign_id`), quindi l'ordine
-> «prima il database, poi il push» è sicuro.
->
-> ⚠️ **Dopo averla applicata, cercare le righe già orfane** — quelle iniettate prima della chiusura,
-> che ora nessuno può più toccare (il caso peggiore erano le note condivise):
-> ```sql
-> SELECT 'notes' AS tabella, n.id, n.title, n.campaign_id FROM notes n
-> WHERE NOT EXISTS (SELECT 1 FROM campaign_members m
->                   WHERE m.campaign_id = n.campaign_id AND m.user_id = n.owner_id);
-> ```
-> Se non torna nulla, il varco non è mai stato sfruttato e non c'è bonifica da fare.
->
-> Le precedenti (`20260801000000_class_subclasses.sql`, `20260731000000_party_visibility.sql`) sono
-> applicate (verificate il 2026-08-01).
+> Nessuna migrazione in sospeso. `20260806120000_close_campaign_hopping.sql` è **applicata e
+> verificata** all'hosted il 2026-08-06 (`pg_policies`, più la ricerca di righe orfane); chiude il
+> varco §2 su 7 tabelle. Le precedenti (`20260801000000_class_subclasses.sql`,
+> `20260731000000_party_visibility.sql`) erano già applicate dal 2026-08-01.
 
 - 🔴 **Level-up guidato, tre prove** (nuovo, 2026-08-06): (a) un PG del manuale che sale a un livello
   **con una scelta** — sottoclasse al 3° o talento al 4° — e la conferma scrive davvero; (b) un PG con
@@ -114,10 +92,9 @@ Residuo minore di C.
 
 ## 2. Sicurezza — gate del lancio pubblico
 
-- 🔴 **«Campaign hopping» nelle `WITH CHECK` di update**, 7 tabelle: l'autore può spostare una propria
-  riga in una campagna di cui non è membro. Il caso peggiore è `notes` condivise, che **nessuno** può
-  rimuovere. Caso gemello: l'ex-membro conserva scrittura sulle proprie righe rimaste in campagna.
-  Una migrazione autonoma col suo giro di test RLS. Dettaglio nell'archivio, §1.
+- 🟢 **Residuo del campaign hopping** (il varco è chiuso il 2026-08-06): l'autore può ancora spostare
+  una propria riga verso una campagna di cui è **già** membro. Non è accesso a dati altrui, quindi
+  resta come nota, non come lavoro.
 - 🟡 **Vincoli DB residui**: `NOT NULL`, lunghezze e `CHECK` sui range numerici (caratteristiche, CA,
   velocità). Oggi validati solo lato client (`FormValidation`).
 - 🟡 **Header di sicurezza**: `frame-ancestors`/HSTS/`report-uri` non ottenibili via `<meta>`; GitHub
@@ -230,5 +207,6 @@ master che assegna». Ogni tappa è usabile da sola; la 2 e la 3 si possono fare
 4. **§1.B campi mancanti del formato** — quando si passa di lì per altri motivi.
 5. Il resto (§4-§6) a spizzichi.
 
-Chiuse il 2026-08-06: il varco RLS (migrazione scritta e verificata, **da applicare**, v. in cima),
-riposo lungo/breve, tastierino dei PF, iniziativa precompilata, «dai oggetto» dalla vista Party.
+Chiuse il 2026-08-06: il varco RLS (migrazione applicata all'hosted), riposo lungo/breve, tastierino
+dei PF, iniziativa precompilata, «dai oggetto» dalla vista Party. Con esse è caduto anche l'ultimo
+🔴 di codice: da qui in avanti il gate del lancio pubblico non ha più bloccanti aperti.
