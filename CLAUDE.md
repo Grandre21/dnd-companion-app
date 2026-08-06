@@ -136,6 +136,33 @@ Tre ruoli distinti, e **non li cumulo**:
 - **Le firme che fanno da confine le decido io e le passo a tutti in anticipo**, anche a chi scriverà
   contro tipi che ancora non esistono: è ciò che permette di lanciare in parallelo fette che
   altrimenti andrebbero in fila.
+- **Quando un agente si ferma al confine e segnala del lavoro scollegato, collegalo subito**
+  (verificato due volte il 2026-08-06: un helper testato che nessuno chiamava, e un pulsante che
+  invocava un callback vuoto). Fermarsi al perimetro è il comportamento giusto, ma il pezzo resta
+  morto finché non lo si innesta — e in un fan-out largo è facile perderlo di vista.
+- **Il gate individuale non vede i difetti di giuntura, per costruzione.** Ogni fetta può uscire
+  pulita dal proprio giro e il difetto stare comunque nell'incontro fra due: il 2026-08-06, su
+  sei agenti, il gate sulle giunture ha trovato un BLOCCANTE che cancellava dati (`CloneCharacter`
+  non copiava i campi nuovi) dopo che tutte le fette erano già passate. Il giro sulle giunture non è
+  un doppione del gate: è l'unico che può trovare quella classe di difetti.
+
+## Regola obbligatoria: le migrazioni si verificano eseguendole
+
+Una migrazione **non è verificata** finché non gira contro un Postgres vero. Il 2026-08-06 una
+verifica statica («parentesi bilanciate, istruzioni contate, sintassi coerente») è stata smentita da
+**dieci test rossi** appena lo stack locale è stato acceso — nessuno dei due problemi era della
+migrazione, ma nessuno dei due si vedeva senza eseguirla, e applicarla all'hosted fidandosi del
+conteggio di parentesi avrebbe significato scoprire lo stato delle policy col sito online.
+
+- **`supabase start` NON riapplica le migrazioni** se il volume del database esiste già: serve
+  `supabase db reset`. Senza, i test girano contro lo schema vecchio e falliscono in modo
+  fuorviante.
+- Se Docker è spento, **accendilo** invece di accettare l'auto-skip: i test saltati non sono test
+  verdi, e l'auto-skip esiste per non rompere le altre macchine, non per saltare la verifica qui.
+- **Le colonne nuove che entrano nel Model sono la fascia di rischio più alta**: `Update` serializza
+  tutte le colonne mappate, quindi se il client va online prima della migrazione **falliscono tutti
+  i salvataggi di quella tabella**, non solo la funzione nuova. Un test d'integrazione che faccia il
+  giro andata-ritorno col client Postgrest reale (non REST grezzo) è l'unico modo di vederlo prima.
 - Il gate a due agenti resta **invariato** e si applica al lavoro dei Sonnet come a qualunque altro:
   è ciò che rende sicura la delega, non un adempimento in più.
 
@@ -177,3 +204,18 @@ una colonna»: il read-modify-write lato client ha la stessa finestra.
 - UI → toast `.app-toast` (mai `.toast`), `ConfirmDialog` (mai `confirm()`), `<LoadingSpinner>`, `DbErrorBanner` per errori di sistema.
 - CSS → **design token** in `:root`; lo scope isolato del genitore non raggiunge i figli (replica o promuovi in `app.css`).
 - Refactor → dichiarati e verificati **a comportamento invariato**.
+- **Chi muta il personaggio prima di salvarlo deve saper tornare indietro**, e catturare il
+  riferimento **prima** dell'`await`. Due difetti gemelli, trovati il 2026-08-06 in otto punti:
+  (a) un update rifiutato dalle RLS **non solleva eccezioni** — PostgREST aggiorna zero righe e
+  risponde `[]` — quindi chi non controlla il valore di ritorno annuncia un successo che non c'è
+  stato; (b) fra un `await` e l'altro Blazor smista gli eventi, quindi `selected` e il parametro
+  `Character` possono essere **un altro personaggio** al rientro, e ripristinare leggendo la
+  proprietà scrive i valori di una scheda dentro un'altra.
+- **Un campo nuovo su `Character` va aggiunto anche a `CloneCharacter`**, o il form di modifica lo
+  cancella al primo salvataggio. È già successo due volte: ora `Tests/CharacterCloneTests.cs`
+  confronta per riflessione ogni proprietà e fallisce al prossimo campo dimenticato.
+- **Test che si accorgono da soli del prossimo errore.** Dove un elenco scritto a mano può
+  scollegarsi dalla realtà, il test incrocia le due fonti invece di ricopiarne una: la whitelist di
+  `LevelUpPlanner.Applica` confronta il personaggio prima e dopo campo per campo, i suggerimenti di
+  `ClassResourceRules` si verificano contro il pacchetto SRD, `CharacterCloneTests` contro il
+  modello. Costano poco e reggono senza manutenzione.
