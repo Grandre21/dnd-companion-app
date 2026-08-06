@@ -30,6 +30,13 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
   Destrezza maggiore della Forza: il bonus deve usare Destrezza; (c) il **form di modifica** aperto e
   salvato su un personaggio con risorse e addestramento — non devono sparire (era il bloccante di
   `CloneCharacter`); (d) una risorsa con ricarica **«nessuna»**: il riposo non deve toccarla.
+- 🔴 **Creazione guidata, cinque prove** (nuovo, 2026-08-06): (a) un **Mago di 1°**: deve nascere con
+  gli slot e con la CD degli incantesimi valorizzata (era il difetto: `SpellcastingAbility` vuota);
+  (b) un **Barbaro di 5°**: sottoclasse chiesta al 3°, talento al 4°, PF coerenti col dado; (c) una
+  **classe del tavolo senza tabella**: il ripiego deve *vedersi ed essere spiegato*, campo PF e
+  livello di nuovo liberi, mai un vicolo cieco; (d) **cambio di classe** dopo aver scelto le
+  competenze: le vecchie spariscono, quelle del background restano; (e) **cambiare idea** su una
+  decisione già risposta — riaprire il 3° dopo aver scelto la sottoclasse e sceglierne un'altra.
 - 🔴 **Level-up guidato, tre prove** (nuovo, 2026-08-06): (a) un PG del manuale che sale a un livello
   **con una scelta** — sottoclasse al 3° o talento al 4° — e la conferma scrive davvero; (b) un PG con
   classe **del tavolo** senza tabella: il dialogo non deve aprirsi, e deve comparire il toast che
@@ -108,9 +115,16 @@ Residuo minore di C.
 
 ## 3. Gioco al tavolo
 
-- 🟠 **Creazione e modifica non usano ancora il motore**: `LevelUpPlanner` calcola PF, dadi vita, slot
-  e competenza per il level-up, ma il wizard si limita a suggerire e il form di modifica duplica il
-  markup senza calcolare niente. V. [DIARIO](./DIARIO.md), «Level-up guidato».
+- 🟡 **Il form di modifica non usa il motore**: il wizard ora sì (`CreationChain` incatena
+  `LevelUpPlanner`), il form no — ed è **deliberato**: su un PG a metà campagna i PF massimi
+  divergono legittimamente dalla formula, e un form che «aiutasse» riscriverebbe valori veri con
+  valori teorici. Quel che può entrarci è opt-in («Usa suggerito») e gli avvisi soft del vincolo
+  competenze. V. [DIARIO](./DIARIO.md), «La creazione guidata».
+- 🟡 **Il pannello delle decisioni è scritto due volte**: `LevelUpDialog` e il passo «Progressione»
+  del wizard rendono gli stessi contratti (`DecisioneFraOpzioni`, `DecisionePunteggi`,
+  `DecisioneLibera`) con markup indipendente. Duplicazione **accettata il 2026-08-06** per non
+  toccare `LevelUpDialog` prima delle sue prove manuali; da estrarre in un componente condiviso
+  quando quelle sono fatte.
 - 🟡 **I privilegi di sottoclasse vanno applicati, non solo elencati**: il dialogo li annuncia, la
   scheda li deriva dalla tabella, ma nessuno li traduce in effetti.
 - 🟠 **Combattimento consultabile**: il tracker porta solo nome e PF, quindi le statistiche del mostro
@@ -200,10 +214,9 @@ Residuo minore di C.
 Deciso col consulto di analisi del 2026-08-06; il ragionamento sta in [DIARIO](./DIARIO.md), «Il
 master che assegna». Ogni tappa è usabile da sola; la 2 e la 3 si possono fare in parallelo alla 1.
 
-1. **Creazione guidata**: il wizard smette di creare PG incompleti (slot, caratteristica da
-   incantatore, competenze vincolate come scelta N-su-M), poi «crea al livello N» **incatenando il
-   level-up esistente** invece di riscrivere la progressione nel wizard — qualunque altra strada
-   crea due motori che divergeranno. Nessuna migrazione, nessun data entry.
+1. ~~**Creazione guidata**~~ — **fatta il 2026-08-06**, spec e racconto in
+   [DIARIO](./DIARIO.md), «La creazione guidata». Restano le **cinque prove manuali** in testa a
+   questo documento: finché non sono fatte, la tappa non è verificata.
 2. **Il master assegna, parte atomica**: RPC `grant_to_characters` per monete e PE, multi-selezione,
    divisione del bottino, più l'ispirazione. Una migrazione, fascia a 3 giri, test RLS sullo stack
    locale. Vale la regola di `CLAUDE.md`: mai `UpdateCharacterAsync` su un PG altrui.

@@ -51,10 +51,10 @@
         <p class="wiz-step-caption">Passo @(currentStep + 1) di @TotalSteps — @StepTitles[currentStep]</p>
 
         <div class="wizard-body">
-            @switch (currentStep)
+            @switch (Steps[currentStep])
             {
-                case 0:
-                    @* ===================== 1. SPECIE ===================== *@
+                case WizardStepKind.Specie:
+                    @* ===================== SPECIE ===================== *@
                     <div class="wiz-step">
                         <div class="help-box">
                             La <strong>specie</strong> (elfo, umano, nano...) determina la taglia, la velocità di
@@ -137,8 +137,8 @@
                     </div>
                     break;
 
-                case 1:
-                    @* ===================== 2. CLASSE ===================== *@
+                case WizardStepKind.Classe:
+                    @* ===================== CLASSE ===================== *@
                     <div class="wiz-step">
                         <div class="help-box">
                             La <strong>classe</strong> (guerriero, mago, ladro...) è il mestiere del personaggio: decide
@@ -157,7 +157,7 @@
                             <div class="field">
                                 <label>Nome classe <span class="req">*</span></label>
                                 <input type="text" class="input" maxlength="60" placeholder="Es. Guerriero, Mago..."
-                                       @bind="draft.Class" @bind:event="oninput" />
+                                       @bind="draft.Class" @bind:event="oninput" @bind:after="OnClassChanged" />
                             </div>
                         }
                         else
@@ -179,7 +179,7 @@
                                        questo resterebbe dentro il valore di prima — invisibile e salvabile. *@
                                     <input type="text" class="input custom-input" maxlength="60"
                                            placeholder="Scrivi la classe" @bind="draft.Class" @bind:event="oninput"
-                                           @bind:after="ScollegaSottoclasseNonPiuValida" />
+                                           @bind:after="OnClassChanged" />
                                 }
                             </div>
 
@@ -264,19 +264,117 @@
                                     {
                                         <p><strong>Tiri salvezza competenti:</strong> @string.Join(", ", SelectedClassPackage.SavingThrows)</p>
                                     }
-                                    @if (SelectedClassPackage.SkillChoices is not null)
-                                    {
-                                        <p><strong>Abilità a scelta:</strong> @SelectedClassPackage.SkillChoices.Count tra @string.Join(", ", SelectedClassPackage.SkillChoices.From)</p>
-                                    }
                                 </div>
                             }
                             <p class="field-hint">I tiri salvezza competenti verranno impostati automaticamente in base alla classe: non serve sceglierli qui.</p>
                         }
+
+                        <div class="field">
+                            <label>Livello</label>
+                            <input type="number" class="input" min="1" max="20" @bind="draft.Level" />
+                            <span class="field-hint">
+                                Quasi sempre si inizia dal livello 1. Se scrivi un livello più alto — per entrare in una
+                                campagna già avviata — compare un passo in più, "Progressione", che guida sottoclasse,
+                                talenti e punti ferita dal 2° livello in su fino a qui.
+                            </span>
+                        </div>
+
+                        <div class="sub-block">
+                            <p class="sub-block-title">COMPETENZE ABILITÀ</p>
+                            @if (VincoloAbilitaClasse is { } vincolo)
+                            {
+                                <p class="field-hint">La classe scelta permette di sceglierne @vincolo.Quante fra queste.</p>
+                                <p class="skill-picker-count @(EsitoAbilita.Completa ? "" : "incomplete")">
+                                    @scelteAbilita.Count di @vincolo.Quante scelte
+                                </p>
+                                <div class="skill-picker">
+                                    @foreach (var s in vincolo.Fra)
+                                    {
+                                        var scelta = scelteAbilita.Contains(s);
+                                        var concessa = ConcesseAttuali.Contains(s);
+                                        var bloccata = !scelta && scelteAbilita.Count >= vincolo.Quante;
+                                        <label class="skill-pick-row @(scelta ? "checked" : "") @(bloccata ? "disabled" : "")">
+                                            <input type="checkbox" checked="@scelta" disabled="@bloccata"
+                                                   @onchange="e => ToggleAbilitaScelta(s, e.Value is bool b && b)" />
+                                            <span class="skill-pick-name">@SkillCatalog.Nome(s)</span>
+                                            @if (concessa)
+                                            {
+                                                <span class="skill-pick-badge">dal background</span>
+                                            }
+                                        </label>
+                                    }
+                                </div>
+                                @if (EsitoAbilita.Messaggio is not null)
+                                {
+                                    <p class="skill-pick-hint @(EsitoAbilita.Completa ? "warn" : "error")">@EsitoAbilita.Messaggio</p>
+                                }
+                            }
+                            else
+                            {
+                                <p class="field-hint">
+                                    @if (!string.IsNullOrWhiteSpace(SuggerimentoAbilitaLibere))
+                                    {
+                                        <text>Questa classe non ha un elenco vincolato che riconosciamo: scegli
+                                        liberamente. La classe suggerisce @SuggerimentoAbilitaLibere.</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Scegli liberamente le competenze del personaggio.</text>
+                                    }
+                                </p>
+                                <div class="skill-picker">
+                                    @foreach (var s in SkillCatalog.Tutte)
+                                    {
+                                        var scelta = scelteAbilita.Contains(s);
+                                        var concessa = ConcesseAttuali.Contains(s);
+                                        @* MINORE 9 del gate del 2026-08-06: qui, senza un vincolo N-su-M da
+                                           contare, la casella è l'UNICA rappresentazione della competenza —
+                                           una concessa dal background deve apparire spuntata (checked="@scelta"
+                                           da solo la mostrava vuota anche se già vera sul draft), a differenza
+                                           del ramo vincolato sopra dove scelte e concesse restano
+                                           deliberatamente separate per il conteggio.
+                                           SERIO del secondo giro dello stesso gate, esteso al terzo giro: una
+                                           competenza concessa dal background non è MAI revocabile da questo
+                                           picker, che l'utente l'abbia scelta lei stessa o no — ApplicaCompetenze
+                                           la lascia comunque dentro via ConcesseAttuali qualunque cosa contenga
+                                           scelteAbilita. Vale quindi per due casi, non uno solo: (a) concessa e
+                                           mai scelta di suo, e (b) concessa DOPO che l'utente l'aveva già scelta
+                                           di suo (spunta Atletica al passo Classe, poi background che la concede
+                                           anche lui, poi si torna indietro al passo Classe: qui scelta==true E
+                                           concessa==true insieme). In entrambi, togliere la spunta non la rende
+                                           mai non competente — quindi checked="@(scelta || concessa)" torna a
+                                           valere true al render successivo, un valore IDENTICO a quello di prima
+                                           del click: Blazor non vede differenze da propagare al DOM (né qui né
+                                           sulla classe della label, stessa espressione) e la casella resta
+                                           visivamente vuota mentre il personaggio nasce comunque competente. La
+                                           disabilitazione va quindi legata SOLO a concessa, non a "concessa e
+                                           basta questa": disabled la rende non toccabile, col badge a spiegare
+                                           perché — niente click, niente divergenza DOM/modello da mascherare con
+                                           un @key. *@
+                                        <label class="skill-pick-row @(scelta || concessa ? "checked" : "") @(concessa ? "disabled" : "")">
+                                            <input type="checkbox" checked="@(scelta || concessa)" disabled="@concessa"
+                                                   @onchange="e => ToggleAbilitaScelta(s, e.Value is bool b && b)" />
+                                            <span class="skill-pick-name">@SkillCatalog.Nome(s)</span>
+                                            @if (concessa)
+                                            {
+                                                <span class="skill-pick-badge">dal background</span>
+                                            }
+                                        </label>
+                                    }
+                                </div>
+                                @* Valida prevede il messaggio di sovrapposizione anche con vincolo null:
+                                   qui non c'era il blocco che lo mostrava (MINORE 9). *@
+                                @if (EsitoAbilita.Messaggio is not null)
+                                {
+                                    <p class="skill-pick-hint warn">@EsitoAbilita.Messaggio</p>
+                                }
+                            }
+                        </div>
                     </div>
                     break;
 
-                case 2:
-                    @* ===================== 3. BACKGROUND ===================== *@
+                case WizardStepKind.Background:
+                    @* ===================== BACKGROUND ===================== *@
                     <div class="wiz-step">
                         <div class="help-box">
                             Il <strong>background</strong> racconta cosa faceva il personaggio prima di diventare
@@ -295,7 +393,7 @@
                             <div class="field">
                                 <label>Nome background <span class="wiz-optional">(facoltativo)</span></label>
                                 <input type="text" class="input" maxlength="60" placeholder="Es. Soldato, Criminale..."
-                                       @bind="draft.Background" @bind:event="oninput" />
+                                       @bind="draft.Background" @bind:event="oninput" @bind:after="OnBackgroundChanged" />
                             </div>
                         }
                         else
@@ -313,7 +411,8 @@
                                 @if (isBackgroundCustom)
                                 {
                                     <input type="text" class="input custom-input" maxlength="60"
-                                           placeholder="Scrivi il background" @bind="draft.Background" @bind:event="oninput" />
+                                           placeholder="Scrivi il background" @bind="draft.Background" @bind:event="oninput"
+                                           @bind:after="OnBackgroundChanged" />
                                     <p class="field-hint">Un background scritto a mano non concede bonus automatici alle caratteristiche.</p>
                                 }
                                 @* I quattro dello SRD sono pochi e la reazione naturale è pensare a un
@@ -376,8 +475,8 @@
                     </div>
                     break;
 
-                case 3:
-                    @* ===================== 4. CARATTERISTICHE ===================== *@
+                case WizardStepKind.Caratteristiche:
+                    @* ===================== CARATTERISTICHE ===================== *@
                     <div class="wiz-step">
                         <div class="help-box">
                             Le <strong>sei caratteristiche</strong> misurano le capacità innate del personaggio. Ciò
@@ -540,8 +639,237 @@
                     </div>
                     break;
 
-                case 4:
-                    @* ===================== 5. DETTAGLI ===================== *@
+                case WizardStepKind.Progressione:
+                    @* ===================== PROGRESSIONE (2026-08-06) =====================
+                       Entra in scena solo se il livello richiesto (draft.Level) è oltre il 1°: chi
+                       crea un PG nuovo non attraversa questo passo. Lo stato che guida tutto qui è
+                       (baseline, risposte per livello, tiri per livello) — mai un personaggio
+                       mutato progressivamente: EsitoProgressione rifà il fold da capo a ogni
+                       render, leggendo esattamente quello stato (§B della spec). *@
+                    <div class="wiz-step">
+                        <div class="help-box">
+                            Il personaggio nasce già al <strong>livello @draft.Level</strong>: qui sono le tappe dal
+                            2° livello in su. Le tappe senza nulla da decidere si confermano da sole con la media del
+                            dado (puoi comunque scegliere di tirare); quelle con sottoclasse, talento o incremento di
+                            caratteristica si aprono con "Scegli".
+                        </div>
+
+                        @if (ClasseSenzaTabella)
+                        {
+                            <div class="empty-catalog-notice">
+                                Questa classe non ha una tabella dei livelli: non possiamo derivare la progressione in
+                                automatico. I punti ferita nel passo Dettagli restano una stima, e sottoclasse,
+                                talenti e competenze dei livelli successivi vanno compilati a mano dalla scheda dopo
+                                la creazione.
+                            </div>
+                        }
+                        else
+                        {
+                            var esito = EsitoProgressione;
+                            <p class="prog-title">Progressione — dal 1° al @draft.Level°</p>
+
+                            <div class="prog-list">
+                                @foreach (var tappa in esito.Tappe)
+                                {
+                                    var stato = CharacterWizardLogic.StatoDiTappa(tappa);
+                                    var espansa = livelloEspanso == tappa.Livello;
+                                    var confermata = stato == CharacterWizardLogic.StatoTappa.Confermata;
+                                    <div class="prog-row @(espansa ? "prog-row-open" : "")">
+                                        <div class="prog-row-head">
+                                            <span class="prog-row-liv">Liv. @tappa.Livello</span>
+                                            @* SERIO 2 del gate del 2026-08-06, MINORE 11: il glifo ripete uno
+                                               stato già scritto nel testo adiacente — nessun equivalente
+                                               testuale proprio, quindi aria-hidden invece di farlo annunciare
+                                               due volte (o come glifo senza senso) da un lettore di schermo. *@
+                                            <span class="prog-row-icon prog-stato-@stato.ToString().ToLowerInvariant()" aria-hidden="true">
+                                                @(stato switch
+                                                {
+                                                    CharacterWizardLogic.StatoTappa.Confermata => "✓",
+                                                    CharacterWizardLogic.StatoTappa.RichiedeScelte => "⚠",
+                                                    _ => "◇"
+                                                })
+                                            </span>
+                                            <span class="prog-row-testo">
+                                                @* MINORE 3 del secondo giro del gate del 2026-08-06: la risposta già
+                                                   data va passata anche qui, non solo a RiepilogoConfermata — una
+                                                   tappa può restare "richiede scelte" perché una decisione FIGLIA è
+                                                   ancora aperta mentre quella che l'ha generata (il talento scelto)
+                                                   ha già risposta, e senza le risposte di livello la riga la
+                                                   riproponeva come "da fare" insieme a quella davvero aperta. *@
+                                                @(confermata
+                                                    ? RiepilogoConfermata(tappa)
+                                                    : CharacterWizardLogic.RiepilogoScelte(tappa, RisposteDiLivello(tappa.Livello)))
+                                            </span>
+
+                                            @* SERIO 2 del gate del 2026-08-06: la select del tiro sta SEMPRE
+                                               qui, non solo per le tappe confermate — D7 chiede un tiro per
+                                               livello indipendente dagli altri, e un livello con una decisione
+                                               ancora aperta o facoltativa (il 3°, il 4°, le invocazioni di un
+                                               Warlock) merita lo stesso tiro di uno confermato. *@
+                                            <select class="prog-dado-select"
+                                                    aria-label="@($"Livello {tappa.Livello}: punti ferita, media o tiro manuale")"
+                                                    value="@(TiroManuale(tappa.Livello) ? "manuale" : "media")"
+                                                    @onchange="e => ImpostaModoTiro(tappa.Livello, tappa.Piano, e)">
+                                                <option value="media">media</option>
+                                                <option value="manuale">ho tirato</option>
+                                            </select>
+
+                                            @* Accanto alla select, non in alternativa: senza questo pulsante
+                                               una tappa già risposta (Confermata perché la sua decisione è
+                                               risolta, non perché non ce ne fossero) non aveva più alcun modo
+                                               di riaprirsi — l'unica via era cambiare classe, che azzera tutto.
+                                               Compare ogni volta che la tappa porta almeno una decisione,
+                                               risposta o no. *@
+                                            @if (tappa.Piano.Decisioni.Count > 0)
+                                            {
+                                                <button type="button" class="prog-scegli-btn" @onclick="() => ToggleLivello(tappa.Livello)">
+                                                    @(espansa ? "Chiudi" : "Scegli")
+                                                </button>
+                                            }
+                                        </div>
+
+                                        @if (TiroManuale(tappa.Livello))
+                                        {
+                                            var facceMax = CharacterWizardLogic.FacceMax(tappa.Piano.MediaDado);
+                                            var tiroCorrente = tiriProgressione.TryGetValue(tappa.Livello, out var t) ? t : tappa.Piano.MediaDado;
+                                            var troncato = Math.Clamp(tiroCorrente, 1, facceMax);
+                                            <div class="prog-dado-row">
+                                                <input type="number" class="prog-dado-input" min="1" max="@facceMax"
+                                                       aria-label="@($"Livello {tappa.Livello}: valore del tiro")"
+                                                       @key="@($"tiro-{tappa.Livello}-{TiroChiaveVersione(tappa.Livello)}")"
+                                                       value="@troncato" @onchange="e => CambiaTiro(tappa.Livello, e, facceMax)" />
+                                                <span class="prog-dado-max">/@facceMax</span>
+                                            </div>
+                                        }
+
+                                        @if (espansa)
+                                        {
+                                            <div class="prog-row-body">
+                                                @foreach (var decisione in tappa.Piano.Decisioni)
+                                                {
+                                                    @if (decisione is DecisioneFraOpzioni opzioni)
+                                                    {
+                                                        var scelteCorrenti = RisposteDiLivello(tappa.Livello).TryGetValue(opzioni.Chiave, out var rOpz)
+                                                            ? rOpz.Scelte : Array.Empty<string>();
+                                                        <div class="prog-decision">
+                                                            <p class="prog-decision-title">@opzioni.Titolo</p>
+                                                            @if (opzioni.Opzioni.Count == 0)
+                                                            {
+                                                                <p class="field-hint">Nessuna opzione a catalogo per questa scelta.</p>
+                                                            }
+                                                            @foreach (var opzione in opzioni.Opzioni)
+                                                            {
+                                                                var selezionata = scelteCorrenti.Contains(opzione.Nome);
+                                                                var bloccata = !selezionata && opzioni.Quante > 1 && scelteCorrenti.Count >= opzioni.Quante;
+                                                                var descKey = $"{opzioni.Chiave}|{opzione.Nome}";
+                                                                var descEspansa = descrizioniEspanse.Contains(descKey);
+                                                                <div class="prog-option @(selezionata ? "prog-option-selected" : "")">
+                                                                    <button type="button" class="prog-option-select" disabled="@bloccata"
+                                                                            @onclick="() => ScegliOpzione(tappa.Livello, opzioni, opzione.Nome)">
+                                                                        <span class="prog-option-check">@(selezionata ? "●" : "○")</span>
+                                                                        <span class="prog-option-name">@opzione.Nome</span>
+                                                                    </button>
+                                                                    @if (!string.IsNullOrWhiteSpace(opzione.Descrizione))
+                                                                    {
+                                                                        <p class="prog-option-desc">
+                                                                            @(descEspansa ? opzione.Descrizione : CharacterWizardLogic.TroncaDescrizione(opzione.Descrizione))
+                                                                        </p>
+                                                                        @if (opzione.Descrizione.Length > CharacterWizardLogic.DescrizioneTroncamentoSoglia)
+                                                                        {
+                                                                            <button type="button" class="prog-option-expand" @onclick="() => ToggleDescrizione(descKey)">
+                                                                                @(descEspansa ? "Comprimi ▴" : "Espandi ▾")
+                                                                            </button>
+                                                                        }
+                                                                    }
+                                                                </div>
+                                                            }
+                                                            @if (opzioni.Quante > 1)
+                                                            {
+                                                                <p class="field-hint">Scegli fino a @opzioni.Quante.</p>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    else if (decisione is DecisionePunteggi punteggi)
+                                                    {
+                                                        var correnti = RisposteDiLivello(tappa.Livello).TryGetValue(punteggi.Chiave, out var rPunt)
+                                                            ? rPunt.Punteggi : new Dictionary<string, int>();
+                                                        var totale = correnti.Values.Sum();
+                                                        <div class="prog-decision">
+                                                            <p class="prog-decision-title">@punteggi.Titolo</p>
+                                                            <p class="field-hint">Somma esattamente 2: +2 a una sola oppure +1 a due.</p>
+                                                            @foreach (var (chiaveCar, sigla, nome) in CaratteristichePerPunteggi)
+                                                            {
+                                                                var valore = correnti.TryGetValue(chiaveCar, out var v) ? v : 0;
+                                                                var attuale = punteggi.PunteggiAttuali.TryGetValue(chiaveCar, out var pa) ? pa : 10;
+                                                                var proposto = attuale + valore;
+                                                                var alTetto = proposto >= 20;
+                                                                <div class="prog-score-row">
+                                                                    <span class="prog-score-name" title="@nome">@sigla</span>
+                                                                    <button type="button" class="qty-btn" disabled="@(valore <= 0)"
+                                                                            aria-label="Togli a @nome"
+                                                                            @onclick="() => VariaPunteggio(tappa.Livello, punteggi.Chiave, chiaveCar, -1)">−</button>
+                                                                    <span class="prog-score-value">
+                                                                        @attuale
+                                                                        @if (valore > 0)
+                                                                        {
+                                                                            <text> → </text><strong>@proposto</strong>
+                                                                        }
+                                                                    </span>
+                                                                    <button type="button" class="qty-btn" disabled="@(totale >= 2 || alTetto)"
+                                                                            aria-label="Aggiungi a @nome"
+                                                                            @onclick="() => VariaPunteggio(tappa.Livello, punteggi.Chiave, chiaveCar, 1)">+</button>
+                                                                </div>
+                                                            }
+                                                            <p class="field-hint">Assegnati: @totale/2</p>
+                                                        </div>
+                                                    }
+                                                    else if (decisione is DecisioneLibera libera)
+                                                    {
+                                                        var testoAttuale = RisposteDiLivello(tappa.Livello).TryGetValue(libera.Chiave, out var rLib)
+                                                            ? rLib.Testo : string.Empty;
+                                                        <div class="prog-decision">
+                                                            <p class="prog-decision-title">@libera.Titolo</p>
+                                                            <p class="field-hint">@libera.Avviso</p>
+                                                            <textarea class="input" rows="3" placeholder="Annota qui la tua scelta (facoltativo)"
+                                                                      value="@testoAttuale"
+                                                                      @onchange="e => ImpostaTestoLibero(tappa.Livello, libera.Chiave, e.Value?.ToString() ?? string.Empty)"></textarea>
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="prog-footer">
+                                <span>PF totali: <strong>@esito.Personaggio.MaxHitPoints</strong></span>
+                                @{ var restanti = CharacterWizardLogic.ScelteRestanti(esito.Tappe); }
+                                @if (restanti > 0)
+                                {
+                                    <span class="prog-footer-warn">@restanti @(restanti == 1 ? "scelta da fare" : "scelte da fare")</span>
+                                }
+                                else
+                                {
+                                    <span class="prog-footer-ok">Tutte le scelte fatte</span>
+                                }
+                            </div>
+
+                            @if (esito.Avvisi.Count > 0)
+                            {
+                                <div class="prog-avvisi">
+                                    @foreach (var avviso in esito.Avvisi)
+                                    {
+                                        <p class="skill-pick-hint warn">⚠ @avviso</p>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                    break;
+
+                case WizardStepKind.Dettagli:
+                    @* ===================== DETTAGLI ===================== *@
                     <div class="wiz-step">
                         <div class="help-box">
                             Solo il <strong>nome</strong> è davvero obbligatorio: il resto puoi sempre cambiarlo dopo,
@@ -552,12 +880,6 @@
                         <div class="field">
                             <label>Nome <span class="req">*</span></label>
                             <input type="text" class="input" maxlength="64" @bind="draft.Name" @bind:event="oninput" />
-                        </div>
-
-                        <div class="field">
-                            <label>Livello</label>
-                            <input type="number" class="input" min="1" max="20" @bind="draft.Level" />
-                            <span class="field-hint">Quasi sempre si inizia dal livello 1.</span>
                         </div>
 
                         <div class="field">
@@ -587,32 +909,94 @@
                             <span class="field-hint">Suggerita = 10 + modificatore Destrezza (nessuna armatura indossata).</span>
                         </div>
 
+                        @{ var anteprima = Anteprima; }
                         <div class="field">
                             <label>PF Massimi</label>
-                            <div class="wiz-hp-row">
-                                <input type="number" class="input" min="1" @bind="draft.MaxHitPoints" />
-                                @if (SuggestedHp > 0)
-                                {
-                                    <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedHp">
-                                        Usa suggeriti (@SuggestedHp)
-                                    </button>
-                                }
-                            </div>
-                            <span class="field-hint">I PF correnti partiranno uguali ai massimi.</span>
+                            @if (CatenaUtile && StimaPfCalcolabile)
+                            {
+                                <div class="wiz-hp-row">
+                                    <input type="number" class="input" min="1" value="@anteprima.MaxHitPoints" disabled />
+                                </div>
+                                <span class="field-hint">
+                                    Calcolati dal passo Progressione per il livello @anteprima.Level: per cambiare un
+                                    tiro di dado torna là. I PF correnti partiranno uguali ai massimi.
+                                </span>
+                            }
+                            else if (CatenaUtile)
+                            {
+                                @* BLOCCANTE del gate del 2026-08-06: qui il dado vita della classe non si
+                                   riconosce (campo vuoto, o testo che ParseDieSize non capisce) — il fold ha
+                                   già dovuto ripiegare sulla stima generica "d8" (lo stesso avviso visibile al
+                                   passo Progressione: "Dado vita non riconosciuto: uso d8 come stima."), quindi
+                                   il numero è inventato quanto quello di una classe senza tabella. Un campo
+                                   disabilitato che lo mostrasse come "calcolato dalle regole" sarebbe peggio di
+                                   un campo libero: qui torna editabile, come per la classe senza tabella (§E
+                                   della spec).
+                                   Il campo mostra e scrive il SEED di 1° livello (v. PfSeedDettagliMostrato e
+                                   pfBaselineManuale), non il totale al livello corrente — prima di questa
+                                   correzione mostrava il totale (anteprima.MaxHitPoints) ma scriveva il seed,
+                                   quindi il valore digitato non convergeva mai al totale promesso. Sopra il
+                                   seed gira infatti il fold di CreationChain, che per ogni livello 2→N somma la
+                                   crescita di LevelUpPlanner (guadagno sempre >= 1 PF): il totale al livello N è
+                                   perciò SEMPRE strettamente maggiore del seed, e non esiste un calcolo inverso
+                                   che tolga quella crescita da un totale digitato per ricavarne il seed. La sola
+                                   grandezza che il campo può mostrare e scrivere insieme, senza divergere da un
+                                   render all'altro, è quindi il seed — il totale resta visibile, in sola
+                                   lettura, nel field-hint sotto. Il valore scritto sostituisce comunque la
+                                   stima ovunque il wizard la usa — Progressione, Riepilogo, salvataggio —
+                                   perché rientra in AssemblaBaseline come seed di 1° livello (v.
+                                   CharacterWizardLogic.AssemblaBaseline). *@
+                                <div class="wiz-hp-row">
+                                    <input type="number" class="input" min="1"
+                                           @key="@($"pf-manuale-{pfManualeRenderTick}")"
+                                           value="@PfSeedDettagliMostrato" @onchange="ImpostaPfManuale" />
+                                </div>
+                                <span class="field-hint">
+                                    Il dado vita di questa classe non è riconosciuto: la progressione usa una stima
+                                    generica (d8) invece del dado vero. Il numero qui è il valore di <strong>1°
+                                    livello</strong>, non il totale: la progressione ci somma sopra la crescita dei
+                                    livelli successivi. Al livello attuale (@anteprima.Level) il totale risultante
+                                    è <strong>@anteprima.MaxHitPoints</strong> PF. I PF correnti partiranno uguali
+                                    ai massimi.
+                                </span>
+                            }
+                            else
+                            {
+                                <div class="wiz-hp-row">
+                                    <input type="number" class="input" min="1" @bind="draft.MaxHitPoints" />
+                                    @if (SuggestedHp > 0)
+                                    {
+                                        <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedHp">
+                                            Usa suggeriti (@SuggestedHp)
+                                        </button>
+                                    }
+                                </div>
+                                <span class="field-hint">I PF correnti partiranno uguali ai massimi.</span>
+                            }
                         </div>
 
                         <div class="field">
                             <label>Dadi Vita</label>
-                            <div class="wiz-hp-row">
-                                <input type="text" class="input" maxlength="40" placeholder="es. 1d10" @bind="draft.HitDiceMax" />
-                                @if (!string.IsNullOrEmpty(SuggestedHitDice) && draft.HitDiceMax != SuggestedHitDice)
-                                {
-                                    <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedHitDice">
-                                        Usa @SuggestedHitDice
-                                    </button>
-                                }
-                            </div>
-                            <span class="field-hint">Si consumano per recuperare PF durante un riposo breve.</span>
+                            @if (CatenaUtile)
+                            {
+                                <div class="wiz-hp-row">
+                                    <input type="text" class="input" value="@anteprima.HitDiceMax" disabled />
+                                </div>
+                                <span class="field-hint">Calcolati dal passo Progressione.</span>
+                            }
+                            else
+                            {
+                                <div class="wiz-hp-row">
+                                    <input type="text" class="input" maxlength="40" placeholder="es. 1d10" @bind="draft.HitDiceMax" />
+                                    @if (!string.IsNullOrEmpty(SuggestedHitDice) && draft.HitDiceMax != SuggestedHitDice)
+                                    {
+                                        <button type="button" class="secondary-btn wiz-suggest-btn" @onclick="UseSuggestedHitDice">
+                                            Usa @SuggestedHitDice
+                                        </button>
+                                    }
+                                </div>
+                                <span class="field-hint">Si consumano per recuperare PF durante un riposo breve.</span>
+                            }
                         </div>
 
                         <div class="field">
@@ -658,8 +1042,8 @@
                     </div>
                     break;
 
-                case 5:
-                    @* ===================== 6. RIEPILOGO ===================== *@
+                case WizardStepKind.Riepilogo:
+                    @* ===================== RIEPILOGO ===================== *@
                     <div class="wiz-step">
                         <div class="help-box">
                             Ultimo sguardo prima di creare il personaggio: sarà già collegato alla specie, alla classe
@@ -667,11 +1051,29 @@
                             inventario, incantesimi) dalla scheda.
                         </div>
 
+                        @* MINORE 12 del gate del 2026-08-06: EsitoProgressione issato una volta sola,
+                           come già fanno i passi Progressione e Dettagli — senza questo, il render di
+                           questo passo valeva TRE fold completi (Anteprima più due accessi separati a
+                           EsitoProgressione qui sotto), fino a 19 livelli × 2 Pianifica ciascuno più un
+                           clone da ~90 proprietà, a ogni render. Il ricalcolo a ogni ACCESSO resta
+                           deliberato (§B della spec): qui si riduce solo a un accesso per render. *@
+                        @{
+                            var esitoRiepilogo = EsitoProgressione;
+                            var anteprimaRiepilogo = esitoRiepilogo.Personaggio;
+                        }
+                        @if (MostraProgressione && !ClasseSenzaTabella && !esitoRiepilogo.Completa)
+                        {
+                            <div class="empty-catalog-notice">
+                                @esitoRiepilogo.Motivo Torna al passo Progressione per completarle: "Crea
+                                personaggio" resterà bloccato finché non lo fai.
+                            </div>
+                        }
+
                         <div class="wiz-summary-card">
                             <h3 class="wiz-summary-name">@(string.IsNullOrWhiteSpace(draft.Name) ? "(senza nome)" : draft.Name)</h3>
                             <p class="wiz-summary-line">
-                                Liv @draft.Level
-                                · @(string.IsNullOrWhiteSpace(draft.Class) ? "Classe —" : draft.Class)@(string.IsNullOrWhiteSpace(draft.Subclass) ? "" : $" ({draft.Subclass})")
+                                Liv @anteprimaRiepilogo.Level
+                                · @(string.IsNullOrWhiteSpace(draft.Class) ? "Classe —" : draft.Class)@(string.IsNullOrWhiteSpace(anteprimaRiepilogo.Subclass) ? "" : $" ({anteprimaRiepilogo.Subclass})")
                                 · @(string.IsNullOrWhiteSpace(draft.Race) ? "Specie —" : draft.Race)
                             </p>
                             <p class="wiz-summary-line">
@@ -679,24 +1081,31 @@
                             </p>
 
                             <div class="wiz-summary-grid">
+                                @{
+                                    var punteggiAnteprima = new[]
+                                    {
+                                        anteprimaRiepilogo.Strength, anteprimaRiepilogo.Dexterity, anteprimaRiepilogo.Constitution,
+                                        anteprimaRiepilogo.Intelligence, anteprimaRiepilogo.Wisdom, anteprimaRiepilogo.Charisma
+                                    };
+                                }
                                 @for (var i = 0; i < 6; i++)
                                 {
                                     var idx = i;
                                     <div class="wiz-summary-stat">
                                         <span class="wiz-summary-stat-label">@AbilityShort[idx]</span>
-                                        <span class="wiz-summary-stat-val">@FinalScores[idx]</span>
-                                        <span class="wiz-summary-stat-mod">@FormatBonus(CharacterCalculations.GetModifier(FinalScores[idx]))</span>
+                                        <span class="wiz-summary-stat-val">@punteggiAnteprima[idx]</span>
+                                        <span class="wiz-summary-stat-mod">@FormatBonus(CharacterCalculations.GetModifier(punteggiAnteprima[idx]))</span>
                                     </div>
                                 }
                             </div>
 
                             <p class="wiz-summary-line">
-                                CA <strong>@draft.ArmorClass</strong>
-                                · PF <strong>@draft.MaxHitPoints</strong>
-                                · Velocità <strong>@draft.Speed m</strong>
-                                @if (!string.IsNullOrWhiteSpace(draft.HitDiceMax))
+                                CA <strong>@anteprimaRiepilogo.ArmorClass</strong>
+                                · PF <strong>@anteprimaRiepilogo.MaxHitPoints</strong>
+                                · Velocità <strong>@anteprimaRiepilogo.Speed m</strong>
+                                @if (!string.IsNullOrWhiteSpace(anteprimaRiepilogo.HitDiceMax))
                                 {
-                                    <span> · Dadi vita <strong>@draft.HitDiceMax</strong></span>
+                                    <span> · Dadi vita <strong>@anteprimaRiepilogo.HitDiceMax</strong></span>
                                 }
                             </p>
 
@@ -739,11 +1148,22 @@
 </div>
 
 @code {
-    private const int TotalSteps = 6;
     private const string CustomOptionValue = "__custom__";
 
-    private static readonly string[] StepTitles =
-        { "Specie", "Classe", "Background", "Caratteristiche", "Dettagli", "Riepilogo" };
+    /// <summary>I passi possibili del wizard. Progressione è l'unico condizionale (§A della spec):
+    /// entra in scena solo quando il livello richiesto è oltre il 1°.</summary>
+    private enum WizardStepKind { Specie, Classe, Background, Caratteristiche, Progressione, Dettagli, Riepilogo }
+
+    private static readonly (WizardStepKind Kind, string Titolo)[] TutteLeTappeWizard =
+    {
+        (WizardStepKind.Specie, "Specie"),
+        (WizardStepKind.Classe, "Classe"),
+        (WizardStepKind.Background, "Background"),
+        (WizardStepKind.Caratteristiche, "Caratteristiche"),
+        (WizardStepKind.Progressione, "Progressione"),
+        (WizardStepKind.Dettagli, "Dettagli"),
+        (WizardStepKind.Riepilogo, "Riepilogo"),
+    };
 
     private static readonly string[] AbilityShort = { "FOR", "DES", "COS", "INT", "SAG", "CAR" };
 
@@ -752,6 +1172,17 @@
         ["strength"] = "Forza", ["dexterity"] = "Destrezza", ["constitution"] = "Costituzione",
         ["intelligence"] = "Intelligenza", ["wisdom"] = "Saggezza", ["charisma"] = "Carisma"
     };
+
+    /// <summary>Chiave inglese minuscola, sigla e nome italiano delle sei caratteristiche, per le
+    /// righe di <c>DecisionePunteggi</c> nel passo Progressione. SERIO 6 del gate del 2026-08-06:
+    /// derivata da <see cref="CharacterWizardLogic.AbilityKeyOrder"/> — l'unica fonte
+    /// dell'ordinamento, per sua stessa documentazione — invece di ridichiarare da capo l'ordine
+    /// delle sei caratteristiche una terza volta accanto ad <see cref="AbilityShort"/> e
+    /// <see cref="AbilityItalian"/>.</summary>
+    private static readonly (string Chiave, string Sigla, string Nome)[] CaratteristichePerPunteggi =
+        CharacterWizardLogic.AbilityKeyOrder
+            .Select((chiave, idx) => (chiave, AbilityShort[idx], AbilityItalian[chiave]))
+            .ToArray();
 
     private bool loading = true;
     private bool noCampaign;
@@ -785,6 +1216,37 @@
     private CharacterWizardLogic.BackgroundAbilitySplit bgSplit = CharacterWizardLogic.BackgroundAbilitySplit.TwoAndOne;
     private string? twoBonusAbility;
     private string? oneBonusAbility;
+
+    // Competenze abilità scelte dal vincolo di classe (§C): stato SOLO del wizard, non riletto dai
+    // bool del draft — quelli non ricordano se una spunta viene dalla scelta o dal background (§E).
+    // Le concesse dal background invece non servono in uno stato proprio: sono interamente derivate
+    // da draft.Background via ConcesseAttuali, ricalcolate a ogni render.
+    private readonly HashSet<SkillType> scelteAbilita = new();
+
+    // ----- Stato del passo Progressione (§B della spec): SOLO (risposte per livello, tiri per
+    // livello) — mai un personaggio mutato progressivamente. Il personaggio al livello richiesto si
+    // RIDERIVA da EsitoProgressione a ogni render, rieseguendo il fold da capo. -----
+
+    /// <summary>Le risposte alle decisioni della catena, per livello. <c>Dictionary</c> (non
+    /// <c>IReadOnlyDictionary</c>) per la mutazione diretta; <see cref="RispostePerLivelloReadOnly"/>
+    /// espone la vista di sola lettura che <c>CreationChain.Deriva</c> richiede.</summary>
+    private readonly Dictionary<int, Dictionary<string, Risposta>> risposteProgressione = new();
+
+    /// <summary>I tiri del dado PF, uno per livello (D7 della spec: mai lo stesso tiro riusato per
+    /// livelli diversi). Assente = si usa la media.</summary>
+    private readonly Dictionary<int, int> tiriProgressione = new();
+
+    /// <summary>Il livello il cui pannello di decisioni è aperto, uno alla volta — come
+    /// <c>LevelUpDialog.razor</c>, qui duplicato perché quel file è fuori perimetro.</summary>
+    private int? livelloEspanso;
+
+    /// <summary>Chiavi "Chiave|Opzione" per le descrizioni di catalogo espanse a mano (accordion).</summary>
+    private readonly HashSet<string> descrizioniEspanse = new(StringComparer.Ordinal);
+
+    /// <summary>Avanza per livello a ogni scarto fra il tiro digitato e quello troncato
+    /// nell'intervallo del dado: entra nella @key dell'input del tiro, per forzare Blazor a toccare
+    /// davvero il DOM anche quando il valore troncato coincide con quello del render precedente.</summary>
+    private readonly Dictionary<int, int> tiroChiaveVersioni = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -861,9 +1323,17 @@
         .Concat(backgroundPackages.Select(p => p.Name))
         .Distinct().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
 
-    private Race? SelectedRaceDb => races.FirstOrDefault(r => r.Name == draft.Race);
-    private PackageSpecies? SelectedRacePackage =>
-        SelectedRaceDb is null ? racePackages.FirstOrDefault(p => p.Name == draft.Race) : null;
+    // Stesso difetto del SERIO 1 del gate del 2026-08-06 (v. il commento su SelectedClassDb più
+    // sotto), stessa correzione: ricerca normalizzata (maiuscole/accenti), non uguaglianza esatta.
+    // Con l'uguaglianza esatta una specie scritta a mano con un casing o un accento diverso dal
+    // manuale ("elfo" minuscolo) perdeva descrizione, tratti e velocità. L'Id come spareggio
+    // (MINORE 2 del secondo giro del gate del 2026-08-06) rende deterministica la scelta anche con
+    // due righe omonime per casing/accenti.
+    private Race? SelectedRaceDb =>
+        CharacterWizardLogic.TrovaPerNomeNormalizzato(races, r => r.Name, draft.Race, r => r.Id);
+    private PackageSpecies? SelectedRacePackage => SelectedRaceDb is null
+        ? CharacterWizardLogic.TrovaPerNomeNormalizzato(racePackages, p => p.Name, draft.Race, p => p.Id)
+        : null;
 
     /// <summary>Le sottoclassi disponibili per la classe scelta, da qualunque sorgente: la colonna
     /// della riga di campagna se c'è, altrimenti il manuale (e solo per una riga importata dal
@@ -880,13 +1350,64 @@
     private string CurrentSubclassSelection
         => isSubclassCustom ? CustomOptionValue : (draft.Subclass ?? string.Empty);
 
-    private CharacterClass? SelectedClassDb => classes.FirstOrDefault(c => c.Name == draft.Class);
-    private PackageClass? SelectedClassPackage =>
-        SelectedClassDb is null ? classPackages.FirstOrDefault(p => p.Name == draft.Class) : null;
+    // SERIO 1 del gate del 2026-08-06: ricerca normalizzata (maiuscole/accenti), non uguaglianza
+    // esatta — la STESSA usata da ClassProgression.Risolvi per trovare la tabella dei livelli. Con
+    // l'uguaglianza esatta una classe scritta a mano con un casing diverso dal manuale ("mago"
+    // minuscolo) trovava la tabella ma non il dado vita, e lo 0 sentinella che ne seguiva bloccava
+    // "Crea personaggio" senza via d'uscita. V. CharacterWizardLogic.TrovaPerNomeNormalizzato.
+    private CharacterClass? SelectedClassDb =>
+        CharacterWizardLogic.TrovaPerNomeNormalizzato(classes, c => c.Name, draft.Class, c => c.Id);
+    private PackageClass? SelectedClassPackage => SelectedClassDb is null
+        ? CharacterWizardLogic.TrovaPerNomeNormalizzato(classPackages, p => p.Name, draft.Class, p => p.Id)
+        : null;
 
-    private Background? SelectedBackgroundDb => backgrounds.FirstOrDefault(b => b.Name == draft.Background);
-    private PackageBackground? SelectedBackgroundPackage =>
-        SelectedBackgroundDb is null ? backgroundPackages.FirstOrDefault(p => p.Name == draft.Background) : null;
+    // Stesso difetto e stessa correzione: un background scritto a mano con un casing o un accento
+    // diverso dal manuale perdeva le competenze CONCESSE e le caratteristiche, non solo il testo
+    // descrittivo — dati che finiscono davvero sul personaggio salvato.
+    private Background? SelectedBackgroundDb =>
+        CharacterWizardLogic.TrovaPerNomeNormalizzato(backgrounds, b => b.Name, draft.Background, b => b.Id);
+    private PackageBackground? SelectedBackgroundPackage => SelectedBackgroundDb is null
+        ? CharacterWizardLogic.TrovaPerNomeNormalizzato(backgroundPackages, p => p.Name, draft.Background, p => p.Id)
+        : null;
+
+    // ----- Competenze abilità (§C): vincolo N-su-M dalla classe, concesse dal background -----
+
+    /// <summary>Il vincolo "scegli N fra queste M" della classe scelta, o null se non
+    /// rappresentabile (classe a testo libero, o degrado totale D10): in quel caso il picker è
+    /// libero a 18 caselle e non blocca mai "Avanti".</summary>
+    private VincoloAbilita? VincoloAbilitaClasse =>
+        CharacterWizardLogic.RisolviVincoloAbilita(SelectedClassDb, SelectedClassPackage);
+
+    /// <summary>Le competenze che il background concede già, ricalcolate a ogni render da
+    /// draft.Background: nessuno stato proprio, per non doverlo tenere sincronizzato a mano.</summary>
+    private IReadOnlyList<SkillType> ConcesseAttuali =>
+        CharacterWizardLogic.RisolviCompetenzeConcesse(SelectedBackgroundDb, SelectedBackgroundPackage);
+
+    private EsitoScelteAbilita EsitoAbilita =>
+        SkillChoiceRules.Valida(VincoloAbilitaClasse, scelteAbilita.ToList(), ConcesseAttuali);
+
+    /// <summary>Suggerimento testuale mostrato quando il vincolo è assente (picker libero, D10):
+    /// il testo grezzo della riga di campagna, o "N tra: elenco" ricostruito dal pacchetto.</summary>
+    private string? SuggerimentoAbilitaLibere
+    {
+        get
+        {
+            if (SelectedClassDb is not null)
+                return string.IsNullOrWhiteSpace(SelectedClassDb.SkillChoices) ? null : SelectedClassDb.SkillChoices;
+
+            var scelte = SelectedClassPackage?.SkillChoices;
+            return scelte is not null && scelte.From.Count > 0
+                ? $"{scelte.Count} tra {string.Join(", ", scelte.From)}"
+                : null;
+        }
+    }
+
+    private void ToggleAbilitaScelta(SkillType abilita, bool selezionata)
+    {
+        if (selezionata) scelteAbilita.Add(abilita);
+        else scelteAbilita.Remove(abilita);
+        CharacterWizardLogic.ApplicaCompetenze(draft, scelteAbilita, ConcesseAttuali);
+    }
 
     private string CurrentRaceSelection => isRaceCustom ? CustomOptionValue : (draft.Race ?? string.Empty);
     private string CurrentClassSelection => isClassCustom ? CustomOptionValue : (draft.Class ?? string.Empty);
@@ -905,7 +1426,7 @@
         if (val == CustomOptionValue) { isClassCustom = true; draft.Class = string.Empty; }
         else { isClassCustom = false; draft.Class = val; }
 
-        ScollegaSottoclasseNonPiuValida();
+        OnClassChanged();
     }
 
     /// <summary>Cambiata la classe, la sottoclasse dell'altra non ha più senso: il menu non la
@@ -917,6 +1438,45 @@
             classiDiManuale, draft.Class, draft.Subclass, classes);
         draft.Subclass = scelta.Valore;
         isSubclassCustom = scelta.ScrittaAMano;
+    }
+
+    /// <summary>Effetti collaterali del cambio di classe, oltre alla sottoclasse (già gestita da
+    /// <see cref="ScollegaSottoclasseNonPiuValida"/>): le competenze SCELTE dal vincolo di classe si
+    /// azzerano (§E — le concesse dal background non dipendono dalla classe e restano), la
+    /// caratteristica da incantatore e gli slot di 1° livello si ricalcolano dalla classe nuova, e le
+    /// decisioni della progressione (sottoclasse, talenti, tiri) si azzerano — una sottoclasse
+    /// scelta per il Barbaro non ha senso per il Mago in cui si è appena cambiati (§D13 della spec:
+    /// stesso motivo delle competenze). Chiamato sia dalla selezione a tendina sia dal testo libero
+    /// (che lo rivaluta a ogni carattere digitato, come già faceva
+    /// <see cref="ScollegaSottoclasseNonPiuValida"/> da sola).</summary>
+    private void OnClassChanged()
+    {
+        ScollegaSottoclasseNonPiuValida();
+
+        scelteAbilita.Clear();
+        CharacterWizardLogic.ApplicaCompetenze(draft, scelteAbilita, ConcesseAttuali);
+
+        // Caratteristica da incantatore e slot sono interamente derivate dalla classe, e il wizard
+        // non offre un campo manuale per sovrascriverle: si azzera prima di applicare, così il
+        // "solo se vuota" di ApplySpellcastingAbility trova sempre il campo libero per la classe
+        // nuova, invece di conservare la caratteristica della classe abbandonata.
+        draft.SpellcastingAbility = null;
+        CharacterWizardLogic.ApplySpellcastingAbility(draft, draft.Class);
+        CharacterWizardLogic.ApplySpellSlotsLevel1(
+            draft, ClassProgression.Risolvi(classes, classiDiManuale, draft.Class));
+
+        risposteProgressione.Clear();
+        tiriProgressione.Clear();
+        livelloEspanso = null;
+        descrizioniEspanse.Clear();
+        tiroChiaveVersioni.Clear();
+
+        // MINORE 1 del secondo giro del gate del 2026-08-06: un PF manuale scritto per il dado
+        // vita non riconosciuto della classe abbandonata non ha senso per quella nuova — resta
+        // comunque inerte se il nuovo dado è riconoscibile (AssemblaBaseline lo ignora in quel
+        // caso), ma senza l'azzeramento sopravviverebbe silenzioso se anche la classe nuova avesse
+        // il dado vuoto, mostrando un numero pensato per una classe diversa.
+        pfBaselineManuale = null;
     }
 
     private void OnSubclassSelectionChanged(ChangeEventArgs e)
@@ -931,7 +1491,17 @@
         var val = e.Value?.ToString() ?? string.Empty;
         if (val == CustomOptionValue) { isBackgroundCustom = true; draft.Background = string.Empty; }
         else { isBackgroundCustom = false; draft.Background = val; }
+
+        OnBackgroundChanged();
     }
+
+    /// <summary>Cambiato il background, le competenze CONCESSE vanno ricalcolate: via le vecchie,
+    /// dentro le nuove (§E). Le scelte di classe non sono toccate — <see cref="ApplicaCompetenze"/>
+    /// le rilegge da <see cref="scelteAbilita"/>, non dai bool del draft, quindi una competenza
+    /// scelta che il vecchio background dava anche lui resta competente anche quando il nuovo
+    /// background non la dà più.</summary>
+    private void OnBackgroundChanged()
+        => CharacterWizardLogic.ApplicaCompetenze(draft, scelteAbilita, ConcesseAttuali);
 
     // ----- Bonus di background (§4.7): applicati SOLO se il background ne concede e la specie
     // scelta non ne porta già di suoi (evita di sommare due edizioni) -----
@@ -1045,6 +1615,56 @@
     private void UseSuggestedAc() => draft.ArmorClass = SuggestedAc;
     private void UseSuggestedHitDice() => draft.HitDiceMax = SuggestedHitDice;
 
+    // ----- PF quando il dado vita non si calcola (MINORE 1 del secondo giro del gate del
+    // 2026-08-06): il campo PF del passo Dettagli torna editabile SOLO in questo stato (v.
+    // StimaPfCalcolabile) — assente = si usa la stima generica "d8" di AssemblaBaseline, stesso
+    // stile "assente = automatico" già in uso per tiriProgressione. -----
+
+    /// <summary>Vero quando la stima di PF di 1° livello si calcola dalla FORMULA vera (dado vita
+    /// di classe riconosciuto), falso quando SuggestMaxHp ripiegherebbe sulla stima generica "d8".
+    /// La sentinella 0 di SuggestMaxHp dipende SOLO dal parsing del dado — non da modificatore o
+    /// livello — quindi passare 0/1 come argomenti fittizi non cambia l'esito rispetto alla chiamata
+    /// vera dentro AssemblaBaseline. Decide se il campo PF del passo Dettagli resta disabilitato
+    /// (numero "calcolato dalle regole") o torna editabile: un campo disabilitato che mostra una
+    /// stima generica inventata è peggio di un campo libero (§E della spec).</summary>
+    private bool StimaPfCalcolabile => CharacterWizardLogic.SuggestMaxHp(ClassHitDie, 0, 1) > 0;
+
+    /// <summary>PF di 1° livello scelti a mano quando il dado vita non si riconosce: null finché
+    /// l'utente non tocca il campo, nel qual caso l'automatico ("d8") resta valido. Fluisce dentro
+    /// AssemblaBaseline (v. il wrapper più sotto) come seed di 1° livello, così Progressione,
+    /// Riepilogo e salvataggio restano tutti sulla stessa fonte: nessun punto separato da tenere
+    /// sincronizzato a mano.</summary>
+    private int? pfBaselineManuale;
+
+    /// <summary>Valore mostrato (e scritto) dal campo PF del passo Dettagli quando CatenaUtile è
+    /// vero ma il dado vita non si riconosce: l'override manuale se già impostato, altrimenti la
+    /// stessa stima generica "d8" di 1° livello che AssemblaBaseline userebbe come seed (v.
+    /// pfBaselineManuale e CharacterWizardLogic.AssemblaBaseline). BLOCCANTE del gate del
+    /// 2026-08-06: deve restare il SEED, mai il totale (anteprima.MaxHitPoints) — il fold di
+    /// CreationChain non è invertibile, quindi mostrare il totale mentre si scrive il seed fa
+    /// divergere per sempre ciò che il campo mostra da ciò che il campo scrive.</summary>
+    private int PfSeedDettagliMostrato =>
+        pfBaselineManuale ?? CharacterWizardLogic.SuggestMaxHp("d8", CharacterCalculations.GetModifier(FinalScores[2]), 1);
+
+    /// <summary>Avanza a ogni digitazione che il modello non accetta invariata (testo non numerico,
+    /// o clampato a un valore diverso da quanto scritto): stessa ragione di rollRenderTick/
+    /// tiroChiaveVersioni più sopra — entra nella @key dell'input e forza Blazor a toccare il DOM
+    /// anche quando il valore corretto coincide, per coincidenza, con quello già a schermo.</summary>
+    private int pfManualeRenderTick;
+
+    private void ImpostaPfManuale(ChangeEventArgs e)
+    {
+        var grezzo = e.Value?.ToString();
+        if (!int.TryParse(grezzo, out var v))
+        {
+            pfManualeRenderTick++;
+            return;
+        }
+        var clamped = Math.Max(1, v);
+        if (!string.Equals(grezzo, clamped.ToString(), StringComparison.Ordinal)) pfManualeRenderTick++;
+        pfBaselineManuale = clamped;
+    }
+
     private int? RaceSpeedValue => SelectedRaceDb?.Speed ?? SelectedRacePackage?.Speed?.Value;
 
     private string? RaceSpeedUnit => SelectedRaceDb is not null
@@ -1059,17 +1679,253 @@
         if (RaceSpeedValue is int v) draft.Speed = CharacterWizardLogic.SpeedInMeters(v, RaceSpeedUnit);
     }
 
+    // ===================================================================
+    // Progressione (2026-08-06): collega CreationChain.Deriva al wizard. Il wizard possiede il
+    // livello 1, CreationChain possiede il 2→N (v. il principio della spec) — qui sotto sta SOLO
+    // l'orchestrazione (assemblare il baseline, scegliere quale dei tre rami della catena vale, e
+    // le mutazioni locali di risposte/tiri): nessun calcolo di PF/slot/competenza che duplichi
+    // LevelUpPlanner o CreationChain.
+    // ===================================================================
+
+    private string? TestoProgressioneClasse => ClassProgression.Risolvi(classes, classiDiManuale, draft.Class);
+
+    /// <summary>Il passo Progressione compare quando si richiede più del 1° livello (§A della
+    /// spec) — indipendentemente dal fatto che la classe abbia una tabella: se non l'ha, il passo
+    /// resta e SPIEGA il ripiego (§E), non scompare in silenzio.</summary>
+    private bool MostraProgressione => draft.Level > 1;
+
+    private bool ClasseSenzaTabella => ClassProgression.Leggi(TestoProgressioneClasse).Count == 0;
+
+    /// <summary>Vero solo quando la catena governa DAVVERO la progressione: livello > 1 e la classe
+    /// ha una tabella. Decide se i campi PF/Dadi Vita del passo Dettagli sono calcolati (disabilitati)
+    /// o liberi (§D della spec).</summary>
+    private bool CatenaUtile => MostraProgressione && !ClasseSenzaTabella;
+
+    private Dictionary<string, Risposta> RisposteDiLivello(int livello)
+        => risposteProgressione.TryGetValue(livello, out var r) ? r : new Dictionary<string, Risposta>(StringComparer.Ordinal);
+
+    private IReadOnlyDictionary<int, IReadOnlyDictionary<string, Risposta>> RispostePerLivelloReadOnly
+        => risposteProgressione.ToDictionary(kv => kv.Key, kv => (IReadOnlyDictionary<string, Risposta>)kv.Value);
+
+    /// <summary>I tiri salvezza di classe come testo libero ("Forza, Costituzione"), dalle due
+    /// sorgenti possibili con la stessa precedenza già in uso per dado vita/caratteristica
+    /// principale: la riga di campagna vince quando esiste.</summary>
+    private string? SavingThrowsText => SelectedClassDb?.SavingThrows
+        ?? (SelectedClassPackage is not null ? string.Join(", ", SelectedClassPackage.SavingThrows) : null);
+
+    /// <summary>Assembla il baseline di 1° livello: clona il draft e sincronizza ciò che il wizard
+    /// possiede ma non scrive MAI su <c>draft</c> prima d'ora — punteggi finali, scelta
+    /// caratteristiche di background, tiri salvezza di classe — così il resto del wizard continua a
+    /// leggere "punteggi non ancora sincronizzati" fino al salvataggio vero. Competenze abilità,
+    /// slot incantesimo e caratteristica da incantatore del 1° livello NON si risincronizzano qui:
+    /// sono già mantenuti aggiornati sul draft stesso a ogni cambiamento
+    /// (<see cref="ToggleAbilitaScelta"/>, <see cref="OnClassChanged"/>, <see cref="OnBackgroundChanged"/>),
+    /// e il clone li eredita già corretti.
+    ///
+    /// SERIO 4 del gate del 2026-08-06: il calcolo vero e proprio vive in
+    /// <see cref="CharacterWizardLogic.AssemblaBaseline"/> — funzione pura, testabile — e questo
+    /// resta un wrapper sottile che gli passa lo stato del componente. Il livello del clone è SEMPRE
+    /// 1, mai <c>draft.Level</c>: quel campo è ora il livello RICHIESTO alla catena (v.
+    /// <see cref="DerivaEsito"/>), non lo stato del baseline. Il wizard possiede il 1°, il planner
+    /// possiede il 2→N (v. il principio della spec).
+    ///
+    /// MINORE 1 del secondo giro del gate del 2026-08-06: <see cref="pfBaselineManuale"/> passa
+    /// insieme allo stato — vince sulla stima "d8" SOLO quando il dado vita non si riconosce (v.
+    /// <see cref="StimaPfCalcolabile"/> e il campo PF del passo Dettagli), altrimenti la funzione
+    /// pura lo ignora da sé.</summary>
+    private Character AssemblaBaseline() => CharacterWizardLogic.AssemblaBaseline(
+        draft, FinalScores, EffectiveBonusMap, SavingThrowsText, CatenaUtile, ClassHitDie, pfBaselineManuale);
+
+    /// <summary>Il branching a tre vie della catena (v. "La catena" della spec): livello 1 (nessuna
+    /// catena: il baseline stesso è il personaggio), classe senza tabella (ripiego dichiarato, §E:
+    /// niente motore, il livello resta quello scritto a mano) o il fold vero via
+    /// <see cref="CreationChain.Deriva"/>. UN'UNICA fonte per l'anteprima (passi Progressione,
+    /// Dettagli, Riepilogo) e per il salvataggio (<see cref="SaveAsync"/>): se vivessero in due punti
+    /// diversi potrebbero divergere in silenzio, esattamente la classe di difetto che questa fetta
+    /// deve evitare.
+    ///
+    /// SERIO 4 del gate del 2026-08-06: come <see cref="AssemblaBaseline"/>, il calcolo vive in
+    /// <see cref="CharacterWizardLogic.DerivaEsito"/> ed è questo il wrapper sottile.</summary>
+    private EsitoCatena DerivaEsito(Character baseline) => CharacterWizardLogic.DerivaEsito(
+        baseline, MostraProgressione, ClasseSenzaTabella, draft.Level, TestoProgressioneClasse,
+        SottoclassiDisponibili, Catalog.Feats, RispostePerLivelloReadOnly, tiriProgressione, ClassHitDie);
+
+    /// <summary>L'esito della catena per l'ANTEPRIMA (passi Progressione, Dettagli, Riepilogo).
+    /// Ricalcolato a ogni accesso — mai una cache — per restare sempre in sincrono con
+    /// draft/risposte/tiri (§B della spec: lo stato è (baseline, risposte), il personaggio si
+    /// deriva, non si mantiene). <see cref="SaveAsync"/> non lo usa: assembla e deriva per conto
+    /// proprio, in righe separate, per rendere l'ordine (§C) visibile a chi legge quel metodo.</summary>
+    private EsitoCatena EsitoProgressione => DerivaEsito(AssemblaBaseline());
+
+    /// <summary>Il personaggio che i passi Dettagli e Riepilogo mostrano in anteprima: quello che
+    /// SaveAsync salverebbe se venisse premuto "Crea personaggio" in questo istante.</summary>
+    private Character Anteprima => EsitoProgressione.Personaggio;
+
+    // ----- Interazione col passo Progressione: mutazioni locali di risposte/tiri, mai un calcolo
+    // di PF/slot/competenza (quello resta dentro CreationChain/LevelUpPlanner) -----
+
+    private void ImpostaRisposta(int livello, string chiave, Risposta risposta)
+    {
+        if (!risposteProgressione.TryGetValue(livello, out var perLivello))
+        {
+            perLivello = new Dictionary<string, Risposta>(StringComparer.Ordinal);
+            risposteProgressione[livello] = perLivello;
+        }
+        perLivello[chiave] = risposta;
+    }
+
+    private void ToggleLivello(int livello) => livelloEspanso = livelloEspanso == livello ? null : livello;
+
+    /// <summary>Il testo sintetico di una tappa auto-confermata, PIÙ ciò che è stato scelto (SERIO 2
+    /// del gate del 2026-08-06): senza questo una tappa confermata mostrava solo punti ferita e
+    /// dado, e non si vedeva quale sottoclasse o quale talento fosse stato preso — bisognava
+    /// riaprire il pannello (oggi possibile, dopo la stessa correzione) per scoprirlo. Orchestrazione
+    /// del solo componente: legge le risposte già in <see cref="risposteProgressione"/>, non
+    /// ricalcola nulla che non sia già in <see cref="TappaCreazione.Piano"/>.</summary>
+    private string RiepilogoConfermata(TappaCreazione tappa)
+    {
+        var risposte = RisposteDiLivello(tappa.Livello);
+        var scelte = tappa.Piano.Decisioni
+            .Select(d => CharacterWizardLogic.RiepilogoRisposta(d, risposte.TryGetValue(d.Chiave, out var r) ? r : null))
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct()
+            .ToList();
+
+        var automatico = CharacterWizardLogic.RiepilogoAutomatico(tappa);
+        return scelte.Count == 0 ? automatico : $"{automatico} · {string.Join(" · ", scelte)}";
+    }
+
+    private void ToggleDescrizione(string chiave)
+    {
+        if (!descrizioniEspanse.Remove(chiave)) descrizioniEspanse.Add(chiave);
+    }
+
+    private void ScegliOpzione(int livello, DecisioneFraOpzioni decisione, string nome)
+    {
+        var attuali = RisposteDiLivello(livello).TryGetValue(decisione.Chiave, out var r) ? r.Scelte : Array.Empty<string>();
+        List<string> nuove;
+        if (attuali.Contains(nome))
+            nuove = attuali.Where(x => x != nome).ToList();
+        else if (decisione.Quante == 1)
+            nuove = new List<string> { nome };
+        else if (attuali.Count < decisione.Quante)
+            nuove = attuali.Append(nome).ToList();
+        else
+            return; // già al massimo: i controlli restano disabilitati, ma niente crash se arriva comunque un tap.
+
+        ImpostaRisposta(livello, decisione.Chiave, new Risposta { Scelte = nuove });
+    }
+
+    private void VariaPunteggio(int livello, string chiave, string caratteristica, int delta)
+    {
+        var correnti = RisposteDiLivello(livello).TryGetValue(chiave, out var r) ? r.Punteggi : new Dictionary<string, int>(StringComparer.Ordinal);
+        var totale = correnti.Values.Sum();
+        var valore = correnti.TryGetValue(caratteristica, out var v) ? v : 0;
+
+        // Il vincolo "somma esattamente 2, massimo +2 su una sola" si riduce a un solo controllo:
+        // con la somma già limitata a 2, nessun singolo valore può comunque superare 2.
+        if (delta > 0 && totale >= 2) return;
+        if (delta < 0 && valore <= 0) return;
+
+        var nuovi = new Dictionary<string, int>(correnti, StringComparer.Ordinal);
+        var nuovoValore = valore + delta;
+        if (nuovoValore <= 0) nuovi.Remove(caratteristica);
+        else nuovi[caratteristica] = nuovoValore;
+
+        ImpostaRisposta(livello, chiave, new Risposta { Punteggi = nuovi });
+    }
+
+    private void ImpostaTestoLibero(int livello, string chiave, string testo)
+        => ImpostaRisposta(livello, chiave, new Risposta { Testo = testo });
+
+    private bool TiroManuale(int livello) => tiriProgressione.ContainsKey(livello);
+
+    private void ImpostaModoTiro(int livello, LevelUpPlan piano, ChangeEventArgs e)
+    {
+        if (e.Value?.ToString() == "manuale") tiriProgressione[livello] = piano.MediaDado;
+        else tiriProgressione.Remove(livello);
+    }
+
+    private void CambiaTiro(int livello, ChangeEventArgs e, int facceMax)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var v))
+        {
+            // MINORE 7 del gate del 2026-08-06: campo svuotato o testo non numerico. Uscire senza
+            // toccare la @key lasciava lo schermo vuoto mentre il fold continuava a usare il vecchio
+            // tiro (o la media, se non ce n'era ancora uno) — modello e schermo divergenti, senza che
+            // nulla lo segnalasse. Bump comunque: forza Blazor a riscrivere il DOM col valore
+            // REALMENTE in uso, invece di lasciare a schermo un campo vuoto che non corrisponde a
+            // nessun tiro applicato.
+            tiroChiaveVersioni[livello] = tiroChiaveVersioni.GetValueOrDefault(livello) + 1;
+            return;
+        }
+        var troncato = Math.Clamp(v, 1, facceMax);
+        // Il digitato eccedeva l'intervallo ed è stato troncato a un valore che magari coincide con
+        // quello già in campo: senza questo contatore nella @key dell'input, Blazor non vedrebbe
+        // alcuna differenza da propagare al DOM, e il campo continuerebbe a mostrare il numero
+        // fuori intervallo digitato dall'utente (stesso schema di LevelUpDialog.razor).
+        if (troncato != v) tiroChiaveVersioni[livello] = tiroChiaveVersioni.GetValueOrDefault(livello) + 1;
+        tiriProgressione[livello] = troncato;
+    }
+
+    private int TiroChiaveVersione(int livello) => tiroChiaveVersioni.GetValueOrDefault(livello);
+
     // ----- Navigazione fra passi, con validazione (§ requisito wizard) -----
 
-    private string? ValidateStep(int step) => step switch
+    /// <summary>I passi effettivi di questa sessione: Progressione entra/esce in base al livello
+    /// richiesto (§A della spec). Ricalcolata a ogni render, mai salvata a parte: senza questo,
+    /// cambiare il campo Livello nel passo Classe richiederebbe risincronizzare a mano una lista
+    /// già filtrata in precedenza. Specie/Classe/Background/Caratteristiche restano SEMPRE ai primi
+    /// quattro indici (0-3): solo gli indici da 4 in su si spostano, e l'unico punto che tocca
+    /// <c>draft.Level</c> (il campo Livello) vive nel passo Classe (indice 1), sempre stabile.</summary>
+    private List<WizardStepKind> Steps => TutteLeTappeWizard
+        .Where(t => t.Kind != WizardStepKind.Progressione || MostraProgressione)
+        .Select(t => t.Kind)
+        .ToList();
+
+    private List<string> StepTitles => TutteLeTappeWizard
+        .Where(t => t.Kind != WizardStepKind.Progressione || MostraProgressione)
+        .Select(t => t.Titolo)
+        .ToList();
+
+    private int TotalSteps => Steps.Count;
+
+    /// <summary>Il personaggio che il passo Dettagli mostra e salva: <see cref="Anteprima"/> quando
+    /// la catena guida davvero i PF/dadi vita (i campi sono disabilitati e mostrano quel valore),
+    /// <c>draft</c> altrimenti (i campi sono editabili). SERIO 3, parte MINORE del gate del
+    /// 2026-08-06: <see cref="ValidateStep"/> validava sempre <c>draft</c> anche quando il passo
+    /// mostrava <c>Anteprima</c> — svuotare il campo PF al 1° livello (testo non parsabile → 0) e
+    /// poi salire di livello lasciava "Avanti" bloccato su un campo disabilitato che mostrava un
+    /// valore valido, perché il controllo continuava a leggere lo 0 rimasto su <c>draft</c>.</summary>
+    private Character DettagliVisualizzato => CatenaUtile ? Anteprima : draft;
+
+    /// <summary>Valida il passo indicato. <paramref name="datiPersonaggio"/> sostituisce, per il solo
+    /// passo Dettagli, la fonte letta di default (<see cref="DettagliVisualizzato"/>): serve a
+    /// <see cref="PassoDellErrore"/> (SERIO 3 del gate del 2026-08-06) per rivalidare esattamente il
+    /// <c>baseline</c> che <see cref="SaveAsync"/> ha già validato, invece di un secondo controllo
+    /// sul draft che potrebbe divergere e non trovare l'errore che ha bloccato il salvataggio.</summary>
+    private string? ValidateStep(int step, Character? datiPersonaggio = null)
     {
-        0 => CharacterWizardLogic.ValidateSpeciesStep(draft.Race),
-        1 => CharacterWizardLogic.ValidateClassStep(draft.Class),
-        2 => CharacterWizardLogic.ValidateBackgroundStep(draft.Background),
-        3 => CharacterWizardLogic.ValidateAbilitiesStep(abilityMethod, baseScores),
-        4 => CharacterWizardLogic.ValidateDetailsStep(draft),
-        _ => null
-    };
+        switch (Steps[step])
+        {
+            case WizardStepKind.Specie:
+                return CharacterWizardLogic.ValidateSpeciesStep(draft.Race);
+            case WizardStepKind.Classe:
+                return CharacterWizardLogic.ValidateClassStep(draft.Class)
+                    ?? CharacterWizardLogic.ValidateClassSkillChoices(VincoloAbilitaClasse, EsitoAbilita);
+            case WizardStepKind.Background:
+                return CharacterWizardLogic.ValidateBackgroundStep(draft.Background);
+            case WizardStepKind.Caratteristiche:
+                return CharacterWizardLogic.ValidateAbilitiesStep(abilityMethod, baseScores);
+            case WizardStepKind.Progressione:
+                var esito = EsitoProgressione;
+                return CharacterWizardLogic.ValidateProgressionStep(CatenaUtile, esito.Completa, esito.Motivo);
+            case WizardStepKind.Dettagli:
+                return CharacterWizardLogic.ValidateDetailsStep(datiPersonaggio ?? DettagliVisualizzato);
+            default:
+                return null;
+        }
+    }
 
     private void GoToStep(int step)
     {
@@ -1102,85 +1958,81 @@
 
     // ----- Salvataggio -----
 
-    private void ApplyClassSaveProficiencies()
-    {
-        var savesText = SelectedClassDb?.SavingThrows
-            ?? (SelectedClassPackage is not null ? string.Join(", ", SelectedClassPackage.SavingThrows) : null);
-
-        // Azzera prima di applicare: questo metodo può girare più volte sullo stesso draft (un
-        // salvataggio fallito lascia la pagina aperta, l'utente torna indietro e cambia classe).
-        // Mettendo solo a `true`, le competenze della classe abbandonata resterebbero addosso al
-        // personaggio: un Mago con le competenze del Guerriero, senza alcun segnale.
-        draft.ProfSaveStrength = draft.ProfSaveDexterity = draft.ProfSaveConstitution = false;
-        draft.ProfSaveIntelligence = draft.ProfSaveWisdom = draft.ProfSaveCharisma = false;
-
-        foreach (var key in CharacterWizardLogic.ParseSaveProficiencies(savesText))
-        {
-            switch (key)
-            {
-                case "strength": draft.ProfSaveStrength = true; break;
-                case "dexterity": draft.ProfSaveDexterity = true; break;
-                case "constitution": draft.ProfSaveConstitution = true; break;
-                case "intelligence": draft.ProfSaveIntelligence = true; break;
-                case "wisdom": draft.ProfSaveWisdom = true; break;
-                case "charisma": draft.ProfSaveCharisma = true; break;
-            }
-        }
-    }
-
     /// <summary>Il primo passo che non supera la propria validazione, o null se sono tutti a posto.
-    /// L'ordine è quello dei passi, così si atterra sul più a monte: correggerlo può risolvere
-    /// anche quelli a valle.</summary>
-    private int? PassoDellErrore()
+    /// L'ordine è quello dei passi attuali (<see cref="Steps"/>), così si atterra sul più a monte:
+    /// correggerlo può risolvere anche quelli a valle. <see cref="ValidateStep"/> torna sempre null
+    /// per Background e Riepilogo, quindi enumerare tutti i passi equivale a controllare solo quelli
+    /// che possono davvero bloccare.
+    ///
+    /// SERIO 3 del gate del 2026-08-06: <paramref name="baseline"/> è lo STESSO oggetto che
+    /// <see cref="SaveAsync"/> ha appena validato con <c>ValidateSummaryStep</c> — prima veniva
+    /// chiamato senza argomenti e il passo Dettagli finiva per rivalidare <c>draft</c>, che può
+    /// divergere dal baseline (v. <see cref="DettagliVisualizzato"/>). Con la divergenza, un
+    /// baseline in errore e un draft che invece passa facevano tornare questo metodo <c>null</c>: il
+    /// commento di <see cref="SaveAsync"/> promette "riporta al passo che ha prodotto l'errore", ma
+    /// con <c>null</c> l'utente restava semplicemente fermo con un toast, senza sapere dove
+    /// intervenire.</summary>
+    private int? PassoDellErrore(Character baseline)
     {
-        if (CharacterWizardLogic.ValidateSpeciesStep(draft.Race) is not null) return 0;
-        if (CharacterWizardLogic.ValidateClassStep(draft.Class) is not null) return 1;
-        if (CharacterWizardLogic.ValidateAbilitiesStep(abilityMethod, baseScores) is not null) return 3;
-        if (CharacterWizardLogic.ValidateDetailsStep(draft) is not null) return 4;
+        var passi = Steps;
+        for (var i = 0; i < passi.Count; i++)
+            if (ValidateStep(i, baseline) is not null) return i;
         return null;
     }
 
     private async Task SaveAsync()
     {
-        // I punteggi finali restano fuori dal Draft per tutto il wizard (evita letture stantie
-        // mentre base/razza/background cambiano): si sincronizzano solo ora, al salvataggio.
-        var final = FinalScores;
-        draft.Strength = final[0];
-        draft.Dexterity = final[1];
-        draft.Constitution = final[2];
-        draft.Intelligence = final[3];
-        draft.Wisdom = final[4];
-        draft.Charisma = final[5];
-        draft.HitPoints = draft.MaxHitPoints;
-        draft.BackgroundAbilityChoice = CharacterWizardLogic.FormatBackgroundAbilityChoice(EffectiveBonusMap);
-        ApplyClassSaveProficiencies();
+        // ORDINE NON NEGOZIABILE (§C della spec): 1) assembla il baseline (le sei caratteristiche
+        // finali, la scelta caratteristiche di background, i tiri salvezza — tutto ciò che il
+        // wizard possiede ma non scrive MAI su `draft` prima d'ora, per non fargli leggere numeri
+        // stantii durante il resto del wizard: v. AssemblaBaseline); 2) valida SUL BASELINE, non
+        // sul derivato; 3) deriva con CreationChain.Deriva (dentro DerivaEsito); 4) rifiuta il
+        // salvataggio se l'esito non è completo; 5) Normalize sul risultato del fold; 6) salva
+        // quello, MAI il draft. Se il sync delle caratteristiche finali girasse DOPO il fold (o se
+        // questi passi si interlacciassero), un incremento di caratteristica maturato nel fold —
+        // l'ASI del 4°, per esempio — verrebbe sovrascritto in silenzio dal sync tardivo: build
+        // verde, test verdi, e il talento del 4° semplicemente non ci sarebbe più nella scheda
+        // salvata. È il gemello esatto del bloccante CloneCharacter del 2026-08-06, e altrettanto
+        // silenzioso.
+        var baseline = AssemblaBaseline(); // 1. assembla
 
-        // Rivalida anche le caratteristiche: ai pallini di passo si può tornare indietro e poi
-        // risalire senza passare da "Avanti", che è l'unico punto in cui il passo 4 si valida.
-        var error = CharacterWizardLogic.ValidateSummaryStep(draft, abilityMethod, baseScores);
-        if (error is not null)
+        var errore = CharacterWizardLogic.ValidateSummaryStep(baseline, abilityMethod, baseScores) // 2. valida
+            ?? CharacterWizardLogic.ValidateClassSkillChoices(VincoloAbilitaClasse, EsitoAbilita);
+        if (errore is not null)
         {
             // Riporta al passo che ha prodotto l'errore, non solo il messaggio: il riepilogo mostra
             // le caratteristiche già sommate ai bonus, quindi «non sembrano» sbagliate, e il toast
             // sparisce da solo. Senza questo salto l'utente resta a guardare una schermata che gli
             // pare corretta, senza sapere dove intervenire.
-            var passo = PassoDellErrore();
+            var passo = PassoDellErrore(baseline);
             if (passo is int p && p != currentStep) currentStep = p;
 
-            Toasts.ShowError(error);
+            Toasts.ShowError(errore);
             return;
         }
 
-        CharacterNormalizer.Normalize(draft);
+        var esito = DerivaEsito(baseline); // 3. deriva
+
+        if (!esito.Completa) // 4. rifiuta se incompleta
+        {
+            var idxProgressione = Steps.IndexOf(WizardStepKind.Progressione);
+            if (idxProgressione >= 0) currentStep = idxProgressione;
+
+            Toasts.ShowError(esito.Motivo ?? "Completa le scelte di progressione prima di continuare.");
+            return;
+        }
+
+        var personaggio = esito.Personaggio;
+        CharacterNormalizer.Normalize(personaggio); // 5. Normalize sul risultato del fold
 
         isBusy = true;
         systemError = null;
         try
         {
-            draft.OwnerId = CurrentUser.UserId ?? string.Empty;
-            draft.CampaignId = CurrentUser.CampaignId ?? string.Empty;
+            personaggio.OwnerId = CurrentUser.UserId ?? string.Empty;
+            personaggio.CampaignId = CurrentUser.CampaignId ?? string.Empty;
 
-            var saved = await CharacterRepository.CreateCharacterAsync(draft);
+            var saved = await CharacterRepository.CreateCharacterAsync(personaggio); // 6. salva quello, non il draft
             if (saved is null)
             {
                 systemError = "Il server non ha restituito il personaggio salvato.";

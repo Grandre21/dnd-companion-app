@@ -346,12 +346,16 @@
     /// facce = (media-1)*2): evita di riparsare piano.DadoVita con una logica propria, che
     /// duplicherebbe LevelUpPlanner con un fallback diverso in caso di stringa non riconosciuta.
     ///
+    /// SERIO 5 del gate del 2026-08-06: la stessa formula (con la stessa guardia sul dado "d1", v.
+    /// sotto) era duplicata inline nel markup del passo Progressione del wizard di creazione — corpo
+    /// sostituito con una delega a <see cref="CharacterWizardLogic.FacceMax"/>, ora la sola fonte,
+    /// comportamento invariato.
+    ///
     /// Clampata a un minimo di 2: HitDie è testo libero in Pages/Classes.razor, e un refuso tipo
     /// "d1" (invece di "d10") dà MediaDado=1 e quindi facce=0 — i due punti che chiamano FacceMax
     /// fanno poi Math.Clamp(valore, 1, facceMax), che con max 0 e min 1 lancia ArgumentException
-    /// durante il render (dialogo inutilizzabile finché non si ricarica). Il fix vive qui, non nei
-    /// due punti di chiamata: un solo posto da correggere per entrambi.</summary>
-    private static int FacceMax(int mediaDado) => Math.Max(2, (mediaDado - 1) * 2);
+    /// durante il render (dialogo inutilizzabile finché non si ricarica).</summary>
+    private static int FacceMax(int mediaDado) => CharacterWizardLogic.FacceMax(mediaDado);
 
     private static string Troncata(string testo)
         => testo.Length <= TroncamentoSoglia ? testo : testo[..TroncamentoSoglia].TrimEnd() + "…";

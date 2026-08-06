@@ -375,6 +375,76 @@
 .wiz-hp-row .input { flex: 1; min-width: 8rem; }
 .wiz-suggest-btn { white-space: nowrap; }
 
+/* ===== Step Classe: competenze abilità (scelta vincolata N su M, o picker libero) ===== */
+.skill-picker-count {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+}
+.skill-picker-count.incomplete { color: #f0a0a0; }
+
+.skill-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* Tap target 44px (v. CLAUDE.md): l'intera riga è cliccabile, non solo la casella. */
+.skill-pick-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 44px;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 8px;
+    background: rgba(var(--black-rgb), 0.2);
+    cursor: pointer;
+}
+.skill-pick-row.checked {
+    background: rgba(var(--gold-rgb), 0.15);
+    border-color: var(--gold);
+}
+.skill-pick-row.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.skill-pick-row input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+    accent-color: var(--gold);
+    cursor: pointer;
+}
+.skill-pick-row.disabled input[type="checkbox"] { cursor: not-allowed; }
+
+.skill-pick-name {
+    flex: 1;
+    color: var(--gold-muted);
+    font-size: 0.9rem;
+}
+.skill-pick-row.checked .skill-pick-name { color: var(--gold-light); font-weight: 600; }
+
+.skill-pick-badge {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--bg);
+    background: var(--gold-dim);
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    white-space: nowrap;
+}
+
+.skill-pick-hint {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    margin: 0;
+}
+.skill-pick-hint.warn { color: #e0c090; }
+.skill-pick-hint.error { color: #f0a0a0; }
+
 /* ===== Step Riepilogo ===== */
 .wiz-summary-card {
     background: var(--bg-card);
@@ -404,3 +474,211 @@
 .wiz-summary-stat-label { color: var(--gold-muted); font-size: 0.75rem; }
 .wiz-summary-stat-val { color: var(--gold-light); font-weight: 600; font-size: 1.1rem; }
 .wiz-summary-stat-mod { color: var(--gold-muted); font-size: 0.8rem; }
+
+/* ===== Step Progressione: elenco per livello, pannello espandibile dentro la riga (2026-08-06) ===== */
+.prog-title {
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--gold);
+    margin: 0.2rem 0 0.4rem;
+    text-transform: uppercase;
+}
+
+.prog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.prog-row {
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 8px;
+    background: rgba(var(--black-rgb), 0.2);
+    overflow: hidden;
+}
+.prog-row.prog-row-open { border-color: var(--gold); }
+
+.prog-row-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.4rem 0.6rem;
+    flex-wrap: wrap;
+}
+
+.prog-row-liv {
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 0.85rem;
+    flex: 0 0 auto;
+    min-width: 3.75rem;
+}
+
+.prog-row-icon { flex: 0 0 auto; font-size: 1rem; }
+/* MINORE 10 del gate del 2026-08-06: #8fbf8f non esisteva altrove nel progetto — sostituito sul
+   VALORE con il token di successo già in uso altrove (LevelUpDialog.razor.css, Characters.razor.css),
+   non per somiglianza di nome: --gold-muted (#c9b88a) e --text-body (#c8b88a) sono verdi/oro diversi
+   da questo, non varianti dello stesso colore. */
+.prog-stato-confermata { color: rgb(var(--success-rgb)); }
+.prog-stato-richiedescelte { color: #f0a0a0; }
+.prog-stato-facoltativa { color: var(--gold-muted); }
+
+.prog-row-testo {
+    flex: 1 1 auto;
+    color: var(--gold-muted);
+    font-size: 0.85rem;
+    min-width: 0;
+}
+
+.prog-dado-select {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    background: rgba(var(--black-rgb), 0.35);
+    color: var(--gold-muted);
+    font-size: 0.8rem;
+    font-family: inherit;
+}
+
+.prog-scegli-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    background: transparent;
+    color: var(--gold);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+.prog-scegli-btn:hover { background: rgba(var(--gold-rgb), 0.12); }
+
+.prog-dado-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 0.6rem 0.5rem;
+}
+.prog-dado-input {
+    min-height: 44px;
+    width: 4.5rem;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    background: rgba(var(--black-rgb), 0.35);
+    color: #e8d9b5;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+.prog-dado-max { color: #8b7a52; font-size: 0.78rem; }
+
+.prog-row-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.3rem 0.75rem 0.85rem;
+    border-top: 1px solid rgba(var(--gold-rgb), 0.15);
+}
+
+.prog-decision-title {
+    color: var(--gold-light);
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin: 0.3rem 0 0.2rem;
+}
+
+.prog-option {
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    padding: 0.35rem 0.5rem;
+    margin-bottom: 0.35rem;
+}
+.prog-option.prog-option-selected {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.1);
+}
+
+.prog-option-select {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--gold-muted);
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+}
+.prog-option-select:disabled { cursor: not-allowed; opacity: 0.5; }
+.prog-option.prog-option-selected .prog-option-name { color: var(--gold-light); font-weight: 600; }
+.prog-option-check { flex: 0 0 auto; color: var(--gold); }
+.prog-option-name { flex: 1; }
+
+.prog-option-desc {
+    color: #a8946a;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0.25rem 0 0.1rem;
+}
+
+.prog-option-expand {
+    background: none;
+    border: none;
+    color: var(--gold-muted);
+    font-size: 0.72rem;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.3rem 0;
+    min-height: 44px;
+}
+
+.prog-score-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+}
+.prog-score-name {
+    flex: 0 0 auto;
+    width: 2.5rem;
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+.prog-score-value {
+    flex: 1;
+    text-align: center;
+    color: var(--gold-muted);
+    font-size: 0.9rem;
+}
+.prog-score-value strong { color: var(--gold-light); }
+
+.prog-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(var(--gold-rgb), 0.08);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+}
+.prog-footer-warn { color: #f0a0a0; font-weight: 600; }
+.prog-footer-ok { color: rgb(var(--success-rgb)); font-weight: 600; } /* MINORE 10: v. sopra */
+
+.prog-avvisi { display: flex; flex-direction: column; gap: 0.3rem; }
