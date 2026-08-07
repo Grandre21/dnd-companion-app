@@ -62,9 +62,26 @@ senza approvazioni: *ciò che spingo è già online*. Da qui tutto il resto.
 ## Regola obbligatoria: revisione a due agenti (gate calibrato al rischio)
 
 Dopo ogni modifica al **codice**, prima di dichiarare un task completato o di proporre un commit,
-**lancia in parallelo** i due subagent `critico` e `conformità` (definiti in `.claude/agents/`) sul
-diff corrente (`git diff HEAD` + file non tracciati). `critico` → bug e regressioni; `conformità` →
-pattern documentati del progetto.
+**lancia in parallelo, nello stesso messaggio,** i due agenti globali `bug-hunter` e `conformity`
+(definiti in `~/.claude/agents/`, Sonnet, sola lettura) sul diff corrente (`git diff HEAD` + file
+non tracciati). `bug-hunter` → bug e regressioni; `conformity` → pattern documentati del progetto.
+
+Sono generici per costruzione: **il dominio glielo passi tu nel brief**. A entrambi il diff, e in più:
+
+- a `conformity` → i **file omologhi già esistenti** (lì si vede il riuso mancato) e i «Pattern
+  chiave» in fondo a questo file. Su questo progetto guarda in particolare: logica di dominio negli
+  helper puri e non nei `.razor`, repository-per-aggregato dietro interfaccia, `.app-toast` (mai
+  `.toast`), `ConfirmDialog` invece di `confirm()`, design token in `:root`, isolamento CSS scoped
+  che non raggiunge i figli, `CurrentUserService`/`AccessControl` invece del boilerplate auth per
+  pagina, a11y sui controlli interattivi.
+- a `bug-hunter` → i **call-site dei simboli modificati** (lì si vedono i contratti rotti) e le aree
+  calde di questo progetto: formule D&D (modificatori, competenza, TS, PF, spellcasting), lifecycle
+  Blazor (`OnParametersSet`, `StateHasChanged`, `EventCallback` non invocati), Singleton con stato
+  mutabile condiviso, autorizzazione UI non speculare alle RLS, `.Result`/`.Wait()` e `async void`,
+  e se i test esistenti coprono davvero il comportamento nuovo.
+
+Input diversi, altrimenti paghi due volte gli stessi rilievi. Chiedi nel brief la classificazione
+`BLOCCANTE`/`SERIO`/`MINORE` e l'uscita secca `NESSUN PROBLEMA`: la guardia al punto 4 ci si appoggia.
 
 **Quanti giri dipende da cosa il diff tocca** (calibrazione decisa il 2026-08-01: il gate costa
 centinaia di migliaia di token, e applicarlo uguale a un refuso e a una migrazione è spreco):
@@ -101,8 +118,9 @@ Note:
   giro, per ciascuno.
 - Gli agenti del gate sono in **sola lettura**. Le correzioni fra un giro e l'altro **non le scrivo
   io**: le fa scrivere a un Sonnet, come ogni altra modifica al codice (v. «Chi scrive il codice»).
-- Le **definizioni degli agenti** (`.claude/agents/`) stanno in una cartella **git-ignored**: non
-  compaiono in `git diff`/`git status`. Se le modifichi, passale **esplicitamente** agli agenti.
+- I due agenti sono **globali** (`~/.claude/agents/`): non conoscono questo progetto e non lo
+  imparano da soli. Tutto ciò che devono sapere passa dal brief — un pattern che non gli hai
+  passato, per loro non esiste. È il motivo per cui i «Pattern chiave» stanno qui e non altrove.
 - I due agenti sono complementari a `/code-review` e `/security-review`, non li sostituiscono.
 
 ## Regola obbligatoria: chi scrive il codice (regola del 2026-08-06)
@@ -198,12 +216,16 @@ una colonna»: il read-modify-write lato client ha la stessa finestra.
 - Le RLS si testano solo con lo stack Supabase locale (`Tests.Integration/`, auto-skip se giù).
 - Aggiorna `docs/DA-FARE.md`/`docs/DIARIO.md` quando chiudi o apri un punto.
 
-## Pattern chiave (dettaglio nell'agente `conformità`)
-- Logica di dominio → **helper puri `static`** testabili (xUnit) — per lo più `public static`; `internal static` + `InternalsVisibleTo` quando l'helper è privato di un repository/servizio — non nei `.razor`.
-- Dati → **repository-per-aggregato** dietro interfaccia in `Services/Repositories/`; client dietro la facade `SupabaseClient`.
-- UI → toast `.app-toast` (mai `.toast`), `ConfirmDialog` (mai `confirm()`), `<LoadingSpinner>`, `DbErrorBanner` per errori di sistema.
-- CSS → **design token** in `:root`; lo scope isolato del genitore non raggiunge i figli (replica o promuovi in `app.css`).
+## Pattern chiave (è questo che passi a `conformity`)
+- Logica di dominio → **helper puri `static`** testabili (xUnit) — per lo più `public static`; `internal static` + `InternalsVisibleTo` quando l'helper è privato di un repository/servizio — non nei `.razor`. Modelli già in casa: `CharacterCalculations`, `CharacterNormalizer`, `AccessControl`, `CharacterSpellJoin`, `CombatImport`, `FormValidation`, `CharacterWizardLogic`.
+- Dati → **repository-per-aggregato** dietro interfaccia in `Services/Repositories/`, iniettati via DI (Singleton); nessuna query dentro i `.razor`; client e sessione dietro la facade `SupabaseClient`/`SupabaseService` (`From<T>`/`Rpc<T>`/`Auth`).
+- Stato utente → `CurrentUserService.EnsureLoadedAsync()` (`UserId`/`DisplayName`/`IsMaster`/`CampaignId`): non ricreare il boilerplate auth pagina per pagina.
+- Autorizzazione UI → `AccessControl.CanEdit` (master-o-proprietario), **speculare** alle RLS server-side.
+- UI → toast `.app-toast` (mai `.toast`: collide con Bootstrap e diventa invisibile), `ConfirmDialog` (mai `confirm()`), `<LoadingSpinner>`, `DbErrorBanner` per errori di sistema. Errori di validazione → toast; errori di sistema/operazione → banner.
+- a11y → controlli interattivi con `role`/`tabindex`/`aria-*` e Enter/Space; `aria-label` sui pulsanti icona-pura.
+- CSS → **design token** in `:root`; lo scope isolato del genitore non raggiunge i figli, `@media` incluse (replica nel figlio o promuovi in `app.css`).
 - Refactor → dichiarati e verificati **a comportamento invariato**.
+- **Gotchas da non reintrodurre**: le caratteristiche si clampano **a monte** (`CharacterNormalizer` non clampa); `postgrest-csharp 3.5.1` va in NRE sui predicati con **OR annidato** → filtra client-side (l'RLS copre comunque la visibilità); `Table.Delete` ritorna `void`, quindi non dice se le RLS hanno bloccato; niente dipendenze pesanti (trimming `full` attivo, Realtime/`System.Reactive` rimossi di proposito, `Newtonsoft.Json` è il serializzatore Supabase e non è rimovibile ora); CSP restrittiva in `<meta>`, `connect-src` solo self+Supabase, `localhost` solo in dev.
 - **Chi muta il personaggio prima di salvarlo deve saper tornare indietro**, e catturare il
   riferimento **prima** dell'`await`. Due difetti gemelli, trovati il 2026-08-06 in otto punti:
   (a) un update rifiutato dalle RLS **non solleva eccezioni** — PostgREST aggiorna zero righe e
