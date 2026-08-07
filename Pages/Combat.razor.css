@@ -228,7 +228,7 @@
 
 .ctrl-danger {
     border-color: rgba(var(--danger-rgb), 0.5);
-    color: #e6a373;
+    color: var(--danger-text);
 }
 
 .ctrl-danger:hover:not(:disabled) {
@@ -445,7 +445,7 @@
     border-radius: 50%;
     border: 1px solid rgba(var(--danger-rgb), 0.5);
     background: transparent;
-    color: #e6a373;
+    color: var(--danger-text);
     font-size: 0.85rem;
     cursor: pointer;
     font-family: inherit;

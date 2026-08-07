@@ -399,7 +399,7 @@
 
 .delete-action {
     border-color: rgba(var(--danger-rgb), 0.5);
-    color: #e6a373;
+    color: var(--danger-text);
 }
 
 .delete-action:hover {

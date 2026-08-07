@@ -302,7 +302,7 @@
 .weapon-stats {
     margin: 0;
     font-size: 0.85rem;
-    color: #c8b88a;
+    color: var(--text-body);
     font-variant-numeric: tabular-nums;
 }
 

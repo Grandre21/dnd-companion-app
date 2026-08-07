@@ -70,7 +70,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.sc-name.on, .sc-val.on { color: #c8b88a; }
+.sc-name.on, .sc-val.on { color: var(--text-body); }
 .sc-name.off, .sc-val.off { color: var(--gold-dim); }
 
 /* ---- Pallini competenza ---- */

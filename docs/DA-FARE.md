@@ -10,7 +10,7 @@
 > - Spec e piani → `docs/superpowers/specs/` e `docs/superpowers/plans/`.
 > - Monetizzazione → [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md) (accantonata).
 >
-> Ultimo aggiornamento: **2026-08-06**
+> Ultimo aggiornamento: **2026-08-07**
 
 Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
 
@@ -156,9 +156,10 @@ Residuo minore di C.
 
 ## 5. UI / a11y
 
-- 🟡 **Sweep dei literal su token**: restano `#c8b88a` in 4 file (`CharacterCombatTab`,
-  `SpellListItem`, `SpellPicker`, `StatCard`) e `#e6a373` in 6 (9 occorrenze). **Non** va convertita
-  la decima, in `Party.razor.css`, che è uno stop di gradiente.
+- 🟢 **Sweep dei literal, residuo `#c45638`**: `--text-body` e `--danger-text` sono chiusi (2026-08-07),
+  ma resta `#c45638` — cioè `rgb(var(--danger-rgb))` — in 8 punti: `border-color` nell'`:hover`
+  adiacente a ogni `.delete-action`/`.delete-link`/`.ctrl-danger` appena convertita (`Classes`,
+  `Combat`×2, `Monsters`, `Notes`, `Races`, `Spells`) più un `color` in `CharacterItemsTab`.
 - 🟡 **Trappola: `--gold-muted` (`#c9b88a`) e `--gold-muted-rgb` (`#9a8c6a`) sono colori diversi**, e
   `--text-body` (`#c8b88a`) differisce da `--gold-muted` di un punto sul canale rosso. Sostituire
   sempre **sul valore**, mai per somiglianza di nome. Da rinominare in un intervento dedicato.
@@ -191,7 +192,7 @@ Residuo minore di C.
 ## 7. Test e infrastruttura
 
 - 🟡 **bUnit** per testare interi componenti (rendering, eventi): per ora si estrae la logica pura man
-  mano. Stato attuale: **924 unit test** + **32 test d'integrazione** sullo stack Supabase locale
+  mano. Stato attuale: **1121 unit test** + **32 test d'integrazione** sullo stack Supabase locale
   (RLS e serializzazione col client Postgrest reale; auto-skip se lo stack è giù).
 
 ---

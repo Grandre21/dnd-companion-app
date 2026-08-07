@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-07-31**.
+> Aggiornato: **2026-08-07**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -1644,3 +1644,41 @@ Da qui una pratica che vale la pena tenere: quando un test nasce per sorvegliare
 precisa, **provarlo per mutazione** — togliere la correzione e verificare che diventi rosso. Fatto
 qui, ha dato 39 contro 43 attesi. È l'unica dimostrazione che un test serva a qualcosa, e costa un
 minuto.
+
+## Lo sweep dei literal, e il residuo che si è mostrato da solo (2026-08-07)
+
+Chiuso il punto §5 di DA-FARE: le 13 occorrenze di `#c8b88a` e `#e6a373` rimaste sparse nei CSS
+scoped sono ora `var(--text-body)` e `var(--danger-text)`. Nessuna decisione dentro: i token hanno
+esattamente il valore dei literal, quindi lo sweep è a **comportamento invariato** per costruzione.
+
+Due esclusioni volute, entrambe già annotate all'epoca in cui i token furono introdotti: lo stop di
+gradiente in `Party.razor.css:231`, che azione distruttiva non è e non deve seguire il token del
+pericolo; e il commento in `CharacterWizard.razor.css:523`, che avverte della trappola sui nomi e
+resta valido.
+
+**Quel che rende sicuro uno sweep così non è il conteggio, è la verifica sul valore.** La domanda
+vera non era «ho sostituito tutte le occorrenze» — quella la risponde `grep` — ma «il token si
+risolve davvero dentro un `.razor.css` scoped, e nessuno lo ridefinisce altrove con un valore
+diverso». Un token sovrascritto in un `@media` o in un tema avrebbe cambiato il colore senza lasciare
+traccia nel diff testuale, ed è l'unico modo in cui questo intervento poteva rompere qualcosa. Non
+succede: `--text-body` e `--danger-text` sono dichiarati solo in `:root`, `app.css` è caricato senza
+condizioni da `index.html`, e `CharacterBioTab.razor.css` usa già entrambi i token in CSS isolato da
+prima di questo giro — precedente vivo in produzione, non ragionamento teorico.
+
+I due commenti in `app.css` che dichiaravano «resta literal in N file» sono stati riscritti: erano
+diventati falsi nel momento stesso in cui lo sweep li rendeva veri al contrario. Le avvertenze sulla
+trappola (`--gold-muted` ≠ `--text-body` per un punto sul canale rosso; `--danger-text` ≠
+`--error-text` ≠ `rgb(var(--danger-rgb))`) restano parola per parola: quelle non scadono.
+
+### Il residuo che il gate ha trovato guardando accanto
+
+`conformity` ha segnalato — rispondendo a una domanda che gli avevo posto apposta — che nella regola
+`:hover` **immediatamente successiva** a ogni `.delete-action` appena convertita resta
+`border-color: #c45638`, che è `rgb(var(--danger-rgb))` per esteso. Otto punti, e il commento di
+`--danger-text` in `app.css` dichiarava già quell'equivalenza: la conoscenza c'era, mancava il passo.
+
+Non è stato incluso, ed è la scelta che vale la pena registrare. Lo sweep era dichiarato su due token
+precisi; allargarlo a un terzo perché «tanto è lì accanto» avrebbe reso il diff non più verificabile
+contro la sua stessa premessa. Un intervento a comportamento invariato vale finché il perimetro resta
+quello annunciato: il residuo è ora una voce in DA-FARE §5, non una riga in più in un commit che
+diceva altro.

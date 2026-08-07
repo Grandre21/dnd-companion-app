@@ -53,7 +53,7 @@
     border: none;
     border-bottom: 0.5px solid #3a2818;
     text-align: left;
-    color: #c8b88a;
+    color: var(--text-body);
     font-size: 13px;
     font-family: inherit;
     cursor: pointer;

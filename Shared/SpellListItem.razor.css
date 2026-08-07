@@ -102,7 +102,7 @@
 
 .spell-description {
     font-size: 13px;
-    color: #c8b88a;
+    color: var(--text-body);
     line-height: 1.5;
     white-space: pre-wrap;
     margin: 8px 0;

@@ -254,7 +254,7 @@
 .delete-link {
     background: transparent;
     border: 1px solid rgba(var(--danger-rgb), 0.5);
-    color: #e6a373;
+    color: var(--danger-text);
     font-size: 0.85rem;
     padding: 0.4rem 0.8rem;
     border-radius: 6px;

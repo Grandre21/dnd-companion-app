@@ -260,7 +260,7 @@
     display: inline-block;
     background: rgba(var(--danger-rgb), 0.18);
     border: 1px solid rgba(var(--danger-rgb), 0.5);
-    color: #e6a373;
+    color: var(--danger-text);
     padding: 0.1rem 0.55rem;
     border-radius: 999px;
     font-size: 0.75rem;
@@ -469,7 +469,7 @@
 
 .delete-action {
     border-color: rgba(var(--danger-rgb), 0.5);
-    color: #e6a373;
+    color: var(--danger-text);
 }
 
 .delete-action:hover {

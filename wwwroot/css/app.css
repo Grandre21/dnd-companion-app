@@ -20,19 +20,17 @@
     --text-on-gold: #1a1410;  /* testo su fondo oro */
     --text-body: #c8b88a;     /* testo di paragrafo dentro le card (pergamena tenue). Introdotto il
        2026-07-31 per la tabella dei privilegi in CharacterBioTab, e adottato nello stesso file da
-       .bio-block-text, che aveva lo stesso literal. Resta literal in altri 4 file
-       (CharacterCombatTab, SpellListItem, SpellPicker, StatCard), non ancora convertiti — la
-       conversione è un intervento a parte, annotato in DA-FARE §6. NON è --gold-muted (#c9b88a):
-       la differenza è di un punto sul canale rosso e non si vede a occhio, per cui la sostituzione
-       "per pulizia" va evitata. */
+       .bio-block-text, che aveva lo stesso literal. Sweep completato il 2026-08-07: convertiti
+       anche CharacterCombatTab, SpellListItem, SpellPicker e StatCard, che avevano lo stesso
+       literal. NON è --gold-muted (#c9b88a): la differenza è di un punto sul canale rosso e non si
+       vede a occhio, per cui la sostituzione "per pulizia" va evitata. */
     --error-bg: rgba(var(--error-rgb), 0.25);
     --error-border: rgba(var(--danger-rgb), 0.5);
     --error-text: #f5c6a0;
-    --danger-text: #e6a373;   /* testo delle azioni distruttive. Lo stesso valore resta literal in
-       7 file (Classes, Combat, Monsters, Notes, Races, Spells — più uno stop di gradiente in Party,
-       che azione distruttiva non è), da convertire in un intervento a parte: v. DA-FARE §6. NON è
-       --error-text (#f5c6a0, testo dei banner d'errore) né rgb(var(--danger-rgb)) (#c45638, la
-       tinta piena usata per i bordi). */
+    --danger-text: #e6a373;   /* testo delle azioni distruttive. Sweep completato il 2026-08-07 su
+       Classes, Combat, Monsters, Notes, Races e Spells. Resta literal solo lo stop di gradiente in
+       Party.razor.css, che azione distruttiva non è. NON è --error-text (#f5c6a0, testo dei banner
+       d'errore) né rgb(var(--danger-rgb)) (#c45638, la tinta piena usata per i bordi). */
 
     /* Canali RGB per i colori usati con opacità: rgba(var(--X-rgb), α). §6.
        Valgono ESATTAMENTE le triple hardcodate che sostituiscono (sweep 1:1, invariato). */
