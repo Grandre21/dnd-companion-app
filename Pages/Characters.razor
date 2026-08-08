@@ -164,51 +164,99 @@
                     </div>
                 }
 
-                @* Il foglio dei dettagli (privilegio o caratteristica): stesso ragionamento del
-                   tastierino danni/cura qui sopra, reso FUORI da ".sheet-sticky" per lo stesso
-                   stacking context (v. Characters.razor:124-135). Un solo foglio per i due
-                   contenuti (piano board-di-gioco, D3/D4): sheetPrivilegio e sheetCaratteristica
-                   sono a vicenda esclusivi (ApriSheetPrivilegio/ApriSheetCaratteristica azzerano
-                   l'altro), SheetAperto decide solo SE mostrarlo. Click sul fondo o Esc chiudono,
+                @* Il foglio dei dettagli (privilegio singolo, caratteristica, o elenco di gruppo):
+                   stesso ragionamento del tastierino danni/cura qui sopra, reso FUORI da
+                   ".sheet-sticky" per lo stesso stacking context (v. Characters.razor:124-135). Un
+                   solo foglio per i tre contenuti (piano board-di-gioco, D3/D4, esteso il 2026-08-08
+                   al gruppo PASSIVI): sheetPrivilegio/sheetCaratteristica/sheetGruppo sono a vicenda
+                   esclusivi (ApriSheetPrivilegio/ApriSheetCaratteristica/ApriSheetGruppo azzerano gli
+                   altri due), SheetAperto decide solo SE mostrarlo. La modifica (sheetDraft +
+                   sheetVoceInModifica) non è un quarto modo: si sovrappone a quello attivo e,
+                   chiudendosi (Salva o Annulla), torna a quello invece di chiudere il foglio — v.
+                   AnnullaModificaSheet/SalvaModificaSheetAsync. Click sul fondo o Esc chiudono,
                    click dentro il box non propaga — stesso schema dell'hp-panel qui sopra. *@
                 @if (SheetAperto)
                 {
                     <div class="detail-overlay" @onclick="ChiudiSheet" @onkeydown="HandleSheetKeyDown">
                         <div class="detail-sheet" role="dialog" aria-modal="true" aria-label="@SheetAriaLabel"
                              @onclick:stopPropagation="true">
-                            @if (sheetPrivilegio is not null)
+                            @if (sheetDraft is not null && sheetVoceInModifica is not null)
                             {
+                                @* Modalità modifica: condivisa dal privilegio singolo e dall'elenco
+                                   di gruppo, entrambi passano da ApriModificaSheet(voce). Salva/Annulla
+                                   azzerano SOLO sheetDraft/sheetVoceInModifica (AnnullaModificaSheet),
+                                   mai sheetGruppo/sheetPrivilegio: da qui il ritorno all'elenco/al
+                                   privilegio invece che fuori dal foglio. *@
+                                var voceInModifica = sheetVoceInModifica;
                                 <div class="detail-sheet-header">
-                                    <p class="detail-sheet-title">@sheetPrivilegio.Nome</p>
-                                    <span class="detail-sheet-tag">@CharacterFeatureRules.EtichettaTag(sheetPrivilegio.Azione)</span>
+                                    <p class="detail-sheet-title">@voceInModifica.Nome</p>
+                                    <span class="detail-sheet-tag">@CharacterFeatureRules.EtichettaTag(voceInModifica.Azione)</span>
                                 </div>
-                                @if (sheetDraft is null)
+                                @* Il pannello condiviso con "+ Aggiungi voce" di CharacterFeaturesSection
+                                   (v. il suo .razor): qui il Nome non si modifica (resta il titolo sopra),
+                                   PuoEliminare segue la stessa regola già in vigore per le voci proprie. *@
+                                <div class="feature-edit-panel">
+                                    <CharacterFeatureEditPanel Draft="sheetDraft" IsSaving="isSavingCharacter"
+                                                                PuoEliminare="@(voceInModifica.Origine == "propria")"
+                                                                OnSalva="SalvaModificaSheetAsync"
+                                                                OnAnnulla="AnnullaModificaSheet"
+                                                                OnElimina="EliminaModificaSheetAsync" />
+                                </div>
+                            }
+                            else if (sheetPrivilegio is not null)
+                            {
+                                var privilegio = sheetPrivilegio;
+                                <div class="detail-sheet-header">
+                                    <p class="detail-sheet-title">@privilegio.Nome</p>
+                                    <span class="detail-sheet-tag">@CharacterFeatureRules.EtichettaTag(privilegio.Azione)</span>
+                                </div>
+                                <p class="detail-sheet-nota">@privilegio.Nota</p>
+                                @if (CanEdit)
                                 {
-                                    <p class="detail-sheet-nota">@sheetPrivilegio.Nota</p>
-                                    @if (CanEdit)
-                                    {
-                                        <button type="button" class="detail-sheet-edit" @onclick="ApriModificaSheet"
-                                                aria-label="Modifica">✎</button>
-                                    }
-                                }
-                                else
-                                {
-                                    @* Il pannello condiviso con "+ Aggiungi voce" di CharacterFeaturesSection
-                                       (v. il suo .razor): qui il Nome non si modifica (resta il titolo sopra),
-                                       PuoEliminare segue la stessa regola già in vigore per le voci proprie. *@
-                                    <div class="feature-edit-panel">
-                                        <CharacterFeatureEditPanel Draft="sheetDraft" IsSaving="isSavingCharacter"
-                                                                    PuoEliminare="@(sheetPrivilegio.Origine == "propria")"
-                                                                    OnSalva="SalvaModificaSheetAsync"
-                                                                    OnAnnulla="AnnullaModificaSheet"
-                                                                    OnElimina="EliminaModificaSheetAsync" />
-                                    </div>
+                                    <button type="button" class="detail-sheet-edit" @onclick="() => ApriModificaSheet(privilegio)"
+                                            aria-label="Modifica">✎</button>
                                 }
                             }
                             else if (sheetCaratteristica is not null)
                             {
                                 <StatCard Ability="@sheetCaratteristica.Value" Character="@selected"
                                           IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                            }
+                            else if (sheetGruppo is not null)
+                            {
+                                @* Foglio in modalità elenco (board-di-gioco, "2 — Il foglio in modalità
+                                   elenco"): ogni voce con nome e nota per intero, MAI un clamp — il
+                                   clamp è un limite di spazio, e il foglio non ne ha. Nota vuota ⇒
+                                   invito esplicito (.empty-note, già usata da CharacterFeaturesSection
+                                   per lo stesso messaggio prima del piano board-di-gioco). Toccare la ✎
+                                   di una riga apre la modifica di QUELLA voce con lo stesso
+                                   ApriModificaSheet del privilegio singolo qui sopra. *@
+                                var gruppo = sheetGruppo;
+                                <p class="detail-sheet-title">@gruppo.Etichetta</p>
+                                <ul class="detail-sheet-list">
+                                    @foreach (var voce in gruppo.Voci)
+                                    {
+                                        <li class="detail-sheet-list-item">
+                                            <div class="detail-sheet-list-row">
+                                                <p class="detail-sheet-list-name">@voce.Nome</p>
+                                                @if (CanEdit)
+                                                {
+                                                    <button type="button" class="detail-sheet-edit"
+                                                            @onclick="() => ApriModificaSheet(voce)"
+                                                            aria-label="Modifica @voce.Nome">✎</button>
+                                                }
+                                            </div>
+                                            @if (string.IsNullOrWhiteSpace(voce.Nota))
+                                            {
+                                                <p class="empty-note">Nessuna nota: tocca ✎ per scriverla.</p>
+                                            }
+                                            else
+                                            {
+                                                <p class="detail-sheet-nota">@voce.Nota</p>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
                             }
                         </div>
                     </div>
@@ -247,7 +295,8 @@
                                         Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()"
                                         Gruppi="@GruppiPrivilegi"
                                         OnSalvaAnnotazione="@SalvaAnnotazionePrivilegioAsync"
-                                        OnApriDettaglioPrivilegio="@ApriSheetPrivilegio">
+                                        OnApriDettaglioPrivilegio="@ApriSheetPrivilegio"
+                                        OnApriDettaglioGruppo="@ApriSheetGruppo">
                         <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
                                            OnApriDettaglio="@ApriSheetCaratteristica" />
                     </CharacterCombatTab>
@@ -424,24 +473,33 @@
         }
     }
 
-    // ===== Foglio dei dettagli (privilegio o caratteristica) =====
+    // ===== Foglio dei dettagli (privilegio, caratteristica, o elenco di gruppo) =====
     // Stato di sola presentazione, stesso motivo di showHpPanel qui sopra: il markup deve stare
-    // fuori da ".sheet-sticky" (v. il commento sul markup più sopra). Un solo foglio per i due
-    // contenuti (piano board-di-gioco, D3): i due campi sono a vicenda esclusivi,
-    // SheetAperto decide solo SE mostrarlo — non quale contenuto.
+    // fuori da ".sheet-sticky" (v. il commento sul markup più sopra). Un solo foglio per i tre
+    // contenuti (piano board-di-gioco, D3, esteso il 2026-08-08 al gruppo PASSIVI): i tre campi
+    // sono a vicenda esclusivi, SheetAperto decide solo SE mostrarlo — non quale contenuto.
     private VistaPrivilegio? sheetPrivilegio;
     private AbilityType? sheetCaratteristica;
-    private bool SheetAperto => sheetPrivilegio is not null || sheetCaratteristica is not null;
+    private GruppoPrivilegi? sheetGruppo;             // il foglio mostra un ELENCO di voci
 
-    // Non null ⇒ il foglio del privilegio è in modalità modifica e rende CharacterFeatureEditPanel
-    // al posto della nota. Precompilato da ApriModificaSheet, azzerato da AnnullaModificaSheet e da
-    // ChiudiSheet — quest'ultimo perché senza, riaprendo un altro privilegio lo si troverebbe già in
-    // modifica con i dati del precedente (v. Shared/CharacterTabs/CharacterFeatureEditPanel.razor).
+    private bool SheetAperto =>
+        sheetPrivilegio is not null || sheetCaratteristica is not null || sheetGruppo is not null;
+
+    // Non null ⇒ il foglio è in modalità modifica e rende CharacterFeatureEditPanel al posto della
+    // nota/dell'elenco. Precompilati insieme da ApriModificaSheet (privilegio singolo o voce di un
+    // elenco, stesso metodo per entrambi), azzerati insieme da AnnullaModificaSheet e da ChiudiSheet
+    // — quest'ultimo perché senza, riaprendo un altro privilegio lo si troverebbe già in modifica
+    // con i dati del precedente (v. Shared/CharacterTabs/CharacterFeatureEditPanel.razor).
     private CharacterFeature? sheetDraft;
+    private VistaPrivilegio? sheetVoceInModifica;     // quale voce sta editando sheetDraft
 
-    private string SheetAriaLabel => sheetPrivilegio is not null
-        ? sheetPrivilegio.Nome
-        : sheetCaratteristica is AbilityType a ? AbilityCatalog.Nome(a) : string.Empty;
+    private string SheetAriaLabel => sheetVoceInModifica is not null
+        ? sheetVoceInModifica.Nome
+        : sheetPrivilegio is not null
+            ? sheetPrivilegio.Nome
+            : sheetGruppo is not null
+                ? sheetGruppo.Etichetta
+                : sheetCaratteristica is AbilityType a ? AbilityCatalog.Nome(a) : string.Empty;
 
     // ===== Level-up guidato =====
     // Il piano è null a riposo: è la condizione che smonta <LevelUpDialog/> dal DOM (v. il @if nel
@@ -663,26 +721,65 @@
         }
     }
 
-    // ===== Foglio dei dettagli (privilegio o caratteristica) =====
-    // Richiesto da CharacterCombatTab (che lo propaga da CharacterFeaturesSection) e da
-    // CharacterStatsTab, v. OnApriDettaglioPrivilegio/OnApriDettaglio sui due tag più sopra. Il
-    // markup vive qui per lo stesso motivo del tastierino PF.
-    private void ApriSheetPrivilegio(VistaPrivilegio v) { sheetPrivilegio = v; sheetCaratteristica = null; sheetDraft = null; }
-    private void ApriSheetCaratteristica(AbilityType a) { sheetCaratteristica = a; sheetPrivilegio = null; sheetDraft = null; }
-    private void ChiudiSheet() { sheetPrivilegio = null; sheetCaratteristica = null; sheetDraft = null; }
+    // ===== Foglio dei dettagli (privilegio, caratteristica, o elenco di gruppo) =====
+    // Richiesto da CharacterCombatTab (che lo propaga da CharacterFeaturesSection, e per il gruppo
+    // la consuma anche lei stessa) e da CharacterStatsTab, v.
+    // OnApriDettaglioPrivilegio/OnApriDettaglioGruppo/OnApriDettaglio sui tag più sopra. Il markup
+    // vive qui per lo stesso motivo del tastierino PF.
+    private void ApriSheetPrivilegio(VistaPrivilegio v)
+    {
+        sheetPrivilegio = v;
+        sheetCaratteristica = null;
+        sheetGruppo = null;
+        sheetDraft = null;
+        sheetVoceInModifica = null;
+    }
+
+    private void ApriSheetCaratteristica(AbilityType a)
+    {
+        sheetCaratteristica = a;
+        sheetPrivilegio = null;
+        sheetGruppo = null;
+        sheetDraft = null;
+        sheetVoceInModifica = null;
+    }
+
+    private void ApriSheetGruppo(GruppoPrivilegi g)
+    {
+        sheetGruppo = g;
+        sheetPrivilegio = null;
+        sheetCaratteristica = null;
+        sheetDraft = null;
+        sheetVoceInModifica = null;
+    }
+
+    private void ChiudiSheet()
+    {
+        sheetPrivilegio = null;
+        sheetCaratteristica = null;
+        sheetGruppo = null;
+        sheetDraft = null;
+        sheetVoceInModifica = null;
+    }
 
     /// <summary>Apre il pannello di modifica dentro il foglio già aperto (il ✎ di
-    /// detail-sheet-edit): precompila la bozza dalla voce corrente, colmando la giuntura lasciata
-    /// aperta fra la board (CharacterFeaturesSection, C3) e il foglio (v. spec 2026-08-08).</summary>
-    private void ApriModificaSheet()
+    /// detail-sheet-edit, sul privilegio singolo o su una riga dell'elenco di gruppo): precompila la
+    /// bozza dalla voce ricevuta, colmando la giuntura lasciata aperta fra la board
+    /// (CharacterFeaturesSection, C3) e il foglio (v. spec 2026-08-08). Generalizzato il 2026-08-08
+    /// per accettare la voce invece di leggere solo sheetPrivilegio: vale per entrambi i modi, e
+    /// sheetVoceInModifica (non più sheetPrivilegio) è ora l'UNICA fonte per PuoEliminare nel
+    /// markup — resta valida anche quando si edita dall'elenco, dove non esiste un
+    /// sheetPrivilegio.</summary>
+    private void ApriModificaSheet(VistaPrivilegio voce)
     {
-        if (sheetPrivilegio is null || !CanEdit || isSavingCharacter) return;
+        if (!CanEdit || isSavingCharacter) return;
 
+        sheetVoceInModifica = voce;
         sheetDraft = new CharacterFeature
         {
-            Nome = sheetPrivilegio.Nome,
-            Nota = sheetPrivilegio.Nota,
-            Azione = sheetPrivilegio.Azione,
+            Nome = voce.Nome,
+            Nota = voce.Nota,
+            Azione = voce.Azione,
             // RisorsaAnnotata è il valore grezzo scritto dall'utente: se non risolve a nessuna
             // ClassResource precompilare col Contatore già risolto lo troverebbe null e
             // cancellerebbe l'annotazione al salvataggio. Ma il contatore può anche essere agganciato
@@ -694,17 +791,24 @@
             // CharacterFeaturesSection.ApriModifica, ora rimossa insieme al resto della modifica in
             // linea, OnEliminaVocePropria compreso: la cancellazione di una voce propria parte da
             // EliminaModificaSheetAsync qui sotto.
-            Risorsa = sheetPrivilegio.RisorsaAnnotata ?? sheetPrivilegio.Contatore?.Nome ?? string.Empty,
-            Attivabile = sheetPrivilegio.Attivabile,
+            Risorsa = voce.RisorsaAnnotata ?? voce.Contatore?.Nome ?? string.Empty,
+            Attivabile = voce.Attivabile,
         };
     }
 
-    private void AnnullaModificaSheet() => sheetDraft = null;
+    private void AnnullaModificaSheet()
+    {
+        sheetDraft = null;
+        sheetVoceInModifica = null;
+    }
 
     /// <summary>Normalizza la bozza con CharacterFeatureRules.NormalizzaBozza (v.
     /// Services/CharacterFeatureRules.cs, stessa chiamata di CharacterFeaturesSection.SalvaAsync) e
     /// delega il salvataggio vero a SalvaAnnotazionePrivilegioAsync, che ha già lo snapshot e il
-    /// rollback.</summary>
+    /// rollback. Chiude SOLO la modifica (AnnullaModificaSheet), non l'intero foglio: dall'elenco di
+    /// gruppo l'utente deve poter annotare più voci di seguito senza riaprirlo ogni volta (v. spec
+    /// 2026-08-08, "Il foglio in modalità elenco"). RiallineaSheet qui sotto tiene il modo attivo
+    /// (elenco o privilegio singolo) allineato alla nota appena salvata.</summary>
     private async Task SalvaModificaSheetAsync()
     {
         if (sheetDraft is null) return;
@@ -712,18 +816,58 @@
         var feature = CharacterFeatureRules.NormalizzaBozza(sheetDraft);
 
         await SalvaAnnotazionePrivilegioAsync(feature);
-        ChiudiSheet();
+        AnnullaModificaSheet();
+        RiallineaSheet();
+    }
+
+    /// <summary>sheetGruppo/sheetPrivilegio sono istantanee: GruppiPrivilegi è una proprietà CALCOLATA
+    /// che ricostruisce ogni GruppoPrivilegi (e le VistaPrivilegio al suo interno) a ogni accesso (v.
+    /// CharacterFeatureJoin.Raggruppa), quindi dopo un salvataggio o un'eliminazione l'istanza tenuta
+    /// dal modo attivo resta quella di PRIMA della modifica — senza questo riallineamento la nota
+    /// appena scritta non comparirebbe (o, peggio, un secondo Salva precompilerebbe la bozza coi dati
+    /// stantii e la riscriverebbe sopra quella nuova) finché il foglio non si chiude e si riapre.
+    /// Riallinea SOLO il modo davvero attivo, l'altro resta null per costruzione (v. ApriSheetGruppo/
+    /// ApriSheetPrivilegio, a vicenda esclusivi):
+    /// - il gruppo si ripesca per Tag (stabile), come prima;
+    /// - il privilegio singolo si ripesca per NOME NORMALIZZATO (CatalogKey.NormalizeName, mai
+    ///   String.Normalize/ToLowerInvariant — v. CharacterFeatureJoin) scorrendo le voci di TUTTI i
+    ///   gruppi: se l'utente ha cambiato il tag della voce mentre la modificava (da "passivo" ad
+    ///   "azione"), la voce esiste ancora ma in un altro gruppo, e cercarla ovunque la ritrova — è il
+    ///   comportamento voluto, non un bug.
+    /// Se la voce/il gruppo è sparito (l'ultima voce propria è stata eliminata — v. "I gruppi vuoti
+    /// sono omessi" in Raggruppa) il campo torna null e il foglio si chiude da sé (SheetAperto), senza
+    /// restare aperto e vuoto.</summary>
+    private void RiallineaSheet()
+    {
+        if (sheetGruppo is not null)
+        {
+            var tag = sheetGruppo.Tag;
+            sheetGruppo = GruppiPrivilegi.FirstOrDefault(g => g.Tag == tag);
+        }
+        else if (sheetPrivilegio is not null)
+        {
+            var chiave = CatalogKey.NormalizeName(sheetPrivilegio.Nome);
+            sheetPrivilegio = GruppiPrivilegi
+                .SelectMany(g => g.Voci)
+                .FirstOrDefault(v => CatalogKey.NormalizeName(v.Nome) == chiave);
+        }
     }
 
     /// <summary>Stesso schema di conferma di CharacterFeaturesSection.EliminaAsync (rimossa insieme
     /// alla modifica in linea): solo le voci proprie arrivano qui, PuoEliminare lo garantisce già sul
-    /// pannello, questo è il secondo controllo lato dati.</summary>
+    /// pannello, questo è il secondo controllo lato dati. Legge sheetVoceInModifica (non più
+    /// sheetPrivilegio): vale sia editando il privilegio singolo sia editando dall'elenco di gruppo.
+    /// Si comporta come SalvaModificaSheetAsync (azzera SOLO la modifica, poi RiallineaSheet), non
+    /// come ChiudiSheet: cancellare una voce dall'elenco non deve buttare fuori dal foglio, deve
+    /// tornare all'elenco aggiornato — che se svuotato si chiude da sé come conseguenza del
+    /// riallineamento, non come caso speciale qui.</summary>
     private async Task EliminaModificaSheetAsync()
     {
-        if (sheetPrivilegio is null || !CanEdit || isSavingCharacter || sheetPrivilegio.Origine != "propria")
+        if (sheetVoceInModifica is null || !CanEdit || isSavingCharacter ||
+            sheetVoceInModifica.Origine != "propria")
             return;
 
-        var voce = sheetPrivilegio;
+        var voce = sheetVoceInModifica;
         var confermato = await Confirm.ShowAsync($"Eliminare \"{voce.Nome}\"?");
         if (!confermato) return;
 
@@ -732,7 +876,8 @@
         if (!CanEdit || isSavingCharacter) return;
 
         await EliminaVocePropriaPrivilegioAsync(voce);
-        ChiudiSheet();
+        AnnullaModificaSheet();
+        RiallineaSheet();
     }
 
     /// <summary>Esc chiude il foglio da qualunque controllo al suo interno, stesso schema di

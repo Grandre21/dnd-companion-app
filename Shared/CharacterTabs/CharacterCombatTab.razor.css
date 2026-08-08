@@ -157,31 +157,6 @@
     font-style: italic;
 }
 
-/* ===== Combat: privilegi passivi =====
-   Resa DIVERSA dalle schede di CharacterFeaturesSection: riga singola, nessuna card, nessun
-   pallino, nessun interruttore — sono promemoria, non azioni (v. spec 2026-08-08, D5). */
-.passive-row {
-    padding: 0.35rem 0.1rem;
-    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
-}
-
-.passive-row:last-of-type {
-    border-bottom: none;
-}
-
-.passive-name {
-    font-weight: 700;
-    color: var(--text);
-}
-
-.passive-sep {
-    color: var(--gold-dim);
-}
-
-.passive-note {
-    color: var(--text-body);
-}
-
 /* ===== Combat: dadi vita + riposo (riquadro fuso, piano 2026-08-08 B2) =====
    Un solo bordo/padding al posto dei due che avevano .hit-dice-card e .rest-card (identici,
    duplicati): .recovery-divider separa le due metà con lo stesso trattamento di

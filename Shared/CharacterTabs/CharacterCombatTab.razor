@@ -156,24 +156,25 @@ else
                            OnApriDettaglio="@OnApriDettaglioPrivilegio" />
 
 @* Passivi: sezione 7 dell'ordine verticale, resa DIVERSA dalle schede di CharacterFeaturesSection —
-   riga singola per voce, nessun pallino, nessun interruttore, nessuna modifica inline: sono
-   promemoria, non azioni (v. spec 2026-08-08, D5, e il commento in testa a CharacterFeaturesSection
-   che documenta la stessa divisione). L'etichetta "PASSIVI" non c'è più (piano 2026-08-08, B3): ogni
-   riga porta già il proprio nome, stesso ragionamento di ARMI/RISORSE. *@
+   un SOLO riquadro-tasto per l'intero gruppo, non una card per voce: sono promemoria, non azioni
+   (v. spec 2026-08-08, D5), e la board non è il posto per leggerli per intero (D2 — "prosa" è un
+   elenco, non un widget). Un tocco apre il foglio in modalità elenco (OnApriDettaglioGruppo, v.
+   Pages/Characters.razor): prima di questo cambio (2026-08-08, board-di-gioco "Il difetto") questa
+   era l'unica sezione senza aggancio al foglio, e i suoi privilegi (Difesa senza armatura, Maestria
+   nelle armi, ...) non avevano alcun modo di essere annotati dall'interfaccia. *@
 @{ var gruppoPassivi = Gruppi.FirstOrDefault(g => g.Tag == "passivo"); }
-@if (gruppoPassivi is not null)
+@if (gruppoPassivi is not null && gruppoPassivi.Voci.Count > 0)
 {
-    @foreach (var voce in gruppoPassivi.Voci)
-    {
-        <div class="passive-row">
-            <span class="passive-name">@voce.Nome</span>
-            @if (!string.IsNullOrWhiteSpace(voce.Nota))
-            {
-                <span class="passive-sep"> · </span>
-                <span class="passive-note">@voce.Nota</span>
-            }
+    var etichettaVoci = gruppoPassivi.Voci.Count == 1 ? "1 voce" : $"{gruppoPassivi.Voci.Count} voci";
+    <div class="board">
+        <div class="w w-6" role="button" tabindex="0"
+             aria-label="@($"{gruppoPassivi.Etichetta}, {etichettaVoci}")"
+             @onclick="() => OnApriDettaglioGruppo.InvokeAsync(gruppoPassivi)"
+             @onkeydown="@(e => OnKey(e, () => OnApriDettaglioGruppo.InvokeAsync(gruppoPassivi)))">
+            <p class="w-label">@gruppoPassivi.Etichetta</p>
+            <p class="w-value">@gruppoPassivi.Voci.Count</p>
         </div>
-    }
+    </div>
 }
 
 @* Risorse di classe (Ira, Ispirazione bardica, ...) SENZA scheda-privilegio collegata (v.
@@ -447,6 +448,11 @@ else
     /// CharacterFeaturesSection fino a Characters.razor, che possiede lo stato del foglio. Questo
     /// componente si limita a propagarla come parametro — non la consuma, non la intercetta.</summary>
     [Parameter] public EventCallback<VistaPrivilegio> OnApriDettaglioPrivilegio { get; set; }
+
+    /// <summary>Apre il foglio di dettaglio in modalità ELENCO su tutto il gruppo (board-di-gioco,
+    /// 2026-08-08): a differenza di OnApriDettaglioPrivilegio qui sopra, questo componente la
+    /// CONSUMA direttamente — è il riquadro PASSIVI qui sotto a invocarla, non un figlio.</summary>
+    [Parameter] public EventCallback<GruppoPrivilegi> OnApriDettaglioGruppo { get; set; }
 
     /// <summary>Le caratteristiche/abilità (CharacterStatsTab): questo componente resta grande di
     /// suo, e spezzarlo in due solo per intercalare CharacterStatsTab fra risorse e dadi vita

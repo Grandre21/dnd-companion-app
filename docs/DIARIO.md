@@ -2177,3 +2177,48 @@ un'altra ragione: `CharacterRepository` chiama già `Normalizza` **a ogni carica
 fuori elenco non arriva mai alla bozza. Conclusione giusta, motivo sbagliato. Il codice non cambia; ciò
 che cambia è che ora sappiamo **quale** riga lo protegge — e il giorno in cui qualcuno toccherà quella,
 la protezione non sparirà in silenzio.
+
+## I passivi erano inerti, e un brief che ha enumerato metà degli stati (2026-08-08)
+
+Segnalazione d'uso subito dopo il mosaico: «Difesa senza armatura, Maestria nelle armi, Senso del
+pericolo, Conoscenza primordiale, Movimento aumentato — non so che facciano; al posto che metterle
+fisse lì, basterebbe un tasto che mi apre un menù e le vedo tutte, come per il resto».
+
+### Il difetto era peggiore della richiesta
+
+`.passive-row` era un `<div>` con due `<span>`: nessun `role`, nessun aggancio al foglio. I passivi
+erano **l'unico gruppo rimasto fuori** — e quando la ✎ per riga è uscita dalla board (D7), sono
+rimasti senza **nessuna** via d'accesso. Non solo non si leggeva cosa facessero: non c'era modo di
+scriverselo.
+
+Va detto chiaramente perché non si ripresenti come sorpresa: **l'app non sa cosa fa «Difesa senza
+armatura»**. Nel pacchetto SRD `PackageClassLevel.Features` è `List<string>` — solo nomi. Solo talenti
+e sottoclassi portano un `Description`. Quello che l'app può dare è un **posto dove scriverlo**, che è
+esattamente ciò che la scheda di carta fa: «Ira: 3/Riposo Lungo. +2 Danni» l'ha scritto l'utente.
+
+Ora il gruppo è un riquadro-tasto che apre il foglio sull'elenco, e da lì ogni voce si annota. I gruppi
+AZIONE/BONUS/REAZIONE restano sulla board: quelli servono *durante* il turno, i passivi per definizione
+no — è la regola D2 applicata, non un'eccezione.
+
+### Il brief che ha enumerato metà degli stati
+
+Avevo chiesto che chiudere la modifica **non** chiudesse il foglio, «così si torna all'elenco».
+L'implementer ha scritto il riallineamento per l'elenco, e solo per quello: `RiallineaSheetGruppo`
+usciva subito se `sheetGruppo` era `null`. Ma i modi che sopravvivono alla modifica sono **due**.
+
+Effetto trovato dal gate: apri un privilegio singolo, lo modifichi, salvi → il foglio resta aperto e
+mostra **la nota vecchia**, perché `GruppiPrivilegi` è una proprietà calcolata e `sheetPrivilegio` era
+un'istanza catturata all'apertura. Sembra un salvataggio fallito. E toccando di nuovo la ✎ la bozza si
+precompila coi valori stantii: **il secondo Salva riscrive il vecchio sopra il nuovo**. Perdita di dati
+con due modifiche di fila, senza rete lenta né concorrenza.
+
+La lezione è sul brief, non sul codice: **quando si cambia il ciclo di vita di uno stato, vanno
+enumerati tutti i modi che quello stato ha**, non quello che si aveva in mente scrivendo. L'agente ha
+fatto esattamente ciò che gli era stato chiesto — ed è la seconda volta in un giorno che un difetto di
+questo lavoro nasce in un documento invece che in un file di codice, dove nessuna delle tre verifiche
+automatiche (build, test, gate sul diff) va a guardare.
+
+Il rimedio è `RiallineaSheet()`, che riallinea **il modo attivo qualunque sia**: il gruppo per `Tag`, la
+voce singola per nome normalizzato su tutti i gruppi — così una voce a cui si cambia il tag durante la
+modifica si ritrova comunque. Il terzo modo, la caratteristica, non ne aveva bisogno: passa `selected`
+vivo a `StatCard` invece di catturarne un'istanza.
