@@ -1898,3 +1898,125 @@ Resta un residuo noto e accettato: tre commenti nel codice (`Pages/DataPackages.
 `Services/Repositories/SpellRepository.cs`, `CharacterSpellRepository.cs`) citano ancora
 `docs/DA-FARE.md`. Toccarli significherebbe far passare tre file dal gate per cambiare un nome in un
 commento: non vale il prezzo, e il documento che citano esiste ancora, un livello più in basso.
+
+## La vista di gioco, e il manuale che era già scritto a mano (2026-08-08)
+
+Segnalazione: «tutta la parte del personaggio — non la creazione, la gestione — è fatta bene ma ti
+chiedo un nuovo design più completo: attualmente è ancora meglio usare la scheda».
+
+**La domanda che ha orientato tutto non è stata "cosa manca", ma "cosa ti fa tornare alla carta".**
+Delle quattro risposte possibili ne ha scelte tre — vedo tutto in una schermata, so cosa fanno le
+mie abilità, so a colpo d'occhio cosa posso fare — e ne ha **esclusa** una: «aggiornare è più veloce
+a matita». Quell'esclusione vale più delle tre inclusioni: **l'input dell'app va bene, fallisce la
+lettura**. Da lì il perimetro: non si è toccata nessuna scrittura, si è messo sotto gli occhi nel
+momento del turno ciò che l'app già possedeva e disperdeva su quattro tab.
+
+### Il documento che ha sbloccato un punto creduto bloccato
+
+`character-sheet.pdf`, la scheda in uso (Grunnok Baldus, Barbaro 5 Berserker), ha il riquadro CLASS
+FEATURES **compilato a mano**: *«Ira: 3/Riposo Lungo. +2 Danni. Resistenza (Contundente, Perforante,
+Tagliente). Vantaggio Forza.»*
+
+Non è il testo del manuale: è il suo riassunto operativo. Il punto era archiviato come bloccato
+sull'assenza del PDF SRD 5.2.1 italiano — ma quel blocco riguardava il **fornire** descrizioni
+ufficiali, non il **farne posto**. Con un posto dove metterle, la richiesta era interamente
+realizzabile lo stesso giorno. Una seconda lettura della segnalazione ha spostato il lavoro da
+«impossibile» a «fatto», senza che nel frattempo fosse cambiato nulla nel repo.
+
+Il secondo dato del PDF conta quanto il primo: l'utente **annota da sé l'economia d'azione** («1
+volta a turno, bonus action»). Quel metadato, per chi gioca, è informazione di prima classe — ed è
+diventato il criterio di raggruppamento della vista.
+
+### La decisione portante: derivare invece di generare
+
+Il consulto (Fable) proponeva di generare le voci una volta e salvarle. La scelta è stata diversa e
+credo migliore: **l'elenco dei privilegi non si salva affatto**. Si deriva a ogni render da
+`ClassProgression`, `SubclassCatalog` e `CharacterManualJoin`; sul database va solo l'annotazione,
+in un unico jsonb `character_features` (nome, nota, tag, risorsa, attivabile).
+
+Due conseguenze concrete: al level-up le schede nuove **compaiono da sole**, e la domanda «quali
+privilegi ho?» conserva **una sola risposta possibile**, quella del pacchetto. Una copia salvata dei
+nomi era più semplice da scrivere e avrebbe creato la seconda fonte di verità che questo repo ha già
+pagato due volte — il documento che dichiarava applicata una migrazione che non lo era, e i campi
+dimenticati in `CloneCharacter`.
+
+Un solo jsonb e non cinque colonne, per la ragione del 2026-08-08: `postgrest-csharp` serializza
+ogni colonna mappata a ogni `Update`, quindi ogni colonna nuova è un'esposizione al rischio che
+blocca **tutte** le scritture della tabella. Un jsonb concentra in una sola esposizione tutti i campi
+futuri della funzione.
+
+### Cinque campi e nessun campo effetto
+
+Il rischio maggiore di questo lavoro non era un bug: era la **deriva verso il motore di regole**. Da
+«mostra la nota dell'Ira» a «applica il vantaggio ai tiri di Forza e il +2 al danno» il passo sembra
+breve ed è un burrone — semantica D&D senza fondo, descrizioni ufficiali non ridistribuibili, e la
+violazione frontale della decisione del 2026-08-06 su `ClassResource`.
+
+La contromisura è strutturale, non una promessa: nel Model **non esiste nessun campo effetto**, e il
+commento in testa lo dichiara. La scheda cartacea è la prova che basta: l'utente non chiede che
+l'app calcoli l'effetto, chiede di poterlo rileggere al volo.
+
+### Dove diverge dal consulto: lo stato attivo
+
+Fable proponeva «cosa è attivo adesso» in sola memoria, argomentando — giustamente — che persisterlo
+su `characters` significherebbe un `Update` di riga intera a ogni accensione dell'Ira, last-write-wins,
+con rifiuto RLS silenzioso. Su questo aveva ragione e il database è rimasto fuori.
+
+Ma «solo in memoria» su un telefono al tavolo significa perdere lo stato ogni volta che il sistema
+operativo chiude la scheda — cioè a ogni distrazione. La terza via era già in casa:
+`CampaignStateService` è un Singleton che tiene il proprio stato in `localStorage` via `IJSRuntime`.
+Zero rete, zero migrazione, e sopravvive alla riapertura.
+
+### Le monete: la regola del tavolo batte l'aritmetica
+
+«Ho 1 di oro e ne uso 2 di rame, quanto avanza?» La regola implementata non è «sottrai dal totale e
+ricompatta», che sarebbe più semplice e sbagliata: è quella del tavolo — **si consegnano i tagli più
+piccoli finché non coprono la spesa, e il resto torna indietro**. Da lì la proprietà che serviva
+davvero: *i tagli che non sono serviti restano esattamente come erano*. Con 15 ma e 3 mr, spendere
+1 mr lascia 15 ma; la ricompattazione li avrebbe trasformati in 1 mo e 5 ma senza che nessuno
+l'avesse chiesto.
+
+### Un nome sbagliato che il test ha preso da solo
+
+Il piano indicava «Attacco temerario» fra i privilegi del Barbaro. Nel pacchetto SRD **non esiste**:
+il nome ufficiale italiano è «Attacco fuori controllo» (zero occorrenze di «temerario» nel file).
+L'errore era mio, scritto nel piano, e sarebbe entrato nella tabella curata — ma
+`AzioneSuggerita_OgniNomeInTabellaEsisteNelPacchetto` incrocia ogni nome col pacchetto vero, quindi
+sarebbe diventato rosso da solo. È la conferma pratica del pattern «test che si accorgono da soli
+del prossimo errore»: non ha solo sorvegliato il codice, ha sorvegliato **il piano**.
+
+### Il quarto test vacuo, e da dove nasceva
+
+Il gate ha trovato che `EtichettaTag_OgniTagAmmesso_HaUnEtichettaNonVuota` **non poteva fallire**: il
+ramo di default di `EtichettaTag` restituisce il tag stesso, quindi cancellando il caso `"azione"` il
+metodo tornava `"azione"` — non vuota, test verde, menu con la stringa grezza minuscola.
+
+È il quarto test vacuo nella storia di questo repo, e come quello dei talenti del 2026-08-08 nasceva
+da **un'istruzione dell'orchestratore**, non da una disattenzione di chi scriveva: avevo chiesto
+«etichetta non vuota». Ora pretende che l'etichetta sia **diversa dal tag grezzo**, ed è provato per
+mutazione. La lezione si ripete: quando il criterio di un test lo detta il brief, il brief è il posto
+dove il test diventa vacuo.
+
+### Sei autori, e le giunture
+
+1961 righe in 21 file, scritte da sei agenti che non si vedevano fra loro. Il gate è stato puntato
+sulle **giunture** — chi scrive e chi legge lo stesso dato — invece che sul diff in blocco, ed è
+servito: la formula «pallino toccato → delta» era scritta due volte identica in due componenti
+(ora `ClassResourceRules.DeltaDaPallino`), e nessuno dei due autori poteva vederlo.
+
+Un rilievo è stato adjudicato **a metà**: due mappe di etichette, con «Passivi» in una e «Passivo»
+nell'altra, portate come prova di divergenza accidentale. Non lo erano — un gruppo di privilegi si
+intitola al plurale, un singolo tag si dice al singolare, e unificarle avrebbe peggiorato una delle
+due. Le due mappe restano, ma ora il commento dichiara la differenza: una divergenza deliberata e non
+documentata è indistinguibile da una svista.
+
+### Cosa resta fuori, e perché
+
+I **tratti di specie** non si derivano: nel pacchetto `PackageSpecies.Traits` è **una stringa sola**,
+non un elenco, quindi Scurovisione e Resistenza implacabile non sono separabili automaticamente. Si
+inseriscono come voci proprie — che servivano comunque, per le note operative che non sono privilegi
+(«se non hai armatura pesante, vai a 12 m/s» sta sulla scheda cartacea e non è di nessun manuale).
+
+Restano fuori anche una sezione «sbloccato di recente» (ridotta a un contrassegno che decade da sé al
+level-up: «recente» significa «sbloccato al livello a cui sono adesso», e non ha stato da persistere)
+e il parsing automatico del testo già scritto in `class_features`, che avrebbe prodotto frammenti.
