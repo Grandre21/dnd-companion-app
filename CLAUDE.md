@@ -38,9 +38,10 @@ senza approvazioni: *ciò che spingo è già online*. Da qui tutto il resto.
   `_framework` **anche se il rooting salta** — li istanzia direttamente `SupabaseService` — solo più
   piccoli e coi costruttori via reflection già strippati: il confronto che discrimina è la loro
   taglia contro quella del `.dll` NuGet.
-- **Il deploy rilascia solo il client.** Le migrazioni in `supabase/migrations/` vanno applicate a
-  mano al progetto hosted, **prima** del push, e devono restare compatibili col client attualmente
-  live. Nell'ordine inverso vale lo stesso: una migrazione applicata a mano colpisce subito il sito.
+- **Il deploy rilascia solo il client.** Il database hosted si cambia a mano, **prima** del push, e
+  ogni cambio deve restare compatibile col client attualmente live. Nell'ordine inverso vale lo
+  stesso: una modifica applicata a mano colpisce subito il sito. Il *come* sta in «Come si cambia il
+  database».
 - **L'aggiornamento PWA è on-demand.** Il service worker non fa `skipWaiting`: dopo il push gli
   utenti restano sulla versione in cache finché non premono «Aggiorna». Quindi (a) verificare a
   vista in incognito o con hard-reload, altrimenti si guarda la build vecchia e si conclude che il
@@ -183,6 +184,37 @@ conteggio di parentesi avrebbe significato scoprire lo stato delle policy col si
   giro andata-ritorno col client Postgrest reale (non REST grezzo) è l'unico modo di vederlo prima.
 - Il gate a due agenti resta **invariato** e si applica al lavoro dei Sonnet come a qualunque altro:
   è ciò che rende sicura la delega, non un adempimento in più.
+
+## Regola obbligatoria: come si cambia il database (regola del 2026-08-08)
+
+Nata dall'incidente raccontato in [docs/storico/db.md](docs/storico/db.md): un file `.sql` scritto,
+committato, **dato per applicato in un documento** e mai eseguito. Per due giorni ogni salvataggio
+di `characters` e `inventory` è fallito in produzione, punti ferita compresi, e nessun controllo
+automatico poteva accorgersene — perché il controllo era una riga di prosa che diceva «✅».
+
+**1 — Le query si consegnano in chat, non in un file.** Quando serve cambiare il database hosted,
+il DDL va **nel messaggio all'utente**, pronto da incollare nell'SQL editor, con sopra una riga che
+dice cosa fa. Mai «ho preparato il file X, lanciatelo»: un file è una cosa che si può rimandare, e
+ciò che si rimanda si dimentica. Se in futuro avrò un accesso diretto al database (connection string
+o Management API), le applicherò io e questo punto decadrà — ma **finché la consegna passa
+dall'utente, passa dalla chat**.
+
+**2 — Lo stato di applicazione non si dichiara mai: si interroga.** Nessun documento di questo
+repo può contenere la frase «migrazione applicata». La domanda ha una sola risposta valida, ed è
+quella del server: `supabase/verifica-schema.sh` confronta i `[Column(...)]` dei Model con le
+colonne che PostgREST dichiara e stampa le mancanti. Si esegue **prima di ogni push** e ogni volta
+che l'utente segnala un `PGRST204`/`42703`.
+
+**3 — `supabase/migrations/` non è una to-do list.** È lo schema che `supabase db reset` rilegge per
+ricostruire lo stack di test locale, e va tenuto allineato per quello. Non è il posto da cui si
+applica qualcosa all'hosted, e i suoi file non vanno più scritti come istruzioni per l'utente:
+la prosa lunga sul *perché* appartiene al [DIARIO](docs/DIARIO.md), il registro di *cosa e quando* a
+[docs/storico/db.md](docs/storico/db.md) — una riga per modifica.
+
+**4 — `supabase db push` è vietato su questo progetto.** Le modifiche storiche sono state applicate a
+mano e non risultano registrate in `supabase_migrations`: `db push` proverebbe a rieseguire anche la
+baseline `20260624225146_remote_schema.sql`, che è un dump **non idempotente** su un database
+popolato.
 
 ## Forma dei documenti (regola del 2026-08-01)
 
