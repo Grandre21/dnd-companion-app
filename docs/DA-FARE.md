@@ -10,7 +10,7 @@
 > - Spec e piani → `docs/superpowers/specs/` e `docs/superpowers/plans/`.
 > - Monetizzazione → [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md) (accantonata).
 >
-> Ultimo aggiornamento: **2026-08-07**
+> Ultimo aggiornamento: **2026-08-08**
 
 Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
 
@@ -21,10 +21,19 @@ Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **me
 > Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
 > ogni push e da segnalare all'utente.
 
-> ✅ **Nessuna migrazione in sospeso.** Applicate all'hosted: `20260806130000_scheda_carta.sql` e
-> `20260806120000_close_campaign_hopping.sql` (2026-08-06), `20260801000000_class_subclasses.sql` e
-> `20260731000000_party_visibility.sql` (2026-08-01). Il client live corrisponde.
+> 🗄️ **Lo stato del database non si dichiara qui.** Si esegue `supabase/verifica-schema.sh`: confronta
+> le colonne dei Model con quelle che il server dichiara davvero. Questa riga ha sostituito un «✅
+> nessuna migrazione in sospeso» che il 2026-08-08 si è rivelato falso da due giorni
+> ([storico/db.md](./storico/db.md)).
 
+- 🔴 **Sessione che non scade più, due prove** (nuovo, 2026-08-08): (a) lasciare la scheda aperta
+  **oltre un'ora**, poi tornarci e aprire una pagina di dati: deve caricare, senza logout né
+  «unhandled error»; (b) **ricaricare** l'app dopo più di un'ora di assenza: si deve restare
+  loggati. Era il difetto del 2026-08-08 ([DIARIO](./DIARIO.md)) e nessun test automatico lo copre.
+- 🟠 **Denaro, tre prove** (nuovo, 2026-08-08): (a) aprire l'editor, cambiare un valore, premere
+  **Annulla**: il vecchio valore deve restare, anche salvando poi un altro campo del PG; (b)
+  **Compatta** con 143 mr → 1 mo, 4 ma, 3 mr, e il totale in mo invariato; (c) l'editor si apre da
+  **tastiera** (Tab fino al riquadro, poi Invio).
 - 🔴 **Scheda alla pari con la carta, quattro prove** (nuovo, 2026-08-06): (a) un riposo lungo che
   **ripristina le risorse** e le nomina nel riepilogo; (b) un'arma **accurata** su un personaggio con
   Destrezza maggiore della Forza: il bonus deve usare Destrezza; (c) il **form di modifica** aperto e
@@ -127,14 +136,31 @@ Residuo minore di C.
   quando quelle sono fatte.
 - 🟡 **I privilegi di sottoclasse vanno applicati, non solo elencati**: il dialogo li annuncia, la
   scheda li deriva dalla tabella, ma nessuno li traduce in effetti.
+- 🟠 **La scheda non apre il manuale che ha in casa** (2026-08-08): il pacchetto SRD porta le
+  descrizioni di **17 talenti, 4 background, 10 specie**, ma la scheda mostra solo i nomi. Il pattern
+  esiste già nello stesso file per la sottoclasse (`CharacterBioTab.razor:148-179`, risolta dal
+  genitore a `Characters.razor:303`): va replicato per talenti e background, con match tollerante via
+  `CatalogKey.NormalizeName` (`Character.Feats` è testo libero).
+- 🟡 **Privilegi di classe senza descrizione, bloccati sulla fonte**: «Ira», «Difesa senza armatura»
+  restano nomi nudi perché nel pacchetto `levels[].features` è un array di **stringhe**. Sbloccarli
+  richiede il **PDF ufficiale SRD 5.2.1 italiano** (CC BY 4.0), oggi non nel repo — il PHB in `docs/`
+  **non** è utilizzabile: fuori licenza. Non inventarle: v. [DIARIO](./DIARIO.md), dove una
+  traduzione a mano dei nomi ne azzeccò 27 su 57.
 - 🟠 **Combattimento consultabile**: il tracker porta solo nome e PF, quindi le statistiche del mostro
   non si vedono mentre si combatte. Serve un riferimento alla sorgente nel `Combatant` (campo
   additivo nel `jsonb`, nessuna migrazione) e un blocco statistiche apribile sulla riga.
 - 🟡 **Aiuto contestuale dal manuale**: nessuna spiegazione di cosa siano tiro salvezza, competenza,
   CD incantesimo. Indipendente da tutto il resto.
-- 🟢 **Conferma sui salvataggi impliciti** dei tab della scheda: il *fallimento* ora si vede
-  (`SaveCharacterCoreAsync` restituisce l'esito e valorizza `errorMessage`), il *successo* no —
-  Stats/Zaino/Magia salvano in silenzio.
+- 🟠 **I tab non sanno se il salvataggio è riuscito, quindi non tornano indietro** (2026-08-08): i tab
+  delegano al genitore con `EventCallback OnChanged`, che **non restituisce valori**. Se le RLS
+  rifiutano l'update PostgREST aggiorna zero righe e risponde `[]` — nessuna eccezione — quindi il tab
+  chiude l'editor e mostra a schermo un valore che il database non ha (es. «500 MO» con 10 sul
+  server, fino al reload). L'inventario, nello stesso file, fa già la cosa giusta: snapshot +
+  ripristino su ritorno `null`. Serve portare l'esito fino al figlio, e il contratto è **condiviso**
+  con sintonie, note e addestramento: intervento trasversale su 4-5 componenti, non una toppa locale.
+- 🟢 **Conferma sui salvataggi impliciti** dei tab della scheda: il *fallimento* si vede in alto
+  (`errorMessage` → `DbErrorBanner`), il *successo* no — Stats/Zaino/Magia salvano in silenzio. Il
+  banner è però lontano dal widget che ha fallito: v. il punto qui sopra.
 
 ---
 

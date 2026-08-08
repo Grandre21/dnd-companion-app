@@ -1,7 +1,7 @@
 # DIARIO DI PROGETTO — D&D Companion
 
 > Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
-> Aggiornato: **2026-08-07**.
+> Aggiornato: **2026-08-08**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -1682,3 +1682,146 @@ precisi; allargarlo a un terzo perché «tanto è lì accanto» avrebbe reso il 
 contro la sua stessa premessa. Un intervento a comportamento invariato vale finché il perimetro resta
 quello annunciato: il residuo è ora una voce in DA-FARE §5, non una riga in più in un commit che
 diceva altro.
+
+## Due giorni di produzione rotta, e un documento che diceva «✅» (2026-08-08)
+
+Una sessione di gioco ha fatto emergere quattro errori che sembravano scollegati: le caratteristiche
+non si salvavano, gli oggetti nemmeno, l'addestramento nemmeno, e **i punti ferita non si potevano
+togliere**. Tutti con la stessa firma, `PGRST204 — Could not find the 'armor_training' column`.
+
+**Una sola causa, e non era nel codice.** La migrazione `20260806130000_scheda_carta.sql` non era mai
+arrivata sul database di produzione. Le sue sette colonne non esistevano — verificato interrogando
+PostgREST, che in lettura risponde `42703` (la colonna non c'è affatto) e non `PGRST204` (cache
+stantia): la distinzione è ciò che ha escluso subito l'ipotesi «basta ricaricare lo schema».
+
+Il motivo per cui *quattro* funzioni cadevano invece di una sta in `postgrest-csharp`: `Update`
+serializza **ogni** colonna mappata sul model, quindi una colonna mancante fa rifiutare l'intera
+richiesta. Sette colonne assenti hanno fermato tutte le scritture su `characters` e `inventory`,
+comprese quelle che funzionavano da mesi. Lo scenario era **scritto per esteso nel commento in testa
+alla migrazione stessa**, insieme all'avviso di applicarla prima del push. Non è servito a nulla:
+l'avviso stava dentro il file che nessuno ha aperto.
+
+**La parte che conta è come la procedura ha mentito.** `docs/DA-FARE.md` dichiarava
+`✅ Nessuna migrazione in sospeso… applicate all'hosted`, con tanto di elenco e data. Era falso da due
+giorni. Nessun controllo poteva accorgersene, perché il controllo *era* quella frase: una riga di
+prosa che afferma un fatto sul mondo esterno, scritta da chi credeva di averlo reso vero.
+
+Da qui le due regole in `CLAUDE.md`, «Come si cambia il database»:
+
+1. **Le query si consegnano in chat, non in un file.** Un file è una cosa che si può rimandare, e ciò
+   che si rimanda si dimentica. Il DDL va nel messaggio, pronto da incollare. (Se un giorno avrò un
+   accesso diretto al database, la consegna sparisce e con essa il problema.)
+2. **Lo stato di applicazione non si dichiara: si interroga.** `supabase/verifica-schema.sh` deriva le
+   colonne attese dai `[Column(...)]` dei Model e le confronta con quelle che il server dichiara.
+   L'elenco non è scritto nello script — se domani un Model guadagna una colonna, lo script comincia a
+   pretenderla da solo. Una lista scritta a mano avrebbe avuto la stessa malattia del documento.
+   Ed è stato **collaudato per mutazione**: colonna finta nel Model → rosso, exit 1; tolta → verde.
+
+`supabase/migrations/` resta, ma cambia ruolo: è lo schema che `supabase db reset` rilegge per
+ricostruire lo stack di test locale, non una to-do list. Il registro di *cosa e quando* sta ora in
+`docs/storico/db.md`, una riga per modifica. E `supabase db push` è vietato: le modifiche storiche
+non risultano registrate in `supabase_migrations`, quindi rieseguirebbe anche la baseline, che è un
+dump non idempotente.
+
+## Il login che scadeva in silenzio, e il ramo che era un logout travestito (2026-08-08)
+
+Stessa sessione, sintomo diverso: «ogni volta che entro nell'app che avevo lasciato aperta mi dice
+*an error has occurred, reload*».
+
+La prima ipotesi era che mancasse il timer di auto-refresh: il progetto ha abbandonato il meta-client
+`supabase-csharp` per costruire Gotrue e Postgrest a mano, e il meta-client registrava
+`TokenRefresh.ManageAutoRefresh` dentro `InitializeAsync()`. **L'ipotesi era sbagliata**, e a smentirla
+è stato un consulto che ha decompilato l'assembly invece di fidarsi della documentazione: il
+costruttore di `Client` registra da sé quel listener quando `AutoRefreshToken` è `true`, e il default
+è `true`. Il timer c'era.
+
+**Il difetto vero è un vicolo cieco della libreria.** In gotrue-csharp 4.2.7 `RefreshSession()` — e
+`RefreshToken()` senza argomenti — controllano *prima* se l'access token è scaduto e, se lo è,
+lanciano `"Session expired"`: si rifiutano di usare il refresh token esattamente nel solo caso per cui
+esistono. La stringa è nel binario, verificata indipendentemente.
+
+Il corollario è il bug che l'utente vedeva. `SupabaseService` aveva questo ramo nel bootstrap:
+
+> se la sessione è scaduta prova a rinnovarla; **se fallisce, sloggami**.
+
+Poiché quella chiamata fallisce *sempre* in quella condizione, il ramo era un **logout
+incondizionato**. Ogni riapertura dopo un'ora buttava fuori l'utente, con il refresh token ancora
+valido. E a scheda aperta il meccanismo era ancora più insidioso: `GetHeaders` ripiegava
+silenziosamente sull'anon key, quindi l'app continuava a mostrare nome e menu mentre per il database
+era un anonimo — le RLS non restituivano più nulla e le scritture cadevano, senza un errore.
+
+**La correzione.** Si usa l'overload a due argomenti `RefreshToken(accessToken, refreshToken)`, che
+quella guardia non ce l'ha, e il rinnovo si sposta nel **fast-path di `GetClientAsync`** — l'unico
+punto asincrono per cui passa ogni chiamata dati dei 18 chiamanti, e quindi il solo posto dove si può
+garantire un token vivo (`GetHeaders` è sincrono e non potrebbe rinfrescare nulla). Con margine di 5
+minuti sulla scadenza, doppio controllo dentro il lock, e `NotifyAuthStateChange(SignedIn)` dopo il
+successo per riarmare il timer, che su `TokenRefreshed` non si riarma.
+
+Due trappole evitate su indicazione del consulto: **non** usare `SetSession` come via di recupero (la
+sua prima riga distrugge la sessione locale, quindi un refresh fallito per assenza di rete sloggerebbe
+un utente offline con refresh token buono), e **distinguere** il refresh token morto — che merita il
+logout — da un errore di rete, che non lo merita. `IsLoggedInAsync()` non è stato toccato di
+proposito: farlo guardare `Expired()` butterebbe fuori proprio l'utente offline, mentre con il rinnovo
+a monte torna corretto per costruzione.
+
+La decisione pura è uscita in un helper testabile (`SessionFreshness`), perché la classe che fa
+l'effetto non è istanziabile in un test: è lo stesso taglio già usato per `RestCalculations`.
+
+## Il denaro, e la differenza fra un editor e una bozza (2026-08-08)
+
+Richiesta semplice — «aggiungere la conversione delle monete» — con una regola meno ovvia del previsto.
+
+I conti si fanno **in rame**, l'unità più piccola (mr 1, ma 10, me 50, mo 100, mp 1000): sommare
+`mr/100 + ma/10` in decimali accumula errori e la compattazione può perdere un rame. Restando su
+interi diventa dimostrabile la proprietà che conta, *il totale in rame è invariante sotto
+compattazione*, ed è il test principale.
+
+**La compattazione non crea mai platino né electrum**, e lascia intatti quelli posseduti. È una scelta
+di gioco, non di aritmetica: l'electrum in 5e è desueto e il platino è scomodo al tavolo — chi
+compatta vuole meno spiccioli, non un tesoro in tagli che nessuno accetta.
+
+**Il difetto emerso strada facendo è più interessante della funzione.** L'editor del denaro faceva
+`@bind="Character.GoldPieces"`: scriveva sul personaggio a ogni tasto premuto, senza un «Annulla».
+Sembra un fastidio locale, ma non lo è, perché `Pages/Characters.razor` salva con
+`UpdateCharacterAsync(selected)` — **l'intera riga da 113 colonne**. Quindi una modifica alle monete
+mai confermata partiva verso il server al primo salvataggio di *qualunque altro campo*: bastava
+scrivere una nota. Ogni mutazione in memoria non confermata era, di fatto, già in attesa di essere
+scritta.
+
+Il rimedio non è stato inventato: lo **stesso file** applicava già il pattern giusto all'inventario
+(`newItemDraft`, `editItemDraft` — si compila una copia, il salvataggio la travasa). Il denaro era
+l'unica sezione rimasta indietro. Da lì anche il refactor di `CoinConversion` agli overload sui cinque
+interi: la bozza non è un `Character`, e duplicare la logica sarebbe stato il modo sbagliato di
+risolverlo.
+
+**Un test che sorvegliava sé stesso.** Il gate ha trovato che l'invariante «il totale non cambia»
+sarebbe rimasto **verde anche con `Compatta` sostituito da un no-op** — perché un no-op preserva il
+totale per definizione — mentre il commento accanto dichiarava il contrario. È lo stesso difetto già
+registrato il 2026-08-06 con la Costituzione 14. Corretto aggiungendo l'asserzione che, sugli
+ingressi non già compatti, l'esito **differisca** dall'ingresso; e questa volta il collaudo per
+mutazione è stato eseguito davvero: no-op → rosso, ripristino → verde.
+
+Resta aperto, e riportato in DA-FARE invece di essere risolto di nascosto: i tab **non sanno** se il
+salvataggio è riuscito, perché `OnChanged` è un `EventCallback` e gli `EventCallback` non
+restituiscono valori. Se le RLS rifiutano, PostgREST aggiorna zero righe e risponde `[]` — nessuna
+eccezione — e il tab chiude l'editor mostrando un valore che il database non ha. Portare l'esito fino
+al figlio significa cambiare un contratto condiviso con sintonie, note e addestramento: intervento
+trasversale, non una toppa dentro un diff che parlava di valute.
+
+## Razor che legge un indirizzo email dove c'era un livello (2026-08-08)
+
+`<span class="feature-level">L@riga.Livello</span>` stampava a schermo la stringa cruda
+`L@riga.Livello`. Non è un refuso: è il **rilevatore di indirizzi email** del parser Razor, che davanti
+a `parola@identificatore.membro` emette testo letterale per permettere di scrivere `info@dominio.it`
+senza escape. Il markup è sintatticamente valido, il compilatore non dice nulla e nessun test lo vede.
+La cura è forzare l'espressione: `L@(riga.Livello)`.
+
+Dallo stesso segnale è emersa una cosa più grossa, ora in DA-FARE: la sezione mostra «Ira», «Difesa
+senza armatura» come **nomi nudi** perché nel pacchetto `levels[].features` è un array di stringhe.
+Ma sottoclassi, talenti, background e specie **hanno** la descrizione nel pacchetto, e la scheda ne
+mostra una sola (la sottoclasse). Il resto del manuale ce l'abbiamo in casa e non lo apriamo.
+
+Per i privilegi di classe invece serve il **PDF ufficiale SRD 5.2.1 italiano**, che nel repo non c'è —
+e il PHB presente in `docs/` non è utilizzabile, è fuori licenza. Inventarle non è un'opzione: quando
+si provò a tradurre a mano i nomi degli incantesimi, al 1° livello ne coincidevano 27 su 57. Un nome
+sbagliato si nota; una regola sbagliata in una scheda usata al tavolo, no.
