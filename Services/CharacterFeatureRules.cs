@@ -143,4 +143,33 @@ public static class CharacterFeatureRules
 
         return risultato;
     }
+
+    /// <summary>La gemella di <see cref="Normalizza"/> per la singola bozza in modifica — il foglio
+    /// di dettaglio (<c>Pages/Characters.razor</c>) e il pannello di aggiunta
+    /// (<c>Shared/CharacterTabs/CharacterFeaturesSection.razor</c>) la chiamavano entrambi con la
+    /// stessa sequenza copiata a mano prima di questo helper. Stessi criteri di <see cref="Normalizza"/>
+    /// per i campi che condivide — Nome e Nota rifilati, Nota troncata a <see
+    /// cref="LunghezzaMassimaNota"/>, Azione riportato al tag canonico o a <c>null</c> se non fra <see
+    /// cref="TagAmmessi"/> — così il salvataggio dal foglio e quello dall'aggiunta non divergono fra
+    /// loro né da quanto <see cref="Normalizza"/> produrrebbe al prossimo caricamento. <see
+    /// cref="CharacterFeature.Risorsa"/> non ha un criterio in <see cref="Normalizza"/> (vi passa
+    /// cruda): qui vuota o di soli spazi diventa <c>null</c>, altrimenti rifilata — il criterio già
+    /// applicato nei due call-site prima di questo helper.</summary>
+    public static CharacterFeature NormalizzaBozza(CharacterFeature bozza)
+    {
+        var nota = bozza.Nota?.Trim() ?? string.Empty;
+        if (nota.Length > LunghezzaMassimaNota) nota = nota[..LunghezzaMassimaNota];
+
+        var azioneGrezza = bozza.Azione?.Trim().ToLowerInvariant() ?? string.Empty;
+        var azione = TagAmmessiSet.Contains(azioneGrezza) ? azioneGrezza : null;
+
+        return new CharacterFeature
+        {
+            Nome = bozza.Nome?.Trim() ?? string.Empty,
+            Nota = nota,
+            Azione = azione,
+            Risorsa = string.IsNullOrWhiteSpace(bozza.Risorsa) ? null : bozza.Risorsa!.Trim(),
+            Attivabile = bozza.Attivabile,
+        };
+    }
 }

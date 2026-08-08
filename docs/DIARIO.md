@@ -2091,3 +2091,89 @@ E il test che conta è quello degli a capo espliciti — tre righe da cinque car
 troncate a due righe. Scritto accanto al valore: è il caso che una stima `Length > righe × 30`
 sbaglierebbe, ed è l'unico dei tre che diventa rosso sostituendo l'implementazione con quella stima
 ingenua. Gli altri due sorvegliano il confine; questo sorveglia l'**idea**.
+
+## La board di gioco: due consulenti in disaccordo, e un default che ho invertito io (2026-08-08)
+
+Poche ore dopo la vista di gioco, la seconda segnalazione: «l'interfaccia si può fare molto meglio, le
+sezioni divise in modo migliore, **usando widget** per tenere tutto **a portata di occhio**;
+confrontati con un agente di frontend design e con Fable».
+
+### Il muro non era fatto di informazione
+
+Le due consulenze, indipendenti, sono arrivate alla stessa diagnosi per due strade diverse. Fable:
+buona parte della colonna è **amministrazione renderizzata nella superficie di gioco** — «+ Aggiungi
+voce» in cima a ogni sezione, la ✎ su ogni riga, «Nessuna nota: tocca ✎ per scriverla», «Ricarica:
+riposo lungo» ripetuto. La scheda di carta non ha affordance di modifica: ci si scrive sopra e basta, e
+al tavolo si è in lettura il 95% del tempo. L'altra, per misura: le note dell'utente sono già
+compattissime — «Ira: 3/Riposo Lungo. +2 Danni» sono 34 caratteri — ma **ogni voce da 34 caratteri
+costa ~80px** fra padding, margine e intestazione. Il muro era spazio bianco.
+
+### Dove si sono contraddetti, e come si è deciso
+
+Sul meccanismo hanno raccomandato cose **incompatibili**: fisarmonica con lo stato ricordato contro
+mosaico di riquadri. Non una sfumatura — ciascuno scartava esplicitamente l'altro.
+
+Si è scelto il **mosaico**, e la ragione decisiva è che chi proponeva la fisarmonica aveva **nominato il
+premio giusto e scelto l'arma che lo danneggia**: dice — correttamente — che il vantaggio della carta è
+la memoria spaziale, «la mano sa dove sono i PF senza leggere», e poi propone un meccanismo in cui
+aprire una sezione sposta in basso tutto il resto. Dopo due tocchi la mappa che il giocatore ha in
+testa non è assente: è **sbagliata**, che è peggio. E lo ammetteva da sé: «la fisarmonica *differisce*
+il testo, non lo riduce».
+
+Della consulenza scartata restano due punti che l'altra non aveva: l'ordine dei riquadri è **fisso e non
+si compatta** quando un gruppo è vuoto (la stabilità posizionale *è* la funzione), e se un giorno il
+personaggio è un incantatore che nel turno salta fra «Gioco» e «Magia», allora è la partizione in tab a
+essere sbagliata e la decisione si riapre.
+
+**Registrare il disaccordo era il punto.** Una scelta fra due pareri opposti, scritta senza dire che
+c'era un'alternativa argomentata, fra sei mesi sembra l'unica possibile.
+
+### Il difetto che ho scritto io nel piano
+
+Il consulente aveva dato due blocchi CSS: nascondi `.w-list` **sotto** i 90px, e sopra i 150px rendila
+`block`. Trascrivendoli nel piano li ho compressi in `.w-list { display: none }` come **base**, con
+`@container` a riaccenderla. Sembra la stessa cosa. Non lo è: ho invertito il default.
+
+`bug-hunter` ha fatto l'algebra della griglia. Su un viewport da 320px un riquadro da sei colonne è
+largo ~141px — sotto la soglia — e **l'intero elenco dei privilegi spariva, pallini di spesa compresi**.
+Peggio: Safari sotto la 16 ignora i blocchi `@container` **in blocco**, quindi la lista era invisibile a
+**qualunque** larghezza. Cioè esattamente il difetto contro cui avevo scritto la decisione D10 —
+«ciò che resta senza supporto dev'essere il caso leggibile, non quello sfondato».
+
+Lo stesso errore nascondeva un secondo caso: `.w-sub` in un riquadro da due colonne avrebbe richiesto
+una board larga **930px** per superare la soglia, contro un massimo di 760 nell'app. Il tiro salvezza
+sotto ogni caratteristica non sarebbe comparso **mai**, su nessuno schermo.
+
+Due cose valgono più della correzione. La prima: `conformity` aveva esaminato lo stesso punto e concluso
+«D10 implementata nel verso corretto» — aveva letto la **forma** (c'è una base, c'è una query), non
+l'**effetto**. È il motivo per cui i due agenti del gate hanno mandati diversi e non vanno fusi. La
+seconda: l'errore era in un documento, non in un file di codice, e nessuna delle tre verifiche
+automatiche del progetto — build, test, gate sul diff — guarda i piani. **La regola sta ora in un
+commento accanto al blocco `@container`**: la visibilità del contenuto non passa mai di lì, solo il
+layout.
+
+### La giuntura: sei agenti tutti corretti, e una funzione morta
+
+Il ridisegno è stato scritto da sei agenti a file disgiunti. Chi ha scritto il foglio di dettaglio ha
+messo un ✎ che chiude il foglio, annotando «la modifica si riapre toccando la voce sulla board»; chi ha
+scritto la board ha lasciato `ApriModifica` intatto e ha segnalato che non aveva più chiamanti. **Tutti
+e due hanno fatto la cosa giusta** — fermarsi al confine invece di inventare il contratto dell'altro.
+
+Il risultato combinato era un cerchio: toccare la voce apriva il foglio, il ✎ del foglio lo chiudeva, e
+**annotare un privilegio era diventato irraggiungibile** — la funzione che l'utente aveva chiesto per
+prima il giorno avanti. Nessuno dei due poteva vederlo, per costruzione.
+
+La riparazione non è stata ricablare il ✎. Il pannello di modifica serviva ormai **due padroni**
+(l'aggiunta dalla board, la modifica dal foglio), quindi è diventato un componente proprio,
+`CharacterFeatureEditPanel`. **Il difetto di giuntura aveva rivelato un'astrazione mancante**: succede
+spesso, ed è la ragione per cui non conviene tapparlo con un callback in più.
+
+### Un secondo giro che ha corretto un ragionamento, non un difetto
+
+Il giro finale è uscito pulito, ma non a vuoto. Chi aveva scritto `NormalizzaBozza` sosteneva che la
+validazione più stringente del tag fosse innocua «perché il `<select>` scrive solo valori ammessi».
+Falso come argomento — un jsonb può contenere un tag scritto da una versione precedente. È innocua per
+un'altra ragione: `CharacterRepository` chiama già `Normalizza` **a ogni caricamento**, quindi un valore
+fuori elenco non arriva mai alla bozza. Conclusione giusta, motivo sbagliato. Il codice non cambia; ciò
+che cambia è che ora sappiamo **quale** riga lo protegge — e il giorno in cui qualcuno toccherà quella,
+la protezione non sparirà in silenzio.

@@ -4,6 +4,11 @@
        Riferimento visivo: pagina /_showroom. */
     --bg: #1a0e1f;            /* sfondo app / theme color */
     --bg-card: #2a1d10;       /* sfondo card / input */
+    --border-card: #5a3f20;   /* bordo delle card. Era un literal ripetuto in almeno quattro file
+       (CharacterCombatTab.razor.css 7 volte, CharacterVitalsBar.razor.css, StatCard.razor.css,
+       Characters.razor.css): promosso qui il 2026-08-08 per la board di gioco, che ne moltiplica
+       l'uso. NON sostituito negli altri file, Characters.razor.css compreso: lo sweep resta fuori
+       scope, per chi li tocca per altri motivi. */
     --bg-alt: #2a1f17;        /* sfondo alternativo */
     --gold: #d4a574;          /* oro principale */
     --gold-dark: #b8935f;     /* oro scuro (gradienti) */
@@ -571,4 +576,94 @@ code {
     font-size: 0.9rem;
     margin: 0.25rem 0 0;
     padding: 0.4rem 0;
+}
+
+/* =====================================================================
+   BOARD DI GIOCO — vocabolario condiviso (piano 2026-08-08)
+   =====================================================================
+   Griglia a 12 colonne e riquadri, usati da TRE componenti (CharacterCombatTab,
+   CharacterFeaturesSection, CharacterStatsTab): l'isolamento CSS di Blazor costringerebbe a
+   dichiararli tre volte, quindi si promuovono globali. Lo stile SPECIFICO di un componente
+   (colori di una singola voce, layout interno di un riquadro particolare) resta scoped nel suo
+   .razor.css: qui sta solo il vocabolario comune. */
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 6px;
+    /* minmax(0, …) e non 1fr: senza, un nome d'arma lungo sfonda la colonna (stesso motivo per
+       cui .vitals-bar usa già repeat(3, minmax(0, 1fr))). align-items: start perché ogni
+       riquadro sia alto quanto il proprio contenuto: con lo stretch un riquadro da tre voci
+       alzerebbe anche quello da una, e la board tornerebbe a sprecare verticale. */
+    align-items: start;
+}
+
+.w-2  { grid-column: span 2; }
+.w-3  { grid-column: span 3; }
+.w-6  { grid-column: span 6; }
+.w-12 { grid-column: span 12; }
+
+.w {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    padding: 0.4rem 0.45rem;
+    min-height: 56px; /* è tappabile: apre il foglio di dettaglio */
+    min-width: 0;     /* obbligatorio dentro grid, o il contenuto detta la larghezza e la
+                          campata smette di valere */
+    container-type: inline-size;
+}
+
+.w-value {
+    /* cqw lega il corpo alla LARGHEZZA DEL RIQUADRO, non al viewport: la stessa classe vale
+       sia su un w-2 sia su un w-6. */
+    font-size: clamp(1.05rem, 6.5cqw, 1.5rem);
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.w-label {
+    /* stesso linguaggio di .card-label qui sopra. */
+    font-family: 'Georgia', 'Cambria', serif;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+}
+
+.w-sub {
+    font-size: 0.7rem;
+    color: var(--gold-muted);
+    /* nowrap: un w-2 (le sei caratteristiche) è largo ~43-55px fra 320 e 390px di viewport — c'è
+       spazio per "TS +7" su una riga, non per andare a capo senza rompere il riquadro (D10). */
+    white-space: nowrap;
+}
+
+.w-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+/* D10 — la visibilità del contenuto NON passa mai da @container, qui sotto: solo il LAYOUT del
+   caso largo (allineamento, altezza minima delle righe). Due motivi, entrambi verificati:
+   (1) Safari < 16 e Chrome < 105 non degradano la regola @container, la ignorano IN BLOCCO — ogni
+   `display` messo lì dentro sparirebbe su quei browser a QUALUNQUE larghezza; (2) anche coi browser
+   che la supportano, un riquadro w-2 (le sei caratteristiche) non supera mai i 150px in questa app:
+   servirebbe una board larga 930px contro i 760px massimi (Pages/Characters.razor.css). Il caso che
+   resta senza @container dev'essere quello leggibile, non quello sfondato — se una prossima regola
+   di visibilità finisce in questo blocco, il difetto si ripete. */
+@container (min-width: 150px) {
+    .w { align-items: stretch; }
+    .w-label { text-align: left; }
+    .w-list li { min-height: 44px; display: flex; align-items: center; }
 }

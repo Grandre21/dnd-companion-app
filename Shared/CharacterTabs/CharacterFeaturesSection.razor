@@ -3,18 +3,102 @@
 @implements IDisposable
 @inject ActiveEffectsService ActiveEffects
 @inject ToastService Toasts
-@inject ConfirmService Confirm
 
-@* Le schede-privilegio del tab «Gioco» (v. piano 2026-08-08, Task 7). Rende TUTTI i gruppi tranne
-   "passivo": quel gruppo lo rende CharacterCombatTab con una resa diversa (riga singola, nessun
-   contatore, nessun interruttore — v. spec 2026-08-08, sezione «L'ordine verticale»).
+@* La board dei privilegi del tab «Gioco» (v. piano 2026-08-08 board-di-gioco, Fetta C). Rende TUTTI
+   i gruppi tranne "passivo": quel gruppo lo rende CharacterCombatTab con una resa diversa (riga
+   singola, nessun contatore, nessun interruttore — v. spec 2026-08-08, sezione «L'ordine
+   verticale»).
 
+   Ogni gruppo è un riquadro w-6 in POSIZIONE FISSA per tag (v. .w[data-tag=...] nel CSS, D1a): se un
+   gruppo è vuoto la sua posizione resta vuota, gli altri non scorrono a riempirla — un personaggio di
+   1° livello senza privilegi "azione" è il caso comune, non l'eccezione.
+
+   La nota NON si rende più qui: sta nel foglio aperto da OnApriDettaglio (fetta A, Pages/Characters.razor).
    Nessuna logica di dominio qui: il raggruppamento e l'ordinamento li fa già CharacterFeatureJoin
-   (Services/), questo componente rende soltanto e delega ogni scrittura al genitore tramite
-   EventCallback — non possiede Character, non salva nulla di suo. L'unica eccezione è lo stato
-   "attivo", che non è mai una scrittura sul personaggio (v. ActiveEffectsService): vive in
-   localStorage e si tocca direttamente dal servizio iniettato, senza passare dal genitore. *@
+   (Services/), la densità la fa CharacterFeatureDensity — questo componente rende soltanto e delega
+   ogni scrittura al genitore tramite EventCallback — non possiede Character, non salva nulla di suo.
+   L'unica eccezione è lo stato "attivo", che non è mai una scrittura sul personaggio (v.
+   ActiveEffectsService): vive in localStorage e si tocca direttamente dal servizio iniettato, senza
+   passare dal genitore. *@
 
+@if (!GruppiVisibili.Any())
+{
+    <p class="empty-note">Nessun privilegio da mostrare per ora.</p>
+}
+else
+{
+    <div class="board">
+        @foreach (var gruppo in GruppiVisibili)
+        {
+            <div class="w w-6" data-tag="@gruppo.Tag">
+                <p class="w-label">@gruppo.Etichetta</p>
+                <ul class="w-list">
+                    @foreach (var voce in gruppo.Voci)
+                    {
+                        var attiva = ActiveEffects.IsActive(CharacterId, voce.Nome);
+                        var densita = CharacterFeatureDensity.Classifica(voce, attiva);
+                        var rigaClass = densita == DensitaPrivilegio.Spenta
+                            ? "feature-tile-row-dim"
+                            : (attiva ? "feature-tile-row-active" : string.Empty);
+
+                        <li class="feature-tile-row @rigaClass"
+                            role="button" tabindex="0"
+                            aria-label="@voce.Nome"
+                            @onclick="() => OnApriDettaglio.InvokeAsync(voce)"
+                            @onkeydown="@(e => OnKey(e, () => OnApriDettaglio.InvokeAsync(voce)))">
+                            <span class="feature-tile-name">
+                                @voce.Nome
+                                @if (voce.SbloccatoAlLivello == LivelloAttuale)
+                                {
+                                    <span class="feature-badge-new">Nuovo</span>
+                                }
+                            </span>
+
+                            <div class="feature-tile-actions">
+                                @if (voce.Attivabile)
+                                {
+                                    <span class="feature-toggle @(attiva ? "active" : "")"
+                                          role="button" tabindex="0"
+                                          aria-pressed="@AriaBool(attiva)" aria-label="@voce.Nome"
+                                          @onclick="() => ToggleAttivoAsync(voce.Nome)" @onclick:stopPropagation="true"
+                                          @onkeydown="@(e => OnKey(e, () => ToggleAttivoAsync(voce.Nome)))" @onkeydown:stopPropagation="true"></span>
+                                }
+
+                                @* I pallini restano visibili in TUTTE le densità, anche Spenta dove la
+                                   riga smorzata dice già la stessa cosa: non sono una resa, sono il
+                                   controllo — l'unico modo di ripristinare il contatore dopo un riposo
+                                   lungo (OnContatoreDotClickAsync). Nasconderli lascerebbe un'Ira esaurita
+                                   per sempre: la ridondanza col colore smorzato è accettata di proposito,
+                                   non va "corretta" rimuovendoli. Lo stopPropagation è nuovo rispetto alla
+                                   card di prima: ora l'intera riga apre il foglio (OnApriDettaglio), quindi
+                                   un tocco sul pallino non deve propagarsi e aprirlo anche lui. *@
+                                @if (voce.Contatore is not null)
+                                {
+                                    var contatore = voce.Contatore;
+                                    var disponibili = contatore.Max - contatore.Spesi;
+                                    <div class="feature-dots">
+                                        @for (int i = 1; i <= contatore.Max; i++)
+                                        {
+                                            var n = i;
+                                            <span class="feature-dot @(n <= disponibili ? "filled" : "")"
+                                                  role="button" tabindex="0"
+                                                  aria-pressed="@AriaBool(n <= disponibili)" aria-label="Uso @n di @contatore.Nome"
+                                                  @onclick="() => OnContatoreDotClickAsync(contatore, n)" @onclick:stopPropagation="true"
+                                                  @onkeydown="@(e => OnKey(e, () => OnContatoreDotClickAsync(contatore, n)))" @onkeydown:stopPropagation="true"></span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@* «+ Aggiungi voce» in fondo alla sezione, non in cima (D7): il chrome di modifica esce dal
+   percorso del pollice. *@
 @if (CanEdit)
 {
     @if (!isAddingNew)
@@ -31,178 +115,13 @@
                 <input id="feature-add-nome" type="text" class="feature-input" maxlength="120"
                        placeholder="Nome del privilegio o del tratto" @bind="draft.Nome" />
             </div>
-            <div class="feature-field">
-                <label for="feature-add-nota">Nota</label>
-                <textarea id="feature-add-nota" class="feature-input feature-textarea" maxlength="2000"
-                          placeholder="Cosa fa, con le tue parole" @bind="draft.Nota"></textarea>
-            </div>
-            <div class="feature-field">
-                <label for="feature-add-azione">Quando si usa</label>
-                <select id="feature-add-azione" class="feature-input" @bind="draft.Azione">
-                    <option value="">Da classificare</option>
-                    @foreach (var tag in CharacterFeatureRules.TagAmmessi)
-                    {
-                        <option value="@tag">@CharacterFeatureRules.EtichettaTag(tag)</option>
-                    }
-                </select>
-            </div>
-            <div class="feature-field">
-                <label for="feature-add-risorsa">Risorsa collegata</label>
-                <input id="feature-add-risorsa" type="text" class="feature-input" maxlength="60"
-                       placeholder="Lascia vuoto per usare lo stesso nome" @bind="draft.Risorsa" />
-            </div>
-            <label class="feature-checkbox-row">
-                <input type="checkbox" @bind="draft.Attivabile" />
-                <span>Mostra l'interruttore «attivo»</span>
-            </label>
-            <div class="feature-form-actions">
-                <button type="button" class="primary-btn" @onclick="SalvaAsync" disabled="@IsSaving">
-                    Salva
-                </button>
-                <button type="button" class="secondary-btn" @onclick="AnnullaModifica" disabled="@IsSaving">
-                    Annulla
-                </button>
-            </div>
-        </div>
-    }
-}
-
-@if (!GruppiVisibili.Any())
-{
-    <p class="empty-note">Nessun privilegio da mostrare per ora.</p>
-}
-
-@foreach (var gruppo in GruppiVisibili)
-{
-    <p class="section-header">@gruppo.Etichetta</p>
-    @foreach (var voce in gruppo.Voci)
-    {
-        var densita = CharacterFeatureDensity.Classifica(voce, ActiveEffects.IsActive(CharacterId, voce.Nome));
-        var compatta = densita != DensitaPrivilegio.Piena;
-        var spenta = densita == DensitaPrivilegio.Spenta;
-        var wrapperClass = compatta ? (spenta ? "feature-row feature-row-dim" : "feature-row") : "feature-card";
-        var righeMax = compatta ? CharacterFeatureDensity.RigheClampCompatta : CharacterFeatureDensity.RigheClampPiena;
-        var notaTroncabile = CharacterFeatureDensity.NotaTroncabile(voce.Nota, righeMax);
-        var notaEspansa = notaTroncabile && IsNotaEspansa(voce.Nome);
-
-        <div class="@wrapperClass">
-            <div class="feature-header">
-                <p class="feature-name">
-                    @voce.Nome
-                    @if (voce.SbloccatoAlLivello == LivelloAttuale)
-                    {
-                        <span class="feature-badge-new">Nuovo</span>
-                    }
-                </p>
-                <div class="feature-header-actions">
-                    @if (spenta && voce.Contatore is not null)
-                    {
-                        var contatoreSpento = voce.Contatore;
-                        <span class="feature-count">@(Math.Max(0, contatoreSpento.Max - contatoreSpento.Spesi)) / @contatoreSpento.Max</span>
-                    }
-                    @if (voce.Attivabile)
-                    {
-                        <span class="feature-toggle @(ActiveEffects.IsActive(CharacterId, voce.Nome) ? "active" : "")"
-                              role="button" tabindex="0"
-                              aria-pressed="@AriaBool(ActiveEffects.IsActive(CharacterId, voce.Nome))"
-                              aria-label="@voce.Nome"
-                              @onclick="() => ToggleAttivoAsync(voce.Nome)"
-                              @onkeydown="@(e => OnKey(e, () => ToggleAttivoAsync(voce.Nome)))"></span>
-                    }
-                    @if (CanEdit)
-                    {
-                        <button type="button" class="feature-edit-btn" aria-label="Modifica @voce.Nome"
-                                @onclick="() => ApriModifica(voce)" disabled="@IsSaving">✎</button>
-                    }
-                </div>
-            </div>
-
-            @* I pallini restano visibili in TUTTE le densità, anche Spenta dove il conteggio
-               testuale dice già la stessa cosa: non sono una resa, sono il controllo — l'unico
-               modo di ripristinare il contatore dopo un riposo lungo (OnContatoreDotClickAsync).
-               Nasconderli lascerebbe un'Ira esaurita per sempre: la ridondanza col
-               conteggio testuale è accettata di proposito, non va "corretta" rimuovendoli. *@
-            @if (voce.Contatore is not null)
-            {
-                var contatore = voce.Contatore;
-                var disponibili = contatore.Max - contatore.Spesi;
-                <div class="feature-dots">
-                    @for (int i = 1; i <= contatore.Max; i++)
-                    {
-                        var n = i;
-                        <span class="feature-dot @(n <= disponibili ? "filled" : "")"
-                              role="button" tabindex="0"
-                              aria-pressed="@AriaBool(n <= disponibili)" aria-label="Uso @n di @contatore.Nome"
-                              @onclick="() => OnContatoreDotClickAsync(contatore, n)"
-                              @onkeydown="@(e => OnKey(e, () => OnContatoreDotClickAsync(contatore, n)))"></span>
-                    }
-                </div>
-            }
-
-            @if (string.IsNullOrWhiteSpace(voce.Nota))
-            {
-                <p class="empty-note">Nessuna nota: tocca ✎ per scriverla.</p>
-            }
-            else if (notaTroncabile)
-            {
-                <p class="feature-note feature-note-toggle @(notaEspansa ? "" : (compatta ? "clamp-2" : "clamp-8"))"
-                   role="button" tabindex="0"
-                   aria-expanded="@AriaBool(notaEspansa)"
-                   aria-label="@(notaEspansa ? $"Comprimi la nota di {voce.Nome}" : $"Espandi la nota di {voce.Nome}")"
-                   @onclick="() => ToggleNotaEspansa(voce.Nome)"
-                   @onkeydown="@(e => OnKey(e, () => ToggleNotaEspansa(voce.Nome)))">
-                    @voce.Nota
-                </p>
-            }
-            else
-            {
-                <p class="feature-note">@voce.Nota</p>
-            }
-
-            @if (IsEditingVoce(voce))
-            {
-                <div class="feature-edit-panel">
-                    <div class="feature-field">
-                        <label for="feature-edit-nota">Nota</label>
-                        <textarea id="feature-edit-nota" class="feature-input feature-textarea" maxlength="2000"
-                                  placeholder="Cosa fa, con le tue parole" @bind="draft.Nota"></textarea>
-                    </div>
-                    <div class="feature-field">
-                        <label for="feature-edit-azione">Quando si usa</label>
-                        <select id="feature-edit-azione" class="feature-input" @bind="draft.Azione">
-                            <option value="">Da classificare</option>
-                            @foreach (var tag in CharacterFeatureRules.TagAmmessi)
-                            {
-                                <option value="@tag">@CharacterFeatureRules.EtichettaTag(tag)</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="feature-field">
-                        <label for="feature-edit-risorsa">Risorsa collegata</label>
-                        <input id="feature-edit-risorsa" type="text" class="feature-input" maxlength="60"
-                               placeholder="Lascia vuoto per usare lo stesso nome" @bind="draft.Risorsa" />
-                    </div>
-                    <label class="feature-checkbox-row">
-                        <input type="checkbox" @bind="draft.Attivabile" />
-                        <span>Mostra l'interruttore «attivo»</span>
-                    </label>
-                    <div class="feature-form-actions">
-                        <button type="button" class="primary-btn" @onclick="SalvaAsync" disabled="@IsSaving">
-                            Salva
-                        </button>
-                        <button type="button" class="secondary-btn" @onclick="AnnullaModifica" disabled="@IsSaving">
-                            Annulla
-                        </button>
-                        @if (voce.Origine == "propria")
-                        {
-                            <button type="button" class="feature-delete-btn" @onclick="() => EliminaAsync(voce)"
-                                    disabled="@IsSaving">
-                                Elimina
-                            </button>
-                        }
-                    </div>
-                </div>
-            }
+            @* Nota/Azione/Risorsa/interruttore/azioni: pannello condiviso con la modifica dal foglio
+               (Pages/Characters.razor), v. Shared/CharacterTabs/CharacterFeatureEditPanel.razor. Il
+               Nome resta qui perché il pannello lo esclude di proposito (nella modifica non è
+               modificabile, è la chiave della voce) — v. brief giuntura fetta A/fetta C 2026-08-08.
+               Nessun wrapper con sfondo/bordo nel pannello: quello lo dà .feature-form qui sopra. *@
+            <CharacterFeatureEditPanel Draft="draft" IsSaving="IsSaving" PuoEliminare="false"
+                                        OnSalva="SalvaAsync" OnAnnulla="AnnullaModifica" />
         </div>
     }
 }
@@ -218,8 +137,13 @@
     /// la stessa operazione — si scrive un CharacterFeature nel jsonb, e se il suo nome non
     /// corrisponde a nessun derivato il join lo renderà come voce propria (v. brief Task 7).</summary>
     [Parameter] public EventCallback<CharacterFeature> OnSalvaAnnotazione { get; set; }
-    [Parameter] public EventCallback<VistaPrivilegio> OnEliminaVocePropria { get; set; }
+
     [Parameter] public EventCallback<(string Nome, int Usi)> OnSpendiContatore { get; set; }
+
+    /// <summary>Apre il foglio della fetta A (Pages/Characters.razor) con il dettaglio del privilegio
+    /// toccato: nome, tag, nota per intero e il ✎ che apre la modifica (v. piano, "Contratti fra le
+    /// fette"). Un tocco sulla riga lo invoca; questo componente non possiede lo stato del foglio.</summary>
+    [Parameter] public EventCallback<VistaPrivilegio> OnApriDettaglio { get; set; }
 
     private IEnumerable<GruppoPrivilegi> GruppiVisibili => Gruppi.Where(g => g.Tag != "passivo");
 
@@ -227,24 +151,16 @@
     // tipo della bozza: la sua forma coincide esattamente coi campi da modificare, stesso schema di
     // "resourceDraft = new ClassResource()" in CharacterCombatTab.razor. =====
     private CharacterFeature draft = new();
-    private string? editingNome;
     private bool isAddingNew;
     private string? _lastCharacterId;
-
-    // ===== Espansione delle note clampate (densità Piena/Riga/Spenta): stato locale del
-    // componente, per voce. Non persiste, non tocca ActiveEffectsService né Character: si azzera
-    // al cambio di personaggio come le altre bozze qui sopra (v. brief). =====
-    private readonly HashSet<string> vociNotaEspansa = new(StringComparer.Ordinal);
 
     protected override void OnParametersSet()
     {
         if (CharacterId != _lastCharacterId)
         {
             _lastCharacterId = CharacterId;
-            editingNome = null;
             isAddingNew = false;
             draft = new CharacterFeature();
-            vociNotaEspansa.Clear();
         }
     }
 
@@ -258,52 +174,16 @@
 
     public void Dispose() => ActiveEffects.Changed -= HandleActiveEffectsChanged;
 
-    private bool IsEditingVoce(VistaPrivilegio voce) => !isAddingNew && editingNome == voce.Nome;
-
-    private bool IsNotaEspansa(string nome) => vociNotaEspansa.Contains(nome);
-
-    private Task ToggleNotaEspansa(string nome)
-    {
-        if (!vociNotaEspansa.Remove(nome)) vociNotaEspansa.Add(nome);
-        return Task.CompletedTask;
-    }
-
     private void ApriAggiunta()
     {
         if (!CanEdit) return;
         if (isAddingNew) { AnnullaModifica(); return; }
-        editingNome = null;
         isAddingNew = true;
         draft = new CharacterFeature();
     }
 
-    private void ApriModifica(VistaPrivilegio voce)
-    {
-        if (!CanEdit) return;
-        if (IsEditingVoce(voce)) { AnnullaModifica(); return; }
-        isAddingNew = false;
-        editingNome = voce.Nome;
-        draft = new CharacterFeature
-        {
-            Nome = voce.Nome,
-            Nota = voce.Nota,
-            Azione = voce.Azione ?? string.Empty,
-            // RisorsaAnnotata è il valore grezzo scritto dall'utente: se non risolve a nessuna
-            // ClassResource (per esempio perché è stata cancellata dopo) precompilare col Contatore
-            // già risolto lo troverebbe null e cancellerebbe l'annotazione al salvataggio. Ma il
-            // contatore può anche essere agganciato IMPLICITAMENTE, per nome del privilegio,
-            // quando l'annotazione non ha una Risorsa esplicita (CharacterFeatureJoin.TrovaContatore
-            // prova prima Risorsa e poi il nome): in quel caso RisorsaAnnotata è null pur essendoci
-            // un collegamento funzionante, e il campo apparirebbe vuoto nel pannello. Il fallback al
-            // nome del Contatore rende visibile — e voluto — quel collegamento implicito.
-            Risorsa = voce.RisorsaAnnotata ?? voce.Contatore?.Nome ?? string.Empty,
-            Attivabile = voce.Attivabile,
-        };
-    }
-
     private void AnnullaModifica()
     {
-        editingNome = null;
         isAddingNew = false;
         draft = new CharacterFeature();
     }
@@ -312,21 +192,13 @@
     {
         if (!CanEdit || IsSaving) return;
 
-        var nome = draft.Nome?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(nome))
+        if (string.IsNullOrWhiteSpace(draft.Nome))
         {
             Toasts.ShowError("Il nome è obbligatorio");
             return;
         }
 
-        var feature = new CharacterFeature
-        {
-            Nome = nome,
-            Nota = draft.Nota?.Trim() ?? string.Empty,
-            Azione = string.IsNullOrWhiteSpace(draft.Azione) ? null : draft.Azione,
-            Risorsa = string.IsNullOrWhiteSpace(draft.Risorsa) ? null : draft.Risorsa!.Trim(),
-            Attivabile = draft.Attivabile,
-        };
+        var feature = CharacterFeatureRules.NormalizzaBozza(draft);
 
         // OnSalvaAnnotazione è un EventCallback<T>: non può restituire un esito (stesso limite
         // documentato per OnChanged in CharacterCombatTab.razor). Il pannello si chiude comunque; è
@@ -334,22 +206,6 @@
         // fallimento (banner/rollback), non questo componente.
         await OnSalvaAnnotazione.InvokeAsync(feature);
         AnnullaModifica();
-    }
-
-    private async Task EliminaAsync(VistaPrivilegio voce)
-    {
-        if (!CanEdit || IsSaving || voce.Origine != "propria") return;
-
-        var confermato = await Confirm.ShowAsync($"Eliminare \"{voce.Nome}\"?");
-        if (!confermato) return;
-
-        // Ricontrollato dopo la conferma: la finestra è asincrona, e nel frattempo un altro
-        // salvataggio sullo stesso personaggio può essere già partito (stesso schema di
-        // DeleteResourceAsync in CharacterCombatTab.razor).
-        if (!CanEdit || IsSaving) return;
-
-        if (IsEditingVoce(voce)) AnnullaModifica();
-        await OnEliminaVocePropria.InvokeAsync(voce);
     }
 
     private Task ToggleAttivoAsync(string nome) => ActiveEffects.ToggleAsync(CharacterId, nome);

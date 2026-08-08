@@ -116,6 +116,82 @@ public class CharacterFeatureRulesTests
     }
 
     // -----------------------------------------------------------------------------------
+    // NormalizzaBozza — la gemella di Normalizza per la singola bozza in modifica (foglio di
+    // dettaglio e pannello di aggiunta, v. Pages/Characters.razor e
+    // Shared/CharacterTabs/CharacterFeaturesSection.razor)
+    // -----------------------------------------------------------------------------------
+
+    [Fact]
+    public void NormalizzaBozza_NotaConSpaziAiBordi_VieneRifilata()
+    {
+        var esito = CharacterFeatureRules.NormalizzaBozza(new CharacterFeature
+        {
+            Nome = "Ira",
+            Nota = "  tre volte per riposo lungo  ",
+        });
+
+        Assert.Equal("tre volte per riposo lungo", esito.Nota);
+    }
+
+    /// <summary>Stessa soglia di <see cref="Normalizza_TroncaLaNotaOltreIlTetto"/> (2000 caratteri,
+    /// 2500 scritti): il caso che rende il test non vacuo. Se NormalizzaBozza avesse una soglia
+    /// diversa da Normalizza — o nessuna — il salvataggio dal foglio e quello dall'aggiunta
+    /// divergerebbero fra loro e da quanto Normalizza produce al prossimo caricamento (v. commento
+    /// su NormalizzaBozza).</summary>
+    [Fact]
+    public void NormalizzaBozza_TroncaLaNotaAllaStessaSogliaDiNormalizza()
+    {
+        var notaLunga = new string('x', 2500);
+        var esito = CharacterFeatureRules.NormalizzaBozza(new CharacterFeature
+        {
+            Nome = "Ira",
+            Nota = notaLunga,
+        });
+
+        Assert.Equal(2000, esito.Nota.Length);
+    }
+
+    [Fact]
+    public void NormalizzaBozza_AzioneVuota_DiventaNull()
+    {
+        var esito = CharacterFeatureRules.NormalizzaBozza(new CharacterFeature { Nome = "Ira", Azione = "" });
+
+        Assert.Null(esito.Azione);
+    }
+
+    [Fact]
+    public void NormalizzaBozza_AzioneDiSoliSpazi_DiventaNull()
+    {
+        var esito = CharacterFeatureRules.NormalizzaBozza(new CharacterFeature { Nome = "Ira", Azione = "   " });
+
+        Assert.Null(esito.Azione);
+    }
+
+    [Fact]
+    public void NormalizzaBozza_RisorsaVuota_DiventaNull()
+    {
+        var esito = CharacterFeatureRules.NormalizzaBozza(new CharacterFeature { Nome = "Ira", Risorsa = "" });
+
+        Assert.Null(esito.Risorsa);
+    }
+
+    [Fact]
+    public void NormalizzaBozza_RisorsaDiSoliSpazi_DiventaNull()
+    {
+        var esito = CharacterFeatureRules.NormalizzaBozza(new CharacterFeature { Nome = "Ira", Risorsa = "   " });
+
+        Assert.Null(esito.Risorsa);
+    }
+
+    [Fact]
+    public void NormalizzaBozza_RisorsaConSpaziAiBordi_VieneRifilata()
+    {
+        var esito = CharacterFeatureRules.NormalizzaBozza(new CharacterFeature { Nome = "Ira", Risorsa = "  Ira  " });
+
+        Assert.Equal("Ira", esito.Risorsa);
+    }
+
+    // -----------------------------------------------------------------------------------
     // AzioneSuggerita
     // -----------------------------------------------------------------------------------
 

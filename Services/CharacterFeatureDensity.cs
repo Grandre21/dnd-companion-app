@@ -48,25 +48,4 @@ public static class CharacterFeatureDensity
 
         return DensitaPrivilegio.Riga;
     }
-
-    /// <summary>Righe massime prima del troncamento: densità Piena (card) usa una soglia più
-    /// larga, densità compatta (Riga/Spenta) una più stretta.</summary>
-    public const int RigheClampPiena = 8;
-    public const int RigheClampCompatta = 2;
-    private const int CaratteriPerRigaStimati = 30;
-
-    /// <summary>Nessuna misura DOM (niente interop, v. brief): stima quante righe occuperebbe la
-    /// nota contando gli a capo espliciti e, per ogni segmento, un numero prudente di caratteri
-    /// per riga su schermo di telefono. Sottostimare i caratteri per riga (quindi sovrastimare le
-    /// righe) è la scelta sicura: un controllo di espansione che non serve è solo un fastidio,
-    /// una nota troncata senza modo di espanderla nasconde un dato.</summary>
-    public static bool NotaTroncabile(string? nota, int righeMax)
-    {
-        if (string.IsNullOrWhiteSpace(nota)) return false;
-
-        var righeStimate = 0;
-        foreach (var segmento in nota.Split('\n'))
-            righeStimate += Math.Max(1, (int)Math.Ceiling(segmento.Length / (double)CaratteriPerRigaStimati));
-        return righeStimate > righeMax;
-    }
 }

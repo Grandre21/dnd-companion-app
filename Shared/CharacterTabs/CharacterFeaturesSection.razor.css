@@ -1,31 +1,56 @@
-/* ===== Privilegi: schede =====
-   Stessa famiglia visiva di .resource-card in CharacterCombatTab.razor.css (stesso fondo/bordo):
-   sono la stessa famiglia di contatori/annotazioni che si spendono e si consultano al tavolo. La
-   CSS isolation di Blazor non fa seguire le regole scoped del genitore al markup di un figlio
-   (v. memoria "blazor-css-isolation-extraction"), quindi si ridichiara qui invece di condividerla. */
-.feature-card {
-    background: var(--bg-card);
-    border: 1px solid var(--gold-dim);
-    border-radius: 10px;
-    padding: 0.6rem 0.75rem;
-    margin-bottom: 0.5rem;
-}
+/* ===== Board dei privilegi (v. piano 2026-08-08 board-di-gioco, Fetta C) =====
+   Il vocabolario .board/.w/.w-6/.w-label/.w-list è GLOBALE, dichiarato in wwwroot/css/app.css e
+   condiviso da CharacterCombatTab e CharacterStatsTab (v. piano, "Vocabolario CSS condiviso"): qui
+   si ridichiara solo lo stile SPECIFICO di questa sezione, mai il vocabolario stesso. */
 
-.feature-header {
+/* Posizione FISSA per tag (D1a): un gruppo assente non sposta gli altri — un Barbaro di 1° livello
+   senza privilegi "azione" è il caso comune, non l'eccezione, e senza queste regole BONUS finirebbe
+   nella prima cella al posto di AZIONE. Due riquadri per riga, tre righe possibili: azione/bonus,
+   reazione/turno, "da classificare" da sola in fondo. */
+.w[data-tag="azione"]   { grid-column: 1 / span 6; grid-row: 1; }
+.w[data-tag="bonus"]    { grid-column: 7 / span 6; grid-row: 1; }
+.w[data-tag="reazione"] { grid-column: 1 / span 6; grid-row: 2; }
+.w[data-tag="turno"]    { grid-column: 7 / span 6; grid-row: 2; }
+.w[data-tag=""]         { grid-column: 1 / span 6; grid-row: 3; }
+
+.feature-tile-row {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
+    align-items: center;
     gap: 0.5rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
+    padding: 0.3rem 0;
 }
 
-.feature-name {
-    margin: 0;
-    font-weight: 700;
-    color: var(--text);
+.feature-tile-row:last-child {
+    border-bottom: none;
+}
+
+/* Contatore esaurito: smorzata (C2), la stessa densità che prima sceglieva fra card e riga ora
+   sceglie solo questo. */
+.feature-tile-row-dim {
+    opacity: 0.6;
+}
+
+/* Voce con effetto attivo ORA (C2): evidenziata, perché con l'Ira accesa armi e TS si leggono
+   diversamente — stessa ragione per cui esiste la strip ATTIVO in cima al tab. */
+.feature-tile-row-active {
+    background: rgba(var(--gold-rgb), 0.12);
+    border-radius: 6px;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+
+.feature-tile-name {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.35rem;
     flex-wrap: wrap;
+    min-width: 0;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
 .feature-badge-new {
@@ -41,15 +66,16 @@
     letter-spacing: 0.4px;
 }
 
-.feature-header-actions {
+.feature-tile-actions {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.4rem;
     flex-shrink: 0;
 }
 
 /* Interruttore "attivo": stesso linguaggio visivo di .inspiration-toggle in
-   CharacterCombatTab.razor.css, ridichiarato qui per lo stesso motivo di .feature-card. */
+   CharacterCombatTab.razor.css, ridichiarato qui per lo stesso motivo di prima (v. memoria
+   "blazor-css-isolation-extraction"). */
 .feature-toggle {
     width: 18px;
     height: 18px;
@@ -78,37 +104,15 @@
     background: transparent;
 }
 
-.feature-edit-btn {
-    background: transparent;
-    border: none;
-    color: var(--gold-dim);
-    font-size: 1rem;
-    cursor: pointer;
-    font-family: inherit;
-    /* 44px anche se il glifo è piccolo: è un bersaglio a matita, non un'icona decorativa. */
-    min-width: 44px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.feature-edit-btn:hover {
-    color: var(--gold-light);
-}
-
-.feature-edit-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Pallini del contatore collegato: stesso schema di .resource-dots/.resource-dot. */
+/* Pallini del contatore collegato: stesso schema di .resource-dots/.resource-dot. Gap 2rem
+   INVARIATO — non è decorativo: col pallino a 16px dà un passo di 48px fra i centri, sopra i 44px
+   del dito, evitando la sovrapposizione dei tap target misurata su .sc-dot (v.
+   StatCard.razor.css). Restringerlo per farlo stare nel riquadro riprodurrebbe quel difetto. */
 .feature-dots {
     display: flex;
     flex-wrap: wrap;
     gap: 2rem;
-    margin: 0.6rem 0.15rem 0.3rem;
+    margin: 0;
 }
 
 .feature-dot {
@@ -139,58 +143,6 @@
     border-color: var(--gold);
 }
 
-.feature-note {
-    margin: 0.3rem 0 0;
-    font-size: 0.85rem;
-    color: var(--text-body);
-    white-space: pre-wrap;
-}
-
-/* Clamp con tap-per-espandere (densità Piena/Riga/Spenta): niente altezza misurata via interop,
-   solo CSS. .feature-note-toggle è sempre presente quando la nota eccede il clamp (anche da
-   espansa, per poterla richiudere); clamp-8/clamp-2 spariscono solo mentre è aperta. */
-.feature-note-toggle {
-    cursor: pointer;
-}
-
-.feature-note.clamp-8 {
-    display: -webkit-box;
-    -webkit-line-clamp: 8;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.feature-note.clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* ===== Privilegi: riga compatta (densità Riga/Spenta) =====
-   Stessa famiglia visiva di .passive-row in CharacterCombatTab.razor.css: nessuna card, nessun
-   bordo pieno, solo un separatore sottile — ridichiarata qui per lo stesso motivo di .feature-card
-   (la CSS isolation di Blazor non fa seguire al figlio le regole scoped del genitore). */
-.feature-row {
-    padding: 0.35rem 0.1rem;
-    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
-}
-
-.feature-row-dim {
-    opacity: 0.6;
-}
-
-/* Contatore testuale della densità Spenta: perché si capisca perché l'interruttore è spento anche
-   senza contare i pallini. Stesso linguaggio di .resource-count in CharacterCombatTab.razor.css. */
-.feature-count {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--gold-muted);
-    font-variant-numeric: tabular-nums;
-}
-
 /* ===== Aggiungi/modifica voce: pannello su bozza =====
    Stesso schema di .resource-form/.resource-edit-panel: si compila una copia, mai @bind diretto
    sul dato. */
@@ -207,7 +159,7 @@
     cursor: pointer;
     font-family: inherit;
     transition: all 0.15s ease;
-    margin-bottom: 0.6rem;
+    margin-top: 0.6rem;
     min-height: 44px;
 }
 
@@ -222,19 +174,18 @@
     cursor: not-allowed;
 }
 
-.feature-form,
-.feature-edit-panel {
+.feature-form {
     background: rgba(var(--black-rgb), 0.3);
     border: 1px solid rgba(var(--gold-rgb), 0.4);
     border-radius: 10px;
     padding: 0.75rem;
-    margin-bottom: 0.6rem;
+    margin-top: 0.6rem;
 }
 
-.feature-edit-panel {
-    margin: 0.6rem 0 0;
-}
-
+/* Solo il campo Nome resta qui: Nota/Azione/Risorsa/interruttore/azioni sono ora nel pannello
+   condiviso (Shared/CharacterTabs/CharacterFeatureEditPanel.razor.css), che li rende senza un
+   proprio riquadro — .feature-form qui sopra dà già lo sfondo/bordo, e nidificarne un secondo
+   dentro il primo li avrebbe raddoppiati. */
 .feature-field {
     display: flex;
     flex-direction: column;
@@ -263,103 +214,7 @@
     width: 100%;
 }
 
-.feature-textarea {
-    min-height: 5.5rem;
-    resize: vertical;
-}
-
 .feature-input:focus {
     outline: none;
     border-color: var(--gold);
-}
-
-.feature-checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--text-body);
-    margin-bottom: 0.6rem;
-    cursor: pointer;
-}
-
-.feature-form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 0.6rem;
-}
-
-.feature-form-actions .primary-btn,
-.feature-form-actions .secondary-btn,
-.feature-delete-btn {
-    flex: 1;
-    padding: 0.7rem 1rem;
-    font-size: 0.9rem;
-    min-height: 44px;
-}
-
-/* .primary-btn/.secondary-btn duplicati qui per lo stesso motivo di CharacterCombatTab.razor.css:
-   la CSS isolation di Blazor non fa seguire al figlio le regole scoped del genitore. */
-.primary-btn {
-    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
-    color: var(--text-on-gold);
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-family: inherit;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
-    transition: all 0.15s ease;
-}
-
-.primary-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
-}
-
-.primary-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.secondary-btn {
-    background: transparent;
-    color: var(--gold-muted);
-    border: 1px solid rgba(var(--gold-rgb), 0.4);
-    border-radius: 10px;
-    cursor: pointer;
-    font-family: inherit;
-    font-weight: 600;
-    transition: all 0.15s ease;
-}
-
-.secondary-btn:hover:not(:disabled) {
-    background: rgba(var(--gold-rgb), 0.1);
-    color: var(--gold-light);
-}
-
-.secondary-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.feature-delete-btn {
-    background: transparent;
-    border: 1px solid rgba(var(--danger-rgb), 0.5);
-    color: rgb(var(--danger-rgb));
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: inherit;
-    font-weight: 600;
-}
-
-.feature-delete-btn:hover:not(:disabled) {
-    background: rgba(var(--danger-rgb), 0.15);
-}
-
-.feature-delete-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
 }

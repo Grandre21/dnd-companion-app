@@ -1,0 +1,135 @@
+/* ===== Campi del pannello di modifica/aggiunta di un privilegio =====
+   Spostati da CharacterFeaturesSection.razor.css quando .feature-edit-panel si è estratto in questo
+   componente (v. il commento in testa al .razor): stessi valori, stessi id/label/maxlength — nessun
+   ridisegno. .feature-field/.feature-input sono duplicati anche in CharacterFeaturesSection.razor.css
+   (per il campo Nome, che resta lì) per lo stesso motivo di .primary-btn/.secondary-btn qui sotto: la
+   CSS isolation di Blazor non fa seguire al figlio le regole scoped del genitore, né viceversa. */
+
+.feature-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.6rem;
+}
+
+.feature-field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.feature-input {
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--text);
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 8px;
+    min-height: 44px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.feature-textarea {
+    min-height: 5.5rem;
+    resize: vertical;
+}
+
+.feature-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.feature-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-body);
+    margin-bottom: 0.6rem;
+    cursor: pointer;
+}
+
+.feature-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.feature-form-actions .primary-btn,
+.feature-form-actions .secondary-btn,
+.feature-delete-btn {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+}
+
+/* .primary-btn/.secondary-btn duplicati qui per lo stesso motivo di CharacterCombatTab.razor.css:
+   la CSS isolation di Blazor non fa seguire al figlio le regole scoped del genitore. */
+.primary-btn {
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--text-on-gold);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.feature-delete-btn {
+    background: transparent;
+    border: 1px solid rgba(var(--danger-rgb), 0.5);
+    color: rgb(var(--danger-rgb));
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+}
+
+.feature-delete-btn:hover:not(:disabled) {
+    background: rgba(var(--danger-rgb), 0.15);
+}
+
+.feature-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

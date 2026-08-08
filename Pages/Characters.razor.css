@@ -509,6 +509,113 @@
     color: rgb(var(--success-rgb));
 }
 
+/* ===== Foglio dei dettagli (privilegio/caratteristica) =====
+   Stesso schema del tastierino qui sopra (overlay fisso + box + clic fuori chiude + Esc chiude),
+   con align-items: flex-end invece di center (D3 del design: dal basso, dove il pollice sta già
+   appoggiato). Markup e stato vivono in questa pagina per lo stesso motivo dell'hp-panel: fuori
+   da ".sheet-sticky", il cui stacking context conterrebbe lo z-index qui sotto solo al suo
+   interno (v. il commento nel .razor). z-index in linea con .hp-panel-overlay (1150): i due
+   overlay sono fratelli nel DOM, mai annidati, quindi non competono davvero per lo strato. */
+.detail-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1150;
+    background: rgba(var(--black-rgb), 0.6);
+    display: flex;
+    align-items: flex-end;
+}
+
+.detail-sheet {
+    width: 100%;
+    max-height: 70dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain; /* arrivati in fondo al foglio, lo scorrimento non deve
+                                      passare alla board sotto, o si perde la posizione proprio
+                                      mentre si legge */
+    background: var(--bg-card);
+    border-top: 1px solid var(--gold-dim);
+    border-radius: 14px 14px 0 0;
+    /* env(safe-area-inset-bottom) e non --bottom-nav-space: il foglio copre la BottomNav. */
+    padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    animation: detail-in 180ms ease-out;
+}
+
+@keyframes detail-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .detail-sheet {
+        animation: none;
+    }
+}
+
+.detail-sheet-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.detail-sheet-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gold-light);
+}
+
+.detail-sheet-tag {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--gold-dim);
+}
+
+.detail-sheet-nota {
+    margin: 0.6rem 0 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-body);
+    white-space: pre-wrap;
+}
+
+.detail-sheet-edit {
+    margin-top: 0.9rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    background: transparent;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    color: var(--gold-muted);
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.detail-sheet-edit:hover {
+    background: rgba(var(--gold-rgb), 0.12);
+    color: var(--gold-light);
+    border-color: var(--gold-dim);
+}
+
+/* Riquadro del pannello di modifica dentro il foglio (CharacterFeatureEditPanel, reso quando
+   sheetDraft non è null): stessi valori di .feature-form in CharacterFeaturesSection.razor.css —
+   il pannello condiviso non porta un proprio sfondo/bordo (v. il commento nel suo .razor), quindi
+   ciascun ospite lo fornisce con la classe che già usava. La CSS isolation di Blazor non fa seguire
+   a questo file le regole scoped di CharacterFeaturesSection, da qui la ripetizione. */
+.feature-edit-panel {
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin: 0.6rem 0 0;
+}
+
 /* L'errore del salvataggio deve restare leggibile MENTRE il dialogo è aperto (il piano non si
    chiude su un fallimento, per restare ritentabile): serve una posizione fissa sopra il suo
    overlay (z-index 1150, v. LevelUpDialog.razor.css), non il flusso normale della pagina dove

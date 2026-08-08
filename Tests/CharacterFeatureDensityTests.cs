@@ -127,43 +127,4 @@ public class CharacterFeatureDensityTests
 
         Assert.Equal(DensitaPrivilegio.Spenta, CharacterFeatureDensity.Classifica(voce, attiva: false));
     }
-
-    // -----------------------------------------------------------------------------------
-    // NotaTroncabile — la stima delle righe che decide il pulsante "espandi" (v. brief)
-    // -----------------------------------------------------------------------------------
-
-    [Fact]
-    public void NotaTroncabile_NotaVuotaONull_EFalse()
-    {
-        Assert.False(CharacterFeatureDensity.NotaTroncabile("", righeMax: 2));
-        Assert.False(CharacterFeatureDensity.NotaTroncabile(null, righeMax: 2));
-        Assert.False(CharacterFeatureDensity.NotaTroncabile("   ", righeMax: 2));
-    }
-
-    /// <summary>Il confine fra "sta dentro" e "trabocca": righeMax * 30 caratteri riempiono
-    /// esattamente le righe disponibili (30 caratteri per riga stimati) e NON sono troncabili;
-    /// un carattere in più trabocca. Il valore 30 va scritto qui accanto perché è quello che rende
-    /// il test non vacuo: è il punto in cui &gt; e &gt;= si distinguono.</summary>
-    [Fact]
-    public void NotaTroncabile_AlConfineDiRigheMaxPer30Caratteri_NonETroncabile()
-    {
-        const int righeMax = 2;
-        var notaAlConfine = new string('x', righeMax * 30);
-        var notaOltreIlConfine = new string('x', righeMax * 30 + 1);
-
-        Assert.False(CharacterFeatureDensity.NotaTroncabile(notaAlConfine, righeMax));
-        Assert.True(CharacterFeatureDensity.NotaTroncabile(notaOltreIlConfine, righeMax));
-    }
-
-    /// <summary>Gli a capo espliciti contano come righe a sé, non come caratteri: tre righe da 5
-    /// caratteri (15 caratteri totali, ben sotto righeMax * 30 = 60) superano comunque righeMax = 2
-    /// perché sono tre segmenti. È il caso che una stima "nota.Length &gt; righeMax * 30" sbaglierebbe:
-    /// per questo l'helper conta i segmenti separati da '\n', non la lunghezza totale.</summary>
-    [Fact]
-    public void NotaTroncabile_TreRigheEsplicite_ETroncabileAncheConPochiCaratteriTotali()
-    {
-        var nota = "aaaaa\nbbbbb\nccccc";
-
-        Assert.True(CharacterFeatureDensity.NotaTroncabile(nota, righeMax: 2));
-    }
 }

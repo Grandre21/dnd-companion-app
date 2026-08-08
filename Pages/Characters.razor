@@ -164,6 +164,56 @@
                     </div>
                 }
 
+                @* Il foglio dei dettagli (privilegio o caratteristica): stesso ragionamento del
+                   tastierino danni/cura qui sopra, reso FUORI da ".sheet-sticky" per lo stesso
+                   stacking context (v. Characters.razor:124-135). Un solo foglio per i due
+                   contenuti (piano board-di-gioco, D3/D4): sheetPrivilegio e sheetCaratteristica
+                   sono a vicenda esclusivi (ApriSheetPrivilegio/ApriSheetCaratteristica azzerano
+                   l'altro), SheetAperto decide solo SE mostrarlo. Click sul fondo o Esc chiudono,
+                   click dentro il box non propaga — stesso schema dell'hp-panel qui sopra. *@
+                @if (SheetAperto)
+                {
+                    <div class="detail-overlay" @onclick="ChiudiSheet" @onkeydown="HandleSheetKeyDown">
+                        <div class="detail-sheet" role="dialog" aria-modal="true" aria-label="@SheetAriaLabel"
+                             @onclick:stopPropagation="true">
+                            @if (sheetPrivilegio is not null)
+                            {
+                                <div class="detail-sheet-header">
+                                    <p class="detail-sheet-title">@sheetPrivilegio.Nome</p>
+                                    <span class="detail-sheet-tag">@CharacterFeatureRules.EtichettaTag(sheetPrivilegio.Azione)</span>
+                                </div>
+                                @if (sheetDraft is null)
+                                {
+                                    <p class="detail-sheet-nota">@sheetPrivilegio.Nota</p>
+                                    @if (CanEdit)
+                                    {
+                                        <button type="button" class="detail-sheet-edit" @onclick="ApriModificaSheet"
+                                                aria-label="Modifica">✎</button>
+                                    }
+                                }
+                                else
+                                {
+                                    @* Il pannello condiviso con "+ Aggiungi voce" di CharacterFeaturesSection
+                                       (v. il suo .razor): qui il Nome non si modifica (resta il titolo sopra),
+                                       PuoEliminare segue la stessa regola già in vigore per le voci proprie. *@
+                                    <div class="feature-edit-panel">
+                                        <CharacterFeatureEditPanel Draft="sheetDraft" IsSaving="isSavingCharacter"
+                                                                    PuoEliminare="@(sheetPrivilegio.Origine == "propria")"
+                                                                    OnSalva="SalvaModificaSheetAsync"
+                                                                    OnAnnulla="AnnullaModificaSheet"
+                                                                    OnElimina="EliminaModificaSheetAsync" />
+                                    </div>
+                                }
+                            }
+                            else if (sheetCaratteristica is not null)
+                            {
+                                <StatCard Ability="@sheetCaratteristica.Value" Character="@selected"
+                                          IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                            }
+                        </div>
+                    </div>
+                }
+
                 @* Il proseguimento "Sali ancora": D3 vuole un livello alla volta, e per recuperarne
                    più di uno si ripete il dialogo — questo invito evita di dover ritrovare il
                    bottone in cima alla barra dopo ogni conferma. Sparisce da sé alla prossima
@@ -197,8 +247,9 @@
                                         Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()"
                                         Gruppi="@GruppiPrivilegi"
                                         OnSalvaAnnotazione="@SalvaAnnotazionePrivilegioAsync"
-                                        OnEliminaVocePropria="@EliminaVocePropriaPrivilegioAsync">
-                        <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                                        OnApriDettaglioPrivilegio="@ApriSheetPrivilegio">
+                        <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
+                                           OnApriDettaglio="@ApriSheetCaratteristica" />
                     </CharacterCombatTab>
                 }
 
@@ -373,6 +424,25 @@
         }
     }
 
+    // ===== Foglio dei dettagli (privilegio o caratteristica) =====
+    // Stato di sola presentazione, stesso motivo di showHpPanel qui sopra: il markup deve stare
+    // fuori da ".sheet-sticky" (v. il commento sul markup più sopra). Un solo foglio per i due
+    // contenuti (piano board-di-gioco, D3): i due campi sono a vicenda esclusivi,
+    // SheetAperto decide solo SE mostrarlo — non quale contenuto.
+    private VistaPrivilegio? sheetPrivilegio;
+    private AbilityType? sheetCaratteristica;
+    private bool SheetAperto => sheetPrivilegio is not null || sheetCaratteristica is not null;
+
+    // Non null ⇒ il foglio del privilegio è in modalità modifica e rende CharacterFeatureEditPanel
+    // al posto della nota. Precompilato da ApriModificaSheet, azzerato da AnnullaModificaSheet e da
+    // ChiudiSheet — quest'ultimo perché senza, riaprendo un altro privilegio lo si troverebbe già in
+    // modifica con i dati del precedente (v. Shared/CharacterTabs/CharacterFeatureEditPanel.razor).
+    private CharacterFeature? sheetDraft;
+
+    private string SheetAriaLabel => sheetPrivilegio is not null
+        ? sheetPrivilegio.Nome
+        : sheetCaratteristica is AbilityType a ? AbilityCatalog.Nome(a) : string.Empty;
+
     // ===== Level-up guidato =====
     // Il piano è null a riposo: è la condizione che smonta <LevelUpDialog/> dal DOM (v. il @if nel
     // markup). Le risposte sono mutabili in loco perché LevelUpPlanner.Pianifica le legge, non le
@@ -475,6 +545,7 @@
         activeTab = "rolls";
         ChiudiLivelloUp();
         showHpPanel = false;
+        ChiudiSheet();
         await LoadInventoryAsync(c.Id);
         await EnsureSpellCatalogAsync();
         await EnsureClassPackageAsync();
@@ -528,6 +599,7 @@
         selected = null;
         ChiudiLivelloUp();
         showHpPanel = false;
+        ChiudiSheet();
         BackToListOrEmpty();
     }
 
@@ -589,6 +661,86 @@
             pg.HitPoints = pf;
             pg.TempHitPoints = pfTemp;
         }
+    }
+
+    // ===== Foglio dei dettagli (privilegio o caratteristica) =====
+    // Richiesto da CharacterCombatTab (che lo propaga da CharacterFeaturesSection) e da
+    // CharacterStatsTab, v. OnApriDettaglioPrivilegio/OnApriDettaglio sui due tag più sopra. Il
+    // markup vive qui per lo stesso motivo del tastierino PF.
+    private void ApriSheetPrivilegio(VistaPrivilegio v) { sheetPrivilegio = v; sheetCaratteristica = null; sheetDraft = null; }
+    private void ApriSheetCaratteristica(AbilityType a) { sheetCaratteristica = a; sheetPrivilegio = null; sheetDraft = null; }
+    private void ChiudiSheet() { sheetPrivilegio = null; sheetCaratteristica = null; sheetDraft = null; }
+
+    /// <summary>Apre il pannello di modifica dentro il foglio già aperto (il ✎ di
+    /// detail-sheet-edit): precompila la bozza dalla voce corrente, colmando la giuntura lasciata
+    /// aperta fra la board (CharacterFeaturesSection, C3) e il foglio (v. spec 2026-08-08).</summary>
+    private void ApriModificaSheet()
+    {
+        if (sheetPrivilegio is null || !CanEdit || isSavingCharacter) return;
+
+        sheetDraft = new CharacterFeature
+        {
+            Nome = sheetPrivilegio.Nome,
+            Nota = sheetPrivilegio.Nota,
+            Azione = sheetPrivilegio.Azione,
+            // RisorsaAnnotata è il valore grezzo scritto dall'utente: se non risolve a nessuna
+            // ClassResource precompilare col Contatore già risolto lo troverebbe null e
+            // cancellerebbe l'annotazione al salvataggio. Ma il contatore può anche essere agganciato
+            // IMPLICITAMENTE, per nome del privilegio, quando l'annotazione non ha una Risorsa
+            // esplicita (CharacterFeatureJoin.TrovaContatore prova prima Risorsa e poi il nome): in
+            // quel caso RisorsaAnnotata è null pur essendoci un collegamento funzionante, e il campo
+            // apparirebbe vuoto nel pannello. Il fallback al nome del Contatore rende visibile — e
+            // voluto — quel collegamento implicito. Stessa regola già applicata una volta in
+            // CharacterFeaturesSection.ApriModifica, ora rimossa insieme al resto della modifica in
+            // linea, OnEliminaVocePropria compreso: la cancellazione di una voce propria parte da
+            // EliminaModificaSheetAsync qui sotto.
+            Risorsa = sheetPrivilegio.RisorsaAnnotata ?? sheetPrivilegio.Contatore?.Nome ?? string.Empty,
+            Attivabile = sheetPrivilegio.Attivabile,
+        };
+    }
+
+    private void AnnullaModificaSheet() => sheetDraft = null;
+
+    /// <summary>Normalizza la bozza con CharacterFeatureRules.NormalizzaBozza (v.
+    /// Services/CharacterFeatureRules.cs, stessa chiamata di CharacterFeaturesSection.SalvaAsync) e
+    /// delega il salvataggio vero a SalvaAnnotazionePrivilegioAsync, che ha già lo snapshot e il
+    /// rollback.</summary>
+    private async Task SalvaModificaSheetAsync()
+    {
+        if (sheetDraft is null) return;
+
+        var feature = CharacterFeatureRules.NormalizzaBozza(sheetDraft);
+
+        await SalvaAnnotazionePrivilegioAsync(feature);
+        ChiudiSheet();
+    }
+
+    /// <summary>Stesso schema di conferma di CharacterFeaturesSection.EliminaAsync (rimossa insieme
+    /// alla modifica in linea): solo le voci proprie arrivano qui, PuoEliminare lo garantisce già sul
+    /// pannello, questo è il secondo controllo lato dati.</summary>
+    private async Task EliminaModificaSheetAsync()
+    {
+        if (sheetPrivilegio is null || !CanEdit || isSavingCharacter || sheetPrivilegio.Origine != "propria")
+            return;
+
+        var voce = sheetPrivilegio;
+        var confermato = await Confirm.ShowAsync($"Eliminare \"{voce.Nome}\"?");
+        if (!confermato) return;
+
+        // Ricontrollato dopo la conferma: la finestra è asincrona, stesso schema di
+        // DeleteSelectedAsync qui sotto.
+        if (!CanEdit || isSavingCharacter) return;
+
+        await EliminaVocePropriaPrivilegioAsync(voce);
+        ChiudiSheet();
+    }
+
+    /// <summary>Esc chiude il foglio da qualunque controllo al suo interno, stesso schema di
+    /// HandleHpPanelKeyDown qui sopra. I due overlay sono fratelli nel DOM, mai annidati: un Esc
+    /// premuto dentro l'uno non risale al gestore dell'altro.</summary>
+    private void HandleSheetKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") ChiudiSheet();
     }
 
     private void StartEdit() => OpenEditForm();
@@ -707,6 +859,7 @@
 
             selected = null;
             showHpPanel = false;
+            ChiudiSheet();
             editDraft = new Character();
             Toasts.ShowSuccess("Personaggio eliminato");
             await UpdateModeFromCharactersAsync();

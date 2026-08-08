@@ -11,39 +11,45 @@
    ispirazione, armi, risorse di classe, poi le caratteristiche/abilità di CharacterStatsTab), poi
    — dopo il divisore «a fine combattimento» — ciò che si recupera (dadi vita, riposo). I TS contro
    morte restano condizionali (ShowDeathSaves) ma, quando compaiono, vanno in testa: se il
-   personaggio sta morendo non c'è arma o risorsa che conti prima di quel tiro. *@
+   personaggio sta morendo non c'è arma o risorsa che conti prima di quel tiro.
+
+   Dal 2026-08-08 (piano "board di gioco") cambia la RESA — riquadri in griglia (vocabolario
+   .board/.w-*, globale in app.css) al posto delle card impilate — ma la SEQUENZA resta la stessa
+   di sopra: questo componente ridisegna, non riordina. *@
 
 @if (ShowDeathSaves)
 {
-    <div class="death-saves-card">
-        <p class="card-label">TIRI SALVEZZA CONTRO MORTE</p>
-        <div class="death-saves-row">
-            <div class="death-saves-group">
-                <span class="ds-label success">Successi</span>
-                <div class="ds-dots">
-                    @for (int i = 1; i <= 3; i++)
-                    {
-                        var n = i;
-                        <span class="ds-dot @(Character.DeathSaveSuccesses >= n ? "filled success" : "")"
-                              role="button" tabindex="0"
-                              aria-pressed="@AriaBool(Character.DeathSaveSuccesses >= n)" aria-label="Successo tiro salvezza @n"
-                              @onclick="() => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)"
-                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)))"></span>
-                    }
+    <div class="board">
+        <div class="w w-12 death-saves-card">
+            <p class="card-label">TIRI SALVEZZA CONTRO MORTE</p>
+            <div class="death-saves-row">
+                <div class="death-saves-group">
+                    <span class="ds-label success">Successi</span>
+                    <div class="ds-dots">
+                        @for (int i = 1; i <= 3; i++)
+                        {
+                            var n = i;
+                            <span class="ds-dot @(Character.DeathSaveSuccesses >= n ? "filled success" : "")"
+                                  role="button" tabindex="0"
+                                  aria-pressed="@AriaBool(Character.DeathSaveSuccesses >= n)" aria-label="Successo tiro salvezza @n"
+                                  @onclick="() => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)"
+                                  @onkeydown="@(e => OnKey(e, () => SetDeathSaveSuccesses(n == Character.DeathSaveSuccesses ? n - 1 : n)))"></span>
+                        }
+                    </div>
                 </div>
-            </div>
-            <div class="death-saves-group">
-                <span class="ds-label failure">Fallimenti</span>
-                <div class="ds-dots">
-                    @for (int i = 1; i <= 3; i++)
-                    {
-                        var n = i;
-                        <span class="ds-dot @(Character.DeathSaveFailures >= n ? "filled failure" : "")"
-                              role="button" tabindex="0"
-                              aria-pressed="@AriaBool(Character.DeathSaveFailures >= n)" aria-label="Fallimento tiro salvezza @n"
-                              @onclick="() => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)"
-                              @onkeydown="@(e => OnKey(e, () => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)))"></span>
-                    }
+                <div class="death-saves-group">
+                    <span class="ds-label failure">Fallimenti</span>
+                    <div class="ds-dots">
+                        @for (int i = 1; i <= 3; i++)
+                        {
+                            var n = i;
+                            <span class="ds-dot @(Character.DeathSaveFailures >= n ? "filled failure" : "")"
+                                  role="button" tabindex="0"
+                                  aria-pressed="@AriaBool(Character.DeathSaveFailures >= n)" aria-label="Fallimento tiro salvezza @n"
+                                  @onclick="() => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)"
+                                  @onkeydown="@(e => OnKey(e, () => SetDeathSaveFailures(n == Character.DeathSaveFailures ? n - 1 : n)))"></span>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
@@ -55,66 +61,78 @@
    qui — v. memoria "blazor-css-isolation-extraction"). *@
 <CharacterActiveStrip Gruppi="@Gruppi" CharacterId="@Character.Id" />
 
-<div class="secondary-stats">
-    <div class="mini-stat">
-        <p class="mini-label">VEL</p>
-        <p class="mini-value">@Character.Speed<span class="mini-unit">m</span></p>
+@* Riga di quattro mini-valori (piano 2026-08-08, B3): VEL e ISPIRAZIONE (ex .secondary-stats) più
+   DV — dadi vita rimasti, HitDiceRemaining() già clampato a 0: STESSA espressione usata dal
+   riquadro fuso di fine combattimento più sotto, apposta, per non farli divergere — e COMP, che
+   lascia CharacterStatsTab (D1a: qui prende posizione fissa). L'unità "m" di VEL non passa da
+   .w-sub (una riga SOTTO il valore, dettaglio secondario come il danno di un'arma): è parte dello
+   stesso valore, sulla stessa riga del numero, quindi resta in .w-unit, scoped qui sotto. *@
+<div class="board">
+    <div class="w w-3">
+        <p class="w-label">VEL</p>
+        <p class="w-value">@Character.Speed<span class="w-unit">m</span></p>
     </div>
-    <div class="mini-stat">
-        <p class="mini-label">ISPIRAZIONE</p>
-        <span class="inspiration-toggle @(Character.HeroicInspiration ? "active" : "")"
-              role="button" tabindex="0"
-              aria-pressed="@AriaBool(Character.HeroicInspiration)" aria-label="Ispirazione eroica"
-              @onclick="ToggleHeroicInspiration"
-              @onkeydown="@(e => OnKey(e, ToggleHeroicInspiration))"></span>
+    <div class="w w-3 w-toggle @(Character.HeroicInspiration ? "active" : "")"
+         role="button" tabindex="0"
+         aria-pressed="@AriaBool(Character.HeroicInspiration)" aria-label="Ispirazione eroica"
+         @onclick="ToggleHeroicInspiration"
+         @onkeydown="@(e => OnKey(e, ToggleHeroicInspiration))">
+        <p class="w-label">ISPIRAZIONE</p>
+        <p class="w-value">@(Character.HeroicInspiration ? "Sì" : "No")</p>
+    </div>
+    <div class="w w-3">
+        <p class="w-label">DV</p>
+        <p class="w-value">@HitDiceRemaining()/@HitDiceTotal()</p>
+    </div>
+    <div class="w w-3">
+        <p class="w-label">COMP</p>
+        <p class="w-value">@FormatBonus(CharacterCalculations.GetProficiencyBonus(Character.Level))</p>
     </div>
 </div>
 
-<p class="section-header">ARMI</p>
+@* Armi: riquadri w-6, due per riga — oltre la seconda la griglia va a capo da sé (repeat(12,...)
+   più span 6, nessuna logica in più). L'etichetta "ARMI" non c'è più: il nome dell'arma è già
+   .w-label (piano 2026-08-08, B3). *@
 @if (Weapons.Any())
 {
-    @foreach (var w in Weapons)
-    {
-        var haFlagArma = w.IsFinesse || w.IsRanged || w.IsNotProficient;
-        var bonusCalcolato = WeaponCalculations.BonusAttacco(w, Character);
-        <div class="weapon-card">
-            <div class="weapon-header">
-                <p class="weapon-name">@w.Name</p>
-                <p class="weapon-stats">
-                    @* Il valore scritto a mano vince: se AttackBonus è valorizzato si mostra quello, col
-                       calcolato (WeaponCalculations, D5) accanto come confronto discreto. Se è vuoto E
-                       l'arma non ha ALCUN flag impostato (accurata/a distanza/non competente),
-                       ModificatoreArma ricade per costruzione sul ramo Forza — quasi certamente sbagliato
-                       per un'arma a distanza o accurata mai configurata. In quel caso il numero si mostra
-                       come STIMA esplicita, non come "il" bonus: l'app non deve presentare come certo un
-                       valore che dipende da dati che l'utente non ha ancora fornito (v. CLAUDE.md). Se
-                       invece un flag è impostato, l'arma è già stata curata: il calcolato torna a essere
-                       il valore mostrato senza cautele, come prima di questa distinzione. *@
+    <div class="board">
+        @foreach (var w in Weapons)
+        {
+            var haFlagArma = w.IsFinesse || w.IsRanged || w.IsNotProficient;
+            var bonusCalcolato = WeaponCalculations.BonusAttacco(w, Character);
+            <div class="w w-6">
+                <p class="w-label">@w.Name</p>
+                <p class="w-value">
+                    @* Il valore scritto a mano vince (invariato dal comportamento precedente): se
+                       AttackBonus è valorizzato si mostra quello. Se è vuoto E l'arma non ha ALCUN
+                       flag impostato (accurata/a distanza/non competente), ModificatoreArma ricade
+                       per costruzione sul ramo Forza — quasi certamente sbagliato per un'arma a
+                       distanza o accurata mai configurata: il numero si mostra allora come STIMA
+                       esplicita, non come "il" bonus (v. CLAUDE.md — l'app non presenta come certo
+                       un valore che dipende da dati che l'utente non ha ancora fornito). *@
                     @if (!string.IsNullOrWhiteSpace(w.AttackBonus))
                     {
-                        <span>@w.AttackBonus</span>
-                        <span class="weapon-calc-hint">(calcolato @FormatBonus(bonusCalcolato))</span>
+                        @w.AttackBonus
                     }
                     else if (haFlagArma)
                     {
-                        <span>@FormatBonus(bonusCalcolato)</span>
+                        @FormatBonus(bonusCalcolato)
                     }
                     else
                     {
                         <span class="weapon-calc-hint"
                               title="Nessun bonus scritto a mano e nessuna proprietà (accurata/a distanza/non competente) impostata su quest'arma: il calcolo assume un'arma da mischia con Forza. Se l'arma è a distanza o accurata, modificala per un valore corretto.">
-                            stima @FormatBonus(bonusCalcolato) da Forza
+                            stima @FormatBonus(bonusCalcolato)
                         </span>
                     }
-                    @if (!string.IsNullOrWhiteSpace(w.Damage)) { <span>· @w.Damage @w.DamageType?.ToLower()</span> }
                 </p>
+                @if (!string.IsNullOrWhiteSpace(w.Damage))
+                {
+                    <p class="w-sub">@w.Damage @w.DamageType?.ToLower()</p>
+                }
             </div>
-            @if (!string.IsNullOrWhiteSpace(w.AttackNotes))
-            {
-                <p class="weapon-notes">@w.AttackNotes</p>
-            }
-        </div>
-    }
+        }
+    </div>
 }
 else
 {
@@ -124,22 +142,27 @@ else
 @* Privilegi raggruppati per economia d'azione: sezione 6 dell'ordine verticale. Il raggruppamento e
    l'ordinamento li fa già CharacterFeatureJoin (Gruppi arriva pronto da Characters.razor, con gli
    stessi cataloghi già in cache passati a CharacterBioTab); questo componente rende e smista, non
-   possiede l'annotazione — il salvataggio vero passa dal genitore (OnSalvaAnnotazione/
-   OnEliminaVocePropria), lo spendere un contatore resta invece qui (v. OnSpendiContatoreDaSchedaAsync
-   più sotto): riusa lo stesso nucleo di OnResourceDotClickAsync perché sono due strade per spendere
-   lo stesso pallino e non devono divergere. *@
+   possiede l'annotazione — il salvataggio vero passa dal genitore (OnSalvaAnnotazione), lo spendere
+   un contatore resta invece qui (v. OnSpendiContatoreDaSchedaAsync più sotto): riusa lo stesso
+   nucleo di OnResourceDotClickAsync perché sono due strade per spendere lo stesso pallino e non
+   devono divergere. OnApriDettaglioPrivilegio bolla fino a Characters.razor (il foglio dal basso,
+   D3/D4 del piano 2026-08-08): questo componente la propaga soltanto, non la consuma.
+   CharacterFeaturesSection esclude ANCORA il gruppo "passivo" (v. il suo commento in testa): quella
+   resa resta qui sotto, diversa da quella delle altre schede — v. il blocco PASSIVI subito dopo. *@
 <CharacterFeaturesSection Gruppi="@Gruppi" CharacterId="@Character.Id" LivelloAttuale="@Character.Level"
                            CanEdit="@CanEdit" IsSaving="@IsSaving"
-                           OnSalvaAnnotazione="@OnSalvaAnnotazione" OnEliminaVocePropria="@OnEliminaVocePropria"
-                           OnSpendiContatore="@OnSpendiContatoreDaSchedaAsync" />
+                           OnSalvaAnnotazione="@OnSalvaAnnotazione"
+                           OnSpendiContatore="@OnSpendiContatoreDaSchedaAsync"
+                           OnApriDettaglio="@OnApriDettaglioPrivilegio" />
 
 @* Passivi: sezione 7 dell'ordine verticale, resa DIVERSA dalle schede di CharacterFeaturesSection —
    riga singola per voce, nessun pallino, nessun interruttore, nessuna modifica inline: sono
-   promemoria, non azioni (v. spec 2026-08-08, D5 e "L'ordine verticale"). *@
+   promemoria, non azioni (v. spec 2026-08-08, D5, e il commento in testa a CharacterFeaturesSection
+   che documenta la stessa divisione). L'etichetta "PASSIVI" non c'è più (piano 2026-08-08, B3): ogni
+   riga porta già il proprio nome, stesso ragionamento di ARMI/RISORSE. *@
 @{ var gruppoPassivi = Gruppi.FirstOrDefault(g => g.Tag == "passivo"); }
 @if (gruppoPassivi is not null)
 {
-    <p class="section-header">PASSIVI</p>
     @foreach (var voce in gruppoPassivi.Voci)
     {
         <div class="passive-row">
@@ -153,17 +176,176 @@ else
     }
 }
 
-@* Risorse di classe (Ira, Ispirazione bardica, ...): stessa famiglia dei dadi vita e del riposo —
-   contatori che si spendono e si ripristinano (v. spec 2026-08-06, «Le risorse di classe»). Niente
-   riquadro vuoto quando non ce n'è nessuna: solo il pulsante per aggiungerne una.
-   Ristretta ai contatori SENZA scheda-privilegio collegata (v. RisorseSenzaScheda, Task 8): l'Ira, se
-   ha una scheda in CharacterFeaturesSection con i propri pallini, non compare più anche qui sotto —
-   un dato, una sola superficie primaria, o il pallino spendibile in due punti diversi finirebbe per
-   divergere. *@
+@* Risorse di classe (Ira, Ispirazione bardica, ...) SENZA scheda-privilegio collegata (v.
+   RisorseSenzaScheda più sotto): un contatore con una VistaPrivilegio agganciata è già reso dentro
+   CharacterFeaturesSection, e non deve comparire due volte — un dato, una sola superficie primaria
+   (D6). D6 vuole anche che un contatore SENZA privilegio a cui agganciarsi prenda un riquadro
+   proprio, non una card d'altra epoca in mezzo ai riquadri: stesso vocabolario .w/.w-6 già usato
+   per armi e mini-valori qui sopra. I pallini restano gli STESSI (.resource-dot/.resource-dots),
+   gap 2rem INVARIATO — v. il commento sulla classe nel CSS: sotto i 44px i tap target si
+   sovrappongono, lo stesso difetto già misurato su StatCard.razor.css. L'aggiunta di una risorsa
+   nuova è in fondo al tab, sotto il divisore «Modifica» (piano 2026-08-08, B1/D7): è il controllo
+   più raro, va nel posto meno prezioso. *@
 @if (RisorseSenzaScheda.Any())
 {
-    <p class="section-header">RISORSE</p>
+    <div class="board">
+        @foreach (var risorsa in RisorseSenzaScheda)
+        {
+            var r = risorsa;
+            var disponibili = r.Max - r.Spesi;
+            <div class="w w-6">
+                <div class="resource-header">
+                    <p class="w-label">@r.Nome</p>
+                    @if (CanEdit)
+                    {
+                        <button type="button" class="resource-edit-btn" aria-label="Modifica @r.Nome"
+                                @onclick="() => ToggleEditResource(r)" disabled="@IsSaving">✎</button>
+                    }
+                </div>
+                <div class="resource-dots">
+                    @for (int i = 1; i <= r.Max; i++)
+                    {
+                        var n = i;
+                        <span class="resource-dot @(n <= disponibili ? "filled" : "")"
+                              role="button" tabindex="0"
+                              aria-pressed="@AriaBool(n <= disponibili)" aria-label="Uso @n di @r.Nome"
+                              @onclick="() => OnResourceDotClickAsync(r, n)"
+                              @onkeydown="@(e => OnKey(e, () => OnResourceDotClickAsync(r, n)))"></span>
+                    }
+                </div>
+                <p class="w-sub">Ricarica: @EtichettaRicarica(r.Ricarica)</p>
+
+                @if (ReferenceEquals(editingResource, r))
+                {
+                    <div class="resource-edit-panel">
+                        <div class="resource-field">
+                            <label for="@($"risorsa-edit-nome-{r.GetHashCode()}")">Nome</label>
+                            <input id="@($"risorsa-edit-nome-{r.GetHashCode()}")" type="text" class="resource-input"
+                                   maxlength="60" @bind="editDraft.Nome" />
+                        </div>
+                        <div class="resource-field">
+                            <label for="@($"risorsa-edit-max-{r.GetHashCode()}")">Massimo</label>
+                            <input id="@($"risorsa-edit-max-{r.GetHashCode()}")" type="number" class="resource-input"
+                                   min="1" @bind="editDraft.Max" />
+                        </div>
+                        <div class="resource-field">
+                            <label for="@($"risorsa-edit-ricarica-{r.GetHashCode()}")">Ricarica</label>
+                            <select id="@($"risorsa-edit-ricarica-{r.GetHashCode()}")" class="resource-input"
+                                    @bind="editDraft.Ricarica">
+                                <option value="lungo">Riposo lungo</option>
+                                <option value="breve">Riposo breve</option>
+                                <option value="nessuna">Nessuna (altro)</option>
+                            </select>
+                        </div>
+                        <div class="resource-form-actions">
+                            <button type="button" class="primary-btn" @onclick="() => SaveEditResourceAsync(r)"
+                                    disabled="@(IsSaving || isSavingResources)">
+                                @(isSavingResources ? "Salvataggio..." : "Salva")
+                            </button>
+                            <button type="button" class="secondary-btn" @onclick="CancelEditResource"
+                                    disabled="@isSavingResources">
+                                Annulla
+                            </button>
+                            <button type="button" class="resource-delete-btn" @onclick="() => DeleteResourceAsync(r)"
+                                    disabled="@(IsSaving || isSavingResources)">
+                                Elimina
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
 }
+
+@* Caratteristiche, tiri salvezza e abilità (CharacterStatsTab): resta un componente separato — non
+   fuso qui dentro, non duplicato come istanza a parte — che Characters.razor passa come figlio (v.
+   il commento lì). Si compone qui, in mezzo, invece che dopo: è l'ultima cosa che si tira prima del
+   divisore di fase più sotto. *@
+@ChildContent
+
+@* Divisore di fase: separa ciò che si tira o si spende in combattimento (sopra) da ciò che si
+   recupera quando è finito (sotto). Solo token esistenti, nessun colore nuovo — v. CLAUDE.md. *@
+<div class="turn-divider" role="separator" aria-hidden="true">
+    <span class="turn-divider-label">A fine combattimento</span>
+</div>
+
+@* Dadi vita e riposo: un solo riquadro (piano 2026-08-08, B2) — un bordo e un padding invece di
+   due, contenuto invariato. Il valore mostrato è HitDiceRemaining() (già clampato a 0, v. sotto), la
+   STESSA espressione usata dal mini-riquadro DV più sopra: due letture indipendenti dello stesso
+   calcolo divergerebbero al primo HitDiceSpent fuori range (v. il commento su HitDiceRemaining()
+   nel @code). *@
+<div class="recovery-card">
+    <p class="card-label hit-dice-label">DADI VITA</p>
+    <div class="hit-dice-row">
+        <button class="hd-btn" @onclick="DecrementHitDice" aria-label="Un dado vita in meno"
+                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent <= 0)">−</button>
+        <div class="hit-dice-display">
+            <span class="hit-dice-value">@HitDiceRemaining() / @HitDiceTotal()</span>
+            <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(Character.HitDiceMax) ? "—" : Character.HitDiceMax)</span>
+        </div>
+        <button class="hd-btn" @onclick="IncrementHitDice" aria-label="Un dado vita in più"
+                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent >= HitDiceTotal())">+</button>
+    </div>
+
+    @* Riposo lungo/breve (RestCalculations, helper puro): il lungo passa da ConfirmDialog perché
+       azzera i TS contro morte; il breve apre un pannello che chiede dadi spesi + totale tirato
+       (l'app non tira il dado, offre solo la media come valore precompilato). *@
+    <div class="recovery-divider">
+        <p class="card-label">RIPOSO</p>
+        <div class="rest-actions">
+            <button type="button" class="secondary-btn rest-btn" @onclick="ToggleShortRestPanel"
+                    disabled="@(!CanEdit || IsSaving)">
+                Riposo breve
+            </button>
+            <button type="button" class="primary-btn rest-btn" @onclick="RiposoLungoAsync"
+                    disabled="@(!CanEdit || IsSaving)">
+                Riposo lungo
+            </button>
+        </div>
+
+        @if (showShortRestPanel)
+        {
+            <div class="short-rest-panel">
+                <div class="short-rest-field">
+                    <span class="short-rest-label">Dadi vita spesi</span>
+                    <div class="short-rest-stepper">
+                        <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(-1)"
+                                aria-label="Un dado vita speso in meno"
+                                disabled="@(!CanEdit || dadiSpesi <= 0)">−</button>
+                        <span class="short-rest-value">@dadiSpesi / @HitDiceRemaining()</span>
+                        <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(1)"
+                                aria-label="Un dado vita speso in più"
+                                disabled="@(!CanEdit || dadiSpesi >= HitDiceRemaining())">+</button>
+                    </div>
+                </div>
+                <div class="short-rest-field">
+                    <label class="short-rest-label" for="riposo-breve-totale">Totale tirato</label>
+                    <input id="riposo-breve-totale" type="number" class="short-rest-input" min="0"
+                           value="@totaleTirato" @oninput="OnTotaleTiratoInput" disabled="@(!CanEdit)" />
+                </div>
+                <div class="short-rest-actions">
+                    <button type="button" class="secondary-btn rest-btn" @onclick="CloseShortRestPanel">
+                        Annulla
+                    </button>
+                    <button type="button" class="primary-btn rest-btn" @onclick="ConfermaRiposoBreveAsync"
+                            disabled="@(!CanEdit || IsSaving || dadiSpesi <= 0)">
+                        Conferma
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@* Divisore «Modifica» (piano 2026-08-08, B1/D7): il chrome di amministrazione — qui, l'unico
+   rimasto in questo componente è "+ Aggiungi risorsa" — esce dal percorso del pollice e va in fondo
+   al tab, sotto ciò che si consulta durante il turno. Stessa classe di .turn-divider più sopra: due
+   dividers, stesso stile, solo l'etichetta cambia. *@
+<div class="turn-divider" role="separator" aria-hidden="true">
+    <span class="turn-divider-label">Modifica</span>
+</div>
+
 @if (CanEdit)
 {
     @if (!isAddingResource)
@@ -218,150 +400,6 @@ else
         </div>
     }
 }
-@foreach (var risorsa in RisorseSenzaScheda)
-{
-    var r = risorsa;
-    var disponibili = r.Max - r.Spesi;
-    <div class="resource-card">
-        <div class="resource-header">
-            <p class="resource-name">@r.Nome</p>
-            <div class="resource-header-actions">
-                <span class="resource-count">@disponibili / @r.Max</span>
-                @if (CanEdit)
-                {
-                    <button type="button" class="resource-edit-btn" aria-label="Modifica @r.Nome"
-                            @onclick="() => ToggleEditResource(r)" disabled="@IsSaving">✎</button>
-                }
-            </div>
-        </div>
-        <div class="resource-dots">
-            @for (int i = 1; i <= r.Max; i++)
-            {
-                var n = i;
-                <span class="resource-dot @(n <= disponibili ? "filled" : "")"
-                      role="button" tabindex="0"
-                      aria-pressed="@AriaBool(n <= disponibili)" aria-label="Uso @n di @r.Nome"
-                      @onclick="() => OnResourceDotClickAsync(r, n)"
-                      @onkeydown="@(e => OnKey(e, () => OnResourceDotClickAsync(r, n)))"></span>
-            }
-        </div>
-        <p class="resource-recharge">Ricarica: @EtichettaRicarica(r.Ricarica)</p>
-
-        @if (ReferenceEquals(editingResource, r))
-        {
-            <div class="resource-edit-panel">
-                <div class="resource-field">
-                    <label for="@($"risorsa-edit-nome-{r.GetHashCode()}")">Nome</label>
-                    <input id="@($"risorsa-edit-nome-{r.GetHashCode()}")" type="text" class="resource-input"
-                           maxlength="60" @bind="editDraft.Nome" />
-                </div>
-                <div class="resource-field">
-                    <label for="@($"risorsa-edit-max-{r.GetHashCode()}")">Massimo</label>
-                    <input id="@($"risorsa-edit-max-{r.GetHashCode()}")" type="number" class="resource-input"
-                           min="1" @bind="editDraft.Max" />
-                </div>
-                <div class="resource-field">
-                    <label for="@($"risorsa-edit-ricarica-{r.GetHashCode()}")">Ricarica</label>
-                    <select id="@($"risorsa-edit-ricarica-{r.GetHashCode()}")" class="resource-input"
-                            @bind="editDraft.Ricarica">
-                        <option value="lungo">Riposo lungo</option>
-                        <option value="breve">Riposo breve</option>
-                        <option value="nessuna">Nessuna (altro)</option>
-                    </select>
-                </div>
-                <div class="resource-form-actions">
-                    <button type="button" class="primary-btn" @onclick="() => SaveEditResourceAsync(r)"
-                            disabled="@(IsSaving || isSavingResources)">
-                        @(isSavingResources ? "Salvataggio..." : "Salva")
-                    </button>
-                    <button type="button" class="secondary-btn" @onclick="CancelEditResource"
-                            disabled="@isSavingResources">
-                        Annulla
-                    </button>
-                    <button type="button" class="resource-delete-btn" @onclick="() => DeleteResourceAsync(r)"
-                            disabled="@(IsSaving || isSavingResources)">
-                        Elimina
-                    </button>
-                </div>
-            </div>
-        }
-    </div>
-}
-
-@* Caratteristiche, tiri salvezza e abilità (CharacterStatsTab): resta un componente separato — non
-   fuso qui dentro, non duplicato come istanza a parte — che Characters.razor passa come figlio (v.
-   il commento lì). Si compone qui, in mezzo, invece che dopo: è l'ultima cosa che si tira prima del
-   divisore di fase più sotto. *@
-@ChildContent
-
-@* Divisore di fase: separa ciò che si tira o si spende in combattimento (sopra) da ciò che si
-   recupera quando è finito (sotto). Solo token esistenti, nessun colore nuovo — v. CLAUDE.md. *@
-<div class="turn-divider" role="separator" aria-hidden="true">
-    <span class="turn-divider-label">A fine combattimento</span>
-</div>
-
-<div class="hit-dice-card">
-    <p class="card-label">DADI VITA</p>
-    <div class="hit-dice-row">
-        <button class="hd-btn" @onclick="DecrementHitDice" aria-label="Un dado vita in meno"
-                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent <= 0)">−</button>
-        <div class="hit-dice-display">
-            <span class="hit-dice-value">@(HitDiceTotal() - Character.HitDiceSpent) / @HitDiceTotal()</span>
-            <span class="hit-dice-type">@(string.IsNullOrWhiteSpace(Character.HitDiceMax) ? "—" : Character.HitDiceMax)</span>
-        </div>
-        <button class="hd-btn" @onclick="IncrementHitDice" aria-label="Un dado vita in più"
-                disabled="@(!CanEdit || IsSaving || Character.HitDiceSpent >= HitDiceTotal())">+</button>
-    </div>
-</div>
-
-@* Riposo lungo/breve (RestCalculations, helper puro): il lungo passa da ConfirmDialog perché
-   azzera i TS contro morte; il breve apre un pannello che chiede dadi spesi + totale tirato
-   (l'app non tira il dado, offre solo la media come valore precompilato). *@
-<div class="rest-card">
-    <p class="card-label">RIPOSO</p>
-    <div class="rest-actions">
-        <button type="button" class="secondary-btn rest-btn" @onclick="ToggleShortRestPanel"
-                disabled="@(!CanEdit || IsSaving)">
-            Riposo breve
-        </button>
-        <button type="button" class="primary-btn rest-btn" @onclick="RiposoLungoAsync"
-                disabled="@(!CanEdit || IsSaving)">
-            Riposo lungo
-        </button>
-    </div>
-
-    @if (showShortRestPanel)
-    {
-        <div class="short-rest-panel">
-            <div class="short-rest-field">
-                <span class="short-rest-label">Dadi vita spesi</span>
-                <div class="short-rest-stepper">
-                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(-1)"
-                            aria-label="Un dado vita speso in meno"
-                            disabled="@(!CanEdit || dadiSpesi <= 0)">−</button>
-                    <span class="short-rest-value">@dadiSpesi / @HitDiceRemaining()</span>
-                    <button type="button" class="hd-btn" @onclick="() => AdjustDadiSpesi(1)"
-                            aria-label="Un dado vita speso in più"
-                            disabled="@(!CanEdit || dadiSpesi >= HitDiceRemaining())">+</button>
-                </div>
-            </div>
-            <div class="short-rest-field">
-                <label class="short-rest-label" for="riposo-breve-totale">Totale tirato</label>
-                <input id="riposo-breve-totale" type="number" class="short-rest-input" min="0"
-                       value="@totaleTirato" @oninput="OnTotaleTiratoInput" disabled="@(!CanEdit)" />
-            </div>
-            <div class="short-rest-actions">
-                <button type="button" class="secondary-btn rest-btn" @onclick="CloseShortRestPanel">
-                    Annulla
-                </button>
-                <button type="button" class="primary-btn rest-btn" @onclick="ConfermaRiposoBreveAsync"
-                        disabled="@(!CanEdit || IsSaving || dadiSpesi <= 0)">
-                    Conferma
-                </button>
-            </div>
-        </div>
-    }
-</div>
 
 @code {
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
@@ -405,7 +443,10 @@ else
     /// della sezione privilegi).</summary>
     [Parameter] public EventCallback<CharacterFeature> OnSalvaAnnotazione { get; set; }
 
-    [Parameter] public EventCallback<VistaPrivilegio> OnEliminaVocePropria { get; set; }
+    /// <summary>Apre il foglio di dettaglio del privilegio (piano 2026-08-08, D3/D4): risale da
+    /// CharacterFeaturesSection fino a Characters.razor, che possiede lo stato del foglio. Questo
+    /// componente si limita a propagarla come parametro — non la consuma, non la intercetta.</summary>
+    [Parameter] public EventCallback<VistaPrivilegio> OnApriDettaglioPrivilegio { get; set; }
 
     /// <summary>Le caratteristiche/abilità (CharacterStatsTab): questo componente resta grande di
     /// suo, e spezzarlo in due solo per intercalare CharacterStatsTab fra risorse e dadi vita
@@ -423,7 +464,9 @@ else
 
     // Clampato a 0: GetHitDiceRemaining non lo fa (CharacterCalculations.cs), e HitDiceSpent
     // salvato a mano oltre il totale (nessun vincolo max in CharacterEditForm) lo renderebbe
-    // negativo — lo stepper del riposo breve mostrerebbe "-N / -N" invece di "0 / N".
+    // negativo — lo stepper del riposo breve mostrerebbe "-N / -N" invece di "0 / N". Riusata anche
+    // dal mini-riquadro DV in cima al tab (piano 2026-08-08, B3): stessa espressione in entrambi i
+    // punti, o divergerebbero al primo HitDiceSpent fuori range.
     private int HitDiceRemaining() => Math.Max(0, CharacterCalculations.GetHitDiceRemaining(Character));
 
     // ===== Riposo lungo / riposo breve =====

@@ -1,20 +1,55 @@
 @using DndCompanion.Models
 @using DndCompanion.Services
 
-<div class="stats-header">
-    <p class="bc-display">Bonus di Competenza: <strong>@FormatBonus(CharacterCalculations.GetProficiencyBonus(Character.Level))</strong></p>
-</div>
-<div class="stats-grid">
-    <StatCard Ability="AbilityType.Strength"     Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
-    <StatCard Ability="AbilityType.Dexterity"    Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
-    <StatCard Ability="AbilityType.Constitution" Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
-    <StatCard Ability="AbilityType.Intelligence" Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
-    <StatCard Ability="AbilityType.Wisdom"       Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
-    <StatCard Ability="AbilityType.Charisma"     Character="@Character" IsEditMode="@CanEdit" OnChanged="@OnChanged" />
+<div class="board">
+    @foreach (var ability in Abilities)
+    {
+        <div class="w w-2" role="button" tabindex="0"
+             aria-label="@AbilityCatalog.Nome(ability)"
+             @onclick="() => OnApriDettaglio.InvokeAsync(ability)"
+             @onkeydown="@(e => OnKey(e, () => OnApriDettaglio.InvokeAsync(ability)))">
+            <div class="w-label">@Abbr(ability)</div>
+            <div class="w-value">@FormatBonus(CharacterCalculations.GetModifier(AbilityScore(Character, ability)))</div>
+            <div class="w-sub">TS @FormatBonus(CharacterCalculations.GetSaveBonus(Character, ability))</div>
+        </div>
+    }
 </div>
 
 @code {
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
     [Parameter] public bool CanEdit { get; set; }
     [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public EventCallback<AbilityType> OnApriDettaglio { get; set; }
+
+    private static readonly AbilityType[] Abilities =
+    {
+        AbilityType.Strength, AbilityType.Dexterity, AbilityType.Constitution,
+        AbilityType.Intelligence, AbilityType.Wisdom, AbilityType.Charisma
+    };
+
+    // ---- Formattazione (FormatBonus/OnKey vengono da CharacterView, @using static globale) ----
+
+    // Sigla e punteggio: duplicati da StatCard.razor (CharacterCalculations non li espone
+    // pubblici, stesso motivo già annotato a StatCard.razor:99-101).
+    private static string Abbr(AbilityType a) => a switch
+    {
+        AbilityType.Strength => "FOR",
+        AbilityType.Dexterity => "DES",
+        AbilityType.Constitution => "COS",
+        AbilityType.Intelligence => "INT",
+        AbilityType.Wisdom => "SAG",
+        AbilityType.Charisma => "CAR",
+        _ => "?"
+    };
+
+    private static int AbilityScore(Character c, AbilityType a) => a switch
+    {
+        AbilityType.Strength => c.Strength,
+        AbilityType.Dexterity => c.Dexterity,
+        AbilityType.Constitution => c.Constitution,
+        AbilityType.Intelligence => c.Intelligence,
+        AbilityType.Wisdom => c.Wisdom,
+        AbilityType.Charisma => c.Charisma,
+        _ => 10
+    };
 }

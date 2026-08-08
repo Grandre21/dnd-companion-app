@@ -1,7 +1,7 @@
 /* ===== Combat: TS contro morte ===== */
 .death-saves-card {
     background: var(--bg-card);
-    border: 1px solid #5a3f20;
+    border: 1px solid var(--border-card);
     border-radius: 10px;
     padding: 0.85rem 0.75rem;
 }
@@ -44,7 +44,7 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    border: 1px solid #5a3f20;
+    border: 1px solid var(--border-card);
     background: transparent;
     position: relative;
     cursor: pointer;
@@ -65,7 +65,7 @@
 .ds-dot.filled.success { background: #7a9a6a; border-color: #7a9a6a; }
 .ds-dot.filled.failure { background: #c5746b; border-color: #c5746b; }
 
-/* ===== Combat: riposo lungo/breve =====
+/* ===== Combat: pulsanti comuni =====
    .primary-btn/.secondary-btn duplicate qui i due stili di Characters.razor.css: la CSS
    isolation di Blazor non fa seguire le regole scoped del genitore al markup di un figlio
    (v. memoria "blazor-css-isolation-extraction"), e CharacterItemsTab.razor.css è già nello
@@ -118,201 +118,41 @@
     cursor: not-allowed;
 }
 
-.rest-card {
-    background: var(--bg-card);
-    border: 1px solid #5a3f20;
-    border-radius: 10px;
-    padding: 0.6rem 0.85rem;
-    margin-bottom: 0.6rem;
-}
-
-.rest-actions {
-    display: flex;
-    gap: 0.6rem;
-}
-
-/* Bersaglio da 44px anche in riga da due: il padding di .primary-btn/.secondary-btn basta già
-   in verticale, qui si garantisce l'altezza minima quando il font va a capo su schermi stretti. */
-.rest-btn {
-    flex: 1;
-    min-height: 44px;
-    font-size: 0.95rem;
-    padding: 0.65rem 0.5rem;
-    text-align: center;
-}
-
-.short-rest-panel {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #5a3f20;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.short-rest-field {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-
-.short-rest-label {
-    font-size: 0.85rem;
-    color: var(--gold-muted);
-}
-
-.short-rest-stepper {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.short-rest-value {
-    min-width: 3.5rem;
-    text-align: center;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-}
-
-.short-rest-input {
-    width: 5.5rem;
-    min-height: 44px;
-    box-sizing: border-box;
-    background: var(--bg);
-    border: 1px solid #5a3f20;
-    border-radius: 6px;
-    padding: 0.4rem 0.6rem;
-    color: var(--text);
-    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus del campo. */
-    font-size: 1rem;
-    font-family: inherit;
-    text-align: right;
-}
-
-.short-rest-input:focus {
-    outline: none;
-    border-color: var(--gold);
-}
-
-.short-rest-actions {
-    display: flex;
-    gap: 0.6rem;
-}
-
-.short-rest-actions .rest-btn {
-    padding: 0.6rem 0.5rem;
-    font-size: 0.9rem;
-}
-
-/* ===== Combat: stat secondarie ===== */
-.secondary-stats {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.4rem;
-    background: var(--bg-card);
-    border: 1px solid #5a3f20;
-    border-radius: 10px;
-    padding: 0.75rem 0.6rem;
-}
-
-.mini-stat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
-}
-
-.mini-label {
-    margin: 0;
-    font-size: 0.58rem;
-    font-weight: 700;
-    color: var(--gold-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.mini-value {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-}
-
-.mini-unit {
-    font-size: 0.7rem;
-    color: var(--gold-dim);
-    margin-left: 1px;
-}
-
-.inspiration-toggle {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 2px solid var(--gold);
-    background: transparent;
-    position: relative;
+/* ===== Combat: board dei mini-valori (VEL/ISPIRAZIONE/DV/COMP) =====
+   .w/.w-3/.w-value/.w-label sono il vocabolario globale (app.css, piano 2026-08-08): qui restano
+   solo le due cose specifiche di questo tab — l'affordance "tappabile" del riquadro ISPIRAZIONE
+   (era .inspiration-toggle, ora l'intero riquadro) e l'unità di VEL, che NON passa da .w-sub: .w-sub
+   è una riga SOTTO il valore (dettaglio secondario, come il danno di un'arma), mentre la "m" di VEL
+   è parte dello stesso valore, sulla stessa riga — non un dettaglio comprimibile a parte. v. il
+   commento sul markup. */
+.w-toggle {
     cursor: pointer;
     touch-action: manipulation;
 }
 
-.inspiration-toggle.active {
-    background: var(--gold);
-    box-shadow: inset 0 0 0 2px var(--bg-card);
+.w-toggle.active {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.12);
 }
 
-.inspiration-toggle::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 36px;
-    height: 36px;
-    transform: translate(-50%, -50%);
-    background: transparent;
+.w-toggle.active .w-value {
+    color: var(--gold-light);
 }
 
-/* ===== Combat: armi ===== */
-.weapon-card {
-    background: var(--bg-card);
-    border: 1px solid #5a3f20;
-    border-radius: 8px;
-    padding: 0.55rem 0.7rem;
-    margin-bottom: 0.4rem;
+.w-unit {
+    font-size: 0.6em;
+    font-weight: 400;
+    color: var(--gold-dim);
+    margin-left: 1px;
 }
 
-.weapon-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.weapon-name {
-    margin: 0;
-    font-weight: 700;
-    color: var(--text);
-}
-
-.weapon-stats {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-body);
-    font-variant-numeric: tabular-nums;
-}
-
-.weapon-stats span {
-    margin-left: 0.25rem;
-}
-
-.weapon-notes {
-    margin: 0.3rem 0 0;
-    font-size: 0.8rem;
+/* ===== Combat: bonus d'attacco calcolato =====
+   Nidificato dentro .w-value/.w-sub (globali): la specificità aggiuntiva che la CSS isolation di
+   Blazor allega a questa regola (scoped) vince sullo stile del genitore globale, quindi il
+   font-size/colore qui sotto restano quelli attesi (piccolo, smorzato, corsivo) anche dentro un
+   .w-value altrimenti grande e in grassetto. */
+.weapon-calc-hint {
+    font-size: 0.75rem;
     color: var(--gold-dim);
     font-style: italic;
 }
@@ -342,18 +182,27 @@
     color: var(--text-body);
 }
 
-/* ===== Combat tab: dadi vita ===== */
-.hit-dice-card {
+/* ===== Combat: dadi vita + riposo (riquadro fuso, piano 2026-08-08 B2) =====
+   Un solo bordo/padding al posto dei due che avevano .hit-dice-card e .rest-card (identici,
+   duplicati): .recovery-divider separa le due metà con lo stesso trattamento di
+   .short-rest-panel qui sotto (bordo superiore sottile), non un secondo riquadro. */
+.recovery-card {
     background: var(--bg-card);
-    border: 1px solid #5a3f20;
+    border: 1px solid var(--border-card);
     border-radius: 10px;
     padding: 0.6rem 0.85rem;
     margin-bottom: 0.6rem;
 }
 
-.hit-dice-card .card-label {
+.hit-dice-label {
     text-align: center;
     margin: 0 0 0.4rem;
+}
+
+.recovery-divider {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--border-card);
 }
 
 .hit-dice-row {
@@ -405,41 +254,100 @@
     color: var(--gold-dim);
 }
 
-/* ===== Combat: risorse di classe =====
-   Stessa famiglia visiva di .hit-dice-card/.rest-card (stesso fondo/bordo): sono la stessa
-   famiglia di contatori che si spendono e si ripristinano (v. spec 2026-08-06). */
-.resource-card {
-    background: var(--bg-card);
-    border: 1px solid #5a3f20;
-    border-radius: 10px;
-    padding: 0.6rem 0.75rem;
-    margin-bottom: 0.5rem;
+.rest-actions {
+    display: flex;
+    gap: 0.6rem;
 }
 
+/* Bersaglio da 44px anche in riga da due: il padding di .primary-btn/.secondary-btn basta già
+   in verticale, qui si garantisce l'altezza minima quando il font va a capo su schermi stretti. */
+.rest-btn {
+    flex: 1;
+    min-height: 44px;
+    font-size: 0.95rem;
+    padding: 0.65rem 0.5rem;
+    text-align: center;
+}
+
+.short-rest-panel {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-card);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.short-rest-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.short-rest-label {
+    font-size: 0.85rem;
+    color: var(--gold-muted);
+}
+
+.short-rest-stepper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.short-rest-value {
+    min-width: 3.5rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.short-rest-input {
+    width: 5.5rem;
+    min-height: 44px;
+    box-sizing: border-box;
+    background: var(--bg);
+    border: 1px solid var(--border-card);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    color: var(--text);
+    /* 16px: sotto questa soglia iOS ingrandisce la pagina al focus del campo. */
+    font-size: 1rem;
+    font-family: inherit;
+    text-align: right;
+}
+
+.short-rest-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.short-rest-actions {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.short-rest-actions .rest-btn {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* ===== Combat: risorse di classe SENZA scheda-privilegio (D6) =====
+   Convertite in riquadri .w/.w-6 (vocabolario globale, app.css): un contatore senza privilegio a
+   cui agganciarsi prende un riquadro proprio, come armi e mini-valori qui sopra — non una card
+   d'altra epoca in mezzo ai riquadri nuovi. .resource-header resta il proprio (nome + matita, non
+   il vocabolario globale che non prevede un'azione in testa al riquadro); width: 100% perché lo
+   space-between abbia spazio da distribuire anche quando .w non è ancora in modalità stretch (sotto
+   i 150px di container, D10). */
 .resource-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-}
-
-.resource-name {
-    margin: 0;
-    font-weight: 700;
-    color: var(--text);
-}
-
-.resource-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.resource-count {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--gold-muted);
-    font-variant-numeric: tabular-nums;
+    width: 100%;
 }
 
 .resource-edit-btn {
@@ -498,13 +406,6 @@
 .resource-dot.filled {
     background: var(--gold);
     border-color: var(--gold);
-}
-
-.resource-recharge {
-    margin: 0;
-    font-size: 0.75rem;
-    color: var(--gold-dim);
-    font-style: italic;
 }
 
 .resource-add-btn {
@@ -643,19 +544,13 @@
     cursor: not-allowed;
 }
 
-/* ===== Combat: bonus d'attacco calcolato ===== */
-.weapon-calc-hint {
-    font-size: 0.75rem;
-    color: var(--gold-dim);
-    font-style: italic;
-}
-
-/* ===== Combat: divisore di fase (riordino 2026-08-06) =====
-   Separa ciò che si tira/spende in combattimento (armi, risorse, caratteristiche/abilità — sopra)
-   da ciò che si recupera quando è finito (dadi vita, riposo — sotto): non decorativo, un cambio di
-   momento di gioco. Solo token esistenti: --gold-rgb per il filo (stessa opacità di .page-header
-   in Characters.razor.css), --gold-dim per l'etichetta (stesso colore di .card-label in app.css,
-   non di .section-header — quello usa --gold) — nessun colore letterale nuovo. */
+/* ===== Combat: divisori di fase (riordino 2026-08-06, esteso 2026-08-08) =====
+   Due dividers, STESSA classe: separano ciò che si tira/spende in combattimento (armi, risorse,
+   caratteristiche/abilità) da ciò che si recupera a fine combattimento (dadi vita, riposo), e
+   quest'ultimo dal chrome di amministrazione (piano 2026-08-08, B1/D7) — solo l'etichetta cambia.
+   Solo token esistenti: --gold-rgb per il filo (stessa opacità di .page-header in
+   Characters.razor.css), --gold-dim per l'etichetta (stesso colore di .card-label in app.css, non
+   di .section-header — quello usa --gold) — nessun colore letterale nuovo. */
 .turn-divider {
     display: flex;
     align-items: center;

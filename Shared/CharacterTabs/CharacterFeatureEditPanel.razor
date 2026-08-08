@@ -1,0 +1,75 @@
+@using DndCompanion.Models
+
+@* Pannello di modifica di un CharacterFeature, condiviso dai due ospiti che oggi lo usano: l'aggiunta
+   di una voce nuova (CharacterFeaturesSection.razor, PuoEliminare="false") e la modifica di una voce
+   esistente dal foglio del dettaglio (Pages/Characters.razor, PuoEliminare legato a
+   voce.Origine == "propria"). Prima dell'estrazione i due contesti duplicavano lo stesso markup — la
+   giuntura mancante fra board e foglio (v. spec 2026-08-08) lasciava il secondo irraggiungibile.
+
+   Draft è posseduto dall'ospite ed è un tipo riferimento: @bind="Draft.Nota" (etc.) muta l'istanza in
+   linea senza rimbalzare per un @onchange. Questo componente non salva e non cancella nulla di suo:
+   invoca solo i tre callback, esattamente come faceva il pannello originale coi metodi del genitore.
+
+   Il Nome non è un campo di questo pannello: nell'aggiunta lo tiene l'ospite (è l'unico caso in cui va
+   scritto), nella modifica non è modificabile (è la chiave della voce, mostrata nel titolo del
+   foglio). Nessun wrapper con sfondo/bordo qui dentro: gli ospiti usano classi diverse per quello
+   (.feature-form per l'aggiunta, .feature-edit-panel per il foglio) — un riquadro proprio lo avrebbe
+   raddoppiato quando nidificato in .feature-form. *@
+
+<div class="feature-field">
+    <label for="@NotaId">Nota</label>
+    <textarea id="@NotaId" class="feature-input feature-textarea" maxlength="2000"
+              placeholder="Cosa fa, con le tue parole" @bind="Draft.Nota"></textarea>
+</div>
+<div class="feature-field">
+    <label for="@AzioneId">Quando si usa</label>
+    <select id="@AzioneId" class="feature-input" @bind="Draft.Azione">
+        <option value="">Da classificare</option>
+        @foreach (var tag in CharacterFeatureRules.TagAmmessi)
+        {
+            <option value="@tag">@CharacterFeatureRules.EtichettaTag(tag)</option>
+        }
+    </select>
+</div>
+<div class="feature-field">
+    <label for="@RisorsaId">Risorsa collegata</label>
+    <input id="@RisorsaId" type="text" class="feature-input" maxlength="60"
+           placeholder="Lascia vuoto per usare lo stesso nome" @bind="Draft.Risorsa" />
+</div>
+<label class="feature-checkbox-row">
+    <input type="checkbox" @bind="Draft.Attivabile" />
+    <span>Mostra l'interruttore «attivo»</span>
+</label>
+<div class="feature-form-actions">
+    <button type="button" class="primary-btn" @onclick="() => OnSalva.InvokeAsync()" disabled="@IsSaving">
+        Salva
+    </button>
+    <button type="button" class="secondary-btn" @onclick="() => OnAnnulla.InvokeAsync()" disabled="@IsSaving">
+        Annulla
+    </button>
+    @if (PuoEliminare)
+    {
+        <button type="button" class="feature-delete-btn" @onclick="() => OnElimina.InvokeAsync()"
+                disabled="@IsSaving">
+            Elimina
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CharacterFeature Draft { get; set; } = default!;
+    [Parameter] public bool IsSaving { get; set; }
+    [Parameter] public bool PuoEliminare { get; set; }
+    [Parameter] public EventCallback OnSalva { get; set; }
+    [Parameter] public EventCallback OnAnnulla { get; set; }
+    [Parameter] public EventCallback OnElimina { get; set; }
+
+    // Suffisso per istanza, non per ospite: CharacterFeaturesSection (aggiunta, dentro la board) e
+    // Pages/Characters.razor (modifica, nel foglio) possono essere vivi INSIEME — il foglio è un
+    // overlay sopra la board, non la smonta dal DOM — quindi gli id fissi del pannello originario
+    // (feature-edit-nota, ...) finirebbero duplicati appena entrambi i pannelli sono aperti insieme.
+    private readonly string _idSuffix = Guid.NewGuid().ToString("N");
+    private string NotaId => $"feature-edit-nota-{_idSuffix}";
+    private string AzioneId => $"feature-edit-azione-{_idSuffix}";
+    private string RisorsaId => $"feature-edit-risorsa-{_idSuffix}";
+}
