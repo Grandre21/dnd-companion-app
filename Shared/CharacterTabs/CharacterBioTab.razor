@@ -105,7 +105,7 @@
                 @foreach (var riga in raggiunti)
                 {
                     <li class="feature-row">
-                        <span class="feature-level">L@riga.Livello</span>
+                        <span class="feature-level">L@(riga.Livello)</span>
                         <span class="feature-names">
                             @foreach (var privilegio in riga.Privilegi)
                             {
@@ -158,7 +158,7 @@
                     @foreach (var riga in daSottoclasse)
                     {
                         <li class="feature-row">
-                            <span class="feature-level">L@riga.Livello</span>
+                            <span class="feature-level">L@(riga.Livello)</span>
                             <span class="feature-names">
                                 @foreach (var privilegio in riga.Privilegi)
                                 {
