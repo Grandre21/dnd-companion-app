@@ -20,6 +20,16 @@
         <span class="bio-value">@Character.ExperiencePoints PE</span>
     </div>
 
+    @* Il background, quando il manuale lo conosce, porta la sua descrizione: senza mostrarla il
+       campo resta un nome e basta — lo stesso difetto già risolto per la sottoclasse. *@
+    @if (BackgroundDalManuale is not null && !string.IsNullOrWhiteSpace(BackgroundDalManuale.Description))
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">@BackgroundDalManuale.Name.ToUpperInvariant()</p>
+            <p class="bio-block-text">@BackgroundDalManuale.Description</p>
+        </div>
+    }
+
     @if (!string.IsNullOrWhiteSpace(Character.Appearance))
     {
         <div class="bio-block">
@@ -198,6 +208,27 @@
         </div>
     }
 
+    @{
+        var talentiRiconosciuti = CharacterManualJoin.TalentiRiconosciuti(Character.Feats, PackageFeats);
+    }
+    @* I talenti del testo libero che il manuale riconosce: stesso principio della sottoclasse, il
+       nome scritto a mano diventa anche la sua descrizione. *@
+    @if (talentiRiconosciuti.Count > 0)
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">TALENTI DAL MANUALE</p>
+            <ul class="feature-list">
+                @foreach (var talento in talentiRiconosciuti)
+                {
+                    <li class="feat-entry">
+                        <p class="feat-name">@talento.Name</p>
+                        <p class="bio-block-text">@talento.Description</p>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
     @* Addestramento: la stessa voce del riquadro "EQUIPMENT TRAINING & PROFICIENCIES" della
        carta, testo libero (v. spec 2026-08-06, D4) perché non alimenta calcoli e si consulta
        poche volte a campagna — non durante il gioco, come le altre voci sopra, quindi in fondo
@@ -288,6 +319,16 @@
     /// non ne offre nessuna. Il genitore la risolve, perché è lui ad avere sia le righe di classe
     /// della campagna sia il pacchetto già caricati.</summary>
     [Parameter] public PackageSubclass? Subclass { get; set; }
+
+    /// <summary>I talenti del pacchetto SRD, per riconoscere quelli citati nel testo libero di
+    /// <see cref="Character.Feats"/> (v. <see cref="CharacterManualJoin.TalentiRiconosciuti"/>). Il
+    /// genitore la risolve, come per <see cref="Subclass"/>: è lui ad avere il pacchetto già caricato.</summary>
+    [Parameter] public IReadOnlyList<PackageFeat> PackageFeats { get; set; } = Array.Empty<PackageFeat>();
+
+    /// <summary>Il background del pacchetto SRD corrispondente al nome su <see
+    /// cref="Character.Background"/>; null se scritto a mano o non a catalogo. Risolto dal genitore
+    /// (v. <see cref="CharacterManualJoin.BackgroundRiconosciuto"/>), come <see cref="Subclass"/>.</summary>
+    [Parameter] public PackageBackground? BackgroundDalManuale { get; set; }
 
     /// <summary>Eliminazione del personaggio. La conferma e la chiamata al database restano al
     /// genitore, come per il salvataggio delle note.</summary>

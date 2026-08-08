@@ -312,3 +312,20 @@
     border-top: 0.5px solid rgba(var(--gold-rgb), 0.2);
     font-size: 12px;
 }
+
+/* ---- Talenti riconosciuti dal manuale (nome + regole, sotto il testo libero) ---- */
+
+.feat-entry {
+    margin-bottom: 0.6rem;
+}
+
+.feat-entry:last-child {
+    margin-bottom: 0;
+}
+
+.feat-name {
+    margin: 0 0 0.2rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold-light);
+}

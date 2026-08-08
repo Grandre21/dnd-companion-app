@@ -206,6 +206,8 @@
                                      OnSaveTraining="@SaveTrainingAsync"
                                      ClassProgressionText="@ProgressioneClasseSelezionata"
                                      Subclass="@SottoclasseSelezionata"
+                                     PackageFeats="@packageFeats"
+                                     BackgroundDalManuale="@BackgroundSelezionato"
                                      OnDelete="@DeleteSelectedAsync" IsBusy="@isBusy" />
                 }
 
@@ -291,6 +293,8 @@
     // Classi del pacchetto: servono per mostrare i privilegi anche a chi NON ha importato le classi
     // nella campagna, che è il caso normale. Le righe di database restano la fonte prioritaria.
     private List<PackageClass> packageClasses = new();
+    private List<PackageFeat> packageFeats = new();
+    private List<PackageBackground> packageBackgrounds = new();
 
     /// <summary>La sottoclasse del PG risolta, da qualunque sorgente: la colonna della riga di
     /// campagna se c'è, altrimenti il manuale (v. <see cref="SubclassCatalog.Disponibili"/>). Null
@@ -304,6 +308,11 @@
         => selected is null
             ? null
             : SubclassCatalog.Trova(classes, packageClasses, selected.Class, selected.Subclass);
+
+    /// <summary>Il background del manuale corrispondente al nome sulla scheda, null se scritto a mano
+    /// o non a catalogo. Risolto qui, come la sottoclasse: è il genitore ad avere il pacchetto.</summary>
+    private PackageBackground? BackgroundSelezionato
+        => selected is null ? null : CharacterManualJoin.BackgroundRiconosciuto(selected.Background, packageBackgrounds);
 
     /// <summary>Tabella dei livelli della classe del PG aperto; la regola di precedenza sta
     /// nell'helper puro, qui restano solo le due collezioni già caricate.</summary>
@@ -467,7 +476,12 @@
         try
         {
             var pacchetto = await Catalog.GetPackageAsync();
-            if (pacchetto is not null) packageClasses = pacchetto.Classes;
+            if (pacchetto is not null)
+            {
+                packageClasses = pacchetto.Classes;
+                packageFeats = pacchetto.Feats;
+                packageBackgrounds = pacchetto.Backgrounds;
+            }
         }
         catch (Exception ex)
         {
