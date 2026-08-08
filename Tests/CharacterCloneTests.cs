@@ -73,6 +73,24 @@ public class CharacterCloneTests
                 continue;
             }
 
+            if (prop.Name == nameof(Character.CharacterFeatures))
+            {
+                prop.SetValue(c, new List<CharacterFeature>
+                {
+                    new()
+                    {
+                        Nome = "Ira", Nota = "1/riposo lungo", Azione = "Bonus",
+                        Risorsa = "Ira", Attivabile = true,
+                    },
+                    new()
+                    {
+                        Nome = "Percezione del pericolo", Nota = "Vantaggio ai TS su trappole",
+                        Azione = "Nessuna", Risorsa = "Nessuna", Attivabile = false,
+                    },
+                });
+                continue;
+            }
+
             object valore = prop.PropertyType == typeof(string)
                 ? $"valore-{prop.Name}"
                 : prop.PropertyType == typeof(int)

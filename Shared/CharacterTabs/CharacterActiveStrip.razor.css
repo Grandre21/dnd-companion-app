@@ -1,0 +1,70 @@
+/* ===== Strip ATTIVO =====
+   Sezione 3 dell'ordine verticale (v. piano 2026-08-08). Fondo dorato più marcato delle card normali
+   (.resource-card/.feature-card usano --bg-card puro): questa striscia deve leggersi come "stato che
+   cambia tutto il resto", non come una card qualunque (v. spec, «L'ordine verticale»). Solo token
+   esistenti, nessun colore nuovo (v. CLAUDE.md). */
+.active-strip {
+    background: rgba(var(--gold-rgb), 0.08);
+    border: 1px solid rgba(var(--gold-rgb), 0.45);
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.active-strip-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.3rem 0;
+}
+
+.active-strip-row + .active-strip-row {
+    border-top: 1px solid rgba(var(--gold-rgb), 0.2);
+}
+
+/* Interruttore "spegni": stesso linguaggio visivo di .feature-toggle.active in
+   CharacterFeaturesSection.razor.css, ridichiarato qui perché la CSS isolation di Blazor non fa
+   seguire al figlio le regole scoped di un altro componente (v. memoria
+   "blazor-css-isolation-extraction"). Sempre "acceso": qui compaiono solo i privilegi già attivi. */
+.active-strip-toggle {
+    width: 20px;
+    height: 20px;
+    margin-top: 0.1rem;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    background: var(--gold);
+    box-shadow: inset 0 0 0 2px var(--bg-card);
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+    flex-shrink: 0;
+}
+
+.active-strip-toggle::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.active-strip-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.active-strip-name {
+    margin: 0;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.active-strip-note {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-body);
+    white-space: pre-wrap;
+}

@@ -101,7 +101,7 @@
                 <div class="tab-bar">
                     <button class="tab-item @(activeTab == "rolls" ? "active" : "")" @onclick='() => activeTab = "rolls"'>
                         <span class="tab-icon">⚔</span>
-                        <span class="tab-label">Tiri</span>
+                        <span class="tab-label">Gioco</span>
                     </button>
                     <button class="tab-item @(activeTab == "bio" ? "active" : "")" @onclick='() => activeTab = "bio"'>
                         <span class="tab-icon">📖</span>
@@ -194,7 +194,10 @@
                 {
                     <CharacterCombatTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterCoreAsync"
                                         IsSaving="@isSavingCharacter" OnLocalRevert="@(() => StateHasChanged())"
-                                        Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()">
+                                        Weapons="@inventoryItems.Where(i => string.Equals(i.ItemType, "weapon", StringComparison.OrdinalIgnoreCase)).ToList()"
+                                        Gruppi="@GruppiPrivilegi"
+                                        OnSalvaAnnotazione="@SalvaAnnotazionePrivilegioAsync"
+                                        OnEliminaVocePropria="@EliminaVocePropriaPrivilegioAsync">
                         <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync" />
                     </CharacterCombatTab>
                 }
@@ -318,6 +321,17 @@
     /// nell'helper puro, qui restano solo le due collezioni già caricate.</summary>
     private string? ProgressioneClasseSelezionata
         => selected is null ? null : ClassProgression.Risolvi(classes, packageClasses, selected.Class);
+
+    /// <summary>La vista dei privilegi per il tab «Gioco» (v. CharacterFeatureJoin, piano
+    /// 2026-08-08): stessi ingressi già in cache passati a CharacterBioTab qui sopra
+    /// (ClassProgressionText/Subclass/PackageFeats) — nessuna chiamata di rete nuova.</summary>
+    private IReadOnlyList<GruppoPrivilegi> GruppiPrivilegi
+        => selected is null
+            ? Array.Empty<GruppoPrivilegi>()
+            : CharacterFeatureJoin.Raggruppa(CharacterFeatureJoin.Costruisci(
+                ProgressioneClasseSelezionata, selected.Level, selected.Class,
+                SottoclasseSelezionata, selected.Feats, packageFeats,
+                selected.CharacterFeatures, selected.ClassResources));
 
     // ===== Navigazione a tab della vista detail =====
     // valori: rolls | bio | items | magic
@@ -907,6 +921,52 @@
     // condizionare un proprio messaggio all'esito, a differenza di CharacterVitalsBar (i PF) e
     // CharacterCombatTab (i riposi), che leggono l'esito da SaveCharacterCoreAsync direttamente.
     private Task SaveCharacterAsync() => SaveCharacterCoreAsync();
+
+    /// <summary>Salva/aggiorna un'annotazione su un privilegio (invocato da CharacterCombatTab via
+    /// OnSalvaAnnotazione, bollato fino da CharacterFeaturesSection): la voce si fonde in
+    /// CharacterFeatures per nome NORMALIZZATO — se esiste già si sostituisce, altrimenti si
+    /// aggiunge (v. brief Task 8). Salvataggio con SaveCharacterCoreAsync (lo stesso di
+    /// SaveCharacterAsync, che ne è solo l'alias senza esito — v. il commento lì) perché qui, come in
+    /// SaveTrainingAsync, "pg" va saputo riportare indietro: CharacterFeaturesSection lascia
+    /// esplicitamente "banner/rollback" al genitore (v. il suo SalvaAsync), e senza il controllo
+    /// dell'esito un update rifiutato dalle RLS (PostgREST torna [], nessuna eccezione) lascerebbe
+    /// l'annotazione mutata solo in locale, pronta a essere persistita dal primo salvataggio
+    /// successivo riuscito su QUALUNQUE altro campo.</summary>
+    private async Task SalvaAnnotazionePrivilegioAsync(CharacterFeature feature)
+    {
+        if (selected is null || !CanEdit || isSavingCharacter) return;
+
+        var pg = selected;
+        var precedente = new List<CharacterFeature>(pg.CharacterFeatures);
+        var chiave = CatalogKey.NormalizeName(feature.Nome);
+        var idx = pg.CharacterFeatures.FindIndex(f => CatalogKey.NormalizeName(f.Nome) == chiave);
+        if (idx >= 0) pg.CharacterFeatures[idx] = feature;
+        else pg.CharacterFeatures.Add(feature);
+
+        if (!await SaveCharacterCoreAsync())
+        {
+            pg.CharacterFeatures = precedente;
+        }
+    }
+
+    /// <summary>Elimina una voce propria per nome normalizzato. Le voci DERIVATE (classe,
+    /// sottoclasse, talento) non passano da qui: CharacterFeaturesSection esclude già il pulsante
+    /// Elimina per loro (v. la sua guardia "voce.Origine != propria"). V. il commento su
+    /// SalvaAnnotazionePrivilegioAsync per il motivo di SaveCharacterCoreAsync invece del wrapper.</summary>
+    private async Task EliminaVocePropriaPrivilegioAsync(VistaPrivilegio voce)
+    {
+        if (selected is null || !CanEdit || isSavingCharacter) return;
+
+        var pg = selected;
+        var precedente = new List<CharacterFeature>(pg.CharacterFeatures);
+        var chiave = CatalogKey.NormalizeName(voce.Nome);
+        pg.CharacterFeatures.RemoveAll(f => CatalogKey.NormalizeName(f.Nome) == chiave);
+
+        if (!await SaveCharacterCoreAsync())
+        {
+            pg.CharacterFeatures = precedente;
+        }
+    }
 
     private void SyncListFromSelected()
     {

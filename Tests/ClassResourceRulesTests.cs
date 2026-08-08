@@ -305,4 +305,36 @@ public class ClassResourceRulesTests
         foreach (var nome in nomiClassiConMappa)
             Assert.Contains(pacchetto.Classes, c => c.Name == nome);
     }
+
+    // -----------------------------------------------------------------------------------
+    // DeltaDaPallino — la formula del tocco sul pallino, condivisa da CharacterCombatTab e
+    // CharacterFeaturesSection
+    // -----------------------------------------------------------------------------------
+
+    [Fact]
+    public void DeltaDaPallino_ToccoSullUltimoDisponibile_LoSpegne()
+    {
+        // Max 3, Spesi 1 -> disponibili = 2 (pallini 1 e 2 accesi). Toccare il pallino 2, l'ultimo
+        // ancora disponibile, lo spegne: un uso in più speso, delta positivo di 1.
+        var delta = ClassResourceRules.DeltaDaPallino(max: 3, spesi: 1, posizione: 2);
+        Assert.Equal(1, delta);
+    }
+
+    [Fact]
+    public void DeltaDaPallino_ToccoPiuInBasso_SpendeLaDifferenza()
+    {
+        // Max 5, Spesi 0 -> disponibili = 5. Toccare il pallino 2 porta la disponibilità a 2: si
+        // spendono 3 usi, delta positivo di 3 (diverso da 1, così non si confonde con "spegni l'ultimo").
+        var delta = ClassResourceRules.DeltaDaPallino(max: 5, spesi: 0, posizione: 2);
+        Assert.Equal(3, delta);
+    }
+
+    [Fact]
+    public void DeltaDaPallino_ToccoDiUnPallinoGiaSpeso_Recupera()
+    {
+        // Max 4, Spesi 3 -> disponibili = 1 (solo il pallino 1 acceso). Toccare il pallino 3, già
+        // spento, porta la disponibilità lì: si recuperano 2 usi, delta negativo di -2.
+        var delta = ClassResourceRules.DeltaDaPallino(max: 4, spesi: 3, posizione: 3);
+        Assert.Equal(-2, delta);
+    }
 }

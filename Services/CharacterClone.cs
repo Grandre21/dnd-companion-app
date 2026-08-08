@@ -66,6 +66,14 @@ public static class CharacterClone
             Nome = r.Nome, Max = r.Max, Spesi = r.Spesi, Ricarica = r.Ricarica,
         }).ToList(),
 
+        // Annotazioni sui privilegi (jsonb): copia PER VALORE, mai `= c.CharacterFeatures` —
+        // altrimenti la bozza e il personaggio aperto condividerebbero la stessa lista, e "Annulla"
+        // sul form non annullerebbe più nulla (mutare il clone muterebbe anche l'originale).
+        CharacterFeatures = c.CharacterFeatures.Select(f => new CharacterFeature
+        {
+            Nome = f.Nome, Nota = f.Nota, Azione = f.Azione, Risorsa = f.Risorsa, Attivabile = f.Attivabile,
+        }).ToList(),
+
         // Competenze tiri salvezza
         ProfSaveStrength = c.ProfSaveStrength,
         ProfSaveDexterity = c.ProfSaveDexterity,

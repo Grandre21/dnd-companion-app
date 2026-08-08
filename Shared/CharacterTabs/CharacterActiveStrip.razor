@@ -1,0 +1,64 @@
+@using DndCompanion.Models
+@using DndCompanion.Services
+@implements IDisposable
+@inject ActiveEffectsService ActiveEffects
+
+@* Strip ATTIVO: sezione 3 dell'ordine verticale (v. piano 2026-08-08, Task 8), subito dopo i TS
+   contro morte. Sta in cima perché cambia come si legge tutto ciò che sta sotto: con l'Ira accesa,
+   armi e tiri salvezza si leggono diversamente.
+
+   Nessuna logica di dominio qui: Gruppi arriva già pronto da CharacterFeatureJoin. Lo stato "attivo"
+   non è mai una scrittura sul personaggio (v. il commento in testa ad ActiveEffectsService): si
+   tocca il servizio iniettato direttamente, senza passare dal genitore — stesso schema del toggle
+   in CharacterFeaturesSection. *@
+
+@if (Visibile)
+{
+    <div class="active-strip">
+        <p class="card-label">ATTIVO</p>
+        @foreach (var voce in VociAttive)
+        {
+            <div class="active-strip-row">
+                <span class="active-strip-toggle" role="button" tabindex="0"
+                      aria-pressed="true" aria-label="Disattiva @voce.Nome"
+                      @onclick="() => SpegniAsync(voce.Nome)"
+                      @onkeydown="@(e => OnKey(e, () => SpegniAsync(voce.Nome)))"></span>
+                <div class="active-strip-body">
+                    <p class="active-strip-name">@voce.Nome</p>
+                    @if (!string.IsNullOrWhiteSpace(voce.Nota))
+                    {
+                        <p class="active-strip-note">@voce.Nota</p>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<GruppoPrivilegi> Gruppi { get; set; } = Array.Empty<GruppoPrivilegi>();
+    [Parameter, EditorRequired] public string CharacterId { get; set; } = string.Empty;
+
+    private IEnumerable<VistaPrivilegio> TutteLeVoci => Gruppi.SelectMany(g => g.Voci);
+
+    private IReadOnlyList<VistaPrivilegio> VociAttive =>
+        TutteLeVoci.Where(v => v.Attivabile && ActiveEffects.IsActive(CharacterId, v.Nome)).ToList();
+
+    // Visibile SOLO se almeno un privilegio è attivo (v. correzione 2026-08-08): sta in cima alla
+    // schermata di gioco, lo spazio più prezioso su telefono, e serve a dire cosa sta succedendo
+    // ORA — quando non succede niente, non deve occupare spazio né dirlo. L'accensione si fa dalla
+    // scheda del privilegio (CharacterFeaturesSection), quindi non si perde nessun accesso.
+    private bool Visibile => VociAttive.Any();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ActiveEffects.Changed += HandleChanged;
+        await ActiveEffects.EnsureLoadedAsync();
+    }
+
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ActiveEffects.Changed -= HandleChanged;
+
+    private Task SpegniAsync(string nome) => ActiveEffects.ToggleAsync(CharacterId, nome);
+}

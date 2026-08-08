@@ -115,6 +115,18 @@ public static class ClassResourceRules
     /// <summary>Recupera <paramref name="quanti"/> usi: pura, mai sotto 0 né sopra <c>Max</c>.</summary>
     public static ClassResource Recupera(ClassResource risorsa, int quanti) => Spendi(risorsa, -quanti);
 
+    /// <summary>Il delta da applicare quando si tocca il pallino in <paramref name="posizione"/>
+    /// (1-based): positivo spende, negativo recupera. Toccare l'ultimo pallino ancora disponibile lo
+    /// spegne; toccarne un altro porta la disponibilità lì. Pura, non tocca la risorsa.
+    /// Esiste perché la stessa formula viveva in due componenti diversi: due implementazioni della
+    /// stessa regola divergono al primo cambiamento.</summary>
+    public static int DeltaDaPallino(int max, int spesi, int posizione)
+    {
+        var disponibili = max - spesi;
+        var nuoviDisponibili = posizione == disponibili ? posizione - 1 : posizione;
+        return disponibili - nuoviDisponibili; // positivo = spende, negativo = recupera
+    }
+
     /// <summary>Vero se una risorsa con questa <c>Ricarica</c> si ripristina col riposo indicato:
     /// il riposo lungo ripristina "lungo" e "breve", il riposo breve solo "breve", "nessuna" non si
     /// tocca mai. Predicato puro e basta — <b>chi</b> lo applica (quali risorse di un personaggio,

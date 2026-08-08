@@ -31,7 +31,10 @@ public class CharacterRepository : ICharacterRepository
         // pillole. Normalizzato una volta qui, sul percorso di lettura, vale per ogni consumatore
         // invece che per il singolo componente.
         foreach (var pg in personaggi)
+        {
             pg.ClassResources = ClassResourceRules.Normalizza(pg.ClassResources);
+            pg.CharacterFeatures = CharacterFeatureRules.Normalizza(pg.CharacterFeatures);
+        }
 
         return personaggi;
     }

@@ -44,6 +44,22 @@ public static class CharacterReflectionTestHelpers
                 continue;
             }
 
+            if (prop.Name == nameof(Character.CharacterFeatures))
+            {
+                var a = Assert.IsType<List<CharacterFeature>>(prop.GetValue(atteso));
+                var e = Assert.IsType<List<CharacterFeature>>(prop.GetValue(effettivo));
+                Assert.Equal(a.Count, e.Count);
+                for (var i = 0; i < a.Count; i++)
+                {
+                    Assert.Equal(a[i].Nome, e[i].Nome);
+                    Assert.Equal(a[i].Nota, e[i].Nota);
+                    Assert.Equal(a[i].Azione, e[i].Azione);
+                    Assert.Equal(a[i].Risorsa, e[i].Risorsa);
+                    Assert.Equal(a[i].Attivabile, e[i].Attivabile);
+                }
+                continue;
+            }
+
             var valoreAtteso = prop.GetValue(atteso);
             var valoreEffettivo = prop.GetValue(effettivo);
             Assert.True(Equals(valoreAtteso, valoreEffettivo), descrizioneDifetto(prop, valoreAtteso, valoreEffettivo));

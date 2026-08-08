@@ -1,0 +1,320 @@
+/* ===== Privilegi: schede =====
+   Stessa famiglia visiva di .resource-card in CharacterCombatTab.razor.css (stesso fondo/bordo):
+   sono la stessa famiglia di contatori/annotazioni che si spendono e si consultano al tavolo. La
+   CSS isolation di Blazor non fa seguire le regole scoped del genitore al markup di un figlio
+   (v. memoria "blazor-css-isolation-extraction"), quindi si ridichiara qui invece di condividerla. */
+.feature-card {
+    background: var(--bg-card);
+    border: 1px solid var(--gold-dim);
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.feature-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.feature-name {
+    margin: 0;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.feature-badge-new {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    background: rgba(var(--gold-rgb), 0.12);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--gold);
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.feature-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+/* Interruttore "attivo": stesso linguaggio visivo di .inspiration-toggle in
+   CharacterCombatTab.razor.css, ridichiarato qui per lo stesso motivo di .feature-card. */
+.feature-toggle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+    flex-shrink: 0;
+}
+
+.feature-toggle.active {
+    background: var(--gold);
+    box-shadow: inset 0 0 0 2px var(--bg-card);
+}
+
+.feature-toggle::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.feature-edit-btn {
+    background: transparent;
+    border: none;
+    color: var(--gold-dim);
+    font-size: 1rem;
+    cursor: pointer;
+    font-family: inherit;
+    /* 44px anche se il glifo è piccolo: è un bersaglio a matita, non un'icona decorativa. */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.feature-edit-btn:hover {
+    color: var(--gold-light);
+}
+
+.feature-edit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Pallini del contatore collegato: stesso schema di .resource-dots/.resource-dot. */
+.feature-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin: 0.6rem 0.15rem 0.3rem;
+}
+
+.feature-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold-dim);
+    background: transparent;
+    position: relative;
+    cursor: pointer;
+    touch-action: manipulation;
+    flex-shrink: 0;
+}
+
+.feature-dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.feature-dot.filled {
+    background: var(--gold);
+    border-color: var(--gold);
+}
+
+.feature-note {
+    margin: 0.3rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-body);
+    white-space: pre-wrap;
+}
+
+/* ===== Aggiungi/modifica voce: pannello su bozza =====
+   Stesso schema di .resource-form/.resource-edit-panel: si compila una copia, mai @bind diretto
+   sul dato. */
+.feature-add-btn {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px dashed rgba(var(--gold-rgb), 0.5);
+    color: var(--gold);
+    padding: 0.7rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    margin-bottom: 0.6rem;
+    min-height: 44px;
+}
+
+.feature-add-btn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    border-style: solid;
+    color: var(--gold-light);
+}
+
+.feature-add-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.feature-form,
+.feature-edit-panel {
+    background: rgba(var(--black-rgb), 0.3);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.feature-edit-panel {
+    margin: 0.6rem 0 0;
+}
+
+.feature-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.6rem;
+}
+
+.feature-field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.feature-input {
+    background: rgba(var(--black-rgb), 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--text);
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    font-family: inherit;
+    border-radius: 8px;
+    min-height: 44px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.feature-textarea {
+    min-height: 5.5rem;
+    resize: vertical;
+}
+
+.feature-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.feature-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-body);
+    margin-bottom: 0.6rem;
+    cursor: pointer;
+}
+
+.feature-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.feature-form-actions .primary-btn,
+.feature-form-actions .secondary-btn,
+.feature-delete-btn {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+}
+
+/* .primary-btn/.secondary-btn duplicati qui per lo stesso motivo di CharacterCombatTab.razor.css:
+   la CSS isolation di Blazor non fa seguire al figlio le regole scoped del genitore. */
+.primary-btn {
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: var(--text-on-gold);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.4);
+    transition: all 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--gold-rgb), 0.3);
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+.secondary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.feature-delete-btn {
+    background: transparent;
+    border: 1px solid rgba(var(--danger-rgb), 0.5);
+    color: rgb(var(--danger-rgb));
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+}
+
+.feature-delete-btn:hover:not(:disabled) {
+    background: rgba(var(--danger-rgb), 0.15);
+}
+
+.feature-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

@@ -50,6 +50,11 @@
     </div>
 }
 
+@* Strip ATTIVO: sezione 3 dell'ordine verticale (v. piano 2026-08-08, Task 8), subito dopo i TS
+   contro morte. Componente a parte (CSS isolation: le sue regole vanno nel proprio .razor.css, non
+   qui — v. memoria "blazor-css-isolation-extraction"). *@
+<CharacterActiveStrip Gruppi="@Gruppi" CharacterId="@Character.Id" />
+
 <div class="secondary-stats">
     <div class="mini-stat">
         <p class="mini-label">VEL</p>
@@ -116,10 +121,46 @@ else
     <p class="empty-note">Nessuna arma equipaggiata</p>
 }
 
+@* Privilegi raggruppati per economia d'azione: sezione 6 dell'ordine verticale. Il raggruppamento e
+   l'ordinamento li fa già CharacterFeatureJoin (Gruppi arriva pronto da Characters.razor, con gli
+   stessi cataloghi già in cache passati a CharacterBioTab); questo componente rende e smista, non
+   possiede l'annotazione — il salvataggio vero passa dal genitore (OnSalvaAnnotazione/
+   OnEliminaVocePropria), lo spendere un contatore resta invece qui (v. OnSpendiContatoreDaSchedaAsync
+   più sotto): riusa lo stesso nucleo di OnResourceDotClickAsync perché sono due strade per spendere
+   lo stesso pallino e non devono divergere. *@
+<CharacterFeaturesSection Gruppi="@Gruppi" CharacterId="@Character.Id" LivelloAttuale="@Character.Level"
+                           CanEdit="@CanEdit" IsSaving="@IsSaving"
+                           OnSalvaAnnotazione="@OnSalvaAnnotazione" OnEliminaVocePropria="@OnEliminaVocePropria"
+                           OnSpendiContatore="@OnSpendiContatoreDaSchedaAsync" />
+
+@* Passivi: sezione 7 dell'ordine verticale, resa DIVERSA dalle schede di CharacterFeaturesSection —
+   riga singola per voce, nessun pallino, nessun interruttore, nessuna modifica inline: sono
+   promemoria, non azioni (v. spec 2026-08-08, D5 e "L'ordine verticale"). *@
+@{ var gruppoPassivi = Gruppi.FirstOrDefault(g => g.Tag == "passivo"); }
+@if (gruppoPassivi is not null)
+{
+    <p class="section-header">PASSIVI</p>
+    @foreach (var voce in gruppoPassivi.Voci)
+    {
+        <div class="passive-row">
+            <span class="passive-name">@voce.Nome</span>
+            @if (!string.IsNullOrWhiteSpace(voce.Nota))
+            {
+                <span class="passive-sep"> · </span>
+                <span class="passive-note">@voce.Nota</span>
+            }
+        </div>
+    }
+}
+
 @* Risorse di classe (Ira, Ispirazione bardica, ...): stessa famiglia dei dadi vita e del riposo —
    contatori che si spendono e si ripristinano (v. spec 2026-08-06, «Le risorse di classe»). Niente
-   riquadro vuoto quando non ce n'è nessuna: solo il pulsante per aggiungerne una. *@
-@if (Character.ClassResources.Any())
+   riquadro vuoto quando non ce n'è nessuna: solo il pulsante per aggiungerne una.
+   Ristretta ai contatori SENZA scheda-privilegio collegata (v. RisorseSenzaScheda, Task 8): l'Ira, se
+   ha una scheda in CharacterFeaturesSection con i propri pallini, non compare più anche qui sotto —
+   un dato, una sola superficie primaria, o il pallino spendibile in due punti diversi finirebbe per
+   divergere. *@
+@if (RisorseSenzaScheda.Any())
 {
     <p class="section-header">RISORSE</p>
 }
@@ -177,7 +218,7 @@ else
         </div>
     }
 }
-@foreach (var risorsa in Character.ClassResources)
+@foreach (var risorsa in RisorseSenzaScheda)
 {
     var r = risorsa;
     var disponibili = r.Max - r.Spesi;
@@ -351,6 +392,20 @@ else
     [Parameter] public EventCallback OnLocalRevert { get; set; }
 
     [Parameter] public IReadOnlyList<InventoryItem> Weapons { get; set; } = Array.Empty<InventoryItem>();
+
+    /// <summary>I privilegi già raggruppati (v. CharacterFeatureJoin, piano 2026-08-08): Characters.razor
+    /// li costruisce con i cataloghi già in cache (nessuna chiamata di rete nuova qui) e li passa
+    /// pronti. Include ANCHE il gruppo "passivo": CharacterFeaturesSection lo esclude da sé, la
+    /// sezione PASSIVI qui sotto lo estrae per la propria resa diversa.</summary>
+    [Parameter] public IReadOnlyList<GruppoPrivilegi> Gruppi { get; set; } = Array.Empty<GruppoPrivilegi>();
+
+    /// <summary>Bolle fino a Characters.razor: la voce si fonde in Character.CharacterFeatures per
+    /// nome normalizzato e il salvataggio passa dallo stesso SaveCharacterAsync degli altri tab —
+    /// questo componente non possiede l'annotazione, la smista soltanto (v. commento sul markup
+    /// della sezione privilegi).</summary>
+    [Parameter] public EventCallback<CharacterFeature> OnSalvaAnnotazione { get; set; }
+
+    [Parameter] public EventCallback<VistaPrivilegio> OnEliminaVocePropria { get; set; }
 
     /// <summary>Le caratteristiche/abilità (CharacterStatsTab): questo componente resta grande di
     /// suo, e spezzarlo in due solo per intercalare CharacterStatsTab fra risorse e dadi vita
@@ -687,6 +742,17 @@ else
                 CatalogKey.NormalizeName(r.Nome) == CatalogKey.NormalizeName(s.Nome)))
             .ToList();
 
+    /// <summary>Contatori NON collegati a nessuna scheda-privilegio (v. Gruppi/CharacterFeatureJoin,
+    /// Task 8): l'Ira, se ha una VistaPrivilegio con Contatore agganciato, non compare più qui sotto
+    /// — un dato, una sola superficie primaria, o i suoi pallini sarebbero spendibili da due punti
+    /// diversi. Confronto per nome normalizzato (v. CatalogKey), mai crudo.</summary>
+    private IReadOnlyList<ClassResource> RisorseSenzaScheda =>
+        Character.ClassResources
+            .Where(r => !Gruppi.SelectMany(g => g.Voci).Any(v =>
+                v.Contatore is not null &&
+                CatalogKey.NormalizeName(v.Contatore.Nome) == CatalogKey.NormalizeName(r.Nome)))
+            .ToList();
+
     private static string EtichettaRicarica(string? ricarica) => ricarica?.Trim().ToLowerInvariant() switch
     {
         "breve" => "riposo breve",
@@ -766,22 +832,18 @@ else
         }
     }
 
-    /// <summary>Un tocco su un pallino: se è quello che segna la disponibilità corrente lo
-    /// "spegne" (un uso in meno), altrimenti porta la disponibilità esattamente a quel pallino —
-    /// stesso schema di SetDeathSaveSuccesses/Failures più sopra, letto sui pallini "disponibili"
-    /// invece che "raggiunti". Toccare un pallino già vuoto quindi RECUPERA usi fino a lì.</summary>
-    private async Task OnResourceDotClickAsync(ClassResource risorsa, int posizione)
+    /// <summary>Applica un delta a un contatore (positivo = spende, negativo = recupera): nucleo
+    /// comune a OnResourceDotClickAsync (delta calcolato dal pallino toccato nella sezione RISORSE)
+    /// e a OnSpendiContatoreDaSchedaAsync (delta ricevuto già pronto da CharacterFeaturesSection,
+    /// stessa identica semantica — v. brief Task 8: "Nome" è il nome della ClassResource, "Usi" è il
+    /// delta). Due punti d'accesso allo stesso pallino non devono divergere su come lo spendono.</summary>
+    private async Task SpendiRisorsaAsync(ClassResource risorsa, int delta)
     {
-        if (!CanEdit || IsSaving) return;
+        if (!CanEdit || IsSaving || delta == 0) return;
 
         var pg = Character;
         var idx = pg.ClassResources.IndexOf(risorsa);
         if (idx < 0) return;
-
-        var disponibili = risorsa.Max - risorsa.Spesi;
-        var nuoviDisponibili = posizione == disponibili ? posizione - 1 : posizione;
-        var delta = disponibili - nuoviDisponibili; // positivo = spende, negativo = recupera
-        if (delta == 0) return;
 
         var precedente = new List<ClassResource>(pg.ClassResources);
         var aggiornata = ClassResourceRules.Spendi(risorsa, delta);
@@ -804,6 +866,28 @@ else
             if (editavaQuestaRisorsa) editingResource = risorsa;
             await OnLocalRevert.InvokeAsync();
         }
+    }
+
+    /// <summary>Un tocco su un pallino: se è quello che segna la disponibilità corrente lo
+    /// "spegne" (un uso in meno), altrimenti porta la disponibilità esattamente a quel pallino —
+    /// stesso schema di SetDeathSaveSuccesses/Failures più sopra, letto sui pallini "disponibili"
+    /// invece che "raggiunti". Toccare un pallino già vuoto quindi RECUPERA usi fino a lì.</summary>
+    private Task OnResourceDotClickAsync(ClassResource risorsa, int posizione)
+    {
+        var delta = ClassResourceRules.DeltaDaPallino(risorsa.Max, risorsa.Spesi, posizione);
+        return SpendiRisorsaAsync(risorsa, delta);
+    }
+
+    /// <summary>Ponte fra CharacterFeaturesSection (il suo OnContatoreDotClickAsync calcola già il
+    /// delta) e il nucleo comune sopra: qui arriva solo il NOME della risorsa (v. la semantica di
+    /// OnSpendiContatore nel brief Task 8), quindi si cerca prima l'istanza viva in
+    /// Character.ClassResources — per nome normalizzato, mai crudo (v. CatalogKey).</summary>
+    private Task OnSpendiContatoreDaSchedaAsync((string Nome, int Usi) spesa)
+    {
+        var chiave = CatalogKey.NormalizeName(spesa.Nome);
+        var risorsa = Character.ClassResources
+            .FirstOrDefault(r => CatalogKey.NormalizeName(r.Nome) == chiave);
+        return risorsa is null ? Task.CompletedTask : SpendiRisorsaAsync(risorsa, spesa.Usi);
     }
 
     private void ToggleEditResource(ClassResource risorsa)

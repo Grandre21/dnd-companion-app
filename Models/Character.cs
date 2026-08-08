@@ -128,6 +128,14 @@ public class Character : BaseModel
     public List<ClassResource> ClassResources { get; set; } = new();
 
     // ---------------------------------------------------------------
+    // Annotazioni sui privilegi (jsonb): le parole del giocatore accanto a ogni privilegio
+    // derivato dal pacchetto SRD. Lettura/scrittura tollerante in
+    // Services/CharacterFeatureRules.cs — v. spec 2026-08-08, sezione «I privilegi».
+    // ---------------------------------------------------------------
+    [Column("character_features")]
+    public List<CharacterFeature> CharacterFeatures { get; set; } = new();
+
+    // ---------------------------------------------------------------
     // Competenze tiri salvezza
     // ---------------------------------------------------------------
     [Column("prof_save_strength")]
