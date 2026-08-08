@@ -1,4 +1,5 @@
 @using DndCompanion.Models
+@using DndCompanion.Services
 @inject IInventoryRepository InventoryRepository
 @inject ConfirmService Confirm
 
@@ -363,34 +364,52 @@
     <div class="money-editor">
         <div class="money-field">
             <label>MP</label>
-            <input type="number" min="0" @bind="Character.PlatinumPieces" />
+            <input type="number" min="0" @bind="draftPlatinum" />
         </div>
         <div class="money-field">
             <label>MO</label>
-            <input type="number" min="0" @bind="Character.GoldPieces" />
+            <input type="number" min="0" @bind="draftGold" />
         </div>
         <div class="money-field">
             <label>ME</label>
-            <input type="number" min="0" @bind="Character.ElectrumPieces" />
+            <input type="number" min="0" @bind="draftElectrum" />
         </div>
         <div class="money-field">
             <label>MA</label>
-            <input type="number" min="0" @bind="Character.SilverPieces" />
+            <input type="number" min="0" @bind="draftSilver" />
         </div>
         <div class="money-field">
             <label>MR</label>
-            <input type="number" min="0" @bind="Character.CopperPieces" />
+            <input type="number" min="0" @bind="draftCopper" />
         </div>
         <div class="money-editor-actions">
+            <span class="money-total">= @CoinConversion.FormattaTotaleInOro(CoinConversion.TotaleInRame(draftPlatinum, draftGold, draftElectrum, draftSilver, draftCopper)) mo</span>
+            @if (CoinConversion.Compatta(draftPlatinum, draftGold, draftElectrum, draftSilver, draftCopper).Cambia)
+            {
+                <button type="button" class="money-compact-btn" @onclick="CompattaMonete"
+                        title="Riordina le monete verso i tagli alti senza cambiarne il valore">Compatta</button>
+            }
+            <button type="button" class="money-cancel-btn" @onclick="AnnullaMonete">Annulla</button>
             <button class="money-save-btn" @onclick="SaveMoney">Salva</button>
         </div>
     </div>
 }
 else
 {
-    <div class="money-compact @(CanEdit ? "editable" : "")" @onclick="@(() => { if (CanEdit) isEditingMoney = true; })">
+    @* role/tabindex/aria-label qui sono condizionali su CanEdit, a differenza di altri controlli
+       del progetto (SpellListItem.razor:4-7, CharacterCombatTab.razor:28-31) che li tengono sempre
+       presenti e delegano il permesso alla guardia dentro il metodo: a CanEdit false il riquadro
+       non è azionabile, e metterlo comunque nel tab order porterebbe la tastiera su un elemento che
+       non fa nulla (il testo resta leggibile). Stessa forma già in StatCard.razor:68-69 (DotRole/DotTabIndex su IsEditMode). *@
+    <div class="money-compact @(CanEdit ? "editable" : "")"
+         role="@(CanEdit ? "button" : null)"
+         tabindex="@(CanEdit ? "0" : null)"
+         aria-label="@(CanEdit ? "Modifica il denaro" : null)"
+         @onclick="ApriEditorMonete"
+         @onkeydown="@(e => OnKey(e, () => { ApriEditorMonete(); return Task.CompletedTask; }))">
         <span class="money-icon">🪙</span>
         <span class="money-summary">@FormatMoney()</span>
+        <span class="money-total">= @CoinConversion.FormattaTotaleInOro(Character) mo</span>
         @if (CanEdit)
         {
             <span class="money-edit-hint">✎</span>
@@ -442,6 +461,11 @@ else
     private string? expandedItemId;
     private bool isEditingMoney;
     private string? _lastId;
+
+    // Bozza del denaro: stesso schema di newItemDraft/editItemDraft qui sopra. I cinque input
+    // scrivevano dritti su Character, e poiché il salvataggio del PG manda l'intera riga, una
+    // modifica mai confermata partiva col primo salvataggio di un altro campo qualsiasi.
+    private int draftPlatinum, draftGold, draftElectrum, draftSilver, draftCopper;
 
     // Modifica di un oggetto già in elenco: stesso schema di isAddingItem/newItemDraft sopra, ma
     // tenuto a parte perché più oggetti nell'elenco condividono lo stesso form — solo uno alla
@@ -498,6 +522,9 @@ else
             newItemDraft = new InventoryItem();
             editingItemId = null;
             editItemDraft = new InventoryItem();
+            // Difensivo come gli altri reset qui sopra: la bozza viene comunque ripopolata
+            // all'apertura da ApriEditorMonete.
+            draftPlatinum = draftGold = draftElectrum = draftSilver = draftCopper = 0;
         }
     }
 
@@ -778,17 +805,45 @@ else
         return parts.Count > 0 ? string.Join(" · ", parts) : "Nessuna moneta";
     }
 
+    private void ApriEditorMonete()
+    {
+        if (!CanEdit) return;
+        draftPlatinum = Character.PlatinumPieces;
+        draftGold = Character.GoldPieces;
+        draftElectrum = Character.ElectrumPieces;
+        draftSilver = Character.SilverPieces;
+        draftCopper = Character.CopperPieces;
+        isEditingMoney = true;
+    }
+
     private async Task SaveMoney()
     {
         if (!CanEdit) return;
-        Character.PlatinumPieces = Math.Max(0, Character.PlatinumPieces);
-        Character.GoldPieces = Math.Max(0, Character.GoldPieces);
-        Character.ElectrumPieces = Math.Max(0, Character.ElectrumPieces);
-        Character.SilverPieces = Math.Max(0, Character.SilverPieces);
-        Character.CopperPieces = Math.Max(0, Character.CopperPieces);
+        // Il clamp si applica alla bozza al momento del travaso: è l'unico punto in cui i valori
+        // entrano nel personaggio.
+        Character.PlatinumPieces = Math.Max(0, draftPlatinum);
+        Character.GoldPieces = Math.Max(0, draftGold);
+        Character.ElectrumPieces = Math.Max(0, draftElectrum);
+        Character.SilverPieces = Math.Max(0, draftSilver);
+        Character.CopperPieces = Math.Max(0, draftCopper);
         await OnChanged.InvokeAsync();
         isEditingMoney = false;
     }
+
+    // Riordina i tagli della bozza senza cambiarne il valore totale. Non tocca il personaggio:
+    // finché non si preme Salva, la compattazione si può abbandonare con Annulla.
+    private void CompattaMonete()
+    {
+        if (!CanEdit) return;
+        var esito = CoinConversion.Compatta(draftPlatinum, draftGold, draftElectrum, draftSilver, draftCopper);
+        draftPlatinum = esito.PlatinumPieces;
+        draftGold = esito.GoldPieces;
+        draftElectrum = esito.ElectrumPieces;
+        draftSilver = esito.SilverPieces;
+        draftCopper = esito.CopperPieces;
+    }
+
+    private void AnnullaMonete() => isEditingMoney = false;
 
     private string? AttunementValue(int slot) => slot switch
     {

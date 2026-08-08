@@ -121,6 +121,52 @@
     cursor: pointer;
 }
 
+.money-total {
+    color: var(--gold-dim);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.money-compact-btn {
+    padding: 0.5rem 1.2rem;
+    /* 44px di altezza d'area toccabile, come .qty-btn/.inv-edit-btn nel resto del file. */
+    min-height: 44px;
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.money-compact-btn:hover {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+.money-cancel-btn {
+    padding: 0.5rem 1.2rem;
+    /* 44px di altezza d'area toccabile, come .qty-btn/.inv-edit-btn nel resto del file. */
+    min-height: 44px;
+    background: transparent;
+    color: var(--gold-dim);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.money-cancel-btn:hover {
+    background: rgba(var(--gold-rgb), 0.06);
+    color: var(--gold-muted);
+}
+
 /* ===== Items tab: sintonie sottili ===== */
 .attunements-compact {
     display: flex;
