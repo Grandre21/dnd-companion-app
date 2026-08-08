@@ -19,6 +19,7 @@ public class SupabaseService
     private readonly BrowserSessionHandler _sessionHandler;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
+    private DateTime? _ultimoRefreshFallito;
 
     public SupabaseService(IConfiguration configuration, IJSRuntime js, NavigationManager navigation)
     {
@@ -74,7 +75,16 @@ public class SupabaseService
     /// </summary>
     public async Task<SupabaseClient> GetClientAsync()
     {
-        if (_initialized) return _facade;
+        if (_initialized)
+        {
+            // Ogni chiamata dati passa di qui (i repository fanno await GetClientAsync()): è il solo
+            // punto asincrono comune, e quindi il posto giusto per garantire un token vivo. GetHeaders
+            // è sincrono e non potrebbe rinfrescare nulla.
+            var corrente = _auth.CurrentSession;
+            if (corrente is not null && SessionFreshness.VaRinfrescata(corrente.ExpiresAt(), DateTime.UtcNow))
+                await RinnovaSessioneSeServeAsync();
+            return _facade;
+        }
 
         await _initLock.WaitAsync();
         try
@@ -105,24 +115,12 @@ public class SupabaseService
                 }
                 else
                 {
-                    // Sessione ripristinata ma access token scaduto → refresh; se fallisce, logout pulito.
-                    // Vincolo: NIENTE in questo ramo può propagare un'eccezione fuori da GetClientAsync,
-                    // altrimenti il login si blocca (Login.razor mostra "Errore di accesso").
-                    var current = _auth.CurrentSession;
-                    if (current is not null && current.Expired())
-                    {
-                        try
-                        {
-                            // Se il refresh token è ancora valido l'utente resta loggato: NON rimuovere.
-                            await _auth.RefreshSession();
-                        }
-                        catch (Exception ex)
-                        {
-                            // NB: logghiamo solo il messaggio, mai URL/token.
-                            Console.Error.WriteLine($"[Auth] Refresh sessione fallito, eseguo il logout: {ex.Message}");
-                            await SignOutAsync();
-                        }
-                    }
+                    // Sessione ripristinata ma access token scaduto (o prossimo a scadere) → refresh;
+                    // se il refresh token non è recuperabile, logout pulito. Vincolo: NIENTE in questo
+                    // ramo può propagare un'eccezione fuori da GetClientAsync, altrimenti il login si
+                    // blocca (Login.razor mostra "Errore di accesso"). Chiama la versione SENZA lock:
+                    // questo ramo gira già dentro _initLock, che non è rientrante.
+                    await RinnovaSessioneAsync();
                 }
 
                 _initialized = true;
@@ -138,6 +136,79 @@ public class SupabaseService
         }
 
         return _facade;
+    }
+
+    /// <summary>
+    /// Rinnova la sessione usando il refresh token, se serve. Usa l'overload a DUE argomenti di
+    /// <c>RefreshToken</c>: quello senza argomenti (e <c>RefreshSession</c>) in gotrue-csharp 4.2.7
+    /// lancia "Session expired" quando l'access token è GIÀ scaduto — cioè si rifiuta di lavorare
+    /// proprio nel caso per cui esiste. Non usare <c>SetSession</c> come alternativa: la sua prima
+    /// riga distrugge la sessione locale, quindi un fallimento per assenza di rete sloggerebbe un
+    /// utente il cui refresh token è ancora buono.
+    /// Non propaga MAI eccezioni: è chiamato da GetClientAsync, e il vincolo di riga 119-121 vale.
+    /// </summary>
+    /// <remarks>
+    /// Prende <see cref="_initLock"/>: da chiamare SOLO fuori dal lock (il fast-path di
+    /// <see cref="GetClientAsync"/>). <see cref="SemaphoreSlim"/> non è rientrante — il bootstrap,
+    /// che gira già dentro il lock, chiama invece <see cref="RinnovaSessioneAsync"/> direttamente.
+    /// </remarks>
+    private async Task RinnovaSessioneSeServeAsync()
+    {
+        await _initLock.WaitAsync();
+        try
+        {
+            await RinnovaSessioneAsync();
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Corpo della logica di rinnovo, SENZA prendere <see cref="_initLock"/>: ricontrolla da sé se
+    /// serve ancora rinfrescare (double-check, per il caso di due chiamate concorrenti) e se ha
+    /// senso ritentare dopo un fallimento recente. Chiamato sia da
+    /// <see cref="RinnovaSessioneSeServeAsync"/> (che il lock lo prende) sia dal bootstrap di
+    /// <see cref="GetClientAsync"/> (che gira già dentro il lock).
+    /// </summary>
+    private async Task RinnovaSessioneAsync()
+    {
+        var session = _auth.CurrentSession;
+        if (session is null
+            || string.IsNullOrEmpty(session.AccessToken)
+            || string.IsNullOrEmpty(session.RefreshToken)
+            || !SessionFreshness.VaRinfrescata(session.ExpiresAt(), DateTime.UtcNow))
+            return;
+
+        if (!SessionFreshness.SiPuoRitentare(_ultimoRefreshFallito, DateTime.UtcNow))
+            return;
+
+        try
+        {
+            // Overload a due argomenti: niente guardia su "già scaduto" (v. XML doc sopra). Notifica
+            // già da sé TokenRefreshed (ripersiste la sessione), ma NON riarma il timer interno di
+            // auto-refresh di gotrue (TokenRefresh.ManageAutoRefresh ignora TokenRefreshed): per
+            // quello serve il NotifyAuthStateChange(SignedIn) esplicito qui sotto.
+            await _auth.RefreshToken(session.AccessToken, session.RefreshToken);
+            _ultimoRefreshFallito = null;
+            _auth.NotifyAuthStateChange(Supabase.Gotrue.Constants.AuthState.SignedIn);
+        }
+        catch (Supabase.Gotrue.Exceptions.GotrueException ex) when (
+            ex.Reason == Supabase.Gotrue.Exceptions.FailureHint.Reason.ExpiredRefreshToken
+            || ex.Reason == Supabase.Gotrue.Exceptions.FailureHint.Reason.InvalidRefreshToken)
+        {
+            // Refresh token morto/invalido: non recuperabile, logout pulito.
+            Console.Error.WriteLine($"[Auth] Refresh token non valido, eseguo il logout: {ex.Message}");
+            await SignOutAsync();
+        }
+        catch (Exception ex)
+        {
+            // Rete assente, 5xx, timeout: NON sloggare (l'app è offline-capable, il refresh token può
+            // essere ancora valido). Segna il fallimento per non ritentare subito e riprova più avanti.
+            Console.Error.WriteLine($"[Auth] Refresh sessione fallito, riprovo più avanti: {ex.Message}");
+            _ultimoRefreshFallito = DateTime.UtcNow;
+        }
     }
 
     /// <summary>
