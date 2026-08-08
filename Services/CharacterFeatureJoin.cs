@@ -17,8 +17,11 @@ public sealed record VistaPrivilegio(
     ClassResource? Contatore,
     bool Attivabile,
     int? SbloccatoAlLivello,
-    string? RisorsaAnnotata);     // il valore grezzo scritto dall'utente, anche se non risolve
+    string? RisorsaAnnotata,      // il valore grezzo scritto dall'utente, anche se non risolve
                                    // a nessuna ClassResource: senza, la modifica lo cancella
+    bool NotaDiCatalogo);          // true se Nota viene dal pacchetto (il ripiego di CostruisciTalento
+                                    // su talento.Description) e non dall'utente: serve alla densità di
+                                    // rendering, non alla scrittura — CharacterFeature resta a cinque campi
 
 /// <summary>Un raggruppamento di privilegi per economia d'azione, pronto per il render: l'etichetta è
 /// già quella da mostrare, le voci sono già ordinate (v. <see cref="CharacterFeatureJoin.Raggruppa"/>).</summary>
@@ -98,6 +101,15 @@ public static class CharacterFeatureJoin
                     if (!chiaviDerivate.Add(chiave)) continue; // già derivato da un'altra fonte
 
                     perChiave.TryGetValue(chiave, out var annotazione);
+
+                    // Impalcatura della tabella (v. CharacterFeatureRules.ÈImpalcatura): non è una
+                    // capacità usabile e non entra nell'elenco — MA solo se l'utente non l'ha
+                    // annotata. Se ha scritto qualcosa su questa voce (nota, tag, risorsa...),
+                    // nasconderla farebbe sparire il suo testo senza dirglielo: la chiave resta
+                    // comunque "derivata" (l'Add è già avvenuto sopra), così non ricompare come
+                    // voce propria al passo 2.
+                    if (CharacterFeatureRules.ÈImpalcatura(nome) && annotazione is null) continue;
+
                     risultato.Add(CostruisciDerivata(nome, origine, riga.Livello, nomeClasse, annotazione, contatoriList));
                 }
             }
@@ -187,20 +199,24 @@ public static class CharacterFeatureJoin
         var azione = SceltaAzione(annotazione, nomeClasse, nome);
         var contatore = TrovaContatore(annotazione, nome, contatori);
         return new VistaPrivilegio(
-            nome, nota, azione, origine, contatore, annotazione?.Attivabile ?? false, livello, annotazione?.Risorsa);
+            nome, nota, azione, origine, contatore, annotazione?.Attivabile ?? false, livello, annotazione?.Risorsa,
+            NotaDiCatalogo: false);
     }
 
     /// <summary>Per i talenti la nota si preimposta alla <c>Description</c> ufficiale del pacchetto
-    /// quando l'utente non ha scritto la propria; l'annotazione dell'utente, se c'è, vince.</summary>
+    /// quando l'utente non ha scritto la propria; l'annotazione dell'utente, se c'è, vince.
+    /// <see cref="VistaPrivilegio.NotaDiCatalogo"/> segna esattamente questo ripiego: vale
+    /// <c>true</c> solo quando la nota mostrata è quella del pacchetto, non quella dell'utente.</summary>
     private static VistaPrivilegio CostruisciTalento(
         PackageFeat talento, string? nomeClasse, CharacterFeature? annotazione, IReadOnlyList<ClassResource> contatori)
     {
-        var nota = !string.IsNullOrWhiteSpace(annotazione?.Nota) ? annotazione!.Nota : talento.Description;
+        var notaDellUtente = !string.IsNullOrWhiteSpace(annotazione?.Nota);
+        var nota = notaDellUtente ? annotazione!.Nota : talento.Description;
         var azione = SceltaAzione(annotazione, nomeClasse, talento.Name);
         var contatore = TrovaContatore(annotazione, talento.Name, contatori);
         return new VistaPrivilegio(
             talento.Name, nota, azione, "talento", contatore, annotazione?.Attivabile ?? false, null,
-            annotazione?.Risorsa);
+            annotazione?.Risorsa, NotaDiCatalogo: !notaDellUtente);
     }
 
     private static VistaPrivilegio CostruisciPropria(
@@ -210,6 +226,6 @@ public static class CharacterFeatureJoin
         var contatore = TrovaContatore(annotazione, annotazione.Nome, contatori);
         return new VistaPrivilegio(
             annotazione.Nome, annotazione.Nota, azione, "propria", contatore, annotazione.Attivabile, null,
-            annotazione.Risorsa);
+            annotazione.Risorsa, NotaDiCatalogo: false);
     }
 }

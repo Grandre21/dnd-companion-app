@@ -52,6 +52,28 @@ public static class CharacterFeatureRules
     /// esterna: classe normalizzata. Chiave interna: privilegio normalizzato.</summary>
     internal static IReadOnlyDictionary<string, Dictionary<string, string>> TabellaPerTest => PerClasse;
 
+    /// <summary>Il nome normalizzato del solo marcatore di impalcatura che non è già coperto da
+    /// <see cref="ClassProgression.RiguardaSottoclasse"/>: l'incremento caratteristica non è una
+    /// scelta di sottoclasse, è un evento a sé (v. <see cref="ÈImpalcatura"/>).</summary>
+    private static readonly string IncrementoPunteggioCaratteristica =
+        CatalogKey.NormalizeName("Incremento punteggio caratteristica");
+
+    /// <summary>Vero per le voci che nella tabella SRD segnano un momento della progressione invece
+    /// di conferire una capacità usabile: «Incremento punteggio caratteristica», «Sottoclasse del
+    /// &lt;classe&gt;», «Privilegio di sottoclasse». Non si rendono nella vista di gioco perché il loro
+    /// effetto è già altrove nella scheda — i punteggi, o i privilegi della sottoclasse, che
+    /// compaiono per conto proprio.
+    ///
+    /// Riusa <see cref="ClassProgression.RiguardaSottoclasse"/> per il riconoscimento delle voci di
+    /// sottoclasse, invece di tenerne una seconda lista di marcatori: qui si aggiunge solo il
+    /// confronto con l'incremento caratteristica.</summary>
+    public static bool ÈImpalcatura(string? nomePrivilegio)
+    {
+        if (string.IsNullOrWhiteSpace(nomePrivilegio)) return false;
+        if (ClassProgression.RiguardaSottoclasse(nomePrivilegio)) return true;
+        return CatalogKey.NormalizeName(nomePrivilegio) == IncrementoPunteggioCaratteristica;
+    }
+
     /// <summary>Il nome del tag al singolare, per il menu «Quando si usa» — diverso di proposito
     /// dalle intestazioni di gruppo di <c>CharacterFeatureJoin.Etichette</c>, che sono al plurale
     /// perché intitolano una sezione: «Passivi» per un elenco, «Passivo» per una voce sola.

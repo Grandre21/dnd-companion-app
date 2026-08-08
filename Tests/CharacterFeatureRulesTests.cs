@@ -202,4 +202,43 @@ public class CharacterFeatureRulesTests
         // intitola il gruppo in CharacterFeatureJoin.
         Assert.Equal("Passivo", CharacterFeatureRules.EtichettaTag("passivo"));
     }
+
+    // -----------------------------------------------------------------------------------
+    // ÈImpalcatura — le voci di tabella che non sono capacità usabili
+    // -----------------------------------------------------------------------------------
+
+    [Fact]
+    public void ÈImpalcatura_IncrementoPunteggioCaratteristica_ETrue()
+    {
+        Assert.True(CharacterFeatureRules.ÈImpalcatura("Incremento punteggio caratteristica"));
+    }
+
+    [Fact]
+    public void ÈImpalcatura_IgnoraMaiuscoleEAccenti()
+    {
+        Assert.True(CharacterFeatureRules.ÈImpalcatura("INCREMENTO PUNTEGGIO CARATTERISTICA"));
+    }
+
+    /// <summary>Le voci di sottoclasse sono impalcatura anche loro, riusando
+    /// <see cref="ClassProgression.RiguardaSottoclasse"/> — questo test le tiene onesta rispetto a
+    /// quella funzione, non ne ripete i marcatori.</summary>
+    [Fact]
+    public void ÈImpalcatura_VoceDiSottoclasse_ERiusaRiguardaSottoclasse()
+    {
+        Assert.True(CharacterFeatureRules.ÈImpalcatura("Sottoclasse del Barbaro"));
+        Assert.True(CharacterFeatureRules.ÈImpalcatura("Privilegio di sottoclasse"));
+    }
+
+    [Fact]
+    public void ÈImpalcatura_UnaCapacitaVera_EFalse()
+    {
+        Assert.False(CharacterFeatureRules.ÈImpalcatura("Ira"));
+    }
+
+    [Fact]
+    public void ÈImpalcatura_NullOVuoto_EFalse()
+    {
+        Assert.False(CharacterFeatureRules.ÈImpalcatura(null));
+        Assert.False(CharacterFeatureRules.ÈImpalcatura("  "));
+    }
 }

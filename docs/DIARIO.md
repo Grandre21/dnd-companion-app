@@ -1,6 +1,8 @@
 # DIARIO DI PROGETTO — D&D Companion
 
-> Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./storico/backlog.md).
+> Promemoria sintetico di **cosa è stato fatto e perché**. Ciò che resta aperto **si dice in chat**, non
+> si archivia (regola del 2026-08-08): [storico/backlog.md](./storico/backlog.md) conserva solo i punti
+> tecnici mai ripresi, e non si apre di routine.
 > Aggiornato: **2026-08-08**.
 
 ## Cos'è
@@ -2020,3 +2022,72 @@ inseriscono come voci proprie — che servivano comunque, per le note operative 
 Restano fuori anche una sezione «sbloccato di recente» (ridotta a un contrassegno che decade da sé al
 level-up: «recente» significa «sbloccato al livello a cui sono adesso», e non ha stato da persistere)
 e il parsing automatico del testo già scritto in `class_features`, che avrebbe prodotto frammenti.
+
+## Il muro di testo, e la densità che segue lo stato del gioco (2026-08-08)
+
+La vista di gioco, appena messa online, ha ricevuto la sua prima segnalazione d'uso: «le informazioni
+che ci sono mi vanno benissimo, però è diventato un wall of text».
+
+**Il contenuto era giusto e la resa no**, ed è una distinzione che vale la pena tenere: la tentazione
+naturale era togliere informazione, cioè disfare il lavoro appena fatto. Sedici schede tutte alla
+stessa densità massima non sono sedici informazioni troppe — sono sedici informazioni **senza
+gerarchia**, e la gerarchia mancava perché la schermata non sapeva nulla di *quando* la si guarda.
+
+### Tre mosse, e nessuna toglie un dato
+
+**Potatura.** Le voci di «impalcatura» della tabella SRD — «Incremento punteggio caratteristica»,
+«Sottoclasse del Barbaro» — non sono capacità: segnano un momento della progressione il cui effetto
+è già altrove nella scheda. Non si rendono più. Per Grunnok le voci scendono da 11 a 9 senza che
+nessuna capacità sparisca. Con una guardia che è il punto della regola: **se l'utente ci ha scritto
+sopra una nota, la voce resta**. Il criterio non è «questa riga conta poco», è «questa riga non l'ha
+mai riguardata nessuno»; e il momento in cui qualcuno la annota è il momento in cui smette di essere
+impalcatura. Un testo scritto a mano che sparisce per una regola di presentazione sarebbe il difetto
+peggiore che questa funzione possa avere.
+
+**Tre densità invece di una.** `CharacterFeatureDensity.Classifica` decide fra `Piena` (card intera),
+`Riga` (il solo nome) e `Spenta` (riga smorzata col conteggio esaurito). Nessun testo è cancellato:
+quello compresso si apre al tocco.
+
+**La densità segue lo stato del gioco, non una preferenza.** È la decisione che regge le altre due.
+Nessun interruttore «vista compatta» da configurare: la card si apre da sé quando ha qualcosa da dire
+*adesso* — ha un contatore, o un interruttore, o una nota che l'utente ha scritto — e si chiude quando
+non ne ha. Il caso che chiarisce tutto è l'ordine dei rami: **una voce attiva torna a `Riga`**. Sembra
+al contrario, e non lo è: ciò che è attivo sta già in cima allo schermo nella striscia, e ripeterlo per
+esteso dieci centimetri più in basso è precisamente il muro di testo. La schermata cambia perché è
+cambiata la partita, non perché qualcuno ha cambiato un'impostazione.
+
+### Una nota che si sa scritta a mano
+
+Perché la terza regola funzioni serviva distinguere la nota dell'utente da quella ripiegata sulla
+descrizione del pacchetto — altrimenti «ha una nota» vorrebbe dire «ha del testo», che è vero per
+quasi tutto e non discrimina niente. Da qui `VistaPrivilegio.NotaDiCatalogo`: vero solo dove il
+fallback sulla `Description` del talento è scattato davvero. **Il valore sta nel fatto che l'utente
+abbia scritto**, non nel fatto che ci sia del testo.
+
+### Il rilievo respinto: quel `<span>` non è una resa, è un input
+
+Il gate ha proposto di nascondere i pallini del contatore nella riga `Spenta`, osservando — con
+ragione — che il conteggio testuale «0 / 3» appena introdotto dice la stessa cosa dei pallini tutti
+vuoti. Il rimedio però avrebbe rotto la funzione: `OnContatoreDotClickAsync` è l'**unico** modo di
+ripristinare un contatore dopo un riposo lungo, perché la sezione RISORSE mostra di proposito solo le
+risorse *non* collegate a una scheda. Nascosti i pallini, un'Ira esaurita restava esaurita per sempre.
+
+È una classe di rilievo che vale la pena riconoscere: dal markup un `<span role="button">` e un
+`<span>` di testo si somigliano, e la ridondanza fra i due si vede. Che uno dei due sia l'unico
+controllo di una risorsa **non si vede nel diff** — sta in una restrizione scritta in un altro file.
+Ora un commento accanto al blocco lo dice, per la stessa ragione delle due mappe di etichette del giro
+precedente: una scelta deliberata e non scritta è indistinguibile da una svista, e la prossima lettura
+la «corregge».
+
+### La quinta stima promossa a funzione pura
+
+`NotaTroncabile` — quante righe occuperà una nota, per sapere se mostrare il controllo di espansione —
+era nata come metodo privato nel `.razor`. Il gate l'ha ripresa citando il precedente esatto:
+`CharacterWizardLogic.TroncaDescrizione` porta ancora in commento la sua promozione dallo stesso posto,
+decisa dal gate del 2026-08-06. Il criterio non è estetico: in `Services/` la funzione ha tre test, nel
+`.razor` non poteva averne nessuno, perché nel repo non c'è component-testing.
+
+E il test che conta è quello degli a capo espliciti — tre righe da cinque caratteri, quindici in tutto,
+troncate a due righe. Scritto accanto al valore: è il caso che una stima `Length > righe × 30`
+sbaglierebbe, ed è l'unico dei tre che diventa rosso sostituendo l'implementazione con quella stima
+ingenua. Gli altri due sorvegliano il confine; questo sorveglia l'**idea**.

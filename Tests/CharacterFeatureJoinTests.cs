@@ -136,4 +136,90 @@ public class CharacterFeatureJoinTests
         Assert.DoesNotContain(gruppi, g => g.Voci.Count == 0);
         Assert.Equal("passivo", gruppi[^1].Tag);      // «Difesa senza armatura» è passivo in tabella
     }
+
+    // -----------------------------------------------------------------------------------
+    // Impalcatura (CharacterFeatureRules.ÈImpalcatura) — potata dall'elenco, ma mai se annotata
+    // -----------------------------------------------------------------------------------
+
+    private static string ProgressioneConImpalcatura() => ClassProgression.Serializza(new[]
+    {
+        new PackageClassLevel { Level = 1, Features = new() { "Ira" } },
+        new PackageClassLevel { Level = 4, Features = new() { "Incremento punteggio caratteristica" } },
+    });
+
+    [Fact]
+    public void Costruisci_VoceDiImpalcatura_SenzaAnnotazione_NonEntraNellElenco()
+    {
+        var voci = CharacterFeatureJoin.Costruisci(
+            ProgressioneConImpalcatura(), livello: 4, "Barbaro",
+            sottoclasse: null, testoTalenti: null, catalogoTalenti: Array.Empty<PackageFeat>(),
+            annotazioni: null, contatori: null);
+
+        Assert.DoesNotContain(voci, v => v.Nome == "Incremento punteggio caratteristica");
+        Assert.Contains(voci, v => v.Nome == "Ira");   // il resto della potatura non tocca le capacità vere
+    }
+
+    /// <summary>La potatura non deve mai far sparire una nota scritta dall'utente: se ha annotato
+    /// «Incremento punteggio caratteristica» (per esempio per segnarsi quale caratteristica ha
+    /// alzato), nasconderla cancellerebbe il suo testo senza dirglielo — la voce resta.</summary>
+    [Fact]
+    public void Costruisci_VoceDiImpalcatura_ConAnnotazioneDellUtente_Resta()
+    {
+        var voci = CharacterFeatureJoin.Costruisci(
+            ProgressioneConImpalcatura(), livello: 4, "Barbaro",
+            sottoclasse: null, testoTalenti: null, catalogoTalenti: Array.Empty<PackageFeat>(),
+            annotazioni: new[] { new CharacterFeature { Nome = "Incremento punteggio caratteristica", Nota = "+2 Forza" } },
+            contatori: null);
+
+        var voce = Assert.Single(voci, v => v.Nome == "Incremento punteggio caratteristica");
+        Assert.Equal("+2 Forza", voce.Nota);
+    }
+
+    // -----------------------------------------------------------------------------------
+    // NotaDiCatalogo — vero solo sul ripiego di CostruisciTalento su talento.Description
+    // -----------------------------------------------------------------------------------
+
+    [Fact]
+    public void Costruisci_VoceDiClasse_NotaDiCatalogoEFalse()
+    {
+        var voce = Costruisci(livello: 1).Single(v => v.Nome == "Ira");
+        Assert.False(voce.NotaDiCatalogo);
+    }
+
+    [Fact]
+    public void Costruisci_Talento_SenzaAnnotazione_UsaLaDescriptionDelCatalogo_NotaDiCatalogoETrue()
+    {
+        var catalogo = new List<PackageFeat>
+        {
+            new() { Id = "Fortunato", Name = "Fortunato", Description = "Regole di Fortunato" },
+        };
+
+        var voci = CharacterFeatureJoin.Costruisci(
+            ProgressioneBarbaro(), livello: 5, "Barbaro",
+            sottoclasse: null, testoTalenti: "Fortunato", catalogoTalenti: catalogo,
+            annotazioni: null, contatori: null);
+
+        var voce = Assert.Single(voci, v => v.Nome == "Fortunato");
+        Assert.Equal("Regole di Fortunato", voce.Nota);
+        Assert.True(voce.NotaDiCatalogo);
+    }
+
+    [Fact]
+    public void Costruisci_Talento_ConAnnotazioneDellUtente_NotaDiCatalogoEFalse()
+    {
+        var catalogo = new List<PackageFeat>
+        {
+            new() { Id = "Fortunato", Name = "Fortunato", Description = "Regole di Fortunato" },
+        };
+
+        var voci = CharacterFeatureJoin.Costruisci(
+            ProgressioneBarbaro(), livello: 5, "Barbaro",
+            sottoclasse: null, testoTalenti: "Fortunato", catalogoTalenti: catalogo,
+            annotazioni: new[] { new CharacterFeature { Nome = "Fortunato", Nota = "riroll 1" } },
+            contatori: null);
+
+        var voce = Assert.Single(voci, v => v.Nome == "Fortunato");
+        Assert.Equal("riroll 1", voce.Nota);
+        Assert.False(voce.NotaDiCatalogo);
+    }
 }

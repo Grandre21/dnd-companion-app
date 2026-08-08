@@ -77,7 +77,15 @@
     <p class="section-header">@gruppo.Etichetta</p>
     @foreach (var voce in gruppo.Voci)
     {
-        <div class="feature-card">
+        var densita = CharacterFeatureDensity.Classifica(voce, ActiveEffects.IsActive(CharacterId, voce.Nome));
+        var compatta = densita != DensitaPrivilegio.Piena;
+        var spenta = densita == DensitaPrivilegio.Spenta;
+        var wrapperClass = compatta ? (spenta ? "feature-row feature-row-dim" : "feature-row") : "feature-card";
+        var righeMax = compatta ? CharacterFeatureDensity.RigheClampCompatta : CharacterFeatureDensity.RigheClampPiena;
+        var notaTroncabile = CharacterFeatureDensity.NotaTroncabile(voce.Nota, righeMax);
+        var notaEspansa = notaTroncabile && IsNotaEspansa(voce.Nome);
+
+        <div class="@wrapperClass">
             <div class="feature-header">
                 <p class="feature-name">
                     @voce.Nome
@@ -87,6 +95,11 @@
                     }
                 </p>
                 <div class="feature-header-actions">
+                    @if (spenta && voce.Contatore is not null)
+                    {
+                        var contatoreSpento = voce.Contatore;
+                        <span class="feature-count">@(Math.Max(0, contatoreSpento.Max - contatoreSpento.Spesi)) / @contatoreSpento.Max</span>
+                    }
                     @if (voce.Attivabile)
                     {
                         <span class="feature-toggle @(ActiveEffects.IsActive(CharacterId, voce.Nome) ? "active" : "")"
@@ -104,6 +117,11 @@
                 </div>
             </div>
 
+            @* I pallini restano visibili in TUTTE le densità, anche Spenta dove il conteggio
+               testuale dice già la stessa cosa: non sono una resa, sono il controllo — l'unico
+               modo di ripristinare il contatore dopo un riposo lungo (OnContatoreDotClickAsync).
+               Nasconderli lascerebbe un'Ira esaurita per sempre: la ridondanza col
+               conteggio testuale è accettata di proposito, non va "corretta" rimuovendoli. *@
             @if (voce.Contatore is not null)
             {
                 var contatore = voce.Contatore;
@@ -124,6 +142,17 @@
             @if (string.IsNullOrWhiteSpace(voce.Nota))
             {
                 <p class="empty-note">Nessuna nota: tocca ✎ per scriverla.</p>
+            }
+            else if (notaTroncabile)
+            {
+                <p class="feature-note feature-note-toggle @(notaEspansa ? "" : (compatta ? "clamp-2" : "clamp-8"))"
+                   role="button" tabindex="0"
+                   aria-expanded="@AriaBool(notaEspansa)"
+                   aria-label="@(notaEspansa ? $"Comprimi la nota di {voce.Nome}" : $"Espandi la nota di {voce.Nome}")"
+                   @onclick="() => ToggleNotaEspansa(voce.Nome)"
+                   @onkeydown="@(e => OnKey(e, () => ToggleNotaEspansa(voce.Nome)))">
+                    @voce.Nota
+                </p>
             }
             else
             {
@@ -202,6 +231,11 @@
     private bool isAddingNew;
     private string? _lastCharacterId;
 
+    // ===== Espansione delle note clampate (densità Piena/Riga/Spenta): stato locale del
+    // componente, per voce. Non persiste, non tocca ActiveEffectsService né Character: si azzera
+    // al cambio di personaggio come le altre bozze qui sopra (v. brief). =====
+    private readonly HashSet<string> vociNotaEspansa = new(StringComparer.Ordinal);
+
     protected override void OnParametersSet()
     {
         if (CharacterId != _lastCharacterId)
@@ -210,6 +244,7 @@
             editingNome = null;
             isAddingNew = false;
             draft = new CharacterFeature();
+            vociNotaEspansa.Clear();
         }
     }
 
@@ -224,6 +259,14 @@
     public void Dispose() => ActiveEffects.Changed -= HandleActiveEffectsChanged;
 
     private bool IsEditingVoce(VistaPrivilegio voce) => !isAddingNew && editingNome == voce.Nome;
+
+    private bool IsNotaEspansa(string nome) => vociNotaEspansa.Contains(nome);
+
+    private Task ToggleNotaEspansa(string nome)
+    {
+        if (!vociNotaEspansa.Remove(nome)) vociNotaEspansa.Add(nome);
+        return Task.CompletedTask;
+    }
 
     private void ApriAggiunta()
     {
