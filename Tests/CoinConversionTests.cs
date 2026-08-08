@@ -233,4 +233,109 @@ public class CoinConversionTests
             CoinConversion.Compatta(pg),
             CoinConversion.Compatta(platino, oro, electrum, argento, rame));
     }
+
+    // -----------------------------------------------------------------------------------
+    // Spendi — v. spec 2026-08-08, D6
+    // -----------------------------------------------------------------------------------
+
+    /// <summary>L'esempio dell'utente: 1 mo, spendo 2 mr. Non ci sono spiccioli, quindi l'oro va
+    /// consegnato intero e il resto torna compattato.</summary>
+    [Fact]
+    public void Spendi_RompeIlTaglioGrandeQuandoIPiccoliNonBastano()
+    {
+        var esito = CoinConversion.Spendi(0, 1, 0, 0, 0, 0, 0, 0, 0, 2);
+
+        Assert.True(esito.Riuscita);
+        Assert.Equal(0, esito.GoldPieces);
+        Assert.Equal(9, esito.SilverPieces);
+        Assert.Equal(8, esito.CopperPieces);
+        Assert.Equal("mo", esito.TaglioRotto);
+        Assert.Equal(98, esito.RestoInRame);
+    }
+
+    /// <summary>Il cuore di D6: il borsello si riorganizza SOLO dove è stato toccato. I 15 ma non
+    /// sono un numero a caso — sono più di 10, quindi una ricompattazione generale li
+    /// trasformerebbe in 1 mo + 5 ma. Se questo test passa con 5 ma non prova più nulla.</summary>
+    [Fact]
+    public void Spendi_NonRiorganizzaITagliCheNonHaToccato()
+    {
+        var esito = CoinConversion.Spendi(0, 0, 0, 15, 3, 0, 0, 0, 0, 1);
+
+        Assert.True(esito.Riuscita);
+        Assert.Equal(15, esito.SilverPieces);   // NON 1 mo + 5 ma
+        Assert.Equal(0, esito.GoldPieces);
+        Assert.Equal(2, esito.CopperPieces);
+        Assert.Null(esito.TaglioRotto);
+        Assert.Equal(0, esito.RestoInRame);
+    }
+
+    [Fact]
+    public void Spendi_FondiInsufficienti_NonCambiaNullaEDiceQuantoManca()
+    {
+        var esito = CoinConversion.Spendi(0, 0, 0, 0, 5, 0, 0, 0, 0, 12);
+
+        Assert.False(esito.Riuscita);
+        Assert.Equal(5, esito.CopperPieces);    // invariato
+        Assert.Equal(7, esito.MancanoInRame);
+    }
+
+    /// <summary>Il resto non crea mai electrum né platino: stessa scelta di Compatta.</summary>
+    [Fact]
+    public void Spendi_IlRestoNonCreaElectrumNePlatino()
+    {
+        var esito = CoinConversion.Spendi(1, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+
+        Assert.True(esito.Riuscita);
+        Assert.Equal(0, esito.PlatinumPieces);
+        Assert.Equal(0, esito.ElectrumPieces);
+        Assert.Equal(9, esito.GoldPieces);
+        Assert.Equal(9, esito.SilverPieces);
+        Assert.Equal(9, esito.CopperPieces);
+        Assert.Equal("mp", esito.TaglioRotto);
+    }
+
+    /// <summary>Invariante: il valore che esce dal borsello è esattamente la spesa.</summary>
+    [Theory]
+    [InlineData(0, 1, 0, 0, 0, 2)]
+    [InlineData(0, 0, 3, 0, 0, 60)]
+    [InlineData(2, 5, 1, 15, 3, 137)]
+    [InlineData(0, 0, 0, 15, 3, 1)]
+    public void Spendi_ToglieEsattamenteLaSpesa(int mp, int mo, int me, int ma, int mr, int spesaInRame)
+    {
+        var prima = CoinConversion.TotaleInRame(mp, mo, me, ma, mr);
+        var esito = CoinConversion.Spendi(mp, mo, me, ma, mr, 0, 0, 0, 0, spesaInRame);
+
+        Assert.True(esito.Riuscita);
+        var dopo = CoinConversion.TotaleInRame(
+            esito.PlatinumPieces, esito.GoldPieces, esito.ElectrumPieces,
+            esito.SilverPieces, esito.CopperPieces);
+        Assert.Equal(prima - spesaInRame, dopo);
+    }
+
+    [Fact]
+    public void Spendi_SpesaNulla_LasciaTuttoComEra()
+    {
+        var esito = CoinConversion.Spendi(1, 2, 3, 4, 5, 0, 0, 0, 0, 0);
+
+        Assert.True(esito.Riuscita);
+        Assert.Equal(1, esito.PlatinumPieces);
+        Assert.Equal(2, esito.GoldPieces);
+        Assert.Equal(3, esito.ElectrumPieces);
+        Assert.Equal(4, esito.SilverPieces);
+        Assert.Equal(5, esito.CopperPieces);
+    }
+
+    /// <summary>Applica non deve MAI scrivere un esito fallito: la scheda resterebbe con un
+    /// borsello che il server non ha, e senza nessun errore visibile.</summary>
+    [Fact]
+    public void Applica_EsitoFallito_NonToccaIlPersonaggio()
+    {
+        var pg = new Character { CopperPieces = 5, SilverPieces = 2 };
+        var esito = CoinConversion.Spendi(pg, 0, 0, 0, 0, 999);
+
+        CoinConversion.Applica(pg, esito);
+
+        Assert.Equal(5, pg.CopperPieces);
+        Assert.Equal(2, pg.SilverPieces);
+    }
 }

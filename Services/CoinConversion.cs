@@ -20,6 +20,33 @@ public sealed record EsitoCompattazione
 }
 
 /// <summary>
+/// L'esito di una spesa: il nuovo assetto delle cinque monete, oppure il rifiuto con l'ammontare
+/// mancante. Come <see cref="EsitoCompattazione"/>, calcola senza toccare il personaggio: la
+/// scrittura passa da <see cref="CoinConversion.Applica(Character, EsitoSpesa)"/>, che su un esito
+/// fallito non scrive nulla.
+/// </summary>
+public sealed record EsitoSpesa
+{
+    public required bool Riuscita { get; init; }
+    public required int PlatinumPieces { get; init; }
+    public required int GoldPieces { get; init; }
+    public required int ElectrumPieces { get; init; }
+    public required int SilverPieces { get; init; }
+    public required int CopperPieces { get; init; }
+
+    /// <summary>Rame che manca per coprire la spesa; 0 quando <see cref="Riuscita"/> è true.</summary>
+    public required long MancanoInRame { get; init; }
+
+    /// <summary>Il resto ricevuto, in rame: &gt; 0 solo se è stato consegnato un taglio più grande
+    /// del dovuto. La UI se ne serve per dire cosa è successo al borsello.</summary>
+    public required long RestoInRame { get; init; }
+
+    /// <summary>Sigla del taglio più grande consegnato quando c'è stato resto ("mp"/"mo"/"me"/"ma"),
+    /// altrimenti null. Serve al messaggio «rotta 1 mo», non al calcolo.</summary>
+    public required string? TaglioRotto { get; init; }
+}
+
+/// <summary>
 /// Equivalenza in oro e compattazione del gruzzolo (D&amp;D 5e) come sole funzioni pure: calcolano
 /// senza toccare il personaggio e riportano l'esito. La scrittura sul PG passa sempre da
 /// <see cref="Applica"/> — mai il contrario, altrimenti un eventuale annullamento in UI arriverebbe
@@ -124,6 +151,107 @@ public static class CoinConversion
     /// scheda ne tiene un riferimento vivo. Nessuna I/O: il salvataggio resta a chi chiama.</summary>
     public static void Applica(Character c, EsitoCompattazione esito)
     {
+        c.PlatinumPieces = esito.PlatinumPieces;
+        c.GoldPieces = esito.GoldPieces;
+        c.ElectrumPieces = esito.ElectrumPieces;
+        c.SilverPieces = esito.SilverPieces;
+        c.CopperPieces = esito.CopperPieces;
+    }
+
+    /// <summary>
+    /// Spende dal gruzzolo, <b>rompendo solo ciò che serve</b> (v. spec 2026-08-08, D6).
+    ///
+    /// La regola è quella del tavolo: si consegnano i tagli più piccoli posseduti finché non
+    /// coprono la spesa, e il resto torna indietro nei tagli comuni. Da qui la proprietà che si
+    /// voleva: i tagli che non sono serviti a pagare restano <b>esattamente come erano</b> — con 15
+    /// ma e 3 mr, spendere 1 mr lascia 15 ma, non 1 mo e 5 ma.
+    ///
+    /// Il resto si rende solo in mr/ma/mo: platino ed electrum non si creano mai, stessa scelta —
+    /// e stessa ragione di gioco — di <see cref="Compatta(int,int,int,int,int)"/>.
+    ///
+    /// Fondi insufficienti: nessuna mutazione, <see cref="EsitoSpesa.MancanoInRame"/> valorizzato.
+    /// Valute negative (il DB non ha vincoli CHECK) contano come 0, come in
+    /// <see cref="TotaleInRame(int,int,int,int,int)"/>.
+    /// </summary>
+    public static EsitoSpesa Spendi(int platino, int oro, int electrum, int argento, int rame,
+                                    int spesaPlatino, int spesaOro, int spesaElectrum,
+                                    int spesaArgento, int spesaRame)
+    {
+        var borsello = new[]
+        {
+            (Sigla: "mr", Valore: ValoreRame,     Quantita: (long)Math.Max(0, rame)),
+            (Sigla: "ma", Valore: ValoreArgento,  Quantita: (long)Math.Max(0, argento)),
+            (Sigla: "me", Valore: ValoreElectrum, Quantita: (long)Math.Max(0, electrum)),
+            (Sigla: "mo", Valore: ValoreOro,      Quantita: (long)Math.Max(0, oro)),
+            (Sigla: "mp", Valore: ValorePlatino,  Quantita: (long)Math.Max(0, platino)),
+        };
+
+        var totale = TotaleInRame(platino, oro, electrum, argento, rame);
+        var spesa = TotaleInRame(spesaPlatino, spesaOro, spesaElectrum, spesaArgento, spesaRame);
+
+        if (spesa > totale)
+        {
+            return new EsitoSpesa
+            {
+                Riuscita = false,
+                PlatinumPieces = Math.Max(0, platino),
+                GoldPieces = Math.Max(0, oro),
+                ElectrumPieces = Math.Max(0, electrum),
+                SilverPieces = Math.Max(0, argento),
+                CopperPieces = Math.Max(0, rame),
+                MancanoInRame = spesa - totale,
+                RestoInRame = 0,
+                TaglioRotto = null,
+            };
+        }
+
+        // Si consegna dal taglio più piccolo verso l'alto, una moneta per volta, finché il
+        // consegnato non copre la spesa. Il ciclo termina per costruzione: totale >= spesa.
+        long consegnato = 0;
+        string? taglioRotto = null;
+        for (var i = 0; i < borsello.Length && consegnato < spesa; i++)
+        {
+            var (sigla, valore, quantita) = borsello[i];
+            var servono = Math.Min(quantita, (spesa - consegnato + valore - 1) / valore);
+            if (servono <= 0) continue;
+
+            borsello[i].Quantita = quantita - servono;
+            consegnato += servono * valore;
+            taglioRotto = sigla;
+        }
+
+        var resto = consegnato - spesa;
+
+        // Il resto rientra nei soli tagli comuni, dal più grande al più piccolo.
+        var rientroOro = resto / ValoreOro;
+        resto %= ValoreOro;
+        var rientroArgento = resto / ValoreArgento;
+        var rientroRame = resto % ValoreArgento;
+
+        return new EsitoSpesa
+        {
+            Riuscita = true,
+            PlatinumPieces = (int)borsello[4].Quantita,
+            GoldPieces = (int)(borsello[3].Quantita + rientroOro),
+            ElectrumPieces = (int)borsello[2].Quantita,
+            SilverPieces = (int)(borsello[1].Quantita + rientroArgento),
+            CopperPieces = (int)(borsello[0].Quantita + rientroRame),
+            MancanoInRame = 0,
+            RestoInRame = consegnato - spesa,
+            TaglioRotto = consegnato > spesa ? taglioRotto : null,
+        };
+    }
+
+    public static EsitoSpesa Spendi(Character c, int spesaPlatino, int spesaOro,
+                                    int spesaElectrum, int spesaArgento, int spesaRame) =>
+        Spendi(c.PlatinumPieces, c.GoldPieces, c.ElectrumPieces, c.SilverPieces, c.CopperPieces,
+               spesaPlatino, spesaOro, spesaElectrum, spesaArgento, spesaRame);
+
+    /// <summary>Scrive l'esito sul personaggio. <b>Un esito fallito non scrive nulla</b>: altrimenti
+    /// la scheda mostrerebbe un borsello che il server non ha, senza nessun errore visibile.</summary>
+    public static void Applica(Character c, EsitoSpesa esito)
+    {
+        if (!esito.Riuscita) return;
         c.PlatinumPieces = esito.PlatinumPieces;
         c.GoldPieces = esito.GoldPieces;
         c.ElectrumPieces = esito.ElectrumPieces;

@@ -2,6 +2,7 @@
 @using DndCompanion.Services
 @inject IInventoryRepository InventoryRepository
 @inject ConfirmService Confirm
+@inject ToastService Toasts
 
 <div class="inventory-header">
     <p class="section-header" style="margin: 0;">INVENTARIO</p>
@@ -394,6 +395,62 @@
         </div>
     </div>
 }
+else if (isSpendingMoney)
+{
+    var anteprima = AnteprimaSpesa();
+    <div class="money-spend">
+        <p class="money-spend-title">Quanto spendi?</p>
+        <div class="money-spend-fields">
+            <div class="money-field">
+                <label for="spend-mp">MP</label>
+                <input id="spend-mp" type="number" min="0" @bind="spendPlatinum" />
+            </div>
+            <div class="money-field">
+                <label for="spend-mo">MO</label>
+                <input id="spend-mo" type="number" min="0" @bind="spendGold" />
+            </div>
+            <div class="money-field">
+                <label for="spend-me">ME</label>
+                <input id="spend-me" type="number" min="0" @bind="spendElectrum" />
+            </div>
+            <div class="money-field">
+                <label for="spend-ma">MA</label>
+                <input id="spend-ma" type="number" min="0" @bind="spendSilver" />
+            </div>
+            <div class="money-field">
+                <label for="spend-mr">MR</label>
+                <input id="spend-mr" type="number" min="0" @bind="spendCopper" />
+            </div>
+        </div>
+
+        @if (SpesaVuota)
+        {
+            <p class="money-spend-hint">Indica quante monete usi.</p>
+        }
+        else if (!anteprima.Riuscita)
+        {
+            <p class="money-spend-error">
+                Non bastano: mancano @CoinConversion.FormattaTotaleInOro(anteprima.MancanoInRame) mo.
+            </p>
+        }
+        else
+        {
+            @if (anteprima.TaglioRotto is not null)
+            {
+                <p class="money-spend-hint">Non hai spiccioli: si rompe 1 @anteprima.TaglioRotto.</p>
+            }
+            <p class="money-spend-result">
+                Ti restano: @FormatMoneyDa(anteprima)
+            </p>
+        }
+
+        <div class="money-editor-actions">
+            <button type="button" class="money-cancel-btn" @onclick="AnnullaSpesa">Annulla</button>
+            <button type="button" class="money-save-btn" @onclick="ConfermaSpesaAsync"
+                    disabled="@(SpesaVuota || !anteprima.Riuscita)">Conferma</button>
+        </div>
+    </div>
+}
 else
 {
     @* role/tabindex/aria-label qui sono condizionali su CanEdit, a differenza di altri controlli
@@ -415,6 +472,10 @@ else
             <span class="money-edit-hint">✎</span>
         }
     </div>
+    @if (CanEdit)
+    {
+        <button type="button" class="money-spend-btn" @onclick="ApriSpesa">Usa</button>
+    }
 }
 
 <p class="section-header">SINTONIE OGGETTI MAGICI</p>
@@ -466,6 +527,11 @@ else
     // scrivevano dritti su Character, e poiché il salvataggio del PG manda l'intera riga, una
     // modifica mai confermata partiva col primo salvataggio di un altro campo qualsiasi.
     private int draftPlatinum, draftGold, draftElectrum, draftSilver, draftCopper;
+
+    // Spesa (pulsante «Usa»): bozza separata da quella dell'editor, perché sono due modi diversi
+    // di toccare lo stesso dato e aprirne uno non deve sporcare l'altro.
+    private bool isSpendingMoney;
+    private int spendPlatinum, spendGold, spendElectrum, spendSilver, spendCopper;
 
     // Modifica di un oggetto già in elenco: stesso schema di isAddingItem/newItemDraft sopra, ma
     // tenuto a parte perché più oggetti nell'elenco condividono lo stesso form — solo uno alla
@@ -525,6 +591,10 @@ else
             // Difensivo come gli altri reset qui sopra: la bozza viene comunque ripopolata
             // all'apertura da ApriEditorMonete.
             draftPlatinum = draftGold = draftElectrum = draftSilver = draftCopper = 0;
+            // Cambiare personaggio col pannello di spesa aperto mostrerebbe la spesa in bozza del
+            // PG precedente: stessa ragione del reset della bozza dell'editor qui sopra.
+            isSpendingMoney = false;
+            spendPlatinum = spendGold = spendElectrum = spendSilver = spendCopper = 0;
         }
     }
 
@@ -794,16 +864,26 @@ else
     }
 
     // Stringa compatta delle sole valute > 0, in ordine di valore decrescente (MP>MO>ME>MA>MR).
-    private string FormatMoney()
+    private string FormatMoney() =>
+        FormatMoney(Character.PlatinumPieces, Character.GoldPieces, Character.ElectrumPieces,
+                    Character.SilverPieces, Character.CopperPieces);
+
+    // Stesso formato di FormatMoney(), ma su cinque interi qualsiasi: serve anche all'anteprima
+    // della spesa (FormatMoneyDa), che non legge Character ma un EsitoSpesa.
+    private static string FormatMoney(int mp, int mo, int me, int ma, int mr)
     {
         var parts = new List<string>();
-        if (Character.PlatinumPieces > 0) parts.Add($"{Character.PlatinumPieces} MP");
-        if (Character.GoldPieces > 0) parts.Add($"{Character.GoldPieces} MO");
-        if (Character.ElectrumPieces > 0) parts.Add($"{Character.ElectrumPieces} ME");
-        if (Character.SilverPieces > 0) parts.Add($"{Character.SilverPieces} MA");
-        if (Character.CopperPieces > 0) parts.Add($"{Character.CopperPieces} MR");
+        if (mp > 0) parts.Add($"{mp} MP");
+        if (mo > 0) parts.Add($"{mo} MO");
+        if (me > 0) parts.Add($"{me} ME");
+        if (ma > 0) parts.Add($"{ma} MA");
+        if (mr > 0) parts.Add($"{mr} MR");
         return parts.Count > 0 ? string.Join(" · ", parts) : "Nessuna moneta";
     }
+
+    private static string FormatMoneyDa(EsitoSpesa esito) =>
+        FormatMoney(esito.PlatinumPieces, esito.GoldPieces, esito.ElectrumPieces,
+                    esito.SilverPieces, esito.CopperPieces);
 
     private void ApriEditorMonete()
     {
@@ -844,6 +924,42 @@ else
     }
 
     private void AnnullaMonete() => isEditingMoney = false;
+
+    /// <summary>L'esito della spesa in bozza, ricalcolato a ogni render: è una funzione pura di
+    /// cinque interi e del borsello, quindi non serve memorizzarlo.</summary>
+    private EsitoSpesa AnteprimaSpesa() =>
+        CoinConversion.Spendi(Character, spendPlatinum, spendGold, spendElectrum, spendSilver, spendCopper);
+
+    private bool SpesaVuota =>
+        spendPlatinum <= 0 && spendGold <= 0 && spendElectrum <= 0 && spendSilver <= 0 && spendCopper <= 0;
+
+    private void ApriSpesa()
+    {
+        if (!CanEdit) return;
+        spendPlatinum = spendGold = spendElectrum = spendSilver = spendCopper = 0;
+        isSpendingMoney = true;
+    }
+
+    private void AnnullaSpesa() => isSpendingMoney = false;
+
+    private async Task ConfermaSpesaAsync()
+    {
+        if (!CanEdit) return;
+
+        var esito = AnteprimaSpesa();
+        if (!esito.Riuscita)
+        {
+            // Errore di validazione, non di sistema: toast, non banner (v. CLAUDE.md).
+            Toasts.ShowError($"Ti mancano {CoinConversion.FormattaTotaleInOro(esito.MancanoInRame)} mo.");
+            return;
+        }
+
+        CoinConversion.Applica(Character, esito);
+        isSpendingMoney = false;
+        // OnChanged non riporta l'esito del salvataggio (v. Pages/Characters.razor): non
+        // annunciamo un successo che non possiamo verificare, ci limitiamo a chiudere il pannello.
+        await OnChanged.InvokeAsync();
+    }
 
     private string? AttunementValue(int slot) => slot switch
     {

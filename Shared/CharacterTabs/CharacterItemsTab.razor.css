@@ -61,7 +61,11 @@
     flex-shrink: 0;
 }
 
-.money-editor {
+/* Le due griglie dei cinque campi MP·MO·ME·MA·MR — quella dell'editor e quella del pannello di
+   spesa — devono restare identiche: sono lo stesso controllo in due momenti diversi. Un selettore
+   solo lo rende vero per costruzione, invece di affidarlo a un commento. */
+.money-editor,
+.money-spend-fields {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 0.4rem;
@@ -165,6 +169,65 @@
 .money-cancel-btn:hover {
     background: rgba(var(--gold-rgb), 0.06);
     color: var(--gold-muted);
+}
+
+/* Pulsante "Usa": apre il pannello di spesa. Fuori dal riquadro .money-compact (che apre invece
+   l'editor del gruzzolo) per non contendersi lo stesso @onclick. */
+.money-spend-btn {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.6rem 1rem;
+    /* 44px di altezza d'area toccabile, come .qty-btn/.inv-edit-btn nel resto del file. */
+    min-height: 44px;
+    background: transparent;
+    color: var(--gold-muted);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.money-spend-btn:hover {
+    background: rgba(var(--gold-rgb), 0.1);
+    color: var(--gold-light);
+}
+
+/* Pannello di spesa: stesso linguaggio del .money-editor qui sopra (.money-editor-actions riusata
+   per Annulla/Conferma), con in più titolo e anteprima. */
+.money-spend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.money-spend-title {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gold-muted);
+}
+
+.money-spend-hint {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--gold-dim);
+}
+
+.money-spend-error {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--error-text);
+}
+
+.money-spend-result {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--gold-light);
+    font-variant-numeric: tabular-nums;
 }
 
 /* ===== Items tab: sintonie sottili ===== */
