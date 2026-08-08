@@ -1825,3 +1825,44 @@ Per i privilegi di classe invece serve il **PDF ufficiale SRD 5.2.1 italiano**, 
 e il PHB presente in `docs/` non è utilizzabile, è fuori licenza. Inventarle non è un'opzione: quando
 si provò a tradurre a mano i nomi degli incantesimi, al 1° livello ne coincidevano 27 su 57. Un nome
 sbagliato si nota; una regola sbagliata in una scheda usata al tavolo, no.
+
+## La scheda apre il manuale che aveva già in casa (2026-08-08)
+
+Segnalazione: «la sezione scheda mi dice Ira, Difesa senza armatura, Maestria nelle armi — secondo me
+potrebbe essere studiata molto meglio, non mi dà molte informazioni».
+
+Aveva ragione, ma la causa non era la presentazione. Nel pacchetto SRD i privilegi di classe sono
+**stringhe nude** (`levels[].features` è un array di `string`): la scheda mostrava tutto ciò che
+aveva. Sottoclassi, talenti, background e specie invece **portano `description` per intero** — e di
+quelle quattro la scheda ne apriva **una sola**, la sottoclasse. Il pattern giusto era già nel file,
+applicato a un quarto dei casi.
+
+**Talenti e background ora si collegano**, con `CharacterManualJoin` sul modello di
+`CharacterSpellJoin`: helper puro, join in memoria fra ciò che il PG ha scritto e il catalogo. Il
+genitore risolve e passa, come già faceva per la sottoclasse. Nessuna rete in più: il pacchetto era
+già scaricato e in cache per la tabella dei livelli.
+
+**Il match dei talenti è la parte non ovvia.** `Character.Feats` è una textarea libera: ci si può
+scrivere «Attento, Fortunato», un nome per riga, o prosa. Spezzare quel testo per virgole avrebbe
+trasformato un paragrafo in frammenti. La strategia è opposta — **non toccare il testo**, e cercarvi
+dentro i nomi del catalogo come parole intere, aggiungendo le descrizioni sotto. Chi non usa i nomi
+ufficiali non perde nulla, e il testo scritto a mano resta esattamente com'è.
+
+**E il test dei confini di parola non testava i confini di parola.** Il brief indicava come esempio
+«"Attento" dentro "Attentato"», ma `attentato` **non contiene** `attento`: dopo `attent` una parola
+prosegue con `a`, l'altra con `o`, quindi `IndexOf` torna -1 e nessun controllo veniva esercitato —
+il test sarebbe rimasto verde cancellando la logica che sorvegliava. Il revisore non si è fidato
+dell'esempio: l'ha eseguito, ha ottenuto -1, e ha cercato una parola che davvero contenesse il nome
+(**`disattento`**, indice 11). Terza volta che questo progetto incontra un test vacuo, e la prima in
+cui a trovarlo è stato l'esempio *del brief* invece del codice. Corretto e provato per mutazione:
+tolto il controllo sui confini, il test fallisce.
+
+**Un difetto che nessuno dei due revisori poteva vedere**: il blocco nuovo si intitolava «DAL
+MANUALE», mentre a poche righe di distanza ce n'è già uno intitolato «DAL MANUALE — <CLASSE> FINO AL
+LIVELLO <N>». Preso da solo ogni blocco era corretto rispetto ai propri omologhi, ed è per questo che
+il gate non l'ha rilevato: si vede solo guardando la schermata intera. Ora è «TALENTI DAL MANUALE».
+
+Restano fuori i **privilegi di classe**, e non per pigrizia: servirebbe il PDF ufficiale SRD 5.2.1
+italiano, che nel repo non c'è. Il PHB presente in `docs/` è fuori licenza, e inventare le
+descrizioni è escluso — quando si provò a tradurre a mano i nomi degli incantesimi ne coincidevano 27
+su 57. Un nome sbagliato si nota; una regola sbagliata, in una scheda usata al tavolo, no.

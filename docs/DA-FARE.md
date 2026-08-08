@@ -136,11 +136,10 @@ Residuo minore di C.
   quando quelle sono fatte.
 - 🟡 **I privilegi di sottoclasse vanno applicati, non solo elencati**: il dialogo li annuncia, la
   scheda li deriva dalla tabella, ma nessuno li traduce in effetti.
-- 🟠 **La scheda non apre il manuale che ha in casa** (2026-08-08): il pacchetto SRD porta le
-  descrizioni di **17 talenti, 4 background, 10 specie**, ma la scheda mostra solo i nomi. Il pattern
-  esiste già nello stesso file per la sottoclasse (`CharacterBioTab.razor:148-179`, risolta dal
-  genitore a `Characters.razor:303`): va replicato per talenti e background, con match tollerante via
-  `CatalogKey.NormalizeName` (`Character.Feats` è testo libero).
+- 🟡 **Restano le specie**: talenti e background ora mostrano la descrizione del manuale
+  (`CharacterManualJoin`), le **10 specie** del pacchetto no. `Character.Race` è un nome, e accanto
+  c'è già «TRATTI DELLA SPECIE» a testo libero: la descrizione ufficiale andrebbe sotto, come per il
+  background. Stesso helper, un metodo in più.
 - 🟡 **Privilegi di classe senza descrizione, bloccati sulla fonte**: «Ira», «Difesa senza armatura»
   restano nomi nudi perché nel pacchetto `levels[].features` è un array di **stringhe**. Sbloccarli
   richiede il **PDF ufficiale SRD 5.2.1 italiano** (CC BY 4.0), oggi non nel repo — il PHB in `docs/`
