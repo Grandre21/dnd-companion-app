@@ -21,7 +21,8 @@
 
 L'ultima riga porta due date perché è **arrivata due giorni dopo il client che la richiedeva**.
 
-`docs/DA-FARE.md` la dichiarava applicata il 2026-08-06. Non lo era. Poiché `postgrest-csharp`
+`docs/DA-FARE.md` — il documento di allora, archiviato il giorno stesso in [backlog.md](./backlog.md)
+— la dichiarava applicata il 2026-08-06. Non lo era. Poiché `postgrest-csharp`
 serializza *ogni* colonna del model a ogni `Update`, le sette colonne mancanti hanno bloccato **tutte**
 le scritture su `characters` e `inventory` — punti ferita compresi — per due giorni di produzione.
 Il difetto si è visto solo perché l'utente ha giocato una sessione.

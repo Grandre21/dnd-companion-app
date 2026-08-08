@@ -1,84 +1,23 @@
-# DA FARE — D&D Companion
+# Backlog tecnico (archiviato il 2026-08-08)
 
-> **Solo ciò che è aperto.** Una voce = 1-3 righe. Se serve più spazio, il racconto va in
-> [DIARIO.md](./DIARIO.md) e qui resta il rimando: questo documento si legge a ogni sessione, e la
-> sua lunghezza è un costo fisso.
+> ⚠️ **Questo documento non si legge a ogni sessione, e non si aggiorna per abitudine.** Era
+> `docs/DA-FARE.md`, letto sempre e da nessuno: un costo fisso in cambio di niente. Dal 2026-08-08 le
+> cose da fare si **dicono in chat** a fine lavoro (v. [CLAUDE.md](../../CLAUDE.md), «Cosa resta da
+> fare si dice, non si archivia»); qui resta solo ciò che nessuno ha ancora deciso di fare, perché
+> buttarlo via avrebbe perso analisi già pagate.
 >
-> - Perché delle scelte già fatte → [DIARIO.md](./DIARIO.md).
-> - Punti **chiusi** con motivazioni, misure e alternative scartate →
->   [archivio/DA-FARE-chiuso.md](./archivio/DA-FARE-chiuso.md) (il documento come era fino al 2026-08-01).
+> **Le verifiche manuali che stavano in testa sono state eseguite tutte** il 2026-08-08 e tolte.
+>
+> Si apre su richiesta — «cosa era rimasto aperto?» — non di routine. Se un punto viene ripreso, esce
+> di qui e il *perché* finisce nel [DIARIO](../DIARIO.md).
+>
+> - Perché delle scelte già fatte → [DIARIO.md](../DIARIO.md).
+> - Punti chiusi prima del 2026-08-01 → [archivio/DA-FARE-chiuso.md](../archivio/DA-FARE-chiuso.md).
+> - Modifiche al database → [db.md](./db.md).
 > - Spec e piani → `docs/superpowers/specs/` e `docs/superpowers/plans/`.
-> - Monetizzazione → [DA-FARE-MONETIZZAZIONE.md](./DA-FARE-MONETIZZAZIONE.md) (accantonata).
->
-> Ultimo aggiornamento: **2026-08-08**
+> - Monetizzazione → [DA-FARE-MONETIZZAZIONE.md](../DA-FARE-MONETIZZAZIONE.md) (accantonata).
 
 Legenda: 🔴 **bloccante** per il lancio pubblico · 🟠 **alta** · 🟡 **media** · 🟢 **bassa/idea**.
-
----
-
-## ⛔ Verifiche manuali in sospeso
-
-> Il gate automatico non copre nulla di ciò che segue, e `main` pubblica: da rileggere **prima** di
-> ogni push e da segnalare all'utente.
-
-> 🗄️ **Lo stato del database non si dichiara qui.** Si esegue `supabase/verifica-schema.sh`: confronta
-> le colonne dei Model con quelle che il server dichiara davvero. Questa riga ha sostituito un «✅
-> nessuna migrazione in sospeso» che il 2026-08-08 si è rivelato falso da due giorni
-> ([storico/db.md](./storico/db.md)).
-
-- 🔴 **Sessione che non scade più, due prove** (nuovo, 2026-08-08): (a) lasciare la scheda aperta
-  **oltre un'ora**, poi tornarci e aprire una pagina di dati: deve caricare, senza logout né
-  «unhandled error»; (b) **ricaricare** l'app dopo più di un'ora di assenza: si deve restare
-  loggati. Era il difetto del 2026-08-08 ([DIARIO](./DIARIO.md)) e nessun test automatico lo copre.
-- 🟠 **Denaro, tre prove** (nuovo, 2026-08-08): (a) aprire l'editor, cambiare un valore, premere
-  **Annulla**: il vecchio valore deve restare, anche salvando poi un altro campo del PG; (b)
-  **Compatta** con 143 mr → 1 mo, 4 ma, 3 mr, e il totale in mo invariato; (c) l'editor si apre da
-  **tastiera** (Tab fino al riquadro, poi Invio).
-- 🔴 **Scheda alla pari con la carta, quattro prove** (nuovo, 2026-08-06): (a) un riposo lungo che
-  **ripristina le risorse** e le nomina nel riepilogo; (b) un'arma **accurata** su un personaggio con
-  Destrezza maggiore della Forza: il bonus deve usare Destrezza; (c) il **form di modifica** aperto e
-  salvato su un personaggio con risorse e addestramento — non devono sparire (era il bloccante di
-  `CloneCharacter`); (d) una risorsa con ricarica **«nessuna»**: il riposo non deve toccarla.
-- 🔴 **Creazione guidata, cinque prove** (nuovo, 2026-08-06): (a) un **Mago di 1°**: deve nascere con
-  gli slot e con la CD degli incantesimi valorizzata (era il difetto: `SpellcastingAbility` vuota);
-  (b) un **Barbaro di 5°**: sottoclasse chiesta al 3°, talento al 4°, PF coerenti col dado; (c) una
-  **classe del tavolo senza tabella**: il ripiego deve *vedersi ed essere spiegato*, campo PF e
-  livello di nuovo liberi, mai un vicolo cieco; (d) **cambio di classe** dopo aver scelto le
-  competenze: le vecchie spariscono, quelle del background restano; (e) **cambiare idea** su una
-  decisione già risposta — riaprire il 3° dopo aver scelto la sottoclasse e sceglierne un'altra.
-- 🔴 **Level-up guidato, tre prove** (nuovo, 2026-08-06): (a) un PG del manuale che sale a un livello
-  **con una scelta** — sottoclasse al 3° o talento al 4° — e la conferma scrive davvero; (b) un PG con
-  classe **del tavolo** senza tabella: il dialogo non deve aprirsi, e deve comparire il toast che
-  rimanda al form; (c) un incantatore che **sblocca un cerchio nuovo**, con il rimando al tab Magia.
-- 🟠 **Level-up con salvataggio fallito**: togliere la rete a metà conferma. Il dialogo deve restare
-  aperto con le risposte intatte ed essere ritentabile — e al secondo tentativo i punteggi **non**
-  devono incrementarsi due volte.
-- 🟠 **Sottoclassi nella pagina Classi**: aggiungere, modificare (il nome resta al suo posto nell'elenco),
-  rimuovere; «duplica e modifica» da una voce SRD deve portarsele dietro; le righe del manuale restano
-  di sola lettura. E il menu della sottoclasse deve comparire nella scheda anche per una classe **del
-  tavolo** o importata, non solo per quelle del manuale.
-- 🟠 **File esportato dal client precedente**: prendere un export «tutto, manuale incluso» fatto *prima*
-  del 2026-08-01 e reimportarlo. Deve entrare senza errori — è la compatibilità che ha fatto esentare
-  gli id di sottoclassi e talenti dal divieto del prefisso. Se si rompe, quella scelta era sbagliata.
-- 🔴 **Prova a due account** (master + giocatore in incognito): il giocatore vede solo i propri PG, il
-  master tutti; entrambi vedono il gruppo in Party con le sole stat sintetiche.
-- 🟠 **Publish Release trimmato**: `dotnet publish DndCompanion.csproj -c Release -o publish`, servire
-  `publish/wwwroot` **con accesso fatto**, aprendo la pagina Party **e** una scheda su una classe del
-  manuale (è lì che si deserializzano `PartyMember` e `PackageSubclass`).
-- 🟠 **Android reale**: barra inferiore allo scroll (l'emulazione non riproduce la barra URL dinamica)
-  e card dei PF a 360/375/412px su un PG con PF a tre cifre.
-- 🟠 **Tracker → «Importa mostri»**: a ricerca vuota solo le righe di campagna; cercando, anche il
-  manuale; le quantità devono sopravvivere al cambio di ricerca.
-- 🟠 **Export «tutto, manuale incluso» + reimport** in una campagna di prova. Caso sottile: l'export
-  della **sola** campagna, in un tavolo che ha materializzato un incantesimo, deve comunque portare la
-  licenza.
-- 🟠 **Eliminazione di un PG** (Scheda → in fondo): inventario e incantesimi devono sparire con lui
-  (`ON DELETE CASCADE`). La prova che conta è il master che elimina il PG di un giocatore.
-- 🟡 **Scelta della sottoclasse** in creazione e modifica, cambiando classe: quella di un'altra classe
-  sparisce, una scritta a mano resta. È il punto su cui il gate ha trovato sei perdite silenziose in
-  tre giri: vale una prova a mano.
-- 🟡 **PG di livello ≥ 3 con classe importata prima del 2026-07-31**: la scheda ripiega sul pacchetto,
-  ma per aggiornare il catalogo di campagna serve un re-import dalla pagina Dati.
 
 ---
 

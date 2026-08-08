@@ -1,6 +1,6 @@
 # DIARIO DI PROGETTO — D&D Companion
 
-> Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./DA-FARE.md).
+> Promemoria sintetico di **cosa è stato fatto e perché**. Per ciò che resta aperto vedi [DA-FARE.md](./storico/backlog.md).
 > Aggiornato: **2026-08-08**.
 
 ## Cos'è
@@ -60,7 +60,7 @@ l'access token scaduto non veniva rinnovato (`LoadSession` non fa rete) → "JWT
 tenta il refresh col refresh token e, se fallisce, logout pulito. **Feedback**: toast a tema
 ("✓ Salvato/Eliminato") sul salvataggio PG e su tutti i CRUD; **dialog di conferma a tema** (`ConfirmDialog`)
 al posto dei `confirm()` nativi; contrasto `--gold-dim` alzato.
-Restano (lavoro grande, vedi [DA-FARE.md](./DA-FARE.md)): **mega-refactor**
+Restano (lavoro grande, vedi [DA-FARE.md](./storico/backlog.md)): **mega-refactor**
 (`Characters.razor`/`SupabaseService`), e le feature di prodotto (AI alla compilazione, wizard scheda, i18n).
 
 **Sicurezza RLS (giu 2026).** Audit del DB: le Row-Level Security erano **già attive e corrette** su tutte le
@@ -169,7 +169,7 @@ ok (gli assembly radicati Gotrue/Postgrest sopravvivono) — ⚠️ criterio **s
 quei due assembly non prova il rooting (li istanzia direttamente `SupabaseService`, quindi ci sarebbero comunque,
 solo più piccoli), e gli avvisi di trim li spegne il Blazor SDK. Il risultato di allora resta plausibile, la prova
 no: v. `DA-FARE` §2 e la regola sul ramo unico in `CLAUDE.md`. Dettagli e caveat `wasm-tools` in
-[DA-FARE.md](./DA-FARE.md) §2.
+[DA-FARE.md](./storico/backlog.md) §2.
 
 **Rifinitura UX/a11y + CSP + validazione (2026-06-24).** Tre interventi a basso rischio in un solo /loop.
 (1) **UX/a11y**: i "Caricamento..." testuali rimasti (Incantesimi/Mostri/Classi/Razze/Note) ora usano il
@@ -272,7 +272,7 @@ un po' macchinoso, non sei molto guidato all'inserimento delle informazioni"), a
 riferimento fissato a **gruppo misto con novizi** e il bersaglio di regole confermato a **D&D 5e 2024**.
 Nessun codice toccato: il deliverable è
 `docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md`, agganciato al backlog in
-[DA-FARE.md](./DA-FARE.md) §8-bis.
+[DA-FARE.md](./storico/backlog.md) §8-bis.
 *Il finding che riordina le priorità:* il modello dati implementa le regole **2014** (bonus di
 caratteristica su `Race`) mentre il manuale disponibile e il gioco reale sono **2024**, dove quei bonus
 vengono dal **background** — che nell'app è una stringa libera senza tabella (verificato sul PHB 2024
@@ -300,7 +300,7 @@ disallineati. Nel merito il secondo giro ha prodotto un cambio di stato nel back
 semi-statici di §5 rialzata da 🟢 a 🟡**. *Terzo giro:* solo rifiniture, due delle quali introdotte
 dalle correzioni del giro precedente — motivo per cui l'ultima passata è stata rilanciata invece di
 chiudere al buio.
-File toccati: `docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md` (nuovo), `docs/DA-FARE.md`,
+File toccati: `docs/superpowers/specs/2026-07-25-ux-mappa-flussi-analisi.md` (nuovo), `docs/storico/backlog.md`,
 `docs/DIARIO.md`, `.gitignore`.
 
 **Design: modello 2024 + import dei dati (2026-07-25).** Primo dei quattro filoni aperti dalla mappa UX,
@@ -1701,7 +1701,7 @@ comprese quelle che funzionavano da mesi. Lo scenario era **scritto per esteso n
 alla migrazione stessa**, insieme all'avviso di applicarla prima del push. Non è servito a nulla:
 l'avviso stava dentro il file che nessuno ha aperto.
 
-**La parte che conta è come la procedura ha mentito.** `docs/DA-FARE.md` dichiarava
+**La parte che conta è come la procedura ha mentito.** `docs/storico/backlog.md` dichiarava
 `✅ Nessuna migrazione in sospeso… applicate all'hosted`, con tanto di elenco e data. Era falso da due
 giorni. Nessun controllo poteva accorgersene, perché il controllo *era* quella frase: una riga di
 prosa che afferma un fatto sul mondo esterno, scritta da chi credeva di averlo reso vero.
@@ -1866,3 +1866,35 @@ Restano fuori i **privilegi di classe**, e non per pigrizia: servirebbe il PDF u
 italiano, che nel repo non c'è. Il PHB presente in `docs/` è fuori licenza, e inventare le
 descrizioni è escluso — quando si provò a tradurre a mano i nomi degli incantesimi ne coincidevano 27
 su 57. Un nome sbagliato si nota; una regola sbagliata, in una scheda usata al tavolo, no.
+
+## DA-FARE archiviato: un elenco che nessuno apre non è una lista di cose da fare (2026-08-08)
+
+Stesso giorno, terza regola nata dallo stesso difetto.
+
+`docs/DA-FARE.md` si leggeva a ogni sessione — era scritto in `CLAUDE.md` come fonte di verità — e
+l'utente non lo apriva. Le verifiche manuali ci restavano dentro per giorni; la riga che dichiarava
+una migrazione «✅ applicata» ci è rimasta due, mentre la produzione non salvava più nulla. Il file
+costava token a ogni avvio e restituiva informazione a nessuno.
+
+**La regola è la stessa già decisa per le query SQL, estesa al lavoro in sospeso**: ciò che l'utente
+deve fare glielo si dice **in chat**, a fine lavoro. Non si lascia in un file che dovrebbe aprire.
+Un elenco che nessuno legge non è una lista di cose da fare: è una lista di cose dimenticate con una
+data sopra.
+
+**Non cancellato, archiviato.** Il file conteneva due cose diverse: le verifiche manuali (eseguite
+tutte il 2026-08-08 e tolte) e un backlog tecnico — campi mancanti nel formato di export, cache dei
+cataloghi, consolidamento dei token colore — che nessuno aveva ancora deciso di fare. Buttarlo via
+avrebbe perso analisi già pagate, quindi è diventato `docs/storico/backlog.md`, accanto a `db.md`:
+si apre su domanda («cosa era rimasto aperto?»), non di routine.
+
+**Un dettaglio che è costato una correzione**: il `sed` che ha aggiornato i link ha riscritto anche
+una frase di `db.md` che *raccontava* l'incidente — facendole dire che «`storico/backlog.md`
+dichiarava applicata la migrazione», cosa impossibile, perché il 6 agosto quel file si chiamava
+`DA-FARE.md` e stava altrove. Nei documenti storici i nomi vanno lasciati **quelli di allora**:
+aggiornare un link è manutenzione, aggiornare un racconto è falsificarlo. Per la stessa ragione i
+riferimenti a `DA-FARE` dentro `docs/superpowers/` e `docs/archivio/` non sono stati toccati.
+
+Resta un residuo noto e accettato: tre commenti nel codice (`Pages/DataPackages.razor`,
+`Services/Repositories/SpellRepository.cs`, `CharacterSpellRepository.cs`) citano ancora
+`docs/DA-FARE.md`. Toccarli significherebbe far passare tre file dal gate per cambiare un nome in un
+commento: non vale il prezzo, e il documento che citano esiste ancora, un livello più in basso.

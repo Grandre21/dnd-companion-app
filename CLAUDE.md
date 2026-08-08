@@ -4,9 +4,10 @@ PWA per campagne **D&D 5e** (schede PG, cataloghi, tracker combattimento, note).
 Stack: **Blazor WebAssembly / .NET 10** + **Supabase** (PostgreSQL + PostgREST + Gotrue), hosting **GitHub Pages**.
 
 Fonti di verità del progetto (consultale prima di agire):
-- `docs/DA-FARE.md` — backlog aperto, con priorità. **Solo punti aperti, 1-3 righe ciascuno**
-  (v. «Forma dei documenti»); i punti chiusi stanno in `docs/archivio/DA-FARE-chiuso.md`.
-- `docs/DIARIO.md` — cosa è stato fatto e *perché*.
+- `docs/DIARIO.md` — cosa è stato fatto e *perché*. **È l'unico documento di stato che si legge
+  sempre.** Non esiste più un elenco di cose da fare: v. «Cosa resta da fare si dice, non si archivia».
+- `docs/storico/` — traccia archiviata, **da non leggere di routine**: `db.md` (modifiche al
+  database) e `backlog.md` (punti mai ripresi). Si aprono su richiesta esplicita.
 - `docs/superpowers/specs/` e `docs/superpowers/plans/` — spec e piani.
 - Memoria in `~/.claude/projects/.../memory/` (gotchas e decisioni).
 
@@ -56,9 +57,10 @@ senza approvazioni: *ciò che spingo è già online*. Da qui tutto il resto.
   con due `sed` che **falliscono in silenzio** se il testo non combacia più (workflow verde, sito
   bianco o CSP di produzione che ammette ancora localhost). Se tocchi quelle due righe, verificale
   contro `deploy.yml`.
-- **Prima di ogni push, rileggi le verifiche manuali in sospeso** in `docs/DA-FARE.md` e segnalale
-  all'utente. Ciò che il gate automatico non può coprire (una pagina che richiede l'accesso, un
-  flusso a due account) va detto **prima**, non dopo.
+- **Prima di ogni push, elenca all'utente le verifiche manuali che il push richiede** — ricavandole
+  dal lavoro appena fatto, non da un documento. Ciò che il gate automatico non può coprire (una
+  pagina che richiede l'accesso, un flusso a due account, la build trimmata) va detto **prima**, non
+  dopo.
 
 ## Regola obbligatoria: revisione a due agenti (gate calibrato al rischio)
 
@@ -216,15 +218,28 @@ mano e non risultano registrate in `supabase_migrations`: `db push` proverebbe a
 baseline `20260624225146_remote_schema.sql`, che è un dump **non idempotente** su un database
 popolato.
 
-## Forma dei documenti (regola del 2026-08-01)
+## Regola obbligatoria: cosa resta da fare si dice, non si archivia (regola del 2026-08-08)
 
-`docs/DA-FARE.md` si legge a ogni sessione: la sua lunghezza è un **costo fisso**. Quindi:
-- **DA-FARE = indice di soli punti aperti**, una voce in 1-3 righe. Niente storia, niente misure,
-  niente alternative scartate: quelle vanno nel `DIARIO`, e la voce rimanda lì.
-- Quando un punto si chiude, **non si annota «✅ FATTO» in DA-FARE**: si toglie da lì e il perché
-  finisce nel `DIARIO`. Il materiale storico sta in `docs/archivio/DA-FARE-chiuso.md`, che è un
-  archivio e non si aggiorna.
-- Il `DIARIO` resta il racconto, e lì la prosa distesa è voluta: è la sola sede del *perché*.
+Stessa regola già valida per le query SQL, estesa al lavoro in sospeso: **ciò che l'utente deve fare
+glielo dico in chat, non lo lascio in un file che dovrebbe aprire.**
+
+`docs/DA-FARE.md` non esiste più. Si leggeva a ogni sessione — un costo fisso in token — e l'utente
+non lo apriva: le verifiche manuali ci restavano dentro per giorni, esattamente come la migrazione
+che nessuno aveva applicato. Un elenco che nessuno legge non è una lista di cose da fare: è una
+lista di cose dimenticate con una data sopra.
+
+Quindi:
+- **A fine lavoro elenco in chat cosa resta**: verifiche manuali che il gate non può coprire, punti
+  lasciati aperti di proposito, decisioni che spettano all'utente. Sempre, anche quando è una riga.
+- **Non creo documenti di to-do**, e non ne resuscito uno con un altro nome.
+- **Il `DIARIO` resta l'unico documento di stato che si legge sempre**, ed è il racconto del
+  *perché*: lì la prosa distesa è voluta. Quando un punto si chiude, il suo perché va lì.
+- **`docs/storico/`** raccoglie ciò che va conservato ma non riletto: `db.md` (modifiche al
+  database, una riga per modifica) e `backlog.md` (i punti tecnici mai ripresi, archiviati il
+  2026-08-08). **Non si aprono di routine**, solo su domanda esplicita dell'utente — e se un punto
+  viene ripreso, esce di lì.
+- I documenti storici (`docs/superpowers/`, `docs/archivio/`) citano ancora `DA-FARE`: sono
+  archivio, raccontano com'era allora, **non si riscrivono**.
 
 ## Regola obbligatoria: come si scrive sul personaggio di un altro (2026-08-06)
 
@@ -246,7 +261,8 @@ una colonna»: il read-modify-write lato client ha la stessa finestra.
 - Build pulita: `dotnet build` (0 warning / 0 errori atteso in Release).
 - Test verdi: `dotnet test Tests/DndCompanion.Tests.csproj`.
 - Le RLS si testano solo con lo stack Supabase locale (`Tests.Integration/`, auto-skip se giù).
-- Aggiorna `docs/DA-FARE.md`/`docs/DIARIO.md` quando chiudi o apri un punto.
+- Aggiorna `docs/DIARIO.md` quando chiudi un punto, col *perché*. Ciò che resta aperto **si dice
+  all'utente in chat**, non si archivia (v. la regola del 2026-08-08).
 
 ## Pattern chiave (è questo che passi a `conformity`)
 - Logica di dominio → **helper puri `static`** testabili (xUnit) — per lo più `public static`; `internal static` + `InternalsVisibleTo` quando l'helper è privato di un repository/servizio — non nei `.razor`. Modelli già in casa: `CharacterCalculations`, `CharacterNormalizer`, `AccessControl`, `CharacterSpellJoin`, `CombatImport`, `FormValidation`, `CharacterWizardLogic`.
