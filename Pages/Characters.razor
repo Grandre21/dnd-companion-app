@@ -1098,14 +1098,19 @@
     // su "Salva note" e la risposta di rete l'utente può aprire un altro personaggio
     // (OpenDetailAsync sostituisce `selected`) o tornare indietro (GoBack lo azzera): un ripristino
     // letto da `selected` scriverebbe le note di questo PG dentro la scheda sbagliata.
+    // isSavingCharacter si legge in guardia E si imposta: leggerlo soltanto renderebbe la mutua
+    // esclusione unidirezionale — le note non partirebbero durante un salvataggio dei PF, ma i ± della
+    // vitals bar resterebbero accesi durante il salvataggio delle note, ed è lo stesso incrocio.
     private async Task SaveNotesAsync(string text)
     {
-        if (selected is null || !CanEdit) return;
+        if (selected is null || !CanEdit || isSavingCharacter) return;
 
         var pg = selected;
         var previous = pg.Notes;
         pg.Notes = text;
         errorMessage = null;
+        isSavingCharacter = true;
+        StateHasChanged();
         try
         {
             var saved = await CharacterRepository.UpdateCharacterAsync(pg);
@@ -1126,6 +1131,11 @@
         {
             pg.Notes = previous;
             errorMessage = $"Errore salvataggio note: {ex.Message}";
+        }
+        finally
+        {
+            isSavingCharacter = false;
+            StateHasChanged();
         }
     }
 

@@ -2289,7 +2289,7 @@ incrementale il warning non ricompare nemmeno. Da qui in avanti, dopo un cambio 
 ### La corsa che nessun gate individuale poteva vedere
 
 Il giro sulle **giunture** ha trovato ciò per cui esiste. `CharacterVitalsBar` resta montata accanto ai
-tab, e `characters` è una riga da 113 colonne senza `updated_at` né lock ottimistico: due tocchi
+tab, e `characters` è una riga da ~110 colonne senza `updated_at` né lock ottimistico: due tocchi
 ravvicinati facevano partire due `UPDATE` sulla stessa riga, e con risposte fuori ordine la prima
 sovrascriveva la seconda. In silenzio, perché **entrambe riuscivano**.
 
@@ -2309,3 +2309,35 @@ rilievo, ed è la scelta giusta — un rilievo senza scenario di fallimento è r
 Resta scritto qui perché la protezione **non è nel metodo**: è nella navigazione. Il giorno in cui un
 tab diventasse raggiungibile senza smontarsi, quel metodo scriverebbe su un altro personaggio, e
 niente nel suo codice lo direbbe.
+
+### Il quarto difetto nato in un brief, e stavolta la risposta era già scritta nel codice
+
+A lavoro committato restava un punto segnalato e non risolto: `SaveNotesAsync` non aveva
+`|| isSavingCharacter` in guardia, a differenza del gemello `SaveTrainingAsync`. L'utente ha chiesto di
+allinearlo, e il brief che ho scritto diceva: aggiungi quel termine, «identico al gemello».
+
+Era **metà** della disciplina. `SaveTrainingAsync` non si limita a **leggere** quel flag: lo **imposta**
+per la durata della propria richiesta e lo azzera in un `finally`. Copiando solo la lettura, la mutua
+esclusione diventa unidirezionale — le note non partono durante un salvataggio dei PF, ma i `±` della
+vitals bar restano **accesi** durante il salvataggio delle note, perché a spegnerli è proprio quel flag.
+Stesso incrocio, verso opposto: la richiesta delle note ha già congelato i PF vecchi nel payload, e se
+arriva al server dopo quella dei PF, l'incremento sparisce. Riuscendo, quindi in silenzio.
+
+Ciò che rende questo caso diverso dai tre precedenti è **dove stava la risposta**: non in un ragionamento
+da rifare, ma in un commento del file, tre righe sopra il metodo che stavo copiando —
+
+> «`isSavingCharacter` si legge in guardia **E** si imposta, con la stessa disciplina di
+> `SaveCharacterCoreAsync`».
+
+L'avevo scritto io, due giorni prima, proprio perché non si perdesse. Poi ho descritto la stessa
+funzione a memoria — «aggiungi il termine alla guardia» — invece di rileggerla. **Un commento che
+documenta un invariante non protegge chi non lo apre**, e il momento in cui non lo si apre è
+esattamente quello in cui si crede di sapere già cosa c'è scritto.
+
+Il rimedio pratico non è scrivere commenti migliori: è che un brief di allineamento **citi il gemello per
+esteso** invece di descriverlo. Un blocco incollato porta con sé il `finally` che la parafrasi perde.
+
+Il difetto l'ha trovato il gate, e non per caso: gli avevo chiesto di verificare se `isSavingCharacter`
+potesse restare bloccato a `true`. Guardando i `finally` per rispondere, ha visto che in quel metodo non
+ce n'era nessuno da guardare. **La domanda giusta ha trovato un difetto diverso da quello che cercava** —
+che è il motivo per cui al gate conviene chiedere di verificare meccanismi, non di confermare conclusioni.

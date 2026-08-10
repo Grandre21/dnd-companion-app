@@ -14,7 +14,7 @@ internal partial class ActiveEffectsJsonContext : JsonSerializerContext { }
 /// Ricorda quali privilegi sono accesi <b>adesso</b> — «sono in Ira» — per personaggio.
 ///
 /// <b>Perché non su <c>characters</c>:</b> l'Ira si accende e si spegne più volte a sessione. Ogni
-/// interruttore sarebbe un <c>Update</c> della riga intera da 113 colonne, last-write-wins, su rete
+/// interruttore sarebbe un <c>Update</c> della riga intera da ~110 colonne, last-write-wins, su rete
 /// mobile, e un rifiuto RLS non solleva eccezioni: PostgREST aggiorna zero righe e risponde
 /// <c>[]</c>. <b>Perché non in sola memoria:</b> su un telefono al tavolo il sistema operativo
 /// chiude la scheda appena l'utente guarda altro; <c>localStorage</c> non costa rete, non costa
