@@ -24,7 +24,11 @@ _ReSharper*/
 
 # Manuali D&D — materiale protetto da copyright: copia locale per il gruppo,
 # MAI versionata (il repo è pubblico su GitHub Pages) e comunque troppo pesante per la history.
-docs/*.pdf
+# Estesa dalla sola docs/ a TUTTO il repo il 2026-08-10: character-sheet.pdf stava nella radice,
+# fuori dalla regola per un soffio, e un "git add ." l'avrebbe pubblicato. Lì la ragione non era
+# nemmeno il copyright ma il dato personale — la scheda di gioco di qualcuno, con il suo nome.
+# Se un pdf va davvero versionato, si forza caso per caso con "git add -f".
+*.pdf
 
 # Logs
 *.log
