@@ -89,8 +89,13 @@
     <section class="sr-section">
         <h2>StatCard (caratteristica + TS/skill)</h2>
         <div class="sr-row">
-            <StatCard Ability="AbilityType.Dexterity" Character="demoCharacter" />
-            <StatCard Ability="AbilityType.Charisma" Character="demoCharacter" />
+            @* Le card della libreria sono in sola lettura (IsEditMode resta false), quindi i cicli
+               di competenza escono subito e questo callback non viene mai invocato: esiste per
+               soddisfare EditorRequired senza fingere un salvataggio che qui non esiste. *@
+            <StatCard Ability="AbilityType.Dexterity" Character="demoCharacter"
+                      OnChanged="@(() => Task.FromResult(true))" />
+            <StatCard Ability="AbilityType.Charisma" Character="demoCharacter"
+                      OnChanged="@(() => Task.FromResult(true))" />
         </div>
     </section>
 

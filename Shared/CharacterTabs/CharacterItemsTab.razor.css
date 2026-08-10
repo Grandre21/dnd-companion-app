@@ -230,6 +230,15 @@
     font-variant-numeric: tabular-nums;
 }
 
+.money-quick {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.money-quick-amount { flex: 1 1 auto; min-height: 44px; }
+.money-quick-denom  { flex: 0 0 5.5rem; min-height: 44px; }
+
 /* ===== Items tab: sintonie sottili ===== */
 .attunements-compact {
     display: flex;
@@ -326,6 +335,25 @@
 
 .inv-form-grid .field-full {
     grid-column: 1 / -1;
+}
+
+/* Bersaglio dito: 44px pieni (WCAG 2.2 AA chiede 24, il progetto usa 44 come minimo comodo). */
+.item-details-toggle {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 44px;
+    background: transparent;
+    border: 1px dashed rgba(var(--gold-rgb), 0.35);
+    border-radius: 6px;
+    color: var(--gold-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin: 0.5rem 0;
+}
+
+.item-details-toggle:hover {
+    border-color: rgba(var(--gold-rgb), 0.6);
+    color: var(--gold);
 }
 
 .inv-form-actions {

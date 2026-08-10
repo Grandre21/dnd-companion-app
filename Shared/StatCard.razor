@@ -40,15 +40,33 @@
     [Parameter, EditorRequired] public AbilityType Ability { get; set; }
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
     [Parameter] public bool IsEditMode { get; set; } = false;
-    [Parameter] public EventCallback OnChanged { get; set; }
+
+    /// <summary>Deve riportare l'ESITO (non un EventCallback): un update rifiutato dalle RLS non
+    /// solleva eccezioni — PostgREST aggiorna zero righe e risponde [] — quindi senza l'esito una
+    /// competenza mai confermata resterebbe a schermo e verrebbe poi persistita in silenzio dal
+    /// primo salvataggio riuscito da qualunque altro punto della scheda. Stesso contratto di
+    /// CharacterVitalsBar.OnChanged (v. il commento lì).</summary>
+    [Parameter, EditorRequired] public Func<Task<bool>> OnChanged { get; set; } = default!;
+
+    /// <summary>Da invocare dopo aver riportato Character allo stato pre-tentativo: questo
+    /// componente si ridisegna da sé (è il receiver del proprio click), ma il foglio che lo ospita
+    /// no. Bound dal genitore a StateHasChanged su di sé.</summary>
+    [Parameter] public EventCallback OnLocalRevert { get; set; }
 
     // ---- Toggle pallini (solo in edit mode) ----
 
     private async Task CycleSave()
     {
         if (!IsEditMode) return;
-        SetSaveProf(Character, Ability, !GetSaveProf(Character, Ability));
-        await OnChanged.InvokeAsync();
+        // Il valore va catturato PRIMA dell'await: fra un await e l'altro Blazor smista gli eventi,
+        // e ripristinare rileggendo la proprietà scriverebbe il valore sbagliato.
+        var precedente = GetSaveProf(Character, Ability);
+        SetSaveProf(Character, Ability, !precedente);
+        if (!await OnChanged())
+        {
+            SetSaveProf(Character, Ability, precedente);
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 
     private async Task CycleSkill(SkillType skill)
@@ -60,7 +78,15 @@
         if (!prof && !exp) { SetSkillProf(Character, skill, true); }
         else if (prof && !exp) { SetSkillExp(Character, skill, true); }
         else { SetSkillProf(Character, skill, false); SetSkillExp(Character, skill, false); }
-        await OnChanged.InvokeAsync();
+
+        if (!await OnChanged())
+        {
+            // Ripristino di ENTRAMBI i flag: il ciclo ne tocca uno o due a seconda del ramo, e
+            // rimetterne solo uno lascerebbe uno stato che nessun ramo del ciclo produce.
+            SetSkillProf(Character, skill, prof);
+            SetSkillExp(Character, skill, exp);
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 
     // ---- Accessibilità tastiera (Enter/Space attivano il pallino, solo in edit mode) ----

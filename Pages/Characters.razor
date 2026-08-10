@@ -220,7 +220,8 @@
                             else if (sheetCaratteristica is not null)
                             {
                                 <StatCard Ability="@sheetCaratteristica.Value" Character="@selected"
-                                          IsEditMode="@CanEdit" OnChanged="@SaveCharacterAsync" />
+                                          IsEditMode="@CanEdit" OnChanged="@SaveCharacterCoreAsync"
+                                          OnLocalRevert="@(() => StateHasChanged())" />
                             }
                             else if (sheetGruppo is not null)
                             {
@@ -297,7 +298,7 @@
                                         OnSalvaAnnotazione="@SalvaAnnotazionePrivilegioAsync"
                                         OnApriDettaglioPrivilegio="@ApriSheetPrivilegio"
                                         OnApriDettaglioGruppo="@ApriSheetGruppo">
-                        <CharacterStatsTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
+                        <CharacterStatsTab Character="@selected" CanEdit="@CanEdit"
                                            OnApriDettaglio="@ApriSheetCaratteristica" />
                     </CharacterCombatTab>
                 }
@@ -311,6 +312,7 @@
                                      Subclass="@SottoclasseSelezionata"
                                      PackageFeats="@packageFeats"
                                      BackgroundDalManuale="@BackgroundSelezionato"
+                                     SpecieDalManuale="@SpecieDalManuale"
                                      OnDelete="@DeleteSelectedAsync" IsBusy="@isBusy" />
                 }
 
@@ -318,14 +320,16 @@
                 @if (activeTab == "items")
                 {
                     <CharacterItemsTab Character="@selected" CanEdit="@CanEdit" Items="@inventoryItems"
-                                       IsLoading="@isLoadingInventory" OnChanged="@SaveCharacterAsync"
+                                       IsLoading="@isLoadingInventory" OnChanged="@SaveCharacterCoreAsync"
+                                       IsSaving="@isSavingCharacter" OnLocalRevert="@(() => StateHasChanged())"
                                        OnInventoryChanged="@ReloadInventoryAsync" OnError="@SetError" />
                 }
 
                 @* ===================== TAB MAGIA ===================== *@
                 @if (activeTab == "magic" && !string.IsNullOrWhiteSpace(selected.SpellcastingAbility))
                 {
-                    <CharacterMagicTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterAsync"
+                    <CharacterMagicTab Character="@selected" CanEdit="@CanEdit" OnChanged="@SaveCharacterCoreAsync"
+                                       IsSaving="@isSavingCharacter" OnLocalRevert="@(() => StateHasChanged())"
                                        AllSpells="@allSpells" PackageSpells="@packageSpells" OnError="@SetError" />
                 }
 
@@ -398,6 +402,7 @@
     private List<PackageClass> packageClasses = new();
     private List<PackageFeat> packageFeats = new();
     private List<PackageBackground> packageBackgrounds = new();
+    private List<PackageSpecies> packageSpecies = new();
 
     /// <summary>La sottoclasse del PG risolta, da qualunque sorgente: la colonna della riga di
     /// campagna se c'è, altrimenti il manuale (v. <see cref="SubclassCatalog.Disponibili"/>). Null
@@ -416,6 +421,11 @@
     /// o non a catalogo. Risolto qui, come la sottoclasse: è il genitore ad avere il pacchetto.</summary>
     private PackageBackground? BackgroundSelezionato
         => selected is null ? null : CharacterManualJoin.BackgroundRiconosciuto(selected.Background, packageBackgrounds);
+
+    /// <summary>La specie del manuale corrispondente al nome sulla scheda, null se scritta a mano
+    /// o non a catalogo. Risolta qui, come <see cref="BackgroundSelezionato"/>.</summary>
+    private PackageSpecies? SpecieDalManuale
+        => selected is null ? null : CharacterManualJoin.SpecieRiconosciuta(selected.Race, packageSpecies);
 
     /// <summary>Tabella dei livelli della classe del PG aperto; la regola di precedenza sta
     /// nell'helper puro, qui restano solo le due collezioni già caricate.</summary>
@@ -624,6 +634,7 @@
                 packageClasses = pacchetto.Classes;
                 packageFeats = pacchetto.Feats;
                 packageBackgrounds = pacchetto.Backgrounds;
+                packageSpecies = pacchetto.Species;
             }
         }
         catch (Exception ex)
@@ -704,8 +715,8 @@
         // SaveCharacterCoreAsync torna false) — stesso rischio già corretto per il riposo
         // (RiposoSnapshot in CharacterCombatTab.razor): senza ripristino, un colpo o una cura mai
         // confermati resterebbero lì fino al primo salvataggio successivo riuscito, che li
-        // persisterebbe in silenzio. Uso il metodo con l'esito (non il wrapper SaveCharacterAsync)
-        // apposta per poterlo controllare; qui non serve un OnLocalRevert separato — questo metodo
+        // persisterebbe in silenzio. Uso SaveCharacterCoreAsync apposta per poterne controllare
+        // l'esito; qui non serve un OnLocalRevert separato — questo metodo
         // è già il "receiver" del proprio @onclick, quindi si ridisegna da sé (e con sé
         // CharacterVitalsBar, che legge lo stesso pg) a fine esecuzione.
         var pf = pg.HitPoints;
@@ -1083,26 +1094,37 @@
     }
 
     // Persistenza delle note (invocata da CharacterBioTab via OnSaveNotes); il draft e il flag di
-    // salvataggio vivono nel componente.
+    // salvataggio vivono nel componente. `pg` è catturato subito dopo la guardia perché fra il tap
+    // su "Salva note" e la risposta di rete l'utente può aprire un altro personaggio
+    // (OpenDetailAsync sostituisce `selected`) o tornare indietro (GoBack lo azzera): un ripristino
+    // letto da `selected` scriverebbe le note di questo PG dentro la scheda sbagliata.
     private async Task SaveNotesAsync(string text)
     {
         if (selected is null || !CanEdit) return;
 
-        var previous = selected.Notes;
-        selected.Notes = text;
+        var pg = selected;
+        var previous = pg.Notes;
+        pg.Notes = text;
         errorMessage = null;
         try
         {
-            var saved = await CharacterRepository.UpdateCharacterAsync(selected);
-            if (saved is not null)
+            var saved = await CharacterRepository.UpdateCharacterAsync(pg);
+            if (saved is null)
             {
-                selected.Notes = saved.Notes;
-                SyncListFromSelected();
+                // Rifiuto RLS: zero righe aggiornate, risposta [], NESSUNA eccezione — quindi il
+                // catch qui sotto non scatta. Senza questo ramo le note restavano a schermo e mai
+                // sul server, e la prossima riapertura della scheda le trovava sparite.
+                pg.Notes = previous;
+                errorMessage = "Il server non ha restituito il personaggio salvato.";
+                return;
             }
+
+            pg.Notes = saved.Notes;
+            SyncListFromSelected(pg);
         }
         catch (Exception ex)
         {
-            selected.Notes = previous;
+            pg.Notes = previous;
             errorMessage = $"Errore salvataggio note: {ex.Message}";
         }
     }
@@ -1176,13 +1198,12 @@
     /// invece di un booleano locale a testa, cosicché un riposo e un tocco sui PF confermati nello
     /// stesso istante — o in corsa con un salvataggio dell'addestramento — non facciano partire due
     /// scritture in corsa sullo stesso Character (v. il commento sul campo). StateHasChanged è
-    /// esplicito perché sia
-    /// CharacterVitalsBar sia CharacterCombatTab invocano questo metodo (o il wrapper
-    /// SaveCharacterAsync) come Func&lt;Task&lt;bool&gt;&gt;/Task diretto e non come EventCallback:
-    /// senza il wrapping di EventCallback, che dopo l'invocazione rirenderizza da sé il "receiver",
-    /// il cambio di isSavingCharacter non arriverebbe altrimenti alla UI durante l'attesa di rete.
-    /// (CharacterStatsTab/CharacterItemsTab/CharacterMagicTab restano su EventCallback puro tramite
-    /// il wrapper: quella magia di re-render la offre comunque il framework, per loro.)</summary>
+    /// esplicito perché tutti i tab che scrivono (CharacterVitalsBar, CharacterCombatTab, StatCard,
+    /// CharacterItemsTab, CharacterMagicTab) invocano questo metodo direttamente come
+    /// Func&lt;Task&lt;bool&gt;&gt; e non come EventCallback: senza il wrapping di EventCallback, che
+    /// dopo l'invocazione rirenderizza da sé il "receiver", il cambio di isSavingCharacter non
+    /// arriverebbe altrimenti alla UI durante l'attesa di rete. (CharacterStatsTab non scrive nulla —
+    /// apre solo il foglio via OnApriDettaglio — e non ha più un parametro OnChanged.)</summary>
     private async Task<bool> SaveCharacterCoreAsync()
     {
         if (selected is null) return false;
@@ -1214,17 +1235,11 @@
         }
     }
 
-    // Wrapper senza esito, per i tab (CharacterStatsTab, CharacterItemsTab, CharacterMagicTab) che
-    // si limitano a chiedere il salvataggio via il solito EventCallback e non hanno bisogno di
-    // condizionare un proprio messaggio all'esito, a differenza di CharacterVitalsBar (i PF) e
-    // CharacterCombatTab (i riposi), che leggono l'esito da SaveCharacterCoreAsync direttamente.
-    private Task SaveCharacterAsync() => SaveCharacterCoreAsync();
-
     /// <summary>Salva/aggiorna un'annotazione su un privilegio (invocato da CharacterCombatTab via
     /// OnSalvaAnnotazione, bollato fino da CharacterFeaturesSection): la voce si fonde in
     /// CharacterFeatures per nome NORMALIZZATO — se esiste già si sostituisce, altrimenti si
-    /// aggiunge (v. brief Task 8). Salvataggio con SaveCharacterCoreAsync (lo stesso di
-    /// SaveCharacterAsync, che ne è solo l'alias senza esito — v. il commento lì) perché qui, come in
+    /// aggiunge (v. brief Task 8). Salvataggio con SaveCharacterCoreAsync, lo stesso metodo che ora
+    /// usano direttamente anche i tab (non c'è più un wrapper separato) perché qui, come in
     /// SaveTrainingAsync, "pg" va saputo riportare indietro: CharacterFeaturesSection lascia
     /// esplicitamente "banner/rollback" al genitore (v. il suo SalvaAsync), e senza il controllo
     /// dell'esito un update rifiutato dalle RLS (PostgREST torna [], nessuna eccezione) lascerebbe

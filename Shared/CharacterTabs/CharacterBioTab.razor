@@ -30,6 +30,21 @@
         </div>
     }
 
+    @if (SpecieDalManuale is not null && !string.IsNullOrWhiteSpace(SpecieDalManuale.Description))
+    {
+        <div class="bio-block">
+            <p class="bio-block-title">@SpecieDalManuale.Name.ToUpperInvariant()</p>
+            <p class="bio-block-text">@SpecieDalManuale.Description</p>
+            @if (!string.IsNullOrWhiteSpace(SpecieDalManuale.Traits))
+            {
+                @* Traits è UNA stringa sola, non un elenco: Scurovisione e Resistenza implacabile
+                   non sono separabili automaticamente. Va SOTTO la casella «TRATTI DELLA SPECIE»
+                   scritta a mano, non al posto suo. *@
+                <p class="bio-block-text">@SpecieDalManuale.Traits</p>
+            }
+        </div>
+    }
+
     @if (!string.IsNullOrWhiteSpace(Character.Appearance))
     {
         <div class="bio-block">
@@ -329,6 +344,10 @@
     /// cref="Character.Background"/>; null se scritto a mano o non a catalogo. Risolto dal genitore
     /// (v. <see cref="CharacterManualJoin.BackgroundRiconosciuto"/>), come <see cref="Subclass"/>.</summary>
     [Parameter] public PackageBackground? BackgroundDalManuale { get; set; }
+
+    /// <summary>La specie del manuale che corrisponde a <see cref="Character.Race"/>; null se
+    /// scritta a mano o non a catalogo. Risolta dal genitore, come <see cref="BackgroundDalManuale"/>.</summary>
+    [Parameter] public PackageSpecies? SpecieDalManuale { get; set; }
 
     /// <summary>Eliminazione del personaggio. La conferma e la chiamata al database restano al
     /// genitore, come per il salvataggio delle note.</summary>

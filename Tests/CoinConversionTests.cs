@@ -338,4 +338,52 @@ public class CoinConversionTests
         Assert.Equal(5, pg.CopperPieces);
         Assert.Equal(2, pg.SilverPieces);
     }
+
+    // -----------------------------------------------------------------------------------
+    // Incassa
+    // -----------------------------------------------------------------------------------
+
+    [Fact]
+    public void Incassa_SommaSoloIlTaglioRicevuto_ELasciaGliAltriIntatti()
+    {
+        // 15 ma è il valore che rende il test non vacuo: se Incassa ricompattasse (come fa
+        // Compatta), 15 ma diventerebbero 1 mo + 5 ma e l'asserzione sull'argento fallirebbe.
+        // È la stessa proprietà che regge Spendi: i tagli non coinvolti restano come erano.
+        var esito = CoinConversion.Incassa(0, 2, 0, 15, 3, 0, 30, 0, 0, 0);
+
+        Assert.Equal(32, esito.GoldPieces);
+        Assert.Equal(15, esito.SilverPieces);
+        Assert.Equal(3, esito.CopperPieces);
+        Assert.Equal(0, esito.PlatinumPieces);
+        Assert.Equal(0, esito.ElectrumPieces);
+    }
+
+    [Fact]
+    public void Incassa_IlTotaleInRameCresceEsattamenteDellIncasso()
+    {
+        var prima = CoinConversion.TotaleInRame(1, 2, 3, 4, 5);
+        var esito = CoinConversion.Incassa(1, 2, 3, 4, 5, 0, 7, 0, 0, 0);
+        var dopo = CoinConversion.TotaleInRame(
+            esito.PlatinumPieces, esito.GoldPieces, esito.ElectrumPieces,
+            esito.SilverPieces, esito.CopperPieces);
+
+        Assert.Equal(prima + 7 * 100, dopo);
+    }
+
+    [Fact]
+    public void Incassa_ValoriNegativiContanoComeZero()
+    {
+        // Il DB non ha vincoli CHECK sulle valute: stessa difesa di TotaleInRame e Spendi.
+        var esito = CoinConversion.Incassa(0, -5, 0, 0, 0, 0, 10, 0, 0, 0);
+
+        Assert.Equal(10, esito.GoldPieces);
+    }
+
+    [Fact]
+    public void Incassa_OltreIlMassimoDiInt_Clampa()
+    {
+        var esito = CoinConversion.Incassa(0, int.MaxValue, 0, 0, 0, 0, 100, 0, 0, 0);
+
+        Assert.Equal(int.MaxValue, esito.GoldPieces);
+    }
 }

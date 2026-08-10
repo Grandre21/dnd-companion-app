@@ -34,12 +34,6 @@
                         <input type="number" class="input" min="1" @bind="newItemDraft.Quantity" />
                     </div>
 
-                    <div class="field">
-                        <label>Peso</label>
-                        <input type="number" class="input" step="0.1" min="0"
-                               @bind="newItemDraft.Weight" />
-                    </div>
-
                     <div class="field field-full">
                         <label>Tipo</label>
                         <select class="input" @bind="newItemDraft.ItemType">
@@ -50,67 +44,82 @@
                         </select>
                     </div>
 
-                    @if (IsWeaponType(newItemDraft.ItemType))
+                    <button type="button" class="item-details-toggle"
+                            @onclick="() => showNewItemDetails = !showNewItemDetails"
+                            aria-expanded="@AriaBool(showNewItemDetails)">
+                        @(showNewItemDetails ? "− Meno dettagli" : "+ Altri dettagli")
+                    </button>
+
+                    @if (showNewItemDetails)
                     {
-                        <p class="weapon-fields-title field-full">Dettagli dell'arma</p>
+                        <div class="field">
+                            <label>Peso</label>
+                            <input type="number" class="input" step="0.1" min="0"
+                                   @bind="newItemDraft.Weight" />
+                        </div>
+
+                        @if (IsWeaponType(newItemDraft.ItemType))
+                        {
+                            <p class="weapon-fields-title field-full">Dettagli dell'arma</p>
+
+                            <div class="field field-full">
+                                <label>Bonus d'attacco (facoltativo)</label>
+                                <input type="text" class="input" maxlength="20"
+                                       placeholder="es. +5 — lascia vuoto per il calcolo automatico"
+                                       @bind="newItemDraft.AttackBonus" />
+                            </div>
+
+                            <div class="field">
+                                <label>Danno</label>
+                                <input type="text" class="input" maxlength="20"
+                                       placeholder="es. 2d6"
+                                       @bind="newItemDraft.Damage" />
+                            </div>
+
+                            <div class="field">
+                                <label>Tipo di danno</label>
+                                <input type="text" class="input" maxlength="30"
+                                       placeholder="es. Taglio"
+                                       @bind="newItemDraft.DamageType" />
+                            </div>
+
+                            <div class="field field-full">
+                                <label>Note (opzionale)</label>
+                                <textarea class="input" rows="2"
+                                          @bind="newItemDraft.AttackNotes"></textarea>
+                            </div>
+
+                            <div class="weapon-flags field-full">
+                                <label class="weapon-flag">
+                                    <input type="checkbox" @bind="newItemDraft.IsFinesse" />
+                                    <span class="weapon-flag-text">
+                                        <span class="weapon-flag-name">Accurata</span>
+                                        <span class="weapon-flag-hint">Può usare Destrezza al posto di Forza, se conviene.</span>
+                                    </span>
+                                </label>
+                                <label class="weapon-flag">
+                                    <input type="checkbox" @bind="newItemDraft.IsRanged" />
+                                    <span class="weapon-flag-text">
+                                        <span class="weapon-flag-name">A distanza</span>
+                                        <span class="weapon-flag-hint">Usa Destrezza per il bonus d'attacco.</span>
+                                    </span>
+                                </label>
+                                <label class="weapon-flag">
+                                    <input type="checkbox" @bind="newItemDraft.IsNotProficient" />
+                                    <span class="weapon-flag-text">
+                                        <span class="weapon-flag-name">Non competente</span>
+                                        <span class="weapon-flag-hint">Niente bonus di competenza per questa arma.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        }
 
                         <div class="field field-full">
-                            <label>Bonus d'attacco (facoltativo)</label>
-                            <input type="text" class="input" maxlength="20"
-                                   placeholder="es. +5 — lascia vuoto per il calcolo automatico"
-                                   @bind="newItemDraft.AttackBonus" />
-                        </div>
-
-                        <div class="field">
-                            <label>Danno</label>
-                            <input type="text" class="input" maxlength="20"
-                                   placeholder="es. 2d6"
-                                   @bind="newItemDraft.Damage" />
-                        </div>
-
-                        <div class="field">
-                            <label>Tipo di danno</label>
-                            <input type="text" class="input" maxlength="30"
-                                   placeholder="es. Taglio"
-                                   @bind="newItemDraft.DamageType" />
-                        </div>
-
-                        <div class="field field-full">
-                            <label>Note (opzionale)</label>
-                            <textarea class="input" rows="2"
-                                      @bind="newItemDraft.AttackNotes"></textarea>
-                        </div>
-
-                        <div class="weapon-flags field-full">
-                            <label class="weapon-flag">
-                                <input type="checkbox" @bind="newItemDraft.IsFinesse" />
-                                <span class="weapon-flag-text">
-                                    <span class="weapon-flag-name">Accurata</span>
-                                    <span class="weapon-flag-hint">Può usare Destrezza al posto di Forza, se conviene.</span>
-                                </span>
-                            </label>
-                            <label class="weapon-flag">
-                                <input type="checkbox" @bind="newItemDraft.IsRanged" />
-                                <span class="weapon-flag-text">
-                                    <span class="weapon-flag-name">A distanza</span>
-                                    <span class="weapon-flag-hint">Usa Destrezza per il bonus d'attacco.</span>
-                                </span>
-                            </label>
-                            <label class="weapon-flag">
-                                <input type="checkbox" @bind="newItemDraft.IsNotProficient" />
-                                <span class="weapon-flag-text">
-                                    <span class="weapon-flag-name">Non competente</span>
-                                    <span class="weapon-flag-hint">Niente bonus di competenza per questa arma.</span>
-                                </span>
-                            </label>
+                            <label>Descrizione (opzionale)</label>
+                            <textarea class="input" rows="3"
+                                      @bind="newItemDraft.Description"></textarea>
                         </div>
                     }
-
-                    <div class="field field-full">
-                        <label>Descrizione (opzionale)</label>
-                        <textarea class="input" rows="3"
-                                  @bind="newItemDraft.Description"></textarea>
-                    </div>
                 </div>
 
                 <div class="inv-form-actions">
@@ -391,7 +400,7 @@
                         title="Riordina le monete verso i tagli alti senza cambiarne il valore">Compatta</button>
             }
             <button type="button" class="money-cancel-btn" @onclick="AnnullaMonete">Annulla</button>
-            <button class="money-save-btn" @onclick="SaveMoney">Salva</button>
+            <button class="money-save-btn" @onclick="SaveMoney" disabled="@IsSaving">Salva</button>
         </div>
     </div>
 }
@@ -400,28 +409,52 @@ else if (isSpendingMoney)
     var anteprima = AnteprimaSpesa();
     <div class="money-spend">
         <p class="money-spend-title">Quanto spendi?</p>
-        <div class="money-spend-fields">
-            <div class="money-field">
-                <label for="spend-mp">MP</label>
-                <input id="spend-mp" type="number" min="0" @bind="spendPlatinum" />
+
+        <button type="button" class="item-details-toggle"
+                @onclick="() => showSpendMulti = !showSpendMulti"
+                aria-expanded="@AriaBool(showSpendMulti)">
+            @(showSpendMulti ? "− Un taglio solo" : "+ Più tagli")
+        </button>
+
+        @if (!showSpendMulti)
+        {
+            <div class="money-quick">
+                <input type="number" min="0" class="input money-quick-amount"
+                       aria-label="Quantità da spendere" @bind="spendAmount" />
+                <select class="input money-quick-denom" aria-label="Taglio" @bind="spendDenom">
+                    <option value="mp">MP</option>
+                    <option value="mo">MO</option>
+                    <option value="me">ME</option>
+                    <option value="ma">MA</option>
+                    <option value="mr">MR</option>
+                </select>
             </div>
-            <div class="money-field">
-                <label for="spend-mo">MO</label>
-                <input id="spend-mo" type="number" min="0" @bind="spendGold" />
+        }
+        else
+        {
+            <div class="money-spend-fields">
+                <div class="money-field">
+                    <label for="spend-mp">MP</label>
+                    <input id="spend-mp" type="number" min="0" @bind="spendPlatinum" />
+                </div>
+                <div class="money-field">
+                    <label for="spend-mo">MO</label>
+                    <input id="spend-mo" type="number" min="0" @bind="spendGold" />
+                </div>
+                <div class="money-field">
+                    <label for="spend-me">ME</label>
+                    <input id="spend-me" type="number" min="0" @bind="spendElectrum" />
+                </div>
+                <div class="money-field">
+                    <label for="spend-ma">MA</label>
+                    <input id="spend-ma" type="number" min="0" @bind="spendSilver" />
+                </div>
+                <div class="money-field">
+                    <label for="spend-mr">MR</label>
+                    <input id="spend-mr" type="number" min="0" @bind="spendCopper" />
+                </div>
             </div>
-            <div class="money-field">
-                <label for="spend-me">ME</label>
-                <input id="spend-me" type="number" min="0" @bind="spendElectrum" />
-            </div>
-            <div class="money-field">
-                <label for="spend-ma">MA</label>
-                <input id="spend-ma" type="number" min="0" @bind="spendSilver" />
-            </div>
-            <div class="money-field">
-                <label for="spend-mr">MR</label>
-                <input id="spend-mr" type="number" min="0" @bind="spendCopper" />
-            </div>
-        </div>
+        }
 
         @if (SpesaVuota)
         {
@@ -447,7 +480,41 @@ else if (isSpendingMoney)
         <div class="money-editor-actions">
             <button type="button" class="money-cancel-btn" @onclick="AnnullaSpesa">Annulla</button>
             <button type="button" class="money-save-btn" @onclick="ConfermaSpesaAsync"
-                    disabled="@(SpesaVuota || !anteprima.Riuscita)">Conferma</button>
+                    disabled="@(IsSaving || SpesaVuota || !anteprima.Riuscita)">Conferma</button>
+        </div>
+    </div>
+}
+else if (isReceivingMoney)
+{
+    var esito = AnteprimaIncasso();
+
+    <div class="money-spend">
+        <p class="money-spend-title">Quanto ricevi?</p>
+        <div class="money-quick">
+            <input type="number" min="0" class="input money-quick-amount"
+                   aria-label="Quantità ricevuta" @bind="receiveAmount" />
+            <select class="input money-quick-denom" aria-label="Taglio" @bind="receiveDenom">
+                <option value="mp">MP</option>
+                <option value="mo">MO</option>
+                <option value="me">ME</option>
+                <option value="ma">MA</option>
+                <option value="mr">MR</option>
+            </select>
+        </div>
+
+        @if (receiveAmount > 0)
+        {
+            <p class="money-spend-result">
+                Ora hai: @CoinConversion.FormattaTotaleInOro(CoinConversion.TotaleInRame(
+                    esito.PlatinumPieces, esito.GoldPieces, esito.ElectrumPieces,
+                    esito.SilverPieces, esito.CopperPieces)) mo
+            </p>
+        }
+
+        <div class="money-editor-actions">
+            <button type="button" class="money-cancel-btn" @onclick="AnnullaIncasso">Annulla</button>
+            <button type="button" class="money-save-btn" @onclick="ConfermaIncassoAsync"
+                    disabled="@(IsSaving || receiveAmount <= 0)">Conferma</button>
         </div>
     </div>
 }
@@ -475,6 +542,7 @@ else
     @if (CanEdit)
     {
         <button type="button" class="money-spend-btn" @onclick="ApriSpesa">Usa</button>
+        <button type="button" class="money-spend-btn" @onclick="ApriIncasso">Ricevi</button>
     }
 }
 
@@ -509,8 +577,17 @@ else
     [Parameter] public IReadOnlyList<InventoryItem> Items { get; set; } = Array.Empty<InventoryItem>();
     [Parameter] public bool IsLoading { get; set; }
 
-    /// <summary>Persistenza di campi Character (denaro/sintonie): il genitore fa SaveCharacterAsync.</summary>
-    [Parameter] public EventCallback OnChanged { get; set; }
+    /// <summary>Persistenza di campi Character (denaro/sintonie). Deve riportare l'ESITO: un update
+    /// rifiutato dalle RLS non solleva eccezioni, quindi senza controllarlo la scheda mostrerebbe un
+    /// borsello che il server non ha. Stesso contratto di CharacterVitalsBar.OnChanged.</summary>
+    [Parameter, EditorRequired] public Func<Task<bool>> OnChanged { get; set; } = default!;
+
+    /// <summary>Da invocare dopo il ripristino: v. CharacterVitalsBar.OnLocalRevert.</summary>
+    [Parameter] public EventCallback OnLocalRevert { get; set; }
+
+    /// <summary>Salvataggio in corso sulla riga characters; v. CharacterVitalsBar.IsSaving. Distinto
+    /// da isSavingInventory qui sotto, che copre invece le scritture sulla tabella inventory.</summary>
+    [Parameter] public bool IsSaving { get; set; }
     /// <summary>Modifica strutturale dell'inventario (add/delete): il genitore ricarica la lista.</summary>
     [Parameter] public EventCallback OnInventoryChanged { get; set; }
     /// <summary>Messaggio d'errore da mostrare nel banner del genitore (null = pulisci).</summary>
@@ -518,6 +595,9 @@ else
 
     private bool isAddingItem;
     private InventoryItem newItemDraft = new();
+    // Il pannello nasce chiuso a ogni apertura del form: il gesto comune è «3 pozioni», e chi deve
+    // compilare un'arma per intero lo apre. OpenAddItemForm lo rimette a false (v. sotto).
+    private bool showNewItemDetails;
     private bool isSavingInventory;
     private string? expandedItemId;
     private bool isEditingMoney;
@@ -532,6 +612,18 @@ else
     // di toccare lo stesso dato e aprirne uno non deve sporcare l'altro.
     private bool isSpendingMoney;
     private int spendPlatinum, spendGold, spendElectrum, spendSilver, spendCopper;
+
+    // Coppia quantità+taglio: il gesto comune è "spendo 12 mo", non compilare cinque caselle. Le
+    // cinque caselle sopra restano disponibili dietro showSpendMulti per le spese su più tagli.
+    private int spendAmount;
+    private string spendDenom = "mo";
+    private bool showSpendMulti;
+
+    // Ricevi (pulsante «Ricevi»): gemello di isSpendingMoney, ma un incasso non può fallire per
+    // fondi insufficienti, quindi non serve un'anteprima di errore.
+    private bool isReceivingMoney;
+    private int receiveAmount;
+    private string receiveDenom = "mo";   // il taglio più comune al tavolo
 
     // Modifica di un oggetto già in elenco: stesso schema di isAddingItem/newItemDraft sopra, ma
     // tenuto a parte perché più oggetti nell'elenco condividono lo stesso form — solo uno alla
@@ -595,6 +687,12 @@ else
             // PG precedente: stessa ragione del reset della bozza dell'editor qui sopra.
             isSpendingMoney = false;
             spendPlatinum = spendGold = spendElectrum = spendSilver = spendCopper = 0;
+            spendAmount = 0;
+            showSpendMulti = false;
+            // Stessa ragione del reset della spesa qui sopra: il pannello di incasso in bozza del
+            // PG precedente non deve sopravvivere al cambio.
+            isReceivingMoney = false;
+            receiveAmount = 0;
         }
     }
 
@@ -609,6 +707,7 @@ else
             Quantity = 1,
             ItemType = ItemTypeOptions[0].Value
         };
+        showNewItemDetails = false;
         isAddingItem = true;
         await OnError.InvokeAsync(null);
     }
@@ -898,15 +997,34 @@ else
 
     private async Task SaveMoney()
     {
-        if (!CanEdit) return;
+        if (!CanEdit || IsSaving) return;
+        // Riferimento catturato ADESSO, non riletto dal parametro Character dopo l'await: mentre
+        // questo metodo aspetta OnChanged, Blazor smista comunque gli eventi dell'interfaccia, e il
+        // genitore può cambiare il parametro sotto di noi (un altro personaggio aperto, o "←" che
+        // torna alla lista). Rileggere Character al ripristino scriverebbe le monete del PG di
+        // PRIMA dentro quello NUOVO — v. il commento in CharacterVitalsBar.AdjustHpAsync per il
+        // dettaglio.
+        var pg = Character;
+        var precedente = new[] { pg.PlatinumPieces, pg.GoldPieces,
+                                 pg.ElectrumPieces, pg.SilverPieces,
+                                 pg.CopperPieces };
         // Il clamp si applica alla bozza al momento del travaso: è l'unico punto in cui i valori
         // entrano nel personaggio.
-        Character.PlatinumPieces = Math.Max(0, draftPlatinum);
-        Character.GoldPieces = Math.Max(0, draftGold);
-        Character.ElectrumPieces = Math.Max(0, draftElectrum);
-        Character.SilverPieces = Math.Max(0, draftSilver);
-        Character.CopperPieces = Math.Max(0, draftCopper);
-        await OnChanged.InvokeAsync();
+        pg.PlatinumPieces = Math.Max(0, draftPlatinum);
+        pg.GoldPieces = Math.Max(0, draftGold);
+        pg.ElectrumPieces = Math.Max(0, draftElectrum);
+        pg.SilverPieces = Math.Max(0, draftSilver);
+        pg.CopperPieces = Math.Max(0, draftCopper);
+        if (!await OnChanged())
+        {
+            pg.PlatinumPieces = precedente[0];
+            pg.GoldPieces = precedente[1];
+            pg.ElectrumPieces = precedente[2];
+            pg.SilverPieces = precedente[3];
+            pg.CopperPieces = precedente[4];
+            await OnLocalRevert.InvokeAsync();
+            return;
+        }
         isEditingMoney = false;
     }
 
@@ -926,12 +1044,31 @@ else
     private void AnnullaMonete() => isEditingMoney = false;
 
     /// <summary>L'esito della spesa in bozza, ricalcolato a ogni render: è una funzione pura di
-    /// cinque interi e del borsello, quindi non serve memorizzarlo.</summary>
-    private EsitoSpesa AnteprimaSpesa() =>
-        CoinConversion.Spendi(Character, spendPlatinum, spendGold, spendElectrum, spendSilver, spendCopper);
+    /// cinque interi e del borsello, quindi non serve memorizzarlo. Legge dalla coppia
+    /// quantità+taglio quando il toggle "più tagli" è chiuso, dalle cinque caselle quando è aperto
+    /// — le due sorgenti non si sommano mai, vale solo quella visibile.</summary>
+    private EsitoSpesa AnteprimaSpesa() => showSpendMulti
+        ? CoinConversion.Spendi(Character, spendPlatinum, spendGold, spendElectrum, spendSilver, spendCopper)
+        : CoinConversion.Spendi(Character,
+            spendDenom == "mp" ? spendAmount : 0,
+            spendDenom == "mo" ? spendAmount : 0,
+            spendDenom == "me" ? spendAmount : 0,
+            spendDenom == "ma" ? spendAmount : 0,
+            spendDenom == "mr" ? spendAmount : 0);
 
-    private bool SpesaVuota =>
-        spendPlatinum <= 0 && spendGold <= 0 && spendElectrum <= 0 && spendSilver <= 0 && spendCopper <= 0;
+    private bool SpesaVuota => showSpendMulti
+        ? spendPlatinum <= 0 && spendGold <= 0 && spendElectrum <= 0 && spendSilver <= 0 && spendCopper <= 0
+        : spendAmount <= 0;
+
+    /// <summary>L'esito dell'incasso in bozza, ricalcolato a ogni render: gemello di
+    /// AnteprimaSpesa qui sopra, ma legge solo la coppia quantità+taglio — l'incasso non ha un
+    /// pannello "più tagli".</summary>
+    private EsitoIncasso AnteprimaIncasso() => CoinConversion.Incassa(Character,
+        receiveDenom == "mp" ? receiveAmount : 0,
+        receiveDenom == "mo" ? receiveAmount : 0,
+        receiveDenom == "me" ? receiveAmount : 0,
+        receiveDenom == "ma" ? receiveAmount : 0,
+        receiveDenom == "mr" ? receiveAmount : 0);
 
     private void ApriSpesa()
     {
@@ -940,11 +1077,22 @@ else
         isSpendingMoney = true;
     }
 
-    private void AnnullaSpesa() => isSpendingMoney = false;
+    private void AnnullaSpesa()
+    {
+        isSpendingMoney = false;
+        // Altrimenti la spesa successiva si apre precompilata con l'importo di quella precedente, e
+        // un "Conferma" distratto paga due volte.
+        spendAmount = 0;
+        showSpendMulti = false;
+    }
 
     private async Task ConfermaSpesaAsync()
     {
-        if (!CanEdit) return;
+        if (!CanEdit || IsSaving) return;
+
+        // V. il commento in SaveMoney: riferimento catturato ADESSO, non riletto da Character dopo
+        // l'await.
+        var pg = Character;
 
         var esito = AnteprimaSpesa();
         if (!esito.Riuscita)
@@ -954,11 +1102,68 @@ else
             return;
         }
 
-        CoinConversion.Applica(Character, esito);
+        var precedente = new[] { pg.PlatinumPieces, pg.GoldPieces,
+                                 pg.ElectrumPieces, pg.SilverPieces,
+                                 pg.CopperPieces };
+        CoinConversion.Applica(pg, esito);
+        if (!await OnChanged())
+        {
+            pg.PlatinumPieces = precedente[0];
+            pg.GoldPieces = precedente[1];
+            pg.ElectrumPieces = precedente[2];
+            pg.SilverPieces = precedente[3];
+            pg.CopperPieces = precedente[4];
+            await OnLocalRevert.InvokeAsync();
+            return;
+        }
         isSpendingMoney = false;
-        // OnChanged non riporta l'esito del salvataggio (v. Pages/Characters.razor): non
-        // annunciamo un successo che non possiamo verificare, ci limitiamo a chiudere il pannello.
-        await OnChanged.InvokeAsync();
+        // Altrimenti la spesa successiva si apre precompilata con l'importo di quella precedente, e
+        // un "Conferma" distratto paga due volte.
+        spendAmount = 0;
+        showSpendMulti = false;
+    }
+
+    private void ApriIncasso()
+    {
+        if (!CanEdit) return;
+        receiveAmount = 0;
+        isReceivingMoney = true;
+    }
+
+    private void AnnullaIncasso()
+    {
+        isReceivingMoney = false;
+        receiveAmount = 0;
+    }
+
+    private async Task ConfermaIncassoAsync()
+    {
+        if (!CanEdit || IsSaving || receiveAmount <= 0) return;
+
+        // V. il commento in SaveMoney: riferimento catturato ADESSO, non riletto da Character dopo
+        // l'await.
+        var pg = Character;
+
+        var precedente = new[] { pg.PlatinumPieces, pg.GoldPieces,
+                                 pg.ElectrumPieces, pg.SilverPieces,
+                                 pg.CopperPieces };
+
+        var esito = AnteprimaIncasso();
+        CoinConversion.Applica(pg, esito);
+
+        if (!await OnChanged())
+        {
+            pg.PlatinumPieces = precedente[0];
+            pg.GoldPieces = precedente[1];
+            pg.ElectrumPieces = precedente[2];
+            pg.SilverPieces = precedente[3];
+            pg.CopperPieces = precedente[4];
+            await OnLocalRevert.InvokeAsync();
+            return;
+        }
+
+        isReceivingMoney = false;
+        receiveAmount = 0;
     }
 
     private string? AttunementValue(int slot) => slot switch
@@ -971,15 +1176,34 @@ else
 
     private async Task SetAttunementAsync(int slot, string? raw)
     {
-        if (!CanEdit) return;
+        if (!CanEdit || IsSaving) return;
+        // V. il commento in SaveMoney: riferimento catturato ADESSO, non riletto da Character dopo
+        // l'await.
+        var pg = Character;
         var val = string.IsNullOrWhiteSpace(raw) ? null : raw.Trim();
+        var precedente = slot switch
+        {
+            1 => pg.AttunedItem1,
+            2 => pg.AttunedItem2,
+            3 => pg.AttunedItem3,
+            _ => null
+        };
         switch (slot)
         {
-            case 1: Character.AttunedItem1 = val; break;
-            case 2: Character.AttunedItem2 = val; break;
-            case 3: Character.AttunedItem3 = val; break;
+            case 1: pg.AttunedItem1 = val; break;
+            case 2: pg.AttunedItem2 = val; break;
+            case 3: pg.AttunedItem3 = val; break;
             default: return;
         }
-        await OnChanged.InvokeAsync();
+        if (!await OnChanged())
+        {
+            switch (slot)
+            {
+                case 1: pg.AttunedItem1 = precedente; break;
+                case 2: pg.AttunedItem2 = precedente; break;
+                case 3: pg.AttunedItem3 = precedente; break;
+            }
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 }

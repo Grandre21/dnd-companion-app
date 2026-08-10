@@ -75,4 +75,17 @@ public static class CharacterManualJoin
         var chiave = CatalogKey.NormalizeName(nomeBackground);
         return catalogo.FirstOrDefault(b => CatalogKey.NormalizeName(b.Name) == chiave);
     }
+
+    /// <summary>La specie del catalogo il cui nome combacia <b>esattamente</b> (normalizzato) con
+    /// <paramref name="nomeSpecie"/>; <c>null</c> se nessuna. <c>Character.Race</c> è un campo
+    /// singolo, non testo libero: il match è esatto, non "parola intera" come per i talenti —
+    /// stessa forma di <see cref="BackgroundRiconosciuto"/>.</summary>
+    public static PackageSpecies? SpecieRiconosciuta(
+        string? nomeSpecie, IReadOnlyList<PackageSpecies> catalogo)
+    {
+        if (string.IsNullOrWhiteSpace(nomeSpecie) || catalogo is null) return null;
+
+        var chiave = CatalogKey.NormalizeName(nomeSpecie);
+        return catalogo.FirstOrDefault(s => CatalogKey.NormalizeName(s.Name) == chiave);
+    }
 }

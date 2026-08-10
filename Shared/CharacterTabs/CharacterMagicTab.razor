@@ -94,7 +94,17 @@
 @code {
     [Parameter, EditorRequired] public Character Character { get; set; } = default!;
     [Parameter] public bool CanEdit { get; set; }
-    [Parameter] public EventCallback OnChanged { get; set; }
+
+    /// <summary>Deve riportare l'ESITO: uno slot speso e rifiutato dalle RLS resterebbe segnato a
+    /// schermo — e al tavolo uno slot creduto speso è peggio di un errore, perché non si rigioca.
+    /// Stesso contratto di CharacterVitalsBar.OnChanged.</summary>
+    [Parameter, EditorRequired] public Func<Task<bool>> OnChanged { get; set; } = default!;
+
+    /// <summary>Da invocare dopo il ripristino: v. CharacterVitalsBar.OnLocalRevert.</summary>
+    [Parameter] public EventCallback OnLocalRevert { get; set; }
+
+    /// <summary>Salvataggio in corso sulla riga characters; v. CharacterVitalsBar.IsSaving.</summary>
+    [Parameter] public bool IsSaving { get; set; }
     [Parameter] public List<Spell> AllSpells { get; set; } = new();
     [Parameter] public List<PackageSpell> PackageSpells { get; set; } = new();
     [Parameter] public EventCallback<string?> OnError { get; set; }
@@ -146,7 +156,7 @@
 
     private async Task ToggleSpellSlot(int level, int index)
     {
-        if (!CanEdit) return;
+        if (!CanEdit || IsSaving) return;
         var max = GetSpellSlotMax(Character, level);
         if (max <= 0) return;
         var used = GetSpellSlotUsed(Character, level);
@@ -157,7 +167,11 @@
         newUsed = Math.Clamp(newUsed, 0, max);
         if (newUsed == used) return;
         SetSpellSlotUsed(Character, level, newUsed);
-        await OnChanged.InvokeAsync();
+        if (!await OnChanged())
+        {
+            SetSpellSlotUsed(Character, level, used);
+            await OnLocalRevert.InvokeAsync();
+        }
     }
 
     // La decisione "riusa una riga o creane una da voce di pacchetto" è di SpellMaterialization;

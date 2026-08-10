@@ -46,6 +46,17 @@ public sealed record EsitoSpesa
     public required string? TaglioRotto { get; init; }
 }
 
+/// <summary>Esito di un incasso: i cinque tagli dopo l'aggiunta. Non ha un flag Riuscita — un
+/// incasso non può fallire, a differenza di una spesa che può non trovare i fondi.</summary>
+public sealed record EsitoIncasso
+{
+    public required int PlatinumPieces { get; init; }
+    public required int GoldPieces { get; init; }
+    public required int ElectrumPieces { get; init; }
+    public required int SilverPieces { get; init; }
+    public required int CopperPieces { get; init; }
+}
+
 /// <summary>
 /// Equivalenza in oro e compattazione del gruzzolo (D&amp;D 5e) come sole funzioni pure: calcolano
 /// senza toccare il personaggio e riportano l'esito. La scrittura sul PG passa sempre da
@@ -257,5 +268,50 @@ public static class CoinConversion
         c.ElectrumPieces = esito.ElectrumPieces;
         c.SilverPieces = esito.SilverPieces;
         c.CopperPieces = esito.CopperPieces;
+    }
+
+    /// <summary>
+    /// Aggiunge monete al gruzzolo, <b>senza compattare e senza convertire</b>: chi riceve 30 mo si
+    /// ritrova 30 mo in più, non un platino e degli spiccioli. È la stessa scelta di gioco di
+    /// <see cref="Spendi"/> — i tagli non coinvolti restano esattamente come erano — e il motivo per
+    /// cui questo non è un caso particolare di <see cref="Compatta(int,int,int,int,int)"/>.
+    ///
+    /// Valute negative (il DB non ha vincoli CHECK) contano come 0, come in
+    /// <see cref="TotaleInRame(int,int,int,int,int)"/>. La somma è in <c>long</c> e viene clampata a
+    /// <see cref="int.MaxValue"/>: le colonne sono <c>integer</c>, e un traboccamento silenzioso
+    /// scriverebbe un negativo sul personaggio.
+    /// </summary>
+    public static EsitoIncasso Incassa(int platino, int oro, int electrum, int argento, int rame,
+                                       int incassoPlatino, int incassoOro, int incassoElectrum,
+                                       int incassoArgento, int incassoRame)
+        => new()
+        {
+            PlatinumPieces = SommaClamp(platino, incassoPlatino),
+            GoldPieces = SommaClamp(oro, incassoOro),
+            ElectrumPieces = SommaClamp(electrum, incassoElectrum),
+            SilverPieces = SommaClamp(argento, incassoArgento),
+            CopperPieces = SommaClamp(rame, incassoRame),
+        };
+
+    public static EsitoIncasso Incassa(Character c, int incassoPlatino, int incassoOro,
+                                       int incassoElectrum, int incassoArgento, int incassoRame) =>
+        Incassa(c.PlatinumPieces, c.GoldPieces, c.ElectrumPieces, c.SilverPieces, c.CopperPieces,
+                incassoPlatino, incassoOro, incassoElectrum, incassoArgento, incassoRame);
+
+    /// <summary>Scrive l'esito sul personaggio: mutazione in place, nessuna I/O — il salvataggio
+    /// resta a chi chiama, come per gli altri Applica di questa classe.</summary>
+    public static void Applica(Character c, EsitoIncasso esito)
+    {
+        c.PlatinumPieces = esito.PlatinumPieces;
+        c.GoldPieces = esito.GoldPieces;
+        c.ElectrumPieces = esito.ElectrumPieces;
+        c.SilverPieces = esito.SilverPieces;
+        c.CopperPieces = esito.CopperPieces;
+    }
+
+    private static int SommaClamp(int posseduto, int aggiunto)
+    {
+        var somma = (long)Math.Max(0, posseduto) + Math.Max(0, aggiunto);
+        return somma > int.MaxValue ? int.MaxValue : (int)somma;
     }
 }

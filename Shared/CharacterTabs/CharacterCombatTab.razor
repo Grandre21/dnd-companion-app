@@ -439,9 +439,9 @@ else
     [Parameter] public IReadOnlyList<GruppoPrivilegi> Gruppi { get; set; } = Array.Empty<GruppoPrivilegi>();
 
     /// <summary>Bolle fino a Characters.razor: la voce si fonde in Character.CharacterFeatures per
-    /// nome normalizzato e il salvataggio passa dallo stesso SaveCharacterAsync degli altri tab —
-    /// questo componente non possiede l'annotazione, la smista soltanto (v. commento sul markup
-    /// della sezione privilegi).</summary>
+    /// nome normalizzato e il salvataggio passa direttamente da SaveCharacterCoreAsync, come negli
+    /// altri tab, che ne riporta l'esito — questo componente non possiede l'annotazione, la smista
+    /// soltanto (v. commento sul markup della sezione privilegi).</summary>
     [Parameter] public EventCallback<CharacterFeature> OnSalvaAnnotazione { get; set; }
 
     /// <summary>Apre il foglio di dettaglio del privilegio (piano 2026-08-08, D3/D4): risale da

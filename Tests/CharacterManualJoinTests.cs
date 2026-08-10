@@ -157,4 +157,46 @@ public class CharacterManualJoinTests
 
         Assert.Null(esito);
     }
+
+    // ---- SpecieRiconosciuta ----
+
+    [Fact]
+    public void SpecieRiconosciuta_MatchEsattoNormalizzato()
+    {
+        var catalogo = new List<PackageSpecies>
+        {
+            new() { Id = "srd-2024-it/nano", Name = "Nano", Description = "…" },
+            new() { Id = "srd-2024-it/elfo", Name = "Elfo", Description = "…" },
+        };
+
+        Assert.Equal("Nano", CharacterManualJoin.SpecieRiconosciuta("  nano ", catalogo)?.Name);
+        Assert.Equal("Elfo", CharacterManualJoin.SpecieRiconosciuta("ELFO", catalogo)?.Name);
+    }
+
+    [Fact]
+    public void SpecieRiconosciuta_NomeConAccento_SiRiconosce()
+    {
+        // Il progetto compila con InvariantGlobalization=true: String.Normalize è un no-op
+        // SILENZIOSO, quindi il match deve passare da CatalogKey.NormalizeName, che piega gli
+        // accenti con una mappa scritta a mano. Questo è il caso che rende il test non vacuo.
+        var catalogo = new List<PackageSpecies>
+        {
+            new() { Id = "x/mezzelfo", Name = "Mezzelfo", Description = "…" },
+        };
+
+        Assert.NotNull(CharacterManualJoin.SpecieRiconosciuta("mezzélfo", catalogo));
+    }
+
+    [Fact]
+    public void SpecieRiconosciuta_NomeScrittoAMano_TornaNull()
+    {
+        var catalogo = new List<PackageSpecies>
+        {
+            new() { Id = "x/nano", Name = "Nano", Description = "…" },
+        };
+
+        Assert.Null(CharacterManualJoin.SpecieRiconosciuta("Nanetto delle Colline", catalogo));
+        Assert.Null(CharacterManualJoin.SpecieRiconosciuta("", catalogo));
+        Assert.Null(CharacterManualJoin.SpecieRiconosciuta(null, catalogo));
+    }
 }
