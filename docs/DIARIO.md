@@ -3,7 +3,7 @@
 > Promemoria sintetico di **cosa è stato fatto e perché**. Ciò che resta aperto **si dice in chat**, non
 > si archivia (regola del 2026-08-08): [storico/backlog.md](./storico/backlog.md) conserva solo i punti
 > tecnici mai ripresi, e non si apre di routine.
-> Aggiornato: **2026-08-08**.
+> Aggiornato: **2026-08-10**.
 
 ## Cos'è
 PWA per gestire campagne **D&D 5e**: schede personaggio, cataloghi (incantesimi, mostri, razze, classi),
@@ -2222,3 +2222,90 @@ Il rimedio è `RiallineaSheet()`, che riallinea **il modo attivo qualunque sia**
 voce singola per nome normalizzato su tutti i gruppi — così una voce a cui si cambia il tag durante la
 modifica si ritrova comunque. Il terzo modo, la caratteristica, non ne aveva bisogno: passa `selected`
 vivo a `StatCard` invece di catturarne un'istanza.
+
+## «Sento che c'è ancora modo di migliorare l'interfaccia» (2026-08-10)
+
+Richiesta volutamente vaga, e la prima cosa utile è stata **non prenderla per buona**. Quattro domande
+a scelta multipla hanno separato una sensazione unica in **tre attriti che non c'entravano niente fra
+loro**: (1) l'app dice di aver salvato quando non l'ha fatto, (2) certi input costano troppo, ma solo
+*dopo* il turno, (3) la lettura fallisce sul manuale.
+
+### Le risposte negative hanno cancellato tre interventi
+
+Vale la pena registrarlo perché è il rendimento vero dell'intervista, e non si vede nel diff. Erano sul
+tavolo — con argomenti buoni — tre lavori che l'intervista ha **eliminato**:
+
+- **Slot e punti ferita**: sospettati di essere il punto dolente durante il turno. Scagionati: durante
+  il combattimento nessuno dei due dà fastidio. Il tracker va bene com'è.
+- **«Temo di toccare le cose»**: negato dall'utente. Con questa risposta è decaduta una raccomandazione
+  **esplicita di Fable** — un livello di conferme in più prima delle modifiche. Sarebbe stato lavoro
+  fatto bene contro un problema inesistente.
+- **«Una cosa che avevo scritto io è sparita»**: negato. Nessuna ri-partizione dei dati scritti a mano.
+
+Tre interventi non fatti valgono quanto i tre fatti. La strada scelta è stata **fiducia + input**.
+
+### Il difetto sotto l'attrito: un rifiuto che non fa rumore
+
+L'attrito (1) non era una questione di percezione. `UpdateCharacterAsync` ritorna `null` quando le RLS
+rifiutano: **PostgREST aggiorna zero righe, risponde `[]`, e non solleva niente**. Chi non guardava il
+valore di ritorno annunciava un successo mai avvenuto e — peggio — lasciava a schermo il valore
+mutato in memoria. La prossima scrittura di qualunque altro campo l'avrebbe poi persistito, perché
+`Update(character)` manda la riga intera.
+
+`StatCard` e `CharacterMagicTab` passano quindi da `EventCallback OnChanged` a **`Func<Task<bool>>
+OnChanged`**, la terna già in casa su `CharacterVitalsBar` e `CharacterCombatTab`. Il cambio ha un
+costo che va detto: `EventCallback` non è solo un delegato, è il delegato **per cui Blazor ri-renderizza
+da solo**. Passando a un `Func` quel re-render sparisce, e serve `EventCallback OnLocalRevert` per
+avvisare i componenti fratelli che il valore è tornato indietro. È il motivo per cui il contratto è
+una terna e non una firma.
+
+Mappando i call-site sono emersi due pezzi morti, rimossi: `CharacterStatsTab.OnChanged` — parametro
+mai invocato, quel tab apre solo il foglio — e `SaveCharacterAsync`, alias di una riga.
+
+### Tre difetti nati in un documento. È la terza volta.
+
+Il 2026-08-08 questa pagina registrava che «è la seconda volta in un giorno che un difetto nasce in un
+documento invece che in un file di codice». Stavolta sono stati **tre**, tutti nel piano, tutti eseguiti
+fedelmente:
+
+1. Un `grid-column: 1 / -1` mancante nel CSS scritto nel piano — il pulsante avrebbe occupato mezza
+   riga. L'agente **l'ha segnalato senza correggerlo**, che è il comportamento giusto.
+2. I call-site di `StatCard` cercati solo dentro `Characters.razor`. `Pages/Showroom.razor` ne aveva
+   due, ed è sopravvissuto a una build **incrementale** che non l'aveva ricompilato.
+3. Nel piano avevo scritto `Character.PlatinumPieces = precedente[0]` invece di `pg.PlatinumPieces` —
+   esattamente il difetto che il piano stesso, tre paragrafi sopra, istruiva a evitare.
+
+Il terzo l'hanno trovato **entrambi** gli agenti del gate, indipendentemente. Il secondo è emerso per
+caso, mentre un agente faceva altro. Nessuna delle tre verifiche automatiche guarda dove nascono:
+la build no (è un documento), i test no, il gate sul diff neanche — vede il codice *dopo* che l'errore
+è già stato copiato dentro.
+
+Un corollario tecnico che spiega il difetto 2 e va ricordato: **`[EditorRequired]` produce il warning
+`RZ2012`, non un errore**. Un call-site che *omette* il parametro compila; uno che passa il *tipo*
+sbagliato no. Quindi una conversione di firma si può dimenticare in silenzio — e con `dotnet build`
+incrementale il warning non ricompare nemmeno. Da qui in avanti, dopo un cambio di contratto:
+`--no-incremental`.
+
+### La corsa che nessun gate individuale poteva vedere
+
+Il giro sulle **giunture** ha trovato ciò per cui esiste. `CharacterVitalsBar` resta montata accanto ai
+tab, e `characters` è una riga da 113 colonne senza `updated_at` né lock ottimistico: due tocchi
+ravvicinati facevano partire due `UPDATE` sulla stessa riga, e con risposte fuori ordine la prima
+sovrascriveva la seconda. In silenzio, perché **entrambe riuscivano**.
+
+Era un difetto **preesistente**, non introdotto dal lavoro — quindi riportato all'utente invece di
+risolto di nascosto, e corretto su sua scelta estendendo `IsSaving` a `CharacterItemsTab` e
+`CharacterMagicTab`. Le tre unità erano tutte uscite pulite dal proprio gate: quel difetto stava fra
+una e l'altra, dove per costruzione nessuno dei tre autori poteva guardare.
+
+### Un'inconsistenza lasciata in piedi, con la ragione scritta
+
+`CharacterMagicTab.ToggleSpellSlot` è l'unico metodo che muta e salva **senza** catturare
+`var pg = Character` prima dell'`await`. L'agente del gate l'ha notato, ha tracciato i quattro punti che
+riassegnano `selected` e ha verificato che ognuno richiede di **smontare** il tab prima della
+riassegnazione: nessuno scenario raggiungibile dall'interfaccia attuale. Non l'ha riportato come
+rilievo, ed è la scelta giusta — un rilievo senza scenario di fallimento è rumore.
+
+Resta scritto qui perché la protezione **non è nel metodo**: è nella navigazione. Il giorno in cui un
+tab diventasse raggiungibile senza smontarsi, quel metodo scriverebbe su un altro personaggio, e
+niente nel suo codice lo direbbe.
